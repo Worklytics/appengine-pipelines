@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.github.rholder.retry.*;
 import com.google.appengine.api.backends.BackendServiceFactory;
 import com.google.appengine.api.modules.ModulesException;
 import com.google.appengine.api.modules.ModulesService;
@@ -24,9 +25,6 @@ import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskHandle;
 import com.google.appengine.api.taskqueue.TaskOptions;
-import com.google.appengine.tools.cloudstorage.ExceptionHandler;
-import com.google.appengine.tools.cloudstorage.RetryHelper;
-import com.google.appengine.tools.cloudstorage.RetryParams;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
@@ -38,9 +36,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
@@ -55,8 +53,13 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
   static final int MAX_TASKS_PER_ENQUEUE = QueueConstants.maxTasksPerAdd();
 
-  private static final ExceptionHandler MODULES_EXCEPTION_HANDLER =
-      new ExceptionHandler.Builder().retryOn(ModulesException.class).build();
+  //approximates default Retry policy from GAE GCS lib RetryParams class, which this pipelines lib was originally
+  // coupled to
+  private static final Retryer<String> retryer = RetryerBuilder.<String>newBuilder()
+          .retryIfExceptionOfType(ModulesException.class)
+          .withStopStrategy(StopStrategies.stopAfterAttempt(6))
+          .withWaitStrategy(WaitStrategies.incrementingWait(1000L, TimeUnit.MILLISECONDS, 1000L, TimeUnit.MILLISECONDS))
+          .build();
 
   @Override
   public void enqueue(Task task) {
@@ -143,9 +146,11 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
           queueSettings.getOnBackend()));
     } else {
 
-      String versionHostname = RetryHelper.runWithRetries(new Callable<String>() {
-        @Override
-        public String call() {
+      String versionHostname;
+
+      //annoyingly, guava Retryer throws Exceptions, rather than RuntimeExceptions
+      try {
+        versionHostname = retryer.call(() -> {
           ModulesService service = ModulesServiceFactory.getModulesService();
           String module = queueSettings.getOnModule();
           String version = queueSettings.getModuleVersion();
@@ -154,8 +159,14 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
             version = service.getCurrentVersion();
           }
           return service.getVersionHostname(module, version);
-        }
-      }, RetryParams.getDefaultInstance(), MODULES_EXCEPTION_HANDLER);
+        });
+      } catch (ExecutionException e) {
+        //avoid excessive wrapping; re-throw the underlying cause
+        throw new RuntimeException(e.getCause());
+      } catch (RetryException e) {
+        throw new RuntimeException(e);
+      }
+
       taskOptions.header("Host", versionHostname);
     }
 
