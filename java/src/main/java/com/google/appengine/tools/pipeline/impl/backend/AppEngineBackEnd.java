@@ -20,6 +20,7 @@ import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_
 import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
 import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
 
+import com.github.rholder.retry.*;
 import com.google.appengine.api.datastore.Blob;
 import com.google.appengine.api.datastore.Cursor;
 import com.google.appengine.api.datastore.DatastoreFailureException;
@@ -37,11 +38,7 @@ import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
 import com.google.appengine.api.datastore.QueryResultIterator;
 import com.google.appengine.api.datastore.Transaction;
-import com.google.appengine.tools.cloudstorage.ExceptionHandler;
-import com.google.appengine.tools.cloudstorage.NonRetriableException;
-import com.google.appengine.tools.cloudstorage.RetriesExhaustedException;
-import com.google.appengine.tools.cloudstorage.RetryHelper;
-import com.google.appengine.tools.cloudstorage.RetryParams;
+
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
@@ -73,7 +70,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -82,18 +82,21 @@ import java.util.logging.Logger;
  */
 public class AppEngineBackEnd implements PipelineBackEnd {
 
-  private static final RetryParams RETRY_PARAMS = new RetryParams.Builder()
-      .retryDelayBackoffFactor(2)
-      .initialRetryDelayMillis(300)
-      .maxRetryDelayMillis(5000)
-      .retryMinAttempts(5)
-      .retryMaxAttempts(5)
-      .build();
+  private <E> Retryer<E> withDefaults(RetryerBuilder<E> builder) {
+      return builder
+              .withWaitStrategy(WaitStrategies.exponentialWait(2, 5000, TimeUnit.MILLISECONDS))
+              .retryIfExceptionOfType(ConcurrentModificationException.class)
+              .retryIfExceptionOfType(DatastoreTimeoutException.class)
+              .retryIfExceptionOfType(DatastoreFailureException.class)
+              //abort on EntityNotFoundException/NoSuchObjectException
+              .withStopStrategy((Attempt failedAttempt) ->
+                      failedAttempt.getAttemptNumber() > 4
+                      || (failedAttempt.hasException() &&
+                            (failedAttempt.getExceptionCause() instanceof EntityNotFoundException
+                                || failedAttempt.getExceptionCause() instanceof NoSuchObjectException)))
+              .build();
 
-  private static final ExceptionHandler EXCEPTION_HANDLER = new ExceptionHandler.Builder().retryOn(
-      ConcurrentModificationException.class, DatastoreTimeoutException.class,
-      DatastoreFailureException.class)
-      .abortOn(EntityNotFoundException.class, NoSuchObjectException.class).build();
+  }
 
   private static final Logger logger = Logger.getLogger(AppEngineBackEnd.class.getName());
 
@@ -196,14 +199,17 @@ public class AppEngineBackEnd implements PipelineBackEnd {
 
   private <R> R tryFiveTimes(final Operation<R> operation) {
     try {
-      return RetryHelper.runWithRetries(operation, RETRY_PARAMS, EXCEPTION_HANDLER);
-    } catch (RetriesExhaustedException|NonRetriableException e) {
+      return withDefaults(RetryerBuilder.<R>newBuilder()).call(operation);
+    } catch (ExecutionException e) {
+      logger.log(Level.INFO, "Non-retryable exception during " + operation.getName(), e.getCause());
+      throw new RuntimeException(e.getCause());
+    } catch (RetryException e) {
       if (e.getCause() instanceof RuntimeException) {
         logger.info(e.getCause().getMessage() + " during " + operation.getName()
             + " throwing after multiple attempts ");
         throw (RuntimeException) e.getCause();
       } else {
-        throw e;
+        throw new RuntimeException(e);
       }
     }
   }
@@ -445,7 +451,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
             return dataStore.get(null, key);
         }
       });
-    } catch (NonRetriableException|RetriesExhaustedException e) {
+    } catch (RuntimeException e) {
       Throwable cause = e.getCause();
       if (cause instanceof EntityNotFoundException) {
         throw new NoSuchObjectException(key.toString(), cause);
