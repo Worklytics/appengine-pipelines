@@ -68,7 +68,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     Queue queue = getQueue(task.getQueueSettings().getOnQueue());
     try {
       queue.add(taskOptions);
-    } catch (TaskAlreadyExistsException ingore) {
+    } catch (TaskAlreadyExistsException ignore) {
       // ignore
     }
   }
