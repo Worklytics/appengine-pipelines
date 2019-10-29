@@ -83,7 +83,7 @@
     <dependency>
       <groupId>org.json</groupId>
       <artifactId>json</artifactId>
-      <version>20180813</version>
+      <version>20190722</version>
     </dependency>
     <!-- will be deprecated in GAE Java 11 env. need to replace with:
      1) Cloud Tasks : https://developers.google.com/api-client-library/java/apis/cloudtasks/v2
