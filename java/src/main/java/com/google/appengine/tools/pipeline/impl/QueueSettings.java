@@ -7,9 +7,8 @@ package com.google.appengine.tools.pipeline.impl;
  */
 public final class QueueSettings implements Cloneable {
 
-  private String onBackend;
-  private String onModule;
-  private String moduleVersion;
+  private String onService;
+  private String onServiceVersion;
   private String onQueue;
   private Long delay;
 
@@ -18,12 +17,9 @@ public final class QueueSettings implements Cloneable {
    * Note, delay value is not being merged.
    */
   public QueueSettings merge(QueueSettings other) {
-    if (onBackend == null && onModule == null) {
-      onBackend = other.getOnBackend();
-    }
-    if (onModule == null && onBackend == null) {
-      onModule = other.getOnModule();
-      moduleVersion = other.getModuleVersion();
+    if (onService == null) {
+      onService = other.getOnService();
+      onServiceVersion = other.getOnServiceVersion();
     }
     if (onQueue == null) {
       onQueue = other.getOnQueue();
@@ -31,37 +27,23 @@ public final class QueueSettings implements Cloneable {
     return this;
   }
 
-  public QueueSettings setOnBackend(String onBackend) {
-    if (onBackend != null && onModule != null) {
-      throw new IllegalStateException("OnModule and OnBackend cannot be combined");
-    }
-    this.onBackend = onBackend;
+
+  public String getOnService() {
+    return this.onService;
+  }
+
+  public QueueSettings setOnService(String onService) {
+    this.onService = onService;
     return this;
   }
 
-  public String getOnBackend() {
-    return onBackend;
-  }
-
-  public QueueSettings setOnModule(String onModule) {
-    if (onModule != null && onBackend != null) {
-      throw new IllegalStateException("OnModule and OnBackend cannot be combined");
-    }
-    this.onModule = onModule;
+  public QueueSettings setOnServiceVersion(String serviceVersion) {
+    this.onServiceVersion = serviceVersion;
     return this;
   }
 
-  public String getOnModule() {
-    return onModule;
-  }
-
-  public QueueSettings setModuleVersion(String moduleVersion) {
-    this.moduleVersion = moduleVersion;
-    return this;
-  }
-
-  public String getModuleVersion() {
-    return moduleVersion;
+  public String getOnServiceVersion() {
+    return onServiceVersion;
   }
 
   public QueueSettings setOnQueue(String onQueue) {
@@ -92,7 +74,7 @@ public final class QueueSettings implements Cloneable {
 
   @Override
   public String toString() {
-    return "QueueSettings[onBackEnd=" + onBackend + ", onModule=" + onModule + ", moduleVersion="
-        + moduleVersion + ", onQueue=" + onQueue + ", delayInSeconds=" + delay + "]";
+    return "QueueSettings[onService=" + onService + ", onServiceVersion="
+        + onServiceVersion + ", onQueue=" + onQueue + ", delayInSeconds=" + delay + "]";
   }
 }

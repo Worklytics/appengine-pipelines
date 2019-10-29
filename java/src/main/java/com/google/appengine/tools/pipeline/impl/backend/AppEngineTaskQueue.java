@@ -15,7 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.github.rholder.retry.*;
-import com.google.appengine.api.backends.BackendServiceFactory;
+
 import com.google.appengine.api.modules.ModulesException;
 import com.google.appengine.api.modules.ModulesService;
 import com.google.appengine.api.modules.ModulesServiceFactory;
@@ -141,34 +141,31 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     final QueueSettings queueSettings = task.getQueueSettings();
 
     TaskOptions taskOptions = TaskOptions.Builder.withUrl(TaskHandler.handleTaskUrl());
-    if (queueSettings.getOnBackend() != null) {
-      taskOptions.header("Host", BackendServiceFactory.getBackendService().getBackendAddress(
-          queueSettings.getOnBackend()));
-    } else {
 
-      String versionHostname;
+    String versionHostname;
 
-      //annoyingly, guava Retryer throws Exceptions, rather than RuntimeExceptions
-      try {
-        versionHostname = retryer.call(() -> {
-          ModulesService service = ModulesServiceFactory.getModulesService();
-          String module = queueSettings.getOnModule();
-          String version = queueSettings.getModuleVersion();
-          if (module == null) {
-            module = service.getCurrentModule();
-            version = service.getCurrentVersion();
-          }
-          return service.getVersionHostname(module, version);
-        });
-      } catch (ExecutionException e) {
-        //avoid excessive wrapping; re-throw the underlying cause
-        throw new RuntimeException(e.getCause());
-      } catch (RetryException e) {
-        throw new RuntimeException(e);
-      }
-
-      taskOptions.header("Host", versionHostname);
+    //annoyingly, guava Retryer throws Exceptions, rather than RuntimeExceptions
+    try {
+      versionHostname = retryer.call(() -> {
+        //TODO: Modules are now called 'Services', but there's no "ServicesService" in GAE SDK, afaik
+        ModulesService service = ModulesServiceFactory.getModulesService();
+        String module = queueSettings.getOnService();
+        String version = queueSettings.getOnServiceVersion();
+        if (module == null) {
+          module = service.getCurrentModule();
+          version = service.getCurrentVersion();
+        }
+        return service.getVersionHostname(module, version);
+      });
+    } catch (ExecutionException e) {
+      //avoid excessive wrapping; re-throw the underlying cause
+      throw new RuntimeException(e.getCause());
+    } catch (RetryException e) {
+      throw new RuntimeException(e);
     }
+
+    taskOptions.header("Host", versionHostname);
+
 
     Long delayInSeconds = queueSettings.getDelayInSeconds();
     if (null != delayInSeconds) {

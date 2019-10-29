@@ -48,37 +48,26 @@ public abstract class Task {
 
   private enum TaskProperty {
 
-    ON_BACKEND {
+    ON_SERVICE {
       @Override
       void setProperty(Task task, String value) {
-        task.getQueueSettings().setOnBackend(value);
+        task.getQueueSettings().setOnService(value);
       }
 
       @Override
       String getProperty(Task task) {
-        return task.getQueueSettings().getOnBackend();
+        return task.getQueueSettings().getOnService();
       }
     },
-    ON_MODULE {
+    ON_SERVICE_VERSION {
       @Override
       void setProperty(Task task, String value) {
-        task.getQueueSettings().setOnModule(value);
+        task.getQueueSettings().setOnServiceVersion(value);
       }
 
       @Override
       String getProperty(Task task) {
-        return task.getQueueSettings().getOnModule();
-      }
-    },
-    MODULE_VERSION {
-      @Override
-      void setProperty(Task task, String value) {
-        task.getQueueSettings().setModuleVersion(value);
-      }
-
-      @Override
-      String getProperty(Task task) {
-        return task.getQueueSettings().getModuleVersion();
+        return task.getQueueSettings().getOnServiceVersion();
       }
     },
     ON_QUEUE {
