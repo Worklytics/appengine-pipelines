@@ -1,9 +1,9 @@
 # App Engine Pipeline Framework for Java
 
+## Usage
 
-## Continuous Integration
-[![Codeship Status for Worklytics/appengine-pipelines](https://app.codeship.com/projects/341fae40-195c-0137-b96c-1a1a0859fc7b/status?branch=master)](https://app.codeship.com/projects/328456)
-
+Worklytics's version of this framework is published in our [GitHub Package repository](https://github.com/Worklytics
+/appengine-pipelines/packages).
 
 ## Change Log
 
@@ -17,13 +17,21 @@
 
 ### Maven
 Run tests:
-```bash
+```shell script
 mvn test
 ``` 
 
 Package:
-```bash
+```shell script
 mvn package
 ```
 
 Your JAR will be in `java/target/`
+
+### Deployment
+
+ 1. create a GitHub personal access token and put it in your `/.m2/settings.xml`, as described in [GitHub's docs](https://help.github.com/en/github/managing-packages-with-github-package-registry/configuring-apache-maven-for-use-with-github-package-registry)
+ 2. run the following (from the `java/` subdirectory of the repo):
+ ```shell script
+mvn deploy
+```

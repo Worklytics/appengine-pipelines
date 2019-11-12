@@ -3,13 +3,10 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.google.appengine.tools</groupId>
   <artifactId>appengine-pipeline</artifactId>
-  <name>App Engine Pipeline Framework</name>
-  <description>Google App Engine API for connecting together complex workflows</description>
-  <url>https://github.com/GoogleCloudPlatform/appengine-pipelines/</url>
-  <organization>
-    <name>Google</name>
-  </organization>
-  <version>0.4-SNAPSHOT</version>
+  <name>Pipeline Framework for Google App Engine</name>
+  <description>Framework for orchestrating complex workflows on top of Google App Engine</description>
+  <url>https://github.com/Worklytics/appengine-pipelines/</url>
+  <version>0.3-SNAPSHOT</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -20,6 +17,16 @@
   <properties>
     <appengine.target.version>[1.9.1,2.0)</appengine.target.version>
   </properties>
+
+  <distributionManagement>
+    <!-- distribute Worklytics's version of this FW via GitHub Package Repository -->
+    <repository>
+      <id>github</id>
+      <name>Pipelines for Google App Engine by Worklytics</name>
+      <url>https://maven.pkg.github.com/Worklytics/appengine-pipelines</url>
+    </repository>
+  </distributionManagement>
+
   <build>
     <plugins>
       <plugin>
