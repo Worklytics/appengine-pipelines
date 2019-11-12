@@ -170,6 +170,8 @@ public interface JobSetting extends Serializable {
 
   /**
    * A setting for specifying what version of service (module) to run a job on.
+   *
+   * q: good idea to expose this? perhaps should keep internal to FW
    */
   final class OnServiceVersion extends StringValuedSetting {
 
