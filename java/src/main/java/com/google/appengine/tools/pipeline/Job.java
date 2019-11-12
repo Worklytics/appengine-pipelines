@@ -467,17 +467,18 @@ public abstract class Job<E> implements Serializable {
    * syntactic sugar. {@code onBackend(x)} is equivalent to
    * {@code new JobSetting.OnBackend(x)}.
    */
+  @Deprecated //will remove in v0.5; use onService instead
   public static JobSetting.OnBackend onBackend(String backend) {
     return new JobSetting.OnBackend(backend);
   }
 
   /**
-   * Constructs a new {@code JobSetting.OnModule}. This method is only
+   * Constructs a new {@code JobSetting.OnService}. This method is only
    * syntactic sugar. {@code onModule(x)} is equivalent to
-   * {@code new JobSetting.OnModule(x)}.
+   * {@code new JobSetting.OnService(x)}.
    */
-  public static JobSetting.OnModule onModule(String module) {
-    return new JobSetting.OnModule(module);
+  public static JobSetting.OnService onService(String service) {
+    return new JobSetting.OnService(service);
   }
 
   /**
@@ -549,12 +550,8 @@ public abstract class Job<E> implements Serializable {
     return thisJobRecord.getQueueSettings().getOnQueue();
   }
 
-  protected String getOnBackend() {
-    return thisJobRecord.getQueueSettings().getOnBackend();
-  }
-
-  protected String getOnModule() {
-    return thisJobRecord.getQueueSettings().getOnModule();
+  protected String getOnService() {
+    return thisJobRecord.getQueueSettings().getOnService();
   }
 
   /**

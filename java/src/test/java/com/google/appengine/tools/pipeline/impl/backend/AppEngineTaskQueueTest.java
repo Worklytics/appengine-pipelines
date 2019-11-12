@@ -119,7 +119,7 @@ public class AppEngineTaskQueueTest extends TestCase {
   private Task createTask() {
     String name = GUIDGenerator.nextGUID();
     Key key = KeyFactory.createKey("testType", name);
-    Task task = new RunJobTask(key, new QueueSettings().setModuleVersion("m1"));
+    Task task = new RunJobTask(key, new QueueSettings().setOnServiceVersion("m1"));
     return task;
   }
 }
