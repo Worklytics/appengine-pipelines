@@ -474,7 +474,7 @@ public abstract class Job<E> implements Serializable {
 
   /**
    * Constructs a new {@code JobSetting.OnService}. This method is only
-   * syntactic sugar. {@code onModule(x)} is equivalent to
+   * syntactic sugar. {@code onService(x)} is equivalent to
    * {@code new JobSetting.OnService(x)}.
    */
   public static JobSetting.OnService onService(String service) {
@@ -483,12 +483,13 @@ public abstract class Job<E> implements Serializable {
 
 
   /**
-   * Constructs a new {@code JobSetting.OnModuleVersion}. This method is only
-   * syntactic sugar. {@code onModule(x)} is equivalent to
-   * {@code new JobSetting.OnModuleVersion(x)}.
+   * Constructs a new {@code JobSetting.OnServiceVersion}. This method is only
+   * syntactic sugar. {@code onServiceVersion(x)} is equivalent to
+   * syntactic sugar. {@code onServiceVersion(x)} is equivalent to
+   * {@code new JobSetting.OnServiceVersion(x)}.
    */
-  public static JobSetting.OnModuleVersion onModuleVersion(String version) {
-    return new JobSetting.OnModuleVersion(version);
+  public static JobSetting.OnServiceVersion onServiceVersion(String version) {
+    return new JobSetting.OnServiceVersion(version);
   }
 
   /**
