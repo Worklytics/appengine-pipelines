@@ -346,10 +346,11 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     String service = queueSettings.getOnService();
     ModulesService modulesService = ModulesServiceFactory.getModulesService();
     if (service == null) {
-      //take current
+      //no service set via jobSettings; so default to the currentModule / currentModuleVersion
       queueSettings.setOnService(modulesService.getCurrentModule());
       queueSettings.setOnServiceVersion(modulesService.getCurrentVersion());
-    } else {
+    } else if (queueSettings.getOnServiceVersion() == null) {
+      //service set via JobSettings, but no specific version specified
       if (service.equals(modulesService.getCurrentModule())) {
         queueSettings.setOnServiceVersion(modulesService.getCurrentVersion());
       } else {
