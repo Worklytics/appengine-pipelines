@@ -99,7 +99,8 @@
       <artifactId>guava</artifactId>
       <!-- version number of release candidates come before the ##.0 in maven,
            use .99 to get latest release within the specified major version -->
-      <version>[15.0,20.99]</version>
+      <!-- GAE *requires* java8, so reasonable that library for GAE should require it too -->
+      <version>[21.0,21.99]</version>
     </dependency>
     <dependency>
       <groupId>javax.servlet</groupId>
