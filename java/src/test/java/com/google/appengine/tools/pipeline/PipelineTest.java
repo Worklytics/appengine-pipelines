@@ -32,7 +32,7 @@ import java.util.Map;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-public class PipelineTest extends TestCase {
+public abstract class PipelineTest extends TestCase {
 
   protected LocalServiceTestHelper helper;
   protected ApiProxy.Environment apiProxyEnvironment;

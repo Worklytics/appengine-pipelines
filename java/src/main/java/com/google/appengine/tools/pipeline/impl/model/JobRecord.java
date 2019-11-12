@@ -416,6 +416,10 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       }
     } else if (setting instanceof OnService) {
       queueSettings.setOnService(((JobSetting.OnService) setting).getValue());
+    } else if (setting instanceof OnBackend) {
+      queueSettings.setOnService(((OnBackend) setting).getValue());
+    } else if (setting instanceof JobSetting.OnServiceVersion) {
+      queueSettings.setOnServiceVersion(((JobSetting.OnServiceVersion) setting).getValue());
     } else if (setting instanceof OnQueue) {
       queueSettings.setOnQueue(((OnQueue) setting).getValue());
     } else if (setting instanceof StatusConsoleUrl){

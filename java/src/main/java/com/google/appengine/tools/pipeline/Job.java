@@ -481,6 +481,16 @@ public abstract class Job<E> implements Serializable {
     return new JobSetting.OnService(service);
   }
 
+
+  /**
+   * Constructs a new {@code JobSetting.OnModuleVersion}. This method is only
+   * syntactic sugar. {@code onModule(x)} is equivalent to
+   * {@code new JobSetting.OnModuleVersion(x)}.
+   */
+  public static JobSetting.OnModuleVersion onModuleVersion(String version) {
+    return new JobSetting.OnModuleVersion(version);
+  }
+
   /**
    * Constructs a new {@code JobSetting.OnQueue}. This method is only
    * syntactic sugar. {@code onQueue(x)} is equivalent to

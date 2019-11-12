@@ -156,7 +156,7 @@ public interface JobSetting extends Serializable {
   }
 
   /**
-   * A setting for specifying what module to run a job on.
+   * A setting for specifying what service (module) to run a job on.
    */
   final class OnService extends StringValuedSetting {
 
@@ -165,6 +165,19 @@ public interface JobSetting extends Serializable {
 
     public OnService(String service) {
       super(service);
+    }
+  }
+
+  /**
+   * A setting for specifying what version of service (module) to run a job on.
+   */
+  final class OnServiceVersion extends StringValuedSetting {
+
+    private static final long serialVersionUID = 3877411731586475273L;
+    public static final String DEFAULT = null;
+
+    public OnServiceVersion(String version) {
+      super(version);
     }
   }
 
