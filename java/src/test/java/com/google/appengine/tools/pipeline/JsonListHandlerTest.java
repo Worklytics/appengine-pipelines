@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline;
 
+import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWhitespace;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static org.mockito.Mockito.when;
 
@@ -107,7 +108,7 @@ public class JsonListHandlerTest extends PipelineTest {
 
   public void testHandlerNoResults() throws Exception {
     JsonListHandler.doGet(request, response);
-    assertEquals("{\"pipelines\": []}", output.toString());
+    assertEqualsIgnoreWhitespace("{\"pipelines\": []}", output.toString());
   }
 
   public void testHandlerWithResults() throws Exception {

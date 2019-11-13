@@ -16,8 +16,11 @@ package com.google.appengine.tools.pipeline.impl.util;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
 
 import java.util.Map;
 
@@ -46,9 +49,9 @@ public class JsonUtils {
   /**
    * Convert a JSON representation into an object
    */
-  public static Object fromJson(String json) {
+  public static Map<String, ?> fromJson(String json) {
     try {
-      return objectToJsonMapper.reader().readValue(json);
+      return objectToJsonMapper.readValue(json, Map.class);
     } catch (JsonProcessingException e) {
       throw new RuntimeException("json=" + json, e);
     }

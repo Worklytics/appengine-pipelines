@@ -5,6 +5,8 @@ import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
+
 public class TestUtils {
 
   public static void waitUntilTaskQueueIsEmpty(LocalTaskQueue taskQueue) throws InterruptedException {
@@ -55,5 +57,18 @@ public class TestUtils {
       default:
         throw new RuntimeException("Unexpected job state: " + jobInfo.getJobState());
     }
+  }
+
+  /**
+   * assert actual string matches expected, ignoring whitespace
+   * @param expected
+   * @param actual
+   */
+  public static void assertEqualsIgnoreWhitespace(String expected, String actual) {
+    assertEquals(stripWhitespace(expected), stripWhitespace(actual));
+  }
+
+  private static String stripWhitespace(String s) {
+    return s.replaceAll("\\s+","");
   }
 }
