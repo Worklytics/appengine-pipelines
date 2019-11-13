@@ -5,9 +5,9 @@ import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 
 import java.util.Map;
 
-class TestUtils {
+public class TestUtils {
 
-  static void waitUntilTaskQueueIsEmpty(LocalTaskQueue taskQueue) throws InterruptedException {
+  public static void waitUntilTaskQueueIsEmpty(LocalTaskQueue taskQueue) throws InterruptedException {
     boolean hasMoreTasks = true;
     while (hasMoreTasks) {
       Map<String, QueueStateInfo> taskInfoMap = taskQueue.getQueueStateInfo();
@@ -25,7 +25,7 @@ class TestUtils {
   }
 
 
-  static JobInfo waitUntilJobComplete(String pipelineId) throws Exception {
+  public static JobInfo waitUntilJobComplete(String pipelineId) throws Exception {
     PipelineService service = PipelineServiceFactory.newPipelineService();
     while (true) {
       Thread.sleep(2000);
@@ -41,7 +41,7 @@ class TestUtils {
   }
 
   @SuppressWarnings("unchecked")
-  static <T> T waitForJobToComplete(String pipelineId) throws Exception {
+  public static <T> T waitForJobToComplete(String pipelineId) throws Exception {
     JobInfo jobInfo = waitUntilJobComplete(pipelineId);
     switch (jobInfo.getJobState()) {
       case COMPLETED_SUCCESSFULLY:

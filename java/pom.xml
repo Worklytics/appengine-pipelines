@@ -16,6 +16,7 @@
   </licenses>
   <properties>
     <appengine.target.version>[1.9.1,2.0)</appengine.target.version>
+    <jackson.version>[2.6,2.99)</jackson.version>
   </properties>
 
   <distributionManagement>
@@ -88,10 +89,21 @@
   <dependencies>
     <!-- Compile/Runtime Dependencies -->
     <dependency>
-      <groupId>org.json</groupId>
-      <artifactId>json</artifactId>
-      <version>20190722</version>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>${jackson.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
     <!-- will be deprecated in GAE Java 11 env. need to replace with:
      1) Cloud Tasks : https://developers.google.com/api-client-library/java/apis/cloudtasks/v2
      2) Cloud Data store : https://cloud.google.com/datastore/docs/reference/libraries#client-libraries-install-java
