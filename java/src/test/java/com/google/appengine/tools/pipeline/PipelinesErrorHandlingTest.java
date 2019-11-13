@@ -19,6 +19,9 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import java.nio.channels.AlreadyConnectedException;
 import java.util.concurrent.CancellationException;
 
+import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+import static com.google.appengine.tools.pipeline.TestUtils.waitUntilTaskQueueIsEmpty;
+
 /**
  * Test error handling through handleException.
  *
@@ -415,7 +418,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
    */
   public void testGrandchildCancellation() throws Exception {
     String pipelineId = service.startNewPipeline(new TestGrandchildCancellationJob());
-    waitUntilTaskQueueIsEmpty();
+    waitUntilTaskQueueIsEmpty(taskQueue);
     Integer result = waitForJobToComplete(pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
 

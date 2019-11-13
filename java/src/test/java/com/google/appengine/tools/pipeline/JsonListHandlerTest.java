@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline;
 
+import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static org.mockito.Mockito.when;
 
 import com.google.appengine.tools.pipeline.impl.servlets.JsonListHandler;

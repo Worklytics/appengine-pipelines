@@ -22,6 +22,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+
 /**
  *
  * @author rudominer@google.com (Mitch Rudominer)

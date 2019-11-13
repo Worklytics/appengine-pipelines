@@ -2,6 +2,7 @@
 
 package com.google.appengine.tools.pipeline;
 
+import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static com.google.appengine.tools.pipeline.impl.util.TestUtils.getFailureProperty;
 
 import com.google.appengine.api.datastore.Entity;
