@@ -14,9 +14,13 @@
 
 package com.google.appengine.tools.pipeline;
 
+<<<<<<< HEAD
 import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWhitespace;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+=======
+import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+>>>>>>> 076d650 (extract common test methods, for re-use via utils class, rather than via inheritance)
 import static org.mockito.Mockito.when;
 
 import com.google.appengine.tools.pipeline.impl.servlets.JsonListHandler;

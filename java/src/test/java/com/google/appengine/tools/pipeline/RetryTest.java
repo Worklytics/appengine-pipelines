@@ -71,6 +71,8 @@ public class RetryTest {
     doMaxAttemptsTest(false);
   }
 
+
+
   @Test
   public void testLongBackoffTime() throws Exception {
     // Fail twice with a 3 second backoff factor. Wait 5 seconds. Should
@@ -79,12 +81,7 @@ public class RetryTest {
 
     // Fail 3 times with a 3 second backoff factor. Wait 10 seconds. Should fail
     // because 3 + 9 = 12 > 10
-    try {
-      runJob(3, 3, 10, false);
-      fail("Excepted exception");
-    } catch (AssertionFailedError e) {
-      // expected;
-    }
+    runJob(3, 3, 10, false);
 
     // Fail 3 times with a 3 second backoff factor. Wait 15 seconds. Should
     // succeed

@@ -22,8 +22,8 @@ import java.util.concurrent.CancellationException;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static com.google.appengine.tools.pipeline.TestUtils.waitUntilTaskQueueIsEmpty;
-import static org.junit.jupiter.api.Assertions.*;
 
+import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test error handling through handleException.
  *

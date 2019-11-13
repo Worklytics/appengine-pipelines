@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.appengine.tools.pipeline.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
-
 /**
  * Misc tests including:
  *  Passing large values.

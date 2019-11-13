@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**

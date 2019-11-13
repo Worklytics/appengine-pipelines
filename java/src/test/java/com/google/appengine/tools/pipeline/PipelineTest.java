@@ -114,6 +114,4 @@ public abstract class PipelineTest {
   public void tearDown() throws Exception {
     helper.tearDown();
   }
-
-
 }

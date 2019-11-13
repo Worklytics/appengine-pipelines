@@ -10,10 +10,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class TestUtils {
 
   public static void waitUntilTaskQueueIsEmpty(LocalTaskQueue taskQueue) throws InterruptedException {
+
     boolean hasMoreTasks = true;
     while (hasMoreTasks) {
       Map<String, QueueStateInfo> taskInfoMap = taskQueue.getQueueStateInfo();
-      hasMoreTasks = taskInfoMap.values().stream().anyMatch( i -> i.getCountTasks() > 0);
+      hasMoreTasks = false;
+      for (QueueStateInfo taskQueueInfo : taskInfoMap.values()) {
+        if (taskQueueInfo.getCountTasks() > 0) {
+          hasMoreTasks = true;
+          break;
+        }
+      }
       if (hasMoreTasks) {
         Thread.sleep(100);
       }
@@ -22,6 +29,7 @@ public class TestUtils {
 
 
   public static JobInfo waitUntilJobComplete(String pipelineId) throws Exception {
+
     PipelineService service = PipelineServiceFactory.newPipelineService();
     while (true) {
       Thread.sleep(2000);
@@ -36,8 +44,8 @@ public class TestUtils {
     }
   }
 
-  @SuppressWarnings("unchecked")
   public static <T> T waitForJobToComplete(String pipelineId) throws Exception {
+
     JobInfo jobInfo = waitUntilJobComplete(pipelineId);
     switch (jobInfo.getJobState()) {
       case COMPLETED_SUCCESSFULLY:
