@@ -158,10 +158,11 @@
       <version>${appengine.target.version}</version>
       <scope>test</scope>
     </dependency>
+      <!-- TODO: bump to junit 5 -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.10</version>
+      <version>4.12</version>
       <scope>test</scope>
     </dependency>
     <dependency>

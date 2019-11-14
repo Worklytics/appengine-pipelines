@@ -256,7 +256,7 @@ public class MiscPipelineTest extends PipelineTest {
     jobRecord = PipelineManager.getJob(pipelineId);
     assertEquals(job.getJobDisplayName(), jobRecord.getRootJobDisplayName());
     PipelineObjects pobjects = PipelineManager.queryFullPipeline(pipelineId);
-    assertEquals(job.getJobDisplayName(), pobjects.rootJob.getRootJobDisplayName());
+    assertEquals(job.getJobDisplayName(), pobjects.getRootJob().getRootJobDisplayName());
   }
 
   public void testJobInheritence() throws Exception {

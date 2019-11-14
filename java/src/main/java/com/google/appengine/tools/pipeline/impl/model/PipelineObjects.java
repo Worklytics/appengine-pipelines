@@ -15,11 +15,14 @@
 package com.google.appengine.tools.pipeline.impl.model;
 
 import com.google.appengine.api.datastore.Key;
+import lombok.Getter;
+import lombok.extern.java.Log;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * A container for holding the results of querying for all objects associated
@@ -27,15 +30,19 @@ import java.util.logging.Logger;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@Log
 public class PipelineObjects {
 
-  private static final Logger log = Logger.getLogger(PipelineObjects.class.getName());
-
-  public JobRecord rootJob;
-  public Map<Key, JobRecord> jobs;
-  public Map<Key, Slot> slots;
-  public Map<Key, Barrier> barriers;
-  public Map<Key, JobInstanceRecord> jobInstanceRecords;
+  @Getter
+  private JobRecord rootJob;
+  @Getter
+  private Map<Key, JobRecord> jobs;
+  @Getter
+  private Map<Key, Slot> slots;
+  @Getter
+  private Map<Key, Barrier> barriers;
+  @Getter
+  private Map<Key, JobInstanceRecord> jobInstanceRecords;
 
   /**
    * The {@code PipelineObjects} takes ownership of the objects passed in. The
@@ -48,43 +55,45 @@ public class PipelineObjects {
     this.barriers = barriers;
     this.jobs = jobs;
     this.slots = slots;
-    Map<Key, String> jobToChildGuid = new HashMap<>();
-    for (JobRecord job : jobs.values()) {
-      jobToChildGuid.put(job.getKey(), job.getChildGraphGuid());
-      if (job.getKey().equals(rootJobKey)) {
-        this.rootJob = job;
-      }
+
+    Map<Key, String> jobToChildGuid = jobs.values().stream()
+      .collect(Collectors.toMap(JobRecord::getKey, JobRecord::getChildGraphGuid));
+
+    this.rootJob = jobs.get(rootJobKey);
+    if (null == rootJob) {
+      throw new IllegalArgumentException("None of the jobs were the root job with key: " + rootJobKey);
     }
+
     for (Iterator<JobRecord> iter = jobs.values().iterator(); iter.hasNext(); ) {
       JobRecord job = iter.next();
       if (job != rootJob) {
         Key parentKey = job.getGeneratorJobKey();
         String graphGuid = job.getGraphGuid();
         if (parentKey == null || graphGuid == null) {
-          log.info("Ignoring a non root job with no parent or graphGuid -> " + job);
+          log.info("Ignoring a non-root job with no parent or graphGuid -> " + job);
           iter.remove();
         } else if (!graphGuid.equals(jobToChildGuid.get(parentKey))) {
-          log.info("Ignoring an orphand job " + job + ", parent: " + jobs.get(parentKey));
+          log.info("Ignoring an orphaned job " + job + ", parent: " + jobs.get(parentKey));
           iter.remove();
         }
       }
     }
-    if (null == rootJob) {
-      throw new IllegalArgumentException(
-          "None of the jobs were the root job with key " + rootJobKey);
-    }
+
+    //inflate slots
     for (Iterator<Slot> iter = slots.values().iterator(); iter.hasNext(); ) {
       Slot slot = iter.next();
       Key parentKey = slot.getGeneratorJobKey();
       String parentGuid = slot.getGraphGuid();
       if (parentKey == null && parentGuid == null
-          || parentGuid != null && parentGuid.equals(jobToChildGuid.get(parentKey))) {
+            || parentGuid != null && parentGuid.equals(jobToChildGuid.get(parentKey))) {
         slot.inflate(barriers);
       } else {
-        log.info("Ignoring an orphand slot " + slot + ", parent: " + jobs.get(parentKey));
+        log.info("Ignoring an orphaned slot " + slot + ", parent: " + jobs.get(parentKey));
         iter.remove();
       }
     }
+
+    //inflate barriers
     for (Iterator<Barrier> iter = barriers.values().iterator(); iter.hasNext(); ) {
       Barrier barrier = iter.next();
       Key parentKey = barrier.getGeneratorJobKey();
@@ -93,10 +102,12 @@ public class PipelineObjects {
           || parentGuid != null && parentGuid.equals(jobToChildGuid.get(parentKey))) {
         barrier.inflate(slots);
       } else {
-        log.info("Ignoring an orphand Barrier " + barrier + ", parent: " + jobs.get(parentKey));
+        log.info("Ignoring an orphaned Barrier " + barrier + ", parent: " + jobs.get(parentKey));
         iter.remove();
       }
     }
+
+    //inflate job records
     for (JobRecord jobRec : jobs.values()) {
       Barrier runBarrier = barriers.get(jobRec.getRunBarrierKey());
       Barrier finalizeBarrier = barriers.get(jobRec.getFinalizeBarrierKey());

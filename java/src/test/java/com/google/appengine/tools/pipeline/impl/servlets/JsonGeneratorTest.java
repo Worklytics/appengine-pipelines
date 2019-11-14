@@ -45,6 +45,7 @@ public class JsonGeneratorTest extends PipelineTest {
 
     PipelineObjects exampleObjects = mock(PipelineObjects.class);
 
+
     PipelineService service = PipelineServiceFactory.newPipelineService();
     ConcreteJob job = new ConcreteJob();
 

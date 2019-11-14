@@ -106,19 +106,19 @@ class JsonGenerator {
 
   @VisibleForTesting
   static Map<String, Object> objectsToMapRepresentation(PipelineObjects pipelineObjects) {
-    Map<String, Map<String, Object>> slotMap = new HashMap<>(pipelineObjects.slots.size());
-    Map<String, Map<String, Object>> jobMap = new HashMap<>(pipelineObjects.jobs.size());
+    Map<String, Map<String, Object>> slotMap = new HashMap<>(pipelineObjects.getSlots().size());
+    Map<String, Map<String, Object>> jobMap = new HashMap<>(pipelineObjects.getJobs().size());
     Map<String, Object> topLevel = new HashMap<>(4);
-    topLevel.put(ROOT_PIPELINE_ID, pipelineObjects.rootJob.getKey().getName());
+    topLevel.put(ROOT_PIPELINE_ID, pipelineObjects.getRootJob().getKey().getName());
     topLevel.put(SLOTS, slotMap);
     topLevel.put(PIPELINES, jobMap);
 
     //somehow, there are conditions in which this is building cyclic object graphs, which newer versions of JSONObject
     // attempt to serialize and end up with stack overflows
-    for (Slot slot : pipelineObjects.slots.values()) {
+    for (Slot slot : pipelineObjects.getSlots().values()) {
       slotMap.put(toString(slot.getKey()), buildMapRepresentation(slot));
     }
-    for (JobRecord jobRecord : pipelineObjects.jobs.values()) {
+    for (JobRecord jobRecord : pipelineObjects.getJobs().values()) {
       jobMap.put(jobRecord.getKey().getName(), buildMapRepresentation(jobRecord));
     }
     return topLevel;

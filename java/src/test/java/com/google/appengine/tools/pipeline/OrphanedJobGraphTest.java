@@ -98,17 +98,17 @@ public class OrphanedJobGraphTest extends PipelineTest {
     // really there
     PipelineObjects allObjects = PipelineManager.queryFullPipeline(pipelineHandle);
     Key rootJobKey = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, pipelineHandle);
-    JobRecord rootJob = allObjects.jobs.get(rootJobKey);
+    JobRecord rootJob = allObjects.getJobs().get(rootJobKey);
     assertNotNull(rootJob);
     String graphGuid = rootJob.getChildGraphGuid();
     assertNotNull(graphGuid);
-    int numJobs = allObjects.jobs.size();
+    int numJobs = allObjects.getJobs().size();
     assertEquals(2, numJobs);
     int numOrphanedJobs = 0;
     int numNonOrphanedJobs = 0;
 
     // Look through all of the JobRecords in the data store
-    for (JobRecord record : allObjects.jobs.values()) {
+    for (JobRecord record : allObjects.getJobs().values()) {
       // They all have the right rooJobKey
       assertEquals(rootJobKey, record.getRootJobKey());
       if (record.getKey().equals(rootJobKey)) {
