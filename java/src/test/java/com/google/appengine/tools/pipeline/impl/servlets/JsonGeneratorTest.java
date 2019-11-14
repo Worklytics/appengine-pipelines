@@ -8,6 +8,7 @@ import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
 
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitUntilJobComplete;
 import static org.mockito.Mockito.mock;
@@ -43,9 +44,6 @@ public class JsonGeneratorTest extends PipelineTest {
   // outputs
   PipelineObjects exampleObjects() throws Exception {
 
-    PipelineObjects exampleObjects = mock(PipelineObjects.class);
-
-
     PipelineService service = PipelineServiceFactory.newPipelineService();
     ConcreteJob job = new ConcreteJob();
 
@@ -74,7 +72,7 @@ public class JsonGeneratorTest extends PipelineTest {
 
     int length = EXAMPLE_JSON_RESPONSE.length();
     //assertEquals(length, json.length());
-    assertEquals(EXAMPLE_JSON_RESPONSE.substring(25, 50), json.substring(25, 50));
+    assertEquals(EXAMPLE_JSON_RESPONSE.substring(20+example.getRootJob().getKey().getName().length(), 50), json.substring(21, 50));
     assertEquals(EXAMPLE_JSON_RESPONSE.substring(length - 100, length), json.substring(length - 100, length));
   }
 
