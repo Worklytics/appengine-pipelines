@@ -72,7 +72,7 @@ public class JsonGeneratorTest extends PipelineTest {
 
     int length = EXAMPLE_JSON_RESPONSE.length();
     int idLength = example.getRootJob().getKey().getName().length();
-    assertEquals(EXAMPLE_JSON_RESPONSE.substring(20+idLength, 50+idLength), json.substring(21, 50));
+    assertEquals(EXAMPLE_JSON_RESPONSE.substring(20+idLength, 50+idLength), json.substring(21, 51));
     assertEquals(EXAMPLE_JSON_RESPONSE.substring(length - 100, length), json.substring(length - 100, length));
   }
 
