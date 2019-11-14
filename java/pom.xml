@@ -182,7 +182,6 @@
       <artifactId>jackson-datatype-jsr310</artifactId>
       <version>${jackson.version}</version>
     </dependency>
-
     <!-- Test Dependencies -->
     <dependency>
       <groupId>com.google.appengine</groupId>
