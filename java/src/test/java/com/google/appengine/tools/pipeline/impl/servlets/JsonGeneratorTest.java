@@ -73,7 +73,7 @@ public class JsonGeneratorTest extends PipelineTest {
 
     int length = EXAMPLE_JSON_RESPONSE.length();
     //assertEquals(length, json.length());
-    assertEquals(EXAMPLE_JSON_RESPONSE.substring(20, 50), json.substring(20, 50));
+    assertEquals(EXAMPLE_JSON_RESPONSE.substring(25, 50), json.substring(25, 50));
     assertEquals(EXAMPLE_JSON_RESPONSE.substring(length - 100, length), json.substring(length - 100, length));
   }
 

@@ -25,6 +25,7 @@ import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.apphosting.api.ApiProxy;
 
 import junit.framework.TestCase;
+import lombok.Getter;
 
 import java.util.Map;
 
@@ -38,7 +39,9 @@ public abstract class PipelineTest extends TestCase {
   protected ApiProxy.Environment apiProxyEnvironment;
 
   private static StringBuffer traceBuffer;
-  protected LocalTaskQueue taskQueue;
+
+  @Getter
+  private LocalTaskQueue taskQueue;
 
   public PipelineTest() {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();

@@ -13,13 +13,7 @@ public class TestUtils {
     boolean hasMoreTasks = true;
     while (hasMoreTasks) {
       Map<String, QueueStateInfo> taskInfoMap = taskQueue.getQueueStateInfo();
-      hasMoreTasks = false;
-      for (QueueStateInfo taskQueueInfo : taskInfoMap.values()) {
-        if (taskQueueInfo.getCountTasks() > 0) {
-          hasMoreTasks = true;
-          break;
-        }
-      }
+      hasMoreTasks = taskInfoMap.values().stream().anyMatch( i -> i.getCountTasks() > 0);
       if (hasMoreTasks) {
         Thread.sleep(100);
       }

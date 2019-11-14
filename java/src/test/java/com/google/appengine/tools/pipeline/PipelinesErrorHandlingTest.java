@@ -418,7 +418,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
    */
   public void testGrandchildCancellation() throws Exception {
     String pipelineId = service.startNewPipeline(new TestGrandchildCancellationJob());
-    waitUntilTaskQueueIsEmpty(taskQueue);
+    waitUntilTaskQueueIsEmpty(getTaskQueue());
     Integer result = waitForJobToComplete(pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
 
