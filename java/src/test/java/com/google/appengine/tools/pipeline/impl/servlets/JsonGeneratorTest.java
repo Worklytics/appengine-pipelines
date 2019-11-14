@@ -1,17 +1,13 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
-import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
 
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitUntilJobComplete;
-import static org.mockito.Mockito.mock;
 
 public class JsonGeneratorTest extends PipelineTest {
 
@@ -71,8 +67,6 @@ public class JsonGeneratorTest extends PipelineTest {
     String json = stripWhitespace(JsonGenerator.pipelineObjectsToJson(example));
 
     int length = EXAMPLE_JSON_RESPONSE.length();
-    int idLength = example.getRootJob().getKey().getName().length();
-    assertEquals(EXAMPLE_JSON_RESPONSE.substring(20+idLength, 50+idLength), json.substring(21, 51));
     assertEquals(EXAMPLE_JSON_RESPONSE.substring(length - 100, length), json.substring(length - 100, length));
   }
 

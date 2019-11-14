@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.model;
 
 import com.google.appengine.api.datastore.Key;
+import com.google.common.collect.Maps;
 import lombok.Getter;
 import lombok.extern.java.Log;
 
@@ -56,8 +57,8 @@ public class PipelineObjects {
     this.jobs = jobs;
     this.slots = slots;
 
-    Map<Key, String> jobToChildGuid = jobs.values().stream()
-      .collect(Collectors.toMap(JobRecord::getKey, JobRecord::getChildGraphGuid));
+    Map<Key, String> jobToChildGuid = Maps.newHashMap();
+    jobs.values().forEach(entry -> jobToChildGuid.put(entry.getKey(), entry.getChildGraphGuid()));
 
     this.rootJob = jobs.get(rootJobKey);
     if (null == rootJob) {
