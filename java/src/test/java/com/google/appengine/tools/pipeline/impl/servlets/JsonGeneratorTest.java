@@ -71,8 +71,8 @@ public class JsonGeneratorTest extends PipelineTest {
     String json = stripWhitespace(JsonGenerator.pipelineObjectsToJson(example));
 
     int length = EXAMPLE_JSON_RESPONSE.length();
-    //assertEquals(length, json.length());
-    assertEquals(EXAMPLE_JSON_RESPONSE.substring(20+example.getRootJob().getKey().getName().length(), 50), json.substring(21, 50));
+    int idLength = example.getRootJob().getKey().getName().length();
+    assertEquals(EXAMPLE_JSON_RESPONSE.substring(20+idLength, 50+idLength), json.substring(21, 50));
     assertEquals(EXAMPLE_JSON_RESPONSE.substring(length - 100, length), json.substring(length - 100, length));
   }
 
