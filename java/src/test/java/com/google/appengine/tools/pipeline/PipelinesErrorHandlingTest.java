@@ -539,6 +539,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
   public void testPipelineCancellation() throws Exception {
+    catchCount = 0;
     String pipelineId = service.startNewPipeline(new TestPipelineCancellationJob());
     Thread.sleep(2000);
     service.cancelPipeline(pipelineId);
