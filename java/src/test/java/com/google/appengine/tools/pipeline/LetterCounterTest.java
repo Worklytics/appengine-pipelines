@@ -21,6 +21,8 @@ import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */

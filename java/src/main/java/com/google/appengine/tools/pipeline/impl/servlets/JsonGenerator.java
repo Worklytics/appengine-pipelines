@@ -24,6 +24,7 @@ import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.appengine.tools.pipeline.impl.model.SlotDescriptor;
 import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 
 import java.util.Date;
@@ -38,7 +39,7 @@ import java.util.Map;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public class JsonGenerator {
+class JsonGenerator {
 
   private static String toString(Key key) {
     return KeyFactory.keyToString(key);
@@ -103,17 +104,21 @@ public class JsonGenerator {
     return JsonUtils.mapToJson(mapRepresentation);
   }
 
-  private static Map<String, Object> objectsToMapRepresentation(PipelineObjects pipelineObjects) {
-    Map<String, Map<String, Object>> slotMap = new HashMap<>(pipelineObjects.slots.size());
-    Map<String, Map<String, Object>> jobMap = new HashMap<>(pipelineObjects.jobs.size());
+  @VisibleForTesting
+  static Map<String, Object> objectsToMapRepresentation(PipelineObjects pipelineObjects) {
+    Map<String, Map<String, Object>> slotMap = new HashMap<>(pipelineObjects.getSlots().size());
+    Map<String, Map<String, Object>> jobMap = new HashMap<>(pipelineObjects.getJobs().size());
     Map<String, Object> topLevel = new HashMap<>(4);
-    topLevel.put(ROOT_PIPELINE_ID, pipelineObjects.rootJob.getKey().getName());
+    topLevel.put(ROOT_PIPELINE_ID, pipelineObjects.getRootJob().getKey().getName());
     topLevel.put(SLOTS, slotMap);
     topLevel.put(PIPELINES, jobMap);
-    for (Slot slot : pipelineObjects.slots.values()) {
+
+    //somehow, there are conditions in which this is building cyclic object graphs, which newer versions of JSONObject
+    // attempt to serialize and end up with stack overflows
+    for (Slot slot : pipelineObjects.getSlots().values()) {
       slotMap.put(toString(slot.getKey()), buildMapRepresentation(slot));
     }
-    for (JobRecord jobRecord : pipelineObjects.jobs.values()) {
+    for (JobRecord jobRecord : pipelineObjects.getJobs().values()) {
       jobMap.put(jobRecord.getKey().getName(), buildMapRepresentation(jobRecord));
     }
     return topLevel;

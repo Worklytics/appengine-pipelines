@@ -14,6 +14,8 @@
 
 package com.google.appengine.tools.pipeline;
 
+import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWhitespace;
+import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static org.mockito.Mockito.when;
 
 import com.google.appengine.tools.pipeline.impl.servlets.JsonClassFilterHandler;
@@ -100,7 +102,7 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
 
   public void testHandlerNoResults() throws Exception {
     JsonClassFilterHandler.doGet(request, response);
-    assertEquals("{\"classPaths\": []}", output.toString());
+    assertEqualsIgnoreWhitespace("{\"classPaths\": []}", output.toString());
   }
 
   public void testHandlerWithResults() throws Exception {
@@ -121,6 +123,6 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
         + "  \"" + Main1Job.class.getName() + "\",\n"
         + "  \"" + Main2Job.class.getName() + "\"\n"
         + "]}";
-    assertEquals(expected, output.toString());
+    assertEqualsIgnoreWhitespace(expected, output.toString());
   }
 }

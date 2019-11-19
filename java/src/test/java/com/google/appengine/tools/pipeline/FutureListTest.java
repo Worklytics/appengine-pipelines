@@ -17,6 +17,8 @@ package com.google.appengine.tools.pipeline;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+
 /**
  * Note the difference between testFutureList() and testReturnFutureList(). In
  * testFutureList() the call to futureList() happens in the parent job,

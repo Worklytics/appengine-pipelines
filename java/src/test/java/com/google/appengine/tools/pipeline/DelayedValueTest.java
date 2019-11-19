@@ -16,6 +16,8 @@ package com.google.appengine.tools.pipeline;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+
 /**
  * Test error handling through handleException.
  *

@@ -31,6 +31,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.google.appengine.tools.pipeline.TestUtils.*;
+
 /**
  * Misc tests including:
  *  Passing large values.
@@ -144,7 +146,7 @@ public class MiscPipelineTest extends PipelineTest {
     JobInfo jobInfo = waitUntilJobComplete(pipelineId);
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
     assertEquals("123", jobInfo.getOutput());
-    waitUntilTaskQueueIsEmpty();
+    waitUntilTaskQueueIsEmpty(getTaskQueue());
     try {
       service.getJobInfo(pipelineId);
       fail("Was expecting a NoSuchObjectException exception");
@@ -254,7 +256,7 @@ public class MiscPipelineTest extends PipelineTest {
     jobRecord = PipelineManager.getJob(pipelineId);
     assertEquals(job.getJobDisplayName(), jobRecord.getRootJobDisplayName());
     PipelineObjects pobjects = PipelineManager.queryFullPipeline(pipelineId);
-    assertEquals(job.getJobDisplayName(), pobjects.rootJob.getRootJobDisplayName());
+    assertEquals(job.getJobDisplayName(), pobjects.getRootJob().getRootJobDisplayName());
   }
 
   public void testJobInheritence() throws Exception {
@@ -292,7 +294,7 @@ public class MiscPipelineTest extends PipelineTest {
     String value = waitForJobToComplete(pipelineId);
     assertEquals("bla", value);
     ReturnValueParentJob.latch1.countDown();
-    waitUntilTaskQueueIsEmpty();
+    waitUntilTaskQueueIsEmpty(getTaskQueue());
     ReturnValueParentJob.latch2.await();
   }
 
@@ -371,7 +373,7 @@ public class MiscPipelineTest extends PipelineTest {
     HandleExceptionChild2Job.childLatch1.await();
     service.cancelPipeline(pipelineId);
     HandleExceptionChild2Job.childLatch2.countDown();
-    waitUntilTaskQueueIsEmpty();
+    waitUntilTaskQueueIsEmpty(getTaskQueue());
     jobInfo = service.getJobInfo(pipelineId);
     assertEquals(State.CANCELED_BY_REQUEST, jobInfo.getJobState());
     assertNull(jobInfo.getOutput());

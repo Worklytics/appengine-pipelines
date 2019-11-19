@@ -3,13 +3,10 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.google.appengine.tools</groupId>
   <artifactId>appengine-pipeline</artifactId>
-  <name>App Engine Pipeline Framework</name>
-  <description>Google App Engine API for connecting together complex workflows</description>
-  <url>https://github.com/GoogleCloudPlatform/appengine-pipelines/</url>
-  <organization>
-    <name>Google</name>
-  </organization>
-  <version>0.4-SNAPSHOT</version>
+  <name>Pipeline Framework for Google App Engine</name>
+  <description>Framework for orchestrating complex workflows on top of Google App Engine</description>
+  <url>https://github.com/Worklytics/appengine-pipelines/</url>
+  <version>0.3-SNAPSHOT</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -18,13 +15,26 @@
     </license>
   </licenses>
   <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <appengine.target.version>[1.9.1,2.0)</appengine.target.version>
+    <jackson.version>[2.6,2.99)</jackson.version>
   </properties>
+
+  <distributionManagement>
+    <!-- distribute Worklytics's version of this FW via GitHub Package Repository -->
+    <repository>
+      <id>github</id>
+      <name>Pipelines for Google App Engine by Worklytics</name>
+      <url>https://maven.pkg.github.com/Worklytics/appengine-pipelines</url>
+    </repository>
+  </distributionManagement>
+
   <build>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.1</version>
         <configuration>
           <source>1.8</source>
           <target>1.8</target>
@@ -46,6 +56,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.0.0</version>
         <executions>
           <execution>
             <id>add-test-source</id>
@@ -64,6 +75,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.0.0-M3</version>
         <configuration>
           <excludes>
             <exclude>com/google/appengine/tools/pipeline/PipelineTest.java</exclude>
@@ -80,11 +92,7 @@
   </build>
   <dependencies>
     <!-- Compile/Runtime Dependencies -->
-    <dependency>
-      <groupId>org.json</groupId>
-      <artifactId>json</artifactId>
-      <version>20190722</version>
-    </dependency>
+
     <!-- will be deprecated in GAE Java 11 env. need to replace with:
      1) Cloud Tasks : https://developers.google.com/api-client-library/java/apis/cloudtasks/v2
      2) Cloud Data store : https://cloud.google.com/datastore/docs/reference/libraries#client-libraries-install-java
@@ -99,7 +107,8 @@
       <artifactId>guava</artifactId>
       <!-- version number of release candidates come before the ##.0 in maven,
            use .99 to get latest release within the specified major version -->
-      <version>[15.0,20.99]</version>
+      <!-- GAE *requires* java8, so reasonable that library for GAE should require it too -->
+      <version>[21.0,21.99]</version>
     </dependency>
     <dependency>
       <groupId>javax.servlet</groupId>
@@ -112,6 +121,30 @@
       <artifactId>guava-retrying</artifactId>
       <version>2.0.0</version>
     </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.10</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- to support Pipelines UX -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
     <!-- Test Dependencies -->
     <dependency>
       <groupId>com.google.appengine</groupId>
@@ -125,16 +158,17 @@
       <version>${appengine.target.version}</version>
       <scope>test</scope>
     </dependency>
+      <!-- TODO: bump to junit 5 -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.10</version>
+      <version>4.12</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
-       <artifactId>mockito-all</artifactId>
-       <version>1.8.4</version>
+       <artifactId>mockito-core</artifactId>
+       <version>3.1.0</version>
        <scope>test</scope>
     </dependency>
   </dependencies>

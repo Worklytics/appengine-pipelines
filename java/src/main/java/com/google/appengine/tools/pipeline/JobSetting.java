@@ -144,6 +144,7 @@ public interface JobSetting extends Serializable {
   /**
    * A setting for specifying what backend to run a job on.
    */
+  @Deprecated
   final class OnBackend extends StringValuedSetting {
 
     private static final long serialVersionUID = -239968568113511744L;
@@ -155,15 +156,30 @@ public interface JobSetting extends Serializable {
   }
 
   /**
-   * A setting for specifying what module to run a job on.
+   * A setting for specifying what service (module) to run a job on.
    */
-  final class OnModule extends StringValuedSetting {
+  final class OnService extends StringValuedSetting {
 
     private static final long serialVersionUID = 3877411731586475273L;
     public static final String DEFAULT = null;
 
-    public OnModule(String module) {
-      super(module);
+    public OnService(String service) {
+      super(service);
+    }
+  }
+
+  /**
+   * A setting for specifying what version of service (module) to run a job on.
+   *
+   * q: good idea to expose this? perhaps should keep internal to FW
+   */
+  final class OnServiceVersion extends StringValuedSetting {
+
+    private static final long serialVersionUID = 3877411731586475273L;
+    public static final String DEFAULT = null;
+
+    public OnServiceVersion(String version) {
+      super(version);
     }
   }
 
