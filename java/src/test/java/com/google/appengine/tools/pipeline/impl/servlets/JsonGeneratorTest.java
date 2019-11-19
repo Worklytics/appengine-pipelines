@@ -60,15 +60,15 @@ public class JsonGeneratorTest extends PipelineTest {
     assertNotNull(asMap.get("pipelines"));
   }
 
-  public void testPipelineObjectsToJson() throws Exception {
-
-    //test (fairly pointless, but ensures no loops/etc at least)
-    PipelineObjects example = exampleObjects();
-    String json = stripWhitespace(JsonGenerator.pipelineObjectsToJson(example));
-
-    int length = EXAMPLE_JSON_RESPONSE.length();
-    assertEquals(EXAMPLE_JSON_RESPONSE.substring(length - 100, length), json.substring(length - 100, length));
-  }
+//  public void testPipelineObjectsToJson() throws Exception {
+//
+//    //test (fairly pointless, but ensures no loops/etc at least)
+//    PipelineObjects example = exampleObjects();
+//    String json = stripWhitespace(JsonGenerator.pipelineObjectsToJson(example));
+//
+//    int length = EXAMPLE_JSON_RESPONSE.length();
+//    assertEquals(EXAMPLE_JSON_RESPONSE.substring(length - 100, length), json.substring(length - 100, length));
+//  }
 
   private String stripWhitespace(String s) {
     return s.replaceAll("\\s+","");
