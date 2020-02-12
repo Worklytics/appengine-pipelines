@@ -21,8 +21,8 @@ Worklytics's version of this framework is published in our [GitHub Package repos
 ```xml
 <dependency>
   <groupId>com.google.appengine.tools</groupId>
-  <artifactId>appengine-mapreduce</artifactId>
-  <version>0.10-snapshot</version>
+  <artifactId>appengine-pipeline</artifactId>
+  <version>0.3-SNAPSHOT</version>
 </dependency>
 ```
 
