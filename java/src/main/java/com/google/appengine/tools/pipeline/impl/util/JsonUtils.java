@@ -16,11 +16,10 @@ package com.google.appengine.tools.pipeline.impl.util;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.util.Map;
 
@@ -30,7 +29,15 @@ import java.util.Map;
  */
 public class JsonUtils {
 
-  static ObjectMapper objectToJsonMapper = new ObjectMapper();
+  static ObjectMapper objectToJsonMapper;
+
+  //initialize ObjectMapper
+  static  {
+    objectToJsonMapper = new ObjectMapper();
+    objectToJsonMapper.registerModule(new Jdk8Module());  //java.util.Optional, Streams
+    objectToJsonMapper.registerModule(new JavaTimeModule());
+    objectToJsonMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+  }
 
   public static String mapToJson(Map<?, ?> map) {
     try {
