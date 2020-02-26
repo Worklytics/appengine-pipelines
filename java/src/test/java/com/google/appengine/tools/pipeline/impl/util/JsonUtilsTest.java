@@ -1,8 +1,11 @@
 package com.google.appengine.tools.pipeline.impl.util;
 
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.google.common.collect.ImmutableMap;
+import lombok.Getter;
 import org.junit.Test;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.junit.Assert.*;
@@ -10,15 +13,15 @@ import static org.junit.Assert.*;
 public class JsonUtilsTest {
 
 
+  @Getter
+  @JsonPropertyOrder({"instant", "full", "empty"})  //make test deterministic
   public static class Jdk8Bean {
 
-    public Optional<String> getFull() {
-      return Optional.of("string");
-    }
+    private Instant instant = Instant.parse("2020-01-01T12:00:00Z");
 
-    public Optional<String> getEmpty() {
-      return Optional.ofNullable(null);
-    }
+    private Optional<String> full = Optional.of("string");
+
+    private Optional<String> empty = Optional.ofNullable(null);
 
   }
 
@@ -27,8 +30,9 @@ public class JsonUtilsTest {
 
     String JSON_WITH_UNWRAPPED_OPTIONALS = "{\n" +
       "  \"bean\" : {\n" +
-      "    \"empty\" : null,\n" +
-      "    \"full\" : \"string\"\n" +
+      "    \"instant\" : \"2020-01-01T12:00:00Z\",\n" +
+      "    \"full\" : \"string\",\n" +
+      "    \"empty\" : null\n" +
       "  }\n" +
       "}";
 
