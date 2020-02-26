@@ -4,6 +4,8 @@ import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
+import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
+import org.junit.Test;
 
 import java.util.Map;
 
@@ -69,6 +71,7 @@ public class JsonGeneratorTest extends PipelineTest {
 //    int length = EXAMPLE_JSON_RESPONSE.length();
 //    assertEquals(EXAMPLE_JSON_RESPONSE.substring(length - 100, length), json.substring(length - 100, length));
 //  }
+
 
   private String stripWhitespace(String s) {
     return s.replaceAll("\\s+","");

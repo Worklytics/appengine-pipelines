@@ -16,11 +16,9 @@ package com.google.appengine.tools.pipeline.impl.util;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 
 import java.util.Map;
 
@@ -30,7 +28,13 @@ import java.util.Map;
  */
 public class JsonUtils {
 
-  static ObjectMapper objectToJsonMapper = new ObjectMapper();
+  static ObjectMapper objectToJsonMapper;
+
+  //initialize ObjectMapper
+  static  {
+    objectToJsonMapper = new ObjectMapper();
+    objectToJsonMapper.registerModule(new Jdk8Module());
+  }
 
   public static String mapToJson(Map<?, ?> map) {
     try {
