@@ -59,7 +59,7 @@ public class JsonUtilsTest {
   @Test
   public void secret() {
 
-    String JSON_WITH_UNWRAPPED_OPTIONALS = "{\n" +
+    String JSON_WITH_SECRET = "{\n" +
       "  \"bean\" : {\n" +
       "    \"notASecret\" : \"public\"\n" +
       "  }\n" +
@@ -67,7 +67,7 @@ public class JsonUtilsTest {
 
     String json = JsonUtils.mapToJson(ImmutableMap.of("bean", new SecretBean()));
 
-    assertEquals(JSON_WITH_UNWRAPPED_OPTIONALS, json);
+    assertEquals(JSON_WITH_SECRET, json);
   }
 
 }
