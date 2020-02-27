@@ -1,6 +1,7 @@
 package com.google.appengine.tools.pipeline.impl.util;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.annotation.JsonView;
 import com.google.common.collect.ImmutableMap;
 import lombok.Getter;
 import org.junit.Test;
@@ -37,6 +38,34 @@ public class JsonUtilsTest {
       "}";
 
     String json = JsonUtils.mapToJson(ImmutableMap.of("bean", new Jdk8Bean()));
+
+    assertEquals(JSON_WITH_UNWRAPPED_OPTIONALS, json);
+  }
+
+  @Getter
+  public static class SecretBean {
+
+    private String notASecret = "public";
+
+    @JsonView(Secret.class)
+    private String secret = "something secret";
+
+  }
+
+  public static class Secret {
+
+  }
+
+  @Test
+  public void secret() {
+
+    String JSON_WITH_UNWRAPPED_OPTIONALS = "{\n" +
+      "  \"bean\" : {\n" +
+      "    \"notASecret\" : \"public\"\n" +
+      "  }\n" +
+      "}";
+
+    String json = JsonUtils.mapToJson(ImmutableMap.of("bean", new SecretBean()));
 
     assertEquals(JSON_WITH_UNWRAPPED_OPTIONALS, json);
   }
