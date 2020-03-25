@@ -29,6 +29,7 @@ import java.util.Map;
  */
 public class JsonUtils {
 
+  //q: expose this so its behavior can be configured??
   static ObjectMapper objectToJsonMapper;
 
   //initialize ObjectMapper
@@ -36,7 +37,10 @@ public class JsonUtils {
     objectToJsonMapper = new ObjectMapper();
     objectToJsonMapper.registerModule(new Jdk8Module());  //java.util.Optional, Streams
     objectToJsonMapper.registerModule(new JavaTimeModule());
+
     objectToJsonMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    //set explicit view for object mapper, so anything annotated with an explicit @JsonView won't be shown by default
+    objectToJsonMapper.setConfig(objectToJsonMapper.getSerializationConfig().withView(Object.class));
   }
 
   public static String mapToJson(Map<?, ?> map) {
