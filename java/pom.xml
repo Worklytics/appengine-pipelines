@@ -6,7 +6,9 @@
   <name>Pipeline Framework for Google App Engine</name>
   <description>Framework for orchestrating complex workflows on top of Google App Engine</description>
   <url>https://github.com/Worklytics/appengine-pipelines/</url>
-  <version>0.3-SNAPSHOT</version>
+  <!-- follow semver, with suggested guidance for versioning fork of OSS -->
+  <!-- see https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
+  <version>0.3+worklytics.1</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
