@@ -16,8 +16,8 @@
   </licenses>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <appengine.target.version>[1.9.1,2.0)</appengine.target.version>
-    <jackson.version>[2.7,2.99)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
+    <appengine.target.version>[1.9.1, 2.0)</appengine.target.version>
+    <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
 
   <distributionManagement>
@@ -38,6 +38,7 @@
         <configuration>
           <source>1.8</source>
           <target>1.8</target>
+          <release>8</release>
         </configuration>
       </plugin>
       <plugin>
@@ -144,7 +145,7 @@
       <artifactId>jackson-databind</artifactId>
       <version>${jackson.version}</version>
     </dependency>
-    <dependency> <!-- does this force min Jackson version?? -->
+    <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-jdk8</artifactId>
       <version>${jackson.version}</version>

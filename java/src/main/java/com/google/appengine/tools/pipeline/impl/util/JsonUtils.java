@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -63,7 +64,7 @@ public class JsonUtils {
   public static Map<String, ?> fromJson(String json) {
     try {
       return objectToJsonMapper.readValue(json, Map.class);
-    } catch (JsonProcessingException e) {
+    } catch (IOException e) {
       throw new RuntimeException("json=" + json, e);
     }
   }
