@@ -62,7 +62,7 @@ public class ExceptionRecord extends PipelineModelObject {
   @Override
   public Entity toEntity() {
     try {
-      Entity entity = toProtoEntity();
+      Entity entity = toProtoBuilder();
       byte[] serializedException = SerializationUtils.serialize(exception);
       entity.setUnindexedProperty(EXCEPTION_PROPERTY, new Blob(serializedException));
       return entity;

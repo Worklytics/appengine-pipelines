@@ -14,10 +14,11 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.tools.pipeline.Job;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
 
 import java.io.IOException;
 
@@ -32,7 +33,6 @@ public class JobInstanceRecord extends PipelineModelObject {
   private static final String JOB_KEY_PROPERTY = "jobKey";
   private static final String JOB_CLASS_NAME_PROPERTY = "jobClassName";
   public static final String JOB_DISPLAY_NAME_PROPERTY = "jobDisplayName";
-  private static final String INSTANCE_BYTES_PROPERTY = "bytes"; // legacy (blob)
   private static final String INSTANCE_VALUE_PROPERTY = "value";
 
   // persistent
@@ -59,28 +59,24 @@ public class JobInstanceRecord extends PipelineModelObject {
 
   public JobInstanceRecord(Entity entity) {
     super(entity);
-    jobKey = (Key) entity.getProperty(JOB_KEY_PROPERTY);
-    jobClassName = (String) entity.getProperty(JOB_CLASS_NAME_PROPERTY);
-    if (entity.hasProperty(JOB_DISPLAY_NAME_PROPERTY)) {
-      jobDisplayName = (String) entity.getProperty(JOB_DISPLAY_NAME_PROPERTY);
+    jobKey = entity.getKey(JOB_KEY_PROPERTY);
+    jobClassName = entity.getString(JOB_CLASS_NAME_PROPERTY);
+    if (entity.contains(JOB_DISPLAY_NAME_PROPERTY)) {
+      jobDisplayName = entity.getString(JOB_DISPLAY_NAME_PROPERTY);
     } else {
       jobDisplayName = jobClassName;
     }
-    if (entity.hasProperty(INSTANCE_BYTES_PROPERTY)) {
-      value = entity.getProperty(INSTANCE_BYTES_PROPERTY);
-    } else {
-      value = entity.getProperty(INSTANCE_VALUE_PROPERTY);
-    }
+    value = entity.getValue(INSTANCE_VALUE_PROPERTY);
   }
 
   @Override
   public Entity toEntity() {
-    Entity entity = toProtoEntity();
-    entity.setProperty(JOB_KEY_PROPERTY, jobKey);
-    entity.setProperty(JOB_CLASS_NAME_PROPERTY, jobClassName);
-    entity.setUnindexedProperty(INSTANCE_VALUE_PROPERTY, value);
-    entity.setUnindexedProperty(JOB_DISPLAY_NAME_PROPERTY, jobDisplayName);
-    return entity;
+    Entity.Builder entity = toProtoBuilder();
+    entity.set(JOB_KEY_PROPERTY, jobKey);
+    entity.set(JOB_CLASS_NAME_PROPERTY, jobClassName);
+    EntityUtils.setLargeValue(entity, INSTANCE_VALUE_PROPERTY, value);
+    entity.set(JOB_DISPLAY_NAME_PROPERTY, jobDisplayName);
+    return entity.build();
   }
 
   @Override

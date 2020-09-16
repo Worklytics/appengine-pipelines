@@ -14,15 +14,17 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
+import com.google.cloud.Timestamp;
+import com.google.cloud.datastore.*;
 
 import java.io.IOException;
-import java.util.Date;
+import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * A slot to be filled in with a value.
@@ -40,14 +42,15 @@ public class Slot extends PipelineModelObject {
 
   // persistent
   private boolean filled;
-  private Date fillTime;
+  private Instant fillTime;
   private Object value;
   private Key sourceJobKey;
   private final List<Key> waitingOnMeKeys;
 
   // transient
   private List<Barrier> waitingOnMeInflated;
-  private Object serializedVersion;
+  //either a Blob or List<Key> ... given that we know implementation details of serialization
+  private Object serializedVersion; //TODO: 'guaranteed' to be type serializable by datastore; what does this mean??
 
 
   public Slot(Key rootJobKey, Key generatorJobKey, String graphGUID) {
@@ -61,14 +64,14 @@ public class Slot extends PipelineModelObject {
 
   public Slot(Entity entity, boolean lazy) {
     super(entity);
-    filled = (Boolean) entity.getProperty(FILLED_PROPERTY);
-    fillTime = (Date) entity.getProperty(FILL_TIME_PROPERTY);
-    sourceJobKey = (Key) entity.getProperty(SOURCE_JOB_KEY_PROPERTY);
+    filled = entity.getBoolean(FILLED_PROPERTY);
+    fillTime = EntityUtils.getInstant(entity, FILL_TIME_PROPERTY);
+    sourceJobKey = entity.getKey(SOURCE_JOB_KEY_PROPERTY);
     waitingOnMeKeys = getListProperty(WAITING_ON_ME_PROPERTY, entity);
     if (lazy) {
-      serializedVersion = entity.getProperty(VALUE_PROPERTY);
+      serializedVersion = entity.getBlob(VALUE_PROPERTY);
     } else {
-      value = deserializeValue(entity.getProperty(VALUE_PROPERTY));
+      value = deserializeValue(entity.getBlob(VALUE_PROPERTY));
     }
   }
 
@@ -82,26 +85,26 @@ public class Slot extends PipelineModelObject {
 
   @Override
   public Entity toEntity() {
-    Entity entity = toProtoEntity();
-    entity.setUnindexedProperty(FILLED_PROPERTY, filled);
+    Entity.Builder entity = toProtoBuilder();
+    entity.set(FILLED_PROPERTY, BooleanValue.newBuilder(filled).setExcludeFromIndexes(true).build());
     if (null != fillTime) {
-      entity.setUnindexedProperty(FILL_TIME_PROPERTY, fillTime);
+      entity.set(FILL_TIME_PROPERTY,
+        TimestampValue.newBuilder(Timestamp.ofTimeMicroseconds(fillTime.toEpochMilli() * 1000L)).setExcludeFromIndexes(true).build());
     }
     if (null != sourceJobKey) {
-      entity.setProperty(SOURCE_JOB_KEY_PROPERTY, sourceJobKey);
+      entity.set(SOURCE_JOB_KEY_PROPERTY, sourceJobKey);
     }
-    entity.setProperty(WAITING_ON_ME_PROPERTY, waitingOnMeKeys);
-    if (serializedVersion != null) {
-      entity.setUnindexedProperty(VALUE_PROPERTY, serializedVersion);
-    } else {
+    entity.set(WAITING_ON_ME_PROPERTY, waitingOnMeKeys.stream().map(KeyValue::of).collect(Collectors.toList()));
+    if (serializedVersion == null) {
       try {
-        entity.setUnindexedProperty(VALUE_PROPERTY,
-            PipelineManager.getBackEnd().serializeValue(this, value));
+        serializedVersion = PipelineManager.getBackEnd().serializeValue(this, value);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     }
-    return entity;
+    EntityUtils.setLargeValue(entity, VALUE_PROPERTY, serializedVersion);
+
+    return entity.build();
   }
 
   @Override
@@ -136,7 +139,7 @@ public class Slot extends PipelineModelObject {
   /**
    * Will return {@code null} if this slot is not filled.
    */
-  public Date getFillTime() {
+  public Instant getFillTime() {
     return fillTime;
   }
 
@@ -152,7 +155,7 @@ public class Slot extends PipelineModelObject {
     filled = true;
     this.value = value;
     serializedVersion = null;
-    fillTime = new Date();
+    fillTime = Instant.now();
   }
 
   public List<Key> getWaitingOnMeKeys() {

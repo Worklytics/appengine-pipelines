@@ -55,7 +55,7 @@ public class FanoutTaskRecord extends PipelineModelObject {
 
   @Override
   public Entity toEntity() {
-    Entity entity = toProtoEntity();
+    Entity entity = toProtoBuilder();
     entity.setUnindexedProperty(PAYLOAD_PROPERTY, new Blob(payload));
     return entity;
   }
