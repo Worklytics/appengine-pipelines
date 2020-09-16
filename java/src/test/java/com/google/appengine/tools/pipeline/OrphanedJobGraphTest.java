@@ -5,9 +5,9 @@ package com.google.appengine.tools.pipeline;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static com.google.appengine.tools.pipeline.impl.util.TestUtils.getFailureProperty;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.KeyFactory;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
@@ -97,7 +97,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
     // Get all of the Pipeline objects so we can confirm the orphaned jobs are
     // really there
     PipelineObjects allObjects = PipelineManager.queryFullPipeline(pipelineHandle);
-    Key rootJobKey = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, pipelineHandle);
+    Key rootJobKey = JobRecord.datastoreKeyFromHandle(pipelineHandle);
     JobRecord rootJob = allObjects.getJobs().get(rootJobKey);
     assertNotNull(rootJob);
     String graphGuid = rootJob.getChildGraphGuid();

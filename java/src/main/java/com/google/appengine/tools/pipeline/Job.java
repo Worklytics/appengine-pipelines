@@ -14,7 +14,7 @@
 
 package com.google.appengine.tools.pipeline;
 
-import com.google.appengine.api.datastore.Key;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.FutureValueImpl;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.PromisedValueImpl;
@@ -381,7 +381,7 @@ public abstract class Job<E> implements Serializable {
 
   public <F> PromisedValue<F> newPromise() {
     PromisedValueImpl<F> promisedValue =
-        new PromisedValueImpl<>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID);
+        new PromisedValueImpl<F>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID);
     updateSpec.getNonTransactionalGroup().includeSlot(promisedValue.getSlot());
     return promisedValue;
   }

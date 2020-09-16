@@ -14,7 +14,6 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
@@ -25,6 +24,7 @@ import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.cloud.datastore.Key;
 
 import java.io.IOException;
 import java.util.Set;
@@ -58,7 +58,7 @@ public interface PipelineBackEnd {
    * @return {@code true} iff the transaction was applied successfully.
    */
   boolean saveWithJobStateCheck(UpdateSpec updateSpec, QueueSettings queueSettings,
-      Key jobKey, JobRecord.State... expectedStates);
+                                Key jobKey, JobRecord.State... expectedStates);
 
   /**
    * Get the JobRecord with the given Key from the data store, and optionally

@@ -1,7 +1,7 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.api.taskqueue.TaskHandle;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
@@ -118,7 +118,7 @@ public class AppEngineTaskQueueTest extends TestCase {
 
   private Task createTask() {
     String name = GUIDGenerator.nextGUID();
-    Key key = KeyFactory.createKey("testType", name);
+    Key key = Key.newBuilder("testProject", "testType", name).build();
     Task task = new RunJobTask(key, new QueueSettings().setOnServiceVersion("m1"));
     return task;
   }

@@ -16,9 +16,8 @@ package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
@@ -54,13 +53,13 @@ public class FanoutTaskTest extends TestCase {
     super.setUp();
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
-    Key key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, "job1");
+    Key key = JobRecord.datastoreKeyFromHandle("job1");
     RunJobTask runJobTask = new RunJobTask(key, queueSettings1);
-    key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, "job2");
+    key = JobRecord.datastoreKeyFromHandle("job2");
     RunJobTask runJobTask2 = new RunJobTask(key, queueSettings2);
-    key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, "job3");
+    key = JobRecord.datastoreKeyFromHandle("job3");
     FinalizeJobTask finalizeJobTask = new FinalizeJobTask(key, queueSettings1);
-    key = KeyFactory.createKey(Slot.DATA_STORE_KIND, "slot1");
+    key = Slot.keyFromHandle("slot1");
     HandleSlotFilledTask hsfTask = new HandleSlotFilledTask(key, queueSettings2);
     listOfTasks = ImmutableList.of(runJobTask, runJobTask2, finalizeJobTask, hsfTask);
     encodedBytes = FanoutTask.encodeTasks(listOfTasks);
@@ -84,7 +83,7 @@ public class FanoutTaskTest extends TestCase {
    * Tests conversion of {@link FanoutTaskRecord} to and from an {@link Entity}
    */
   public void testFanoutTaskRecord() throws Exception {
-    Key rootJobKey = KeyFactory.createKey("dummy", "dummy");
+    Key rootJobKey = JobRecord.generateKey("dummy", "dummy", "dummy");
     FanoutTaskRecord record = new FanoutTaskRecord(rootJobKey, encodedBytes);
     Entity entity = record.toEntity();
     // reconstitute entity

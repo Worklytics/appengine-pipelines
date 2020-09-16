@@ -14,7 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import com.google.appengine.api.datastore.Key;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
 
 import java.io.IOException;
@@ -51,7 +51,7 @@ public class PipelineServlet extends HttpServlet {
   }
 
   public static String makeViewerUrl(Key rootJobKey, Key jobKey) {
-    return baseUrl() + "status.html?root=" + rootJobKey.getName() + "#pipeline-" + jobKey.getName();
+    return baseUrl() + "status.html?root=" + rootJobKey.toUrlSafe() + "#pipeline-" + jobKey.toUrlSafe();
   }
 
   private static enum RequestType {

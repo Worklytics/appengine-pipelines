@@ -15,6 +15,8 @@
 package com.google.appengine.tools.pipeline;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Optional;
 
 
 /**
@@ -206,5 +208,41 @@ public interface JobSetting extends Serializable {
     public StatusConsoleUrl(String statusConsoleUrl) {
       super(statusConsoleUrl);
     }
+  }
+
+  /**
+   * base64-encoded representation of service account key
+   *
+   * q: does this need to be global, rather than a job setting?
+   */
+  final class DatastoreServiceAccountKey extends StringValuedSetting {
+
+    private static final long serialVersionUID = -3079475300434663590L;
+
+    public DatastoreServiceAccountKey(String datastoreServiceAccountKey) {
+      super(datastoreServiceAccountKey);
+    }
+  }
+
+  final class DatastoreNamespace extends StringValuedSetting {
+    private static final long serialVersionUID = -1L;
+
+    public DatastoreNamespace(String datastoreNameSpace) {
+      super(datastoreNameSpace);
+    }
+  }
+
+  final class Project extends StringValuedSetting {
+    private static final long serialVersionUID = -1L;
+
+    public Project(String project) {
+      super(project);
+    }
+  }
+
+  static <E extends StringValuedSetting> Optional<String> getSettingValue(Class<E> clazz, JobSetting[] settings) {
+    return Arrays.stream(settings).filter( s -> s.getClass().isAssignableFrom(clazz))
+      .findAny()
+      .map(s -> ((StringValuedSetting) s).getValue());
   }
 }

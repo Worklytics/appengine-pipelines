@@ -35,8 +35,10 @@ import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 
+import javax.annotation.Nullable;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -48,7 +50,9 @@ import java.util.stream.Collectors;
  */
 public class JobRecord extends PipelineModelObject implements JobInfo {
 
-  /**
+
+
+    /**
    * The state of the job.
    */
   public enum State {
@@ -137,6 +141,18 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   private static final String CHILD_GRAPH_GUID_PROPERTY = "childGraphGuid";
   private static final String STATUS_CONSOLE_URL = "statusConsoleUrl";
   public static final String ROOT_JOB_DISPLAY_NAME = "rootJobDisplayName";
+
+  /**
+   * projectId for job; must be set
+   */
+  @Getter @Setter @NonNull
+  private final String projectId;
+
+  /**
+   * namespace for Job, if any (otherwise default)
+   */
+  @Getter @Setter
+  private final String namespace;
 
   @Getter
   private final Key jobInstanceKey;
@@ -250,6 +266,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     queueSettings.setOnQueue(entity.getString(ON_QUEUE_PROPERTY));
     statusConsoleUrl = entity.getString(STATUS_CONSOLE_URL);
     rootJobDisplayName = entity.getString(ROOT_JOB_DISPLAY_NAME);
+    projectId = entity.getKey().getProjectId();
+    namespace = entity.getKey().getNamespace();
   }
 
 
@@ -384,6 +402,10 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
         queueSettings.setOnServiceVersion(modulesService.getDefaultVersion(service));
       }
     }
+    projectId = JobSetting.getSettingValue(JobSetting.Project.class, settings)
+      .orElseThrow(() -> new IllegalArgumentException("JobSetting.Project is required"));
+    namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
+      .orElse(null);
   }
 
   // Constructor for Root Jobs (called by {@link #createRootJobRecord}).
@@ -403,16 +425,10 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
    *        JobRecord.
    */
   public static JobRecord createRootJobRecord(Job<?> jobInstance, JobSetting[] settings) {
-    String namespace = Arrays.stream(settings)
-      .filter(s -> s instanceof JobSetting.DatastoreNamespace)
-      .findAny().map(s -> ((JobSetting.DatastoreNamespace) s).getValue())
+    String projectId = JobSetting.getSettingValue(JobSetting.Project.class, settings)
+      .orElseThrow(() -> new IllegalArgumentException("Must specifiy JobSetting.Project"));
+    String namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
       .orElse(null);
-
-    String projectId = Arrays.stream(settings)
-      .filter(s -> s instanceof JobSetting.Project)
-      .findAny().map(s -> ((JobSetting.Project) s).getValue())
-      .orElse(null);
-
     Key key = generateKey(projectId, namespace, DATA_STORE_KIND);
     return new JobRecord(key, jobInstance, settings);
   }
@@ -586,5 +602,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
         + ", outputSlot=" + outputSlotKey.getName() + ", rootJobDisplayName="
         + rootJobDisplayName + ", parent=" + getKeyName(getGeneratorJobKey()) + ", guid="
         + getGraphGuid() + ", childGuid=" + childGraphGuid + "]";
+  }
+
+  public static Key datastoreKeyFromHandle(String pipelineHandle) {
+    return Key.fromUrlSafe(pipelineHandle);
   }
 }

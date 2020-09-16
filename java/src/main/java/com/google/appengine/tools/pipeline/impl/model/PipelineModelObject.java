@@ -16,6 +16,7 @@ package com.google.appengine.tools.pipeline.impl.model;
 
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
+import lombok.NonNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -158,9 +159,12 @@ public abstract class PipelineModelObject {
   }
 
 
-  public static Key generateKey(String projectId, String namespace, String dataStoreKind) {
+  public static Key generateKey(@NonNull String projectId, String namespace, @NonNull String dataStoreKind) {
     String name = GUIDGenerator.nextGUID();
-    KeyFactory keyFactory = new KeyFactory(projectId, namespace);
+    KeyFactory keyFactory = new KeyFactory(projectId);
+    if (namespace != null ) { //null implies default
+      keyFactory.setNamespace(namespace);
+    }
     keyFactory.setKind(dataStoreKind);
     return keyFactory.newKey(name);
   }
