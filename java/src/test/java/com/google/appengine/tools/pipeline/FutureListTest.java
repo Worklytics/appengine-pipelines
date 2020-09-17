@@ -28,15 +28,13 @@ import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete
 public class FutureListTest extends PipelineTest {
 
   public void testFutureList() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new SumsListJob1());
+    String pipelineId = pipelineService.startNewPipeline(new SumsListJob1());
     Integer sum = waitForJobToComplete(pipelineId);
     assertEquals(21, sum.intValue());
   }
 
   public void testReturnFutureList() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new SumsListJob2());
+    String pipelineId = pipelineService.startNewPipeline(new SumsListJob2());
     Integer sum = waitForJobToComplete(pipelineId);
     assertEquals(21, sum.intValue());
   }
@@ -44,8 +42,7 @@ public class FutureListTest extends PipelineTest {
   // Thanks to Ronoaldo José de Lana Pereira for
   // suggesting this.
   public void testEmptyFutureList() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new SumsEmptyListJob());
+    String pipelineId = pipelineService.startNewPipeline(new SumsEmptyListJob());
     Integer sum = waitForJobToComplete(pipelineId);
     assertEquals(0, sum.intValue());
   }

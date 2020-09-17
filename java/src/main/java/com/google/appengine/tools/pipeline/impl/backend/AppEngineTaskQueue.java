@@ -29,6 +29,7 @@ import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.apphosting.api.ApiProxy;
+import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -60,6 +61,12 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
           .withStopStrategy(StopStrategies.stopAfterAttempt(6))
           .withWaitStrategy(WaitStrategies.incrementingWait(1000L, TimeUnit.MILLISECONDS, 1000L, TimeUnit.MILLISECONDS))
           .build();
+
+  final String taskHandlerUrl;
+
+  public AppEngineTaskQueue() {
+    this.taskHandlerUrl = TaskHandler.handleTaskUrl();
+  }
 
   @Override
   public void enqueue(Task task) {
@@ -140,7 +147,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   private TaskOptions toTaskOptions(Task task) {
     final QueueSettings queueSettings = task.getQueueSettings();
 
-    TaskOptions taskOptions = TaskOptions.Builder.withUrl(TaskHandler.handleTaskUrl());
+    TaskOptions taskOptions = TaskOptions.Builder.withUrl(taskHandlerUrl);
 
     String versionHostname;
 

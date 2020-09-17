@@ -44,8 +44,8 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
 
     @Override
     public Value<String> run() {
-      FutureValue<String> v1 = futureCall(new StrJob<String>(), immediate("hello"));
-      FutureValue<String> v2 = futureCall(new StrJob<String>(), immediate(" world"));
+      FutureValue<String> v1 = futureCall(new StrJob<>(), immediate("hello"));
+      FutureValue<String> v2 = futureCall(new StrJob<>(), immediate(" world"));
       return futureCall(new ConcatJob(), v1, v2);
     }
   }
@@ -64,8 +64,8 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
       if (shouldThrow) {
         throw new RuntimeException("bla");
       }
-      FutureValue<String> v1 = futureCall(new StrJob<String>(), immediate("hi"));
-      FutureValue<String> v2 = futureCall(new StrJob<String>(), immediate(" there"));
+      FutureValue<String> v1 = futureCall(new StrJob<>(), immediate("hi"));
+      FutureValue<String> v2 = futureCall(new StrJob<>(), immediate(" there"));
       return futureCall(new ConcatJob(), v1, v2);
     }
 
@@ -101,15 +101,15 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
   }
 
   public void testHandlerNoResults() throws Exception {
-    JsonClassFilterHandler.doGet(request, response);
+    JsonClassFilterHandler handler = new JsonClassFilterHandler(pipelineManager);
+    handler.doGet(request, response);
     assertEqualsIgnoreWhitespace("{\"classPaths\": []}", output.toString());
   }
 
   public void testHandlerWithResults() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId1 = service.startNewPipeline(new Main1Job());
-    String pipelineId2 = service.startNewPipeline(new Main2Job(false));
-    String pipelineId3 = service.startNewPipeline(new Main2Job(true),
+    String pipelineId1 = pipelineService.startNewPipeline(new Main1Job());
+    String pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
+    String pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
         new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
     String helloWorld = (String) waitForJobToComplete(pipelineId1);
     assertEquals("hello world", helloWorld);
@@ -117,7 +117,9 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
     assertEquals("hi there", hiThere);
     String bla = (String) waitForJobToComplete(pipelineId3);
     assertEquals("bla", bla);
-    JsonClassFilterHandler.doGet(request, response);
+
+    JsonClassFilterHandler handler = new JsonClassFilterHandler(pipelineManager);
+    handler.doGet(request, response);
     System.out.println(output.toString());
     String expected = "{\"classPaths\": [\n"
         + "  \"" + Main1Job.class.getName() + "\",\n"

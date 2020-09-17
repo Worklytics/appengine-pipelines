@@ -30,6 +30,7 @@ import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.appengine.tools.pipeline.JobSetting.WaitForSetting;
 import com.google.appengine.tools.pipeline.impl.FutureValueImpl;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.cloud.Timestamp;
@@ -39,7 +40,6 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
-import javax.annotation.Nullable;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.*;
@@ -54,7 +54,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
 
 
 
-    /**
+
+  /**
    * The state of the job.
    */
   public enum State {
@@ -147,13 +148,13 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   /**
    * projectId for job; must be set
    */
-  @Getter @Setter @NonNull
+  @Getter @NonNull
   private final String projectId;
 
   /**
    * namespace for Job, if any (otherwise default)
    */
-  @Getter @Setter
+  @Getter
   private final String namespace;
 
   @Getter
@@ -353,9 +354,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
    *        JobRecord.
    */
   public JobRecord(JobRecord generatorJob, String graphGUIDParam, Job<?> jobInstance,
-      boolean callExceptionHandler, JobSetting[] settings) {
+      boolean callExceptionHandler, JobSetting[] settings, SerializationStrategy serializationStrategy) {
     this(generatorJob.getRootJobKey(), null, generatorJob.getKey(), graphGUIDParam, jobInstance,
-        callExceptionHandler, settings, generatorJob.getQueueSettings());
+        callExceptionHandler, settings, generatorJob.getQueueSettings(), serializationStrategy);
     // If generator job has exception handler then it should be called in case
     // of this job throwing to create an exception handling child job.
     // If callExceptionHandler is true then this job is an exception handling
@@ -378,9 +379,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
 
   private JobRecord(Key rootJobKey, Key thisKey, Key generatorJobKey, String graphGUID,
       Job<?> jobInstance, boolean callExceptionHandler, JobSetting[] settings,
-      QueueSettings parentQueueSettings) {
+      QueueSettings parentQueueSettings, SerializationStrategy serializationStrategy) {
     super(rootJobKey, null, thisKey, generatorJobKey, graphGUID);
-    jobInstanceInflated = new JobInstanceRecord(this, jobInstance);
+    jobInstanceInflated = new JobInstanceRecord(this, jobInstance, serializationStrategy);
     jobInstanceKey = jobInstanceInflated.getKey();
     exceptionHandlerSpecified = isExceptionHandlerSpecified(jobInstance);
     this.callExceptionHandler = callExceptionHandler;
@@ -388,7 +389,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     runBarrierKey = runBarrierInflated.getKey();
     finalizeBarrierInflated = new Barrier(Barrier.Type.FINALIZE, this);
     finalizeBarrierKey = finalizeBarrierInflated.getKey();
-    outputSlotInflated = new Slot(getRootJobKey(), getGeneratorJobKey(), getGraphGuid());
+    outputSlotInflated = new Slot(getRootJobKey(), getGeneratorJobKey(), getGraphGuid(), serializationStrategy);
     // Initially we set the filler of the output slot to be this Job.
     // During finalize we may reset it to the filler of the finalize slot.
     outputSlotInflated.setSourceJobKey(getKey());
@@ -415,17 +416,16 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
         queueSettings.setOnServiceVersion(modulesService.getDefaultVersion(service));
       }
     }
-    projectId = JobSetting.getSettingValue(JobSetting.Project.class, settings)
-      .orElseThrow(() -> new IllegalArgumentException("JobSetting.Project is required"));
+    projectId = rootJobKey.getProjectId();
     namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
       .orElse(null);
   }
 
   // Constructor for Root Jobs (called by {@link #createRootJobRecord}).
-  private JobRecord(Key key, Job<?> jobInstance, JobSetting[] settings) {
+  private JobRecord(Key key, Job<?> jobInstance, JobSetting[] settings, SerializationStrategy serializationStrategy) {
     // Root Jobs have their rootJobKey the same as their keys and provide null for generatorKey
     // and graphGUID. Also, callExceptionHandler is always false.
-    this(key, key, null, null, jobInstance, false, settings, null);
+    this(key, key, null, null, jobInstance, false, settings, null, serializationStrategy);
     rootJobDisplayName = jobInstance.getJobDisplayName();
   }
 
@@ -437,13 +437,11 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
    * @param settings Array of {@code JobSetting} to apply to the newly created
    *        JobRecord.
    */
-  public static JobRecord createRootJobRecord(Job<?> jobInstance, JobSetting[] settings) {
-    String projectId = JobSetting.getSettingValue(JobSetting.Project.class, settings)
-      .orElseThrow(() -> new IllegalArgumentException("Must specify JobSetting.Project"));
+  public static JobRecord createRootJobRecord(String projectId, Job<?> jobInstance, JobSetting[] settings, SerializationStrategy serializationStrategy) {
     String namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
       .orElse(null);
     Key key = generateKey(projectId, namespace, DATA_STORE_KIND);
-    return new JobRecord(key, jobInstance, settings);
+    return new JobRecord(key, jobInstance, settings, serializationStrategy);
   }
 
 
@@ -492,8 +490,6 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       queueSettings.setOnQueue(((OnQueue) setting).getValue());
     } else if (setting instanceof StatusConsoleUrl) {
       statusConsoleUrl = ((StatusConsoleUrl) setting).getValue();
-    } else if (setting instanceof JobSetting.Project) {
-      //ignore; applied in constructor, bc it's final
     } else if (setting instanceof JobSetting.DatastoreNamespace) {
       //ignore; applied in constructor, bc it's final
     } else {
@@ -619,5 +615,17 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
         + ", outputSlot=" + outputSlotKey.getName() + ", rootJobDisplayName="
         + rootJobDisplayName + ", parent=" + getKeyName(getGeneratorJobKey()) + ", guid="
         + getGraphGuid() + ", childGuid=" + childGraphGuid + "]";
+  }
+
+  @VisibleForTesting
+  public static Key key(String projectId, String namespace, String localJobHandle) {
+    KeyFactory keyFactory = new KeyFactory(projectId, namespace);
+    keyFactory.setKind(DATA_STORE_KIND);
+    return keyFactory.newKey(localJobHandle);
+  }
+
+  @VisibleForTesting
+  public static Key keyFromPipelineHandle(String pipelineHandle) {
+    return Key.fromUrlSafe(pipelineHandle);
   }
 }

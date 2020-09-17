@@ -96,8 +96,8 @@ public class OrphanedJobGraphTest extends PipelineTest {
 
     // Get all of the Pipeline objects so we can confirm the orphaned jobs are
     // really there
-    PipelineObjects allObjects = PipelineManager.queryFullPipeline(pipelineHandle);
-    Key rootJobKey = JobRecord.datastoreKeyFromHandle(pipelineHandle);
+    PipelineObjects allObjects = pipelineManager.queryFullPipeline(pipelineHandle);
+    Key rootJobKey = JobRecord.keyFromPipelineHandle(pipelineHandle);
     JobRecord rootJob = allObjects.getJobs().get(rootJobKey);
     assertNotNull(rootJob);
     String graphGuid = rootJob.getChildGraphGuid();

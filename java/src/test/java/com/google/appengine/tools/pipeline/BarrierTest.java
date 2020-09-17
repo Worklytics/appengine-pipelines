@@ -124,6 +124,6 @@ public class BarrierTest extends TestCase {
 
   public static Slot createDummySlot() {
     Key dummyKey = Key.newBuilder("dummy", "dummy", "jobId").build();
-    return new Slot(dummyKey, dummyKey, "abc");
+    return new Slot(dummyKey, dummyKey, "abc", PipelineTest.pipelineManager().getSerializationStrategy());
   }
 }

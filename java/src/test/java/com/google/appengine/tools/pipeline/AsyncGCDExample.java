@@ -61,7 +61,7 @@ public class AsyncGCDExample {
     }
 
     private void asyncAskUserForTwoIntegers(final String aHandle, final String bHandle) {
-      final PipelineService service = PipelineServiceFactory.newPipelineService();
+      final PipelineService service = PipelineTest.pipelineService();
       Thread thread = new Thread() {
         @Override
         public void run() {
@@ -100,7 +100,7 @@ public class AsyncGCDExample {
     }
 
     private void asyncAskUserForName(final String handle) {
-      final PipelineService service = PipelineServiceFactory.newPipelineService();
+      final PipelineService service = PipelineTest.pipelineService();
       Thread thread = new Thread() {
         @Override
         public void run() {

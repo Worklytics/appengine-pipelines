@@ -78,8 +78,7 @@ public class TestingTaskQueueCallback extends DeferredTaskCallback {
       if (queueName != null && task.getQueueSettings().getOnQueue() == null) {
         task.getQueueSettings().setOnQueue(queueName);
       }
-      PipelineManager.processTask(task);
-
+      PipelineTest.pipelineManager().processTask(task);
     } catch (Exception e) {
       StringUtils.logRetryMessage(logger, task, retryCount, e);
       return 500;

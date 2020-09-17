@@ -5,6 +5,7 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Map;
@@ -38,19 +39,20 @@ public class JsonGeneratorTest extends PipelineTest {
     }
   }
 
+
   //TODO: this stuff should all be mocked, so can control jobIds + timestamps, more properly validate JSON
   // outputs
   PipelineObjects exampleObjects() throws Exception {
 
-    PipelineService service = PipelineServiceFactory.newPipelineService();
+
     ConcreteJob job = new ConcreteJob();
 
     //job ids seem to auto-inc in stubbed local data store, so beware ...
-    String pipelineId = service.startNewPipeline(job, JobSetting.Project.of("project"));
-    JobRecord jobRecord = PipelineManager.getJob(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(job);
+    JobRecord jobRecord = pipelineManager.getJob(pipelineId);
     JobInfo jobInfo = waitUntilJobComplete(pipelineId);
-    jobRecord = PipelineManager.getJob(pipelineId);
-    return PipelineManager.queryFullPipeline(pipelineId);
+    jobRecord = pipelineManager.getJob(pipelineId);
+    return pipelineManager.queryFullPipeline(pipelineId);
   }
 
   public void testMap() throws Exception {

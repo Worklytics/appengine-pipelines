@@ -22,11 +22,16 @@ import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestC
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.apphosting.api.ApiProxy;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import junit.framework.TestCase;
 import lombok.Getter;
+import lombok.SneakyThrows;
+import org.junit.Before;
 
+import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -40,8 +45,13 @@ public abstract class PipelineTest extends TestCase {
 
   private static StringBuffer traceBuffer;
 
+  public static final String PROJECT = "project";
+
   @Getter
   private LocalTaskQueue taskQueue;
+
+  protected PipelineService pipelineService;
+  protected PipelineManager pipelineManager;
 
   public PipelineTest() {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
@@ -84,6 +94,22 @@ public abstract class PipelineTest extends TestCase {
     apiProxyEnvironment = ApiProxy.getCurrentEnvironment();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
     taskQueue = LocalTaskQueueTestConfig.getLocalTaskQueue();
+  }
+
+  @Before
+  public void setupPipelineEnv() throws IOException {
+    pipelineService = pipelineService();
+    pipelineManager = pipelineManager();
+  }
+
+  @SneakyThrows
+  public static PipelineManager pipelineManager() {
+    return new PipelineManager(PROJECT, GoogleCredentials.getApplicationDefault());
+  }
+
+  @SneakyThrows
+  public static PipelineService pipelineService() {
+    return PipelineServiceFactory.newPipelineService(PROJECT);
   }
 
   @Override

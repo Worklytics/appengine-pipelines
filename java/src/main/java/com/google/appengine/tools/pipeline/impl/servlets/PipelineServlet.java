@@ -14,8 +14,12 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
+import com.google.appengine.api.utils.SystemProperty;
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
+import lombok.SneakyThrows;
 
 import java.io.IOException;
 
@@ -36,7 +40,6 @@ import javax.servlet.http.HttpServletResponse;
 public class PipelineServlet extends HttpServlet {
 
   public static final String BASE_URL_PROPERTY = "com.google.appengine.tools.pipeline.BASE_URL";
-  public static final String BASE_URL = baseUrl();
 
   /**
    * Returns the Pipeline's BASE URL.
@@ -54,7 +57,7 @@ public class PipelineServlet extends HttpServlet {
     return baseUrl() + "status.html?root=" + rootJobKey.toUrlSafe() + "#pipeline-" + jobKey.toUrlSafe();
   }
 
-  private static enum RequestType {
+  private enum RequestType {
 
     HANDLE_TASK(TaskHandler.PATH_COMPONENT),
     GET_JSON(JsonTreeHandler.PATH_COMPONENT),
@@ -66,7 +69,7 @@ public class PipelineServlet extends HttpServlet {
 
     private final String pathComponent;
 
-    private RequestType(String pathComponent) {
+    RequestType(String pathComponent) {
       this.pathComponent = pathComponent;
     }
 
@@ -88,6 +91,28 @@ public class PipelineServlet extends HttpServlet {
     return Pair.of(path, requestType);
   }
 
+  transient AbortJobHandler abortJobHandler;
+  transient DeleteJobHandler deleteJobHandler;
+  transient JsonClassFilterHandler jsonClassFilterHandler;
+  transient JsonListHandler jsonListHandler;
+  transient JsonTreeHandler jsonTreeHandler;
+  transient TaskHandler taskHandler;
+
+  @SneakyThrows
+  @Override
+  public void init() throws ServletException {
+    super.init();
+    //TODO: coupled to GAE; could we pull this via ServletConfig somehow, to make more flexible?
+    PipelineManager pipelineManager =
+      new PipelineManager(SystemProperty.applicationId.get(), GoogleCredentials.getApplicationDefault());
+    abortJobHandler = new AbortJobHandler(pipelineManager);
+    deleteJobHandler = new DeleteJobHandler(pipelineManager);
+    jsonClassFilterHandler = new JsonClassFilterHandler(pipelineManager);
+    jsonListHandler = new JsonListHandler(pipelineManager);
+    jsonTreeHandler = new JsonTreeHandler(pipelineManager);
+    taskHandler = new TaskHandler(pipelineManager);
+  }
+
   @Override
   public void doPost(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
@@ -102,22 +127,22 @@ public class PipelineServlet extends HttpServlet {
     String path = pair.getFirst();
     switch (requestType) {
       case HANDLE_TASK:
-        TaskHandler.doPost(req);
+        taskHandler.doPost(req);
         break;
       case GET_JSON:
-        JsonTreeHandler.doGet(req, resp);
+        jsonTreeHandler.doGet(req, resp);
         break;
       case GET_JSON_LIST:
-        JsonListHandler.doGet(req, resp);
+        jsonListHandler.doGet(req, resp);
         break;
       case GET_JSON_CLASS_FILTER:
-        JsonClassFilterHandler.doGet(req, resp);
+        jsonClassFilterHandler.doGet(req, resp);
         break;
       case ABORT_JOB:
-        AbortJobHandler.doGet(req, resp);
+        abortJobHandler.doGet(req, resp);
         break;
       case DELETE_JOB:
-        DeleteJobHandler.doGet(req, resp);
+        deleteJobHandler.doGet(req, resp);
         break;
       case HANDLE_STATIC:
         StaticContentHandler.doGet(resp, path);

@@ -28,8 +28,6 @@ public class DelayedValueTest extends PipelineTest {
   private static final int EXPECTED_RESULT = 5;
   private static final long DELAY_SECONDS = 10;
 
-  private PipelineService service = PipelineServiceFactory.newPipelineService();
-
   private static AtomicLong duration1 = new AtomicLong();
   private static AtomicLong duration2 = new AtomicLong();
 
@@ -57,7 +55,7 @@ public class DelayedValueTest extends PipelineTest {
   }
 
   public void testDelayedValue() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestDelayedValueJob());
+    String pipelineId = pipelineService.startNewPipeline(new TestDelayedValueJob());
     Integer five = waitForJobToComplete(pipelineId);
     assertEquals(EXPECTED_RESULT, five.intValue());
     assertEquals("TestDelayedValueJob.run DelayedJob.run", trace());

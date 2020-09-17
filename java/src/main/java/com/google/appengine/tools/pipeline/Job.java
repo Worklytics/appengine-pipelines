@@ -135,6 +135,7 @@ public abstract class Job<E> implements Serializable {
   private transient JobRecord thisJobRecord;
   private transient UpdateSpec updateSpec;
   private transient String currentRunGUID;
+  private transient PipelineRunner pipelineRunner;
 
   // This method will be invoked by reflection from PipelineManager
   @SuppressWarnings("unused")
@@ -152,6 +153,12 @@ public abstract class Job<E> implements Serializable {
   @SuppressWarnings("unused")
   private void setCurrentRunGuid(String guid) {
     this.currentRunGUID = guid;
+  }
+
+  // This method will be invoked by reflection from PipelineManager
+  @SuppressWarnings("unused")
+  private void setPipelineRunner(PipelineRunner pipelineRunner) {
+    this.pipelineRunner = pipelineRunner;
   }
 
   /**
@@ -177,8 +184,8 @@ public abstract class Job<E> implements Serializable {
    */
   public <T> FutureValue<T> futureCallUnchecked(JobSetting[] settings, Job<?> jobInstance,
       Object... params) {
-    JobRecord childJobRecord = PipelineManager.registerNewJobRecord(
-        updateSpec, settings, thisJobRecord, currentRunGUID, jobInstance, params);
+    JobRecord childJobRecord =
+      pipelineRunner.registerNewJobRecord(updateSpec, settings, thisJobRecord, currentRunGUID, jobInstance, params);
     thisJobRecord.appendChildKey(childJobRecord.getKey());
     return new FutureValueImpl<>(childJobRecord.getOutputSlotInflated());
   }
@@ -374,14 +381,14 @@ public abstract class Job<E> implements Serializable {
   @Deprecated
   public <F> PromisedValue<F> newPromise(Class<F> klass) {
     PromisedValueImpl<F> promisedValue =
-        new PromisedValueImpl<>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID);
+        new PromisedValueImpl<>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID, pipelineRunner.getSerializationStrategy());
     updateSpec.getNonTransactionalGroup().includeSlot(promisedValue.getSlot());
     return promisedValue;
   }
 
   public <F> PromisedValue<F> newPromise() {
     PromisedValueImpl<F> promisedValue =
-        new PromisedValueImpl<F>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID);
+        new PromisedValueImpl<F>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID, pipelineRunner.getSerializationStrategy());
     updateSpec.getNonTransactionalGroup().includeSlot(promisedValue.getSlot());
     return promisedValue;
   }

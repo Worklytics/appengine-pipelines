@@ -38,7 +38,7 @@ import java.util.List;
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public class FanoutTaskTest extends TestCase {
+public class FanoutTaskTest extends PipelineTest {
 
   private LocalServiceTestHelper helper =
       new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig());
@@ -53,13 +53,13 @@ public class FanoutTaskTest extends TestCase {
     super.setUp();
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
-    Key key = JobRecord.datastoreKeyFromHandle("job1");
+    Key key = JobRecord.key(PipelineTest.PROJECT, "", "job1");
     RunJobTask runJobTask = new RunJobTask(key, queueSettings1);
-    key = JobRecord.datastoreKeyFromHandle("job2");
+    key = JobRecord.key(PipelineTest.PROJECT, "","job2");
     RunJobTask runJobTask2 = new RunJobTask(key, queueSettings2);
-    key = JobRecord.datastoreKeyFromHandle("job3");
+    key = JobRecord.key(PipelineTest.PROJECT, "","job3");
     FinalizeJobTask finalizeJobTask = new FinalizeJobTask(key, queueSettings1);
-    key = Slot.keyFromHandle("slot1");
+    key = Slot.key(PipelineTest.PROJECT, "", "slot1");
     HandleSlotFilledTask hsfTask = new HandleSlotFilledTask(key, queueSettings2);
     listOfTasks = ImmutableList.of(runJobTask, runJobTask2, finalizeJobTask, hsfTask);
     encodedBytes = FanoutTask.encodeTasks(listOfTasks);

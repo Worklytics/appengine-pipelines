@@ -8,6 +8,14 @@
  - Support analogous concepts to Apache Beam API, but maintaining flexibility, re-use on top of GAE. 
  - Support for multi-tenant applications, which can isolate pipelines data on a per-tenant basis
 
+
+## Architecture
+
+This repo really has 3 distinct components, mixed into one:
+  * **client** for orchestrating pipelines
+  * **runner** that executes pipelines (see servlets)
+  * **admin** console for managing pipelines via a web app interface
+
 ## Original project
 
 Official site of original project, which is no longer maintained by Google: https://github.com/GoogleCloudPlatform

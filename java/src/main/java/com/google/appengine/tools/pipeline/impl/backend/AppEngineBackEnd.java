@@ -20,6 +20,8 @@ import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereF
 
 import com.github.rholder.retry.*;
 
+import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
+import com.google.auth.Credentials;
 import com.google.cloud.datastore.*;
 import com.google.cloud.datastore.Cursor;
 import com.google.cloud.datastore.Query;
@@ -65,7 +67,7 @@ import java.util.stream.Collectors;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-public class AppEngineBackEnd implements PipelineBackEnd {
+public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy {
 
   public static final int MAX_RETRY_ATTEMPTS = 5;
   public static final int RETRY_BACKOFF_MULTIPLIER = 2;
@@ -95,9 +97,33 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   private final AppEngineTaskQueue taskQueue;
 
   public AppEngineBackEnd() {
+    this(null, null);
+  }
+
+  /**
+   *
+   * @param projectId GCP project under which pipelines will execute
+   * @param credentials used to authenticate for access to that GCP project
+   *                    (need not be from same project, but must have datastore/task queue perms)
+   */
+  public AppEngineBackEnd(String projectId, Credentials credentials) {
     taskQueue = new AppEngineTaskQueue();
-    //TODO: inject this rather than take default instance
-    datastore = DatastoreOptions.getDefaultInstance().getService();
+
+    DatastoreOptions.Builder builder = DatastoreOptions.getDefaultInstance().toBuilder();
+    if (projectId != null) {
+      builder.setProjectId(projectId);
+    }
+
+    if (credentials != null) {
+      builder.setCredentials(credentials);
+    }
+
+    datastore = builder.build().getService();
+  }
+
+  @Override
+  public SerializationStrategy getSerializationStrategy() {
+    return this;
   }
 
   private void putAll(DatastoreBatchWriter batchWriter, Collection<? extends PipelineModelObject> objects) {
@@ -271,7 +297,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
         runBarrier = queryBarrier(jobRecord.getRunBarrierKey(), true);
         finalizeBarrier = queryBarrier(jobRecord.getFinalizeBarrierKey(), false);
         jobInstanceRecord =
-            new JobInstanceRecord(getEntity("queryJob", jobRecord.getJobInstanceKey()));
+            new JobInstanceRecord(getEntity("queryJob", jobRecord.getJobInstanceKey()), getSerializationStrategy());
         outputSlot = querySlot(jobRecord.getOutputSlotKey(), false);
         break;
       case FOR_FINALIZE:
@@ -327,7 +353,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     // Step 3. Convert into map from key to Slot
     Map<Key, Slot> slotMap = new HashMap<>(entityMap.size());
     for (Key key : keySet) {
-      Slot s = new Slot(entityMap.get(key));
+      Slot s = new Slot(entityMap.get(key), this);
       slotMap.put(key, s);
     }
     // Step 4. Inflate each of the barriers
@@ -339,7 +365,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   @Override
   public Slot querySlot(Key slotKey, boolean inflate) throws NoSuchObjectException {
     Entity entity = getEntity("querySlot", slotKey);
-    Slot slot = new Slot(entity);
+    Slot slot = new Slot(entity, this);
     if (inflate) {
       Map<Key, Entity> entities = getEntities("querySlot", slot.getWaitingOnMeKeys());
       Map<Key, Barrier> barriers = new HashMap<>(entities.size());
@@ -563,13 +589,13 @@ public class AppEngineBackEnd implements PipelineBackEnd {
       barriers.put(entity.getKey(), new Barrier(entity));
     }
     for (Entity entity : queryAll(Slot.DATA_STORE_KIND, rootJobKey)) {
-      slots.put(entity.getKey(), new Slot(entity, true));
+      slots.put(entity.getKey(), new Slot(entity, this, true));
     }
     for (Entity entity : queryAll(JobRecord.DATA_STORE_KIND, rootJobKey)) {
       jobs.put(entity.getKey(), new JobRecord(entity));
     }
     for (Entity entity : queryAll(JobInstanceRecord.DATA_STORE_KIND, rootJobKey)) {
-      jobInstanceRecords.put(entity.getKey(), new JobInstanceRecord(entity));
+      jobInstanceRecords.put(entity.getKey(), new JobInstanceRecord(entity, getSerializationStrategy()));
     }
     for (Entity entity : queryAll(ExceptionRecord.DATA_STORE_KIND, rootJobKey)) {
       failureRecords.put(entity.getKey(), new ExceptionRecord(entity));

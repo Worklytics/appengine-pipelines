@@ -52,6 +52,7 @@ public class RetryTest extends TestCase {
     super.setUp();
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
+    pipelineService = PipelineTest.pipelineService();
   }
 
   @Override
@@ -61,6 +62,8 @@ public class RetryTest extends TestCase {
   }
 
   private static volatile CountDownLatch countdownLatch;
+
+  private PipelineService pipelineService;
 
   public void testMaxAttempts() throws Exception {
     doMaxAttemptsTest(true);
@@ -88,11 +91,10 @@ public class RetryTest extends TestCase {
   }
 
   private void doMaxAttemptsTest(boolean succeedTheLastTime) throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
     String pipelineId = runJob(1, 4, 10, succeedTheLastTime);
     // Wait for framework to save Job information
     Thread.sleep(1000L);
-    JobInfo jobInfo = service.getJobInfo(pipelineId);
+    JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);
     JobInfo.State expectedState =
         (succeedTheLastTime ? JobInfo.State.COMPLETED_SUCCESSFULLY
             : JobInfo.State.STOPPED_BY_ERROR);
@@ -101,10 +103,9 @@ public class RetryTest extends TestCase {
 
   private String runJob(int backoffFactor, int maxAttempts, int awaitSeconds,
       boolean succeedTheLastTime) throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
     countdownLatch = new CountDownLatch(maxAttempts);
 
-    String pipelineId = service.startNewPipeline(
+    String pipelineId = pipelineService.startNewPipeline(
         new InvokesFailureJob(succeedTheLastTime, maxAttempts, backoffFactor));
     assertTrue(countdownLatch.await(awaitSeconds, TimeUnit.SECONDS));
     return pipelineId;

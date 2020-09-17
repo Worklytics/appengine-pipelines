@@ -16,6 +16,7 @@ package com.google.appengine.tools.pipeline.impl.model;
 
 import com.google.appengine.tools.pipeline.Job;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
@@ -43,21 +44,22 @@ public class JobInstanceRecord extends PipelineModelObject {
 
   // transient
   private Job<?> jobInstance;
+  private SerializationStrategy serializationStrategy;
 
-  public JobInstanceRecord(JobRecord job, Job<?> jobInstance) {
+  public JobInstanceRecord(JobRecord job, Job<?> jobInstance, SerializationStrategy serializationStrategy) {
     super(job.getRootJobKey(), job.getGeneratorJobKey(), job.getGraphGuid());
     jobKey = job.getKey();
     jobClassName = jobInstance.getClass().getName();
     jobDisplayName = jobInstance.getJobDisplayName();
     try {
-      value = PipelineManager.getBackEnd().serializeValue(this, jobInstance);
+      value = serializationStrategy.serializeValue(this, jobInstance);
     } catch (IOException e) {
       throw new RuntimeException("Exception while attempting to serialize the jobInstance "
           + jobInstance, e);
     }
  }
 
-  public JobInstanceRecord(Entity entity) {
+  public JobInstanceRecord(Entity entity, SerializationStrategy serializationStrategy) {
     super(entity);
     jobKey = entity.getKey(JOB_KEY_PROPERTY);
     jobClassName = entity.getString(JOB_CLASS_NAME_PROPERTY);
@@ -102,7 +104,7 @@ public class JobInstanceRecord extends PipelineModelObject {
   public synchronized Job<?> getJobInstanceDeserialized() {
     if (null == jobInstance) {
       try {
-        jobInstance = (Job<?>) PipelineManager.getBackEnd().deserializeValue(this, value);
+        jobInstance = (Job<?>) serializationStrategy.deserializeValue(this, value);
       } catch (IOException e) {
         throw new RuntimeException(
             "Exception while attempting to deserialize jobInstance for " + jobKey, e);

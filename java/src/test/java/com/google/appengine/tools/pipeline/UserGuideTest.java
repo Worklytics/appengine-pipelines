@@ -61,9 +61,8 @@ public class UserGuideTest extends TestCase {
   }
 
   private void doComplexJobTest(int x, int y, int z) throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new ComplexJob(), x, y, z);
-    JobInfo jobInfo = service.getJobInfo(pipelineId);
+    String pipelineId = PipelineTest.pipelineService().startNewPipeline(new ComplexJob(), x, y, z);
+    JobInfo jobInfo = PipelineTest.pipelineService().getJobInfo(pipelineId);
     JobInfo.State state = jobInfo.getJobState();
     if (JobInfo.State.COMPLETED_SUCCESSFULLY == state) {
       System.out.println("The output is " + jobInfo.getOutput());
@@ -74,10 +73,9 @@ public class UserGuideTest extends TestCase {
 
   @SuppressWarnings("unchecked")
   private <E> E waitForJobToComplete(String pipelineId) throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
     while (true) {
       Thread.sleep(2000);
-      JobInfo jobInfo = service.getJobInfo(pipelineId);
+      JobInfo jobInfo = PipelineTest.pipelineService().getJobInfo(pipelineId);
       switch (jobInfo.getJobState()) {
         case COMPLETED_SUCCESSFULLY:
           return (E) jobInfo.getOutput();

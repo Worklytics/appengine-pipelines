@@ -27,7 +27,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;

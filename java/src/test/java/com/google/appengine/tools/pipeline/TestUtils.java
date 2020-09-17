@@ -22,7 +22,7 @@ public class TestUtils {
 
 
   public static JobInfo waitUntilJobComplete(String pipelineId) throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
+    PipelineService service = PipelineTest.pipelineService();
     while (true) {
       Thread.sleep(2000);
       JobInfo jobInfo = service.getJobInfo(pipelineId);
