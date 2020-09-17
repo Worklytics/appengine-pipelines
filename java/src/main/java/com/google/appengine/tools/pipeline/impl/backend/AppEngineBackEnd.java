@@ -44,6 +44,7 @@ import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.cloud.datastore.Blob;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
+import com.google.common.base.Strings;
 import com.google.common.collect.Streams;
 import com.google.datastore.v1.QueryResultBatch;
 import lombok.Getter;
@@ -99,11 +100,12 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     datastore = DatastoreOptions.getDefaultInstance().getService();
   }
 
-  private void putAll(Transaction txn, Collection<? extends PipelineModelObject> objects) {
+  private void putAll(DatastoreBatchWriter batchWriter, Collection<? extends PipelineModelObject> objects) {
     objects.stream()
       .map(PipelineModelObject::toEntity)
-      .forEach(txn::putWithDeferredIdAllocation);
+      .forEach(batchWriter::putWithDeferredIdAllocation);
   }
+
 
   private void saveAll(Transaction txn, UpdateSpec.Group group) {
     putAll(txn, group.getBarriers());
@@ -111,6 +113,16 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     putAll(txn, group.getSlots());
     putAll(txn, group.getJobInstanceRecords());
     putAll(txn, group.getFailureRecords());
+  }
+
+  private void saveAll(UpdateSpec.Group group) {
+    Batch batch = datastore.newBatch();
+    putAll(batch, group.getBarriers());
+    putAll(batch, group.getJobs());
+    putAll(batch, group.getSlots());
+    putAll(batch, group.getJobInstanceRecords());
+    putAll(batch, group.getFailureRecords());
+    batch.submit();
   }
 
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
@@ -209,7 +221,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     tryFiveTimes(new Operation<Void>("save") {
       @Override
       public Void call() {
-        saveAll(null, updateSpec.getNonTransactionalGroup());
+        saveAll(updateSpec.getNonTransactionalGroup());
         return null;
       }
     });
@@ -481,9 +493,9 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     EntityQuery.Builder query = Query.newEntityQueryBuilder()
       .setKind(JobRecord.DATA_STORE_KIND);
 
-    query.setFilter(classFilter == null || classFilter.isEmpty() ?
-      StructuredQuery.PropertyFilter.gt(ROOT_JOB_DISPLAY_NAME, (String) null) //q: does this hackery work in new lib?
-      : StructuredQuery.PropertyFilter.eq(ROOT_JOB_DISPLAY_NAME, classFilter));
+    if (!Strings.isNullOrEmpty(classFilter)) {
+      query.setFilter(StructuredQuery.PropertyFilter.eq(ROOT_JOB_DISPLAY_NAME, classFilter));
+    }
 
     if (limit > 0) {
       query.setLimit(limit + 1);

@@ -17,6 +17,7 @@ package com.google.appengine.tools.pipeline.impl.tasks;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 
+import java.util.Base64;
 import java.util.Properties;
 
 /**
@@ -57,7 +58,9 @@ public abstract class ObjRefTask extends Task {
     if (namePrefix == null) {
       throw new IllegalArgumentException("namePrix is null.");
     }
-    return namePrefix + key.toUrlSafe();
+    //deterministic name based on key, that is legal for Task Queues
+    String legalTaskNameSuffix = Base64.getEncoder().encodeToString(key.toUrlSafe().getBytes()).replace("=", "");
+    return namePrefix + "_" + legalTaskNameSuffix;
   }
 
   /**

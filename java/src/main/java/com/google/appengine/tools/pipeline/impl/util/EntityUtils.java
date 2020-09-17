@@ -12,11 +12,15 @@ import java.util.stream.Collectors;
 public class EntityUtils {
 
   public static Key getKey(Entity entity, String propertyName) {
-    return entity.getNames().contains(propertyName) ? entity.getKey(propertyName) : null;
+    return entity.contains(propertyName) ? entity.getKey(propertyName) : null;
   }
 
   public static Instant getInstant(Entity entity, String propertyName) {
-    return entity.getNames().contains(propertyName) ? entity.getTimestamp(propertyName).toDate().toInstant() : null;
+    return entity.contains(propertyName) ? entity.getTimestamp(propertyName).toDate().toInstant() : null;
+  }
+
+  public static String getString(Entity entity, String propertyName) {
+    return entity.contains(propertyName) ? entity.getString(propertyName) : null;
   }
 
   /**
@@ -37,4 +41,6 @@ public class EntityUtils {
       throw new RuntimeException("value not of type that can be stored into Datastore");
     }
   }
+
+
 }

@@ -34,12 +34,14 @@ import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
+import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Method;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -192,9 +194,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   @Getter @Setter
   private Key exceptionKey;
   @Getter @Setter
-  private Date startTime;
+  private Instant startTime;
   @Getter @Setter
-  private Date endTime;
+  private Instant endTime;
   @Getter @Setter
   private String childGraphGuid;
   @Getter
@@ -254,8 +256,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     ignoreException = entity.getBoolean(IGNORE_EXCEPTION_PROPERTY);
     childGraphGuid = entity.getString(CHILD_GRAPH_GUID_PROPERTY);
     exceptionKey = EntityUtils.getKey(entity, EXCEPTION_KEY_PROPERTY);
-    startTime = entity.getTimestamp(START_TIME_PROPERTY).toDate();
-    endTime = entity.getTimestamp(END_TIME_PROPERTY).toDate();
+    startTime = EntityUtils.getInstant(entity, START_TIME_PROPERTY);
+    endTime = EntityUtils.getInstant(entity, END_TIME_PROPERTY);
     childKeys = (List<Key>) entity.getList(CHILD_KEYS_PROPERTY).stream().map(v -> v.get()).collect(Collectors.toList());
     attemptNumber = entity.getLong(ATTEMPT_NUM_PROPERTY);
     maxAttempts = entity.getLong(MAX_ATTEMPTS_PROPERTY);
@@ -263,8 +265,10 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     backoffFactor = entity.getLong(BACKOFF_FACTOR_PROPERTY);
     queueSettings.setOnService(entity.getString(ON_SERVICE_PROPERTY));
     queueSettings.setOnServiceVersion(entity.getString(ON_SERVICE_VERSION_PROPERTY));
-    queueSettings.setOnQueue(entity.getString(ON_QUEUE_PROPERTY));
-    statusConsoleUrl = entity.getString(STATUS_CONSOLE_URL);
+    if (entity.contains(ON_QUEUE_PROPERTY)) {
+      queueSettings.setOnQueue(entity.getString(ON_QUEUE_PROPERTY));
+    }
+    statusConsoleUrl = EntityUtils.getString(entity, STATUS_CONSOLE_URL);
     rootJobDisplayName = entity.getString(ROOT_JOB_DISPLAY_NAME);
     projectId = entity.getKey().getProjectId();
     namespace = entity.getKey().getNamespace();
@@ -304,8 +308,12 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     if (childGraphGuid != null) {
       builder.set(CHILD_GRAPH_GUID_PROPERTY, StringValue.newBuilder(childGraphGuid).setExcludeFromIndexes(true).build());
     }
-    builder.set(START_TIME_PROPERTY, Timestamp.of(startTime));
-    builder.set(END_TIME_PROPERTY, TimestampValue.newBuilder(Timestamp.of(endTime)).setExcludeFromIndexes(true).build());
+    if (startTime != null) {
+      builder.set(START_TIME_PROPERTY, Timestamp.of(Date.from(startTime)));
+    }
+    if (endTime != null) {
+      builder.set(END_TIME_PROPERTY, TimestampValue.newBuilder(Timestamp.of(Date.from(endTime))).setExcludeFromIndexes(true).build());
+    }
     builder.set(CHILD_KEYS_PROPERTY, childKeys.stream().map(KeyValue::of).collect(Collectors.toList()));
     builder.set(ATTEMPT_NUM_PROPERTY, LongValue.newBuilder(attemptNumber).setExcludeFromIndexes(true).build());
     builder.set(MAX_ATTEMPTS_PROPERTY, LongValue.newBuilder(maxAttempts).setExcludeFromIndexes(true).build());
@@ -313,8 +321,13 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     builder.set(BACKOFF_FACTOR_PROPERTY, LongValue.newBuilder(backoffFactor).setExcludeFromIndexes(true).build());
     builder.set(ON_SERVICE_PROPERTY, StringValue.newBuilder(queueSettings.getOnService()).setExcludeFromIndexes(true).build());
     builder.set(ON_SERVICE_VERSION_PROPERTY, StringValue.newBuilder(queueSettings.getOnServiceVersion()).setExcludeFromIndexes(true).build());
-    builder.set(ON_QUEUE_PROPERTY, StringValue.newBuilder(queueSettings.getOnQueue()).setExcludeFromIndexes(true).build());
-    builder.set(STATUS_CONSOLE_URL, StringValue.newBuilder(statusConsoleUrl).setExcludeFromIndexes(true).build());
+
+    if (queueSettings.getOnQueue() != null) {
+      builder.set(ON_QUEUE_PROPERTY, StringValue.newBuilder(queueSettings.getOnQueue()).setExcludeFromIndexes(true).build());
+    }
+    if (statusConsoleUrl != null) {
+      builder.set(STATUS_CONSOLE_URL, StringValue.newBuilder(statusConsoleUrl).setExcludeFromIndexes(true).build());
+    }
     if (rootJobDisplayName != null) {
       builder.set(ROOT_JOB_DISPLAY_NAME, rootJobDisplayName);
     }
@@ -426,7 +439,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
    */
   public static JobRecord createRootJobRecord(Job<?> jobInstance, JobSetting[] settings) {
     String projectId = JobSetting.getSettingValue(JobSetting.Project.class, settings)
-      .orElseThrow(() -> new IllegalArgumentException("Must specifiy JobSetting.Project"));
+      .orElseThrow(() -> new IllegalArgumentException("Must specify JobSetting.Project"));
     String namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
       .orElse(null);
     Key key = generateKey(projectId, namespace, DATA_STORE_KIND);
@@ -467,7 +480,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       } else if (setting instanceof MaxAttempts) {
         maxAttempts = value;
       } else {
-        throw new RuntimeException("Unrecognized JobOption class " + setting.getClass().getName());
+        throw new RuntimeException("Unrecognized JobSetting class " + setting.getClass().getName());
       }
     } else if (setting instanceof OnService) {
       queueSettings.setOnService(((JobSetting.OnService) setting).getValue());
@@ -477,10 +490,14 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       queueSettings.setOnServiceVersion(((JobSetting.OnServiceVersion) setting).getValue());
     } else if (setting instanceof OnQueue) {
       queueSettings.setOnQueue(((OnQueue) setting).getValue());
-    } else if (setting instanceof StatusConsoleUrl){
+    } else if (setting instanceof StatusConsoleUrl) {
       statusConsoleUrl = ((StatusConsoleUrl) setting).getValue();
+    } else if (setting instanceof JobSetting.Project) {
+      //ignore; applied in constructor, bc it's final
+    } else if (setting instanceof JobSetting.DatastoreNamespace) {
+      //ignore; applied in constructor, bc it's final
     } else {
-      throw new RuntimeException("Unrecognized JobOption class " + setting.getClass().getName());
+      throw new RuntimeException("Unrecognized JobSetting class " + setting.getClass().getName());
     }
   }
 
@@ -602,9 +619,5 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
         + ", outputSlot=" + outputSlotKey.getName() + ", rootJobDisplayName="
         + rootJobDisplayName + ", parent=" + getKeyName(getGeneratorJobKey()) + ", guid="
         + getGraphGuid() + ", childGuid=" + childGraphGuid + "]";
-  }
-
-  public static Key datastoreKeyFromHandle(String pipelineHandle) {
-    return Key.fromUrlSafe(pipelineHandle);
   }
 }

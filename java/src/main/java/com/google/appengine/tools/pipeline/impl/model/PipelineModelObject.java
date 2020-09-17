@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
+import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import lombok.NonNull;
@@ -102,7 +103,11 @@ public abstract class PipelineModelObject {
     this.generatorJobKey = generatorJobKey;
     this.graphGUID = graphGUID;
     if (null == thisKey) {
-      key = generateKey(egParentKey, getDatastoreKind());
+      if (egParentKey == null) {
+        key = generateKey(rootJobKey.getProjectId(), rootJobKey.getNamespace(), getDatastoreKind());
+      } else {
+        key = generateKey(egParentKey, getDatastoreKind());
+      }
     } else {
       if (egParentKey != null) {
         throw new IllegalArgumentException("You may not specify both thisKey and parentKey");
@@ -174,11 +179,11 @@ public abstract class PipelineModelObject {
   }
 
   private static Key extractGeneratorJobKey(Entity entity) {
-    return entity.getKey(GENERATOR_JOB_PROPERTY);
+    return EntityUtils.getKey(entity, GENERATOR_JOB_PROPERTY);
   }
 
   private static String extractGraphGUID(Entity entity) {
-    return entity.getString(GRAPH_GUID_PROPERTY);
+    return EntityUtils.getString(entity, GRAPH_GUID_PROPERTY);
   }
 
   private static String extractType(Entity entity) {

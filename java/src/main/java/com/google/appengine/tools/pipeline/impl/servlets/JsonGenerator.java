@@ -196,13 +196,13 @@ class JsonGenerator {
         break;
     }
     map.put(JOB_STATUS, statusString);
-    Date startTime = jobRecord.getStartTime();
+    Instant startTime = jobRecord.getStartTime();
     if (null != startTime) {
-      map.put(JOB_START_TIME, startTime.getTime());
+      map.put(JOB_START_TIME, startTime.toEpochMilli());
     }
-    Date endTime = jobRecord.getEndTime();
+    Instant endTime = jobRecord.getEndTime();
     if (null != endTime) {
-      map.put(JOB_END_TIME, endTime.getTime());
+      map.put(JOB_END_TIME, endTime.toEpochMilli());
     }
     map.put(JOB_CHILDREN, buildArrayRepresentation(jobRecord.getChildKeys()));
     List<Map<String, Object>> argumentListRepresentation = new LinkedList<>();

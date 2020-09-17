@@ -75,10 +75,6 @@ public class Slot extends PipelineModelObject {
     }
   }
 
-  public static Key keyFromHandle(String slotHandle) {
-    return Key.fromUrlSafe(slotHandle);
-  }
-
   private Object deserializeValue(Object serializedValue) {
     try {
       return PipelineManager.getBackEnd().deserializeValue(this, serializedValue);

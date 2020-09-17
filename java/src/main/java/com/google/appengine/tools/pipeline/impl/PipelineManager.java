@@ -56,6 +56,7 @@ import lombok.extern.java.Log;
 import javax.annotation.Nullable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -758,7 +759,7 @@ public class PipelineManager {
     // Set the Job's start time and save the jobRecord now before we invoke
     // run(). The start time will be displayed in the UI.
     jobRecord.incrementAttemptNumber();
-    jobRecord.setStartTime(new Date());
+    jobRecord.setStartTime(Instant.now());
     tempSpec = new UpdateSpec(jobRecord.getRootJobKey());
     tempSpec.getNonTransactionalGroup().includeJob(jobRecord);
     if (!backEnd.saveWithJobStateCheck(
@@ -1052,7 +1053,7 @@ public class PipelineManager {
 
     // Change state of the job to FINALIZED and set the end time
     jobRecord.setState(State.FINALIZED);
-    jobRecord.setEndTime(new Date());
+    jobRecord.setEndTime(Instant.now());
 
     // Propagate the filler of the finalize slot to also be the filler of the
     // output slot. If there is no unique filler of the finalize slot then we
