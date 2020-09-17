@@ -14,6 +14,10 @@
 
 package com.google.appengine.tools.pipeline;
 
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Optional;
@@ -47,18 +51,12 @@ public interface JobSetting extends Serializable {
   /**
    * An abstract parent object for integer settings.
    */
+  @RequiredArgsConstructor
+  @Getter
   abstract class IntValuedSetting implements JobSetting {
 
     private static final long serialVersionUID = -4853437803222515955L;
     private final int value;
-
-    protected IntValuedSetting(int value) {
-      this.value = value;
-    }
-
-    public int getValue() {
-      return value;
-    }
 
     @Override
     public String toString() {
@@ -69,18 +67,13 @@ public interface JobSetting extends Serializable {
   /**
    * An abstract parent object for String settings.
    */
+  @Getter
+  @RequiredArgsConstructor
   abstract class StringValuedSetting implements JobSetting {
 
     private static final long serialVersionUID = 7756646651569386669L;
+    @NonNull
     private final String value;
-
-    protected StringValuedSetting(String value) {
-      this.value = value;
-    }
-
-    public String getValue() {
-      return value;
-    }
 
     @Override
     public String toString() {
@@ -191,7 +184,6 @@ public interface JobSetting extends Serializable {
   final class OnQueue extends StringValuedSetting {
 
     private static final long serialVersionUID = -5010485721032395432L;
-    public static final String DEFAULT = null;
 
     public OnQueue(String queue) {
       super(queue);
@@ -235,8 +227,12 @@ public interface JobSetting extends Serializable {
   final class Project extends StringValuedSetting {
     private static final long serialVersionUID = -1L;
 
-    public Project(String project) {
+    private Project(String project) {
       super(project);
+    }
+
+    public static Project of(String projectId) {
+      return new Project(projectId);
     }
   }
 
