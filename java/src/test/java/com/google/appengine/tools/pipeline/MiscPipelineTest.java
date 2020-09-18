@@ -20,6 +20,7 @@ import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import lombok.AllArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -74,7 +75,7 @@ public class MiscPipelineTest extends PipelineTest {
   @Test
   public void testReturnFutureList() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new ReturnFutureListJob());
-    List<String> value = waitForJobToComplete(pipelineId);
+    List<String> value = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(ImmutableList.of("123", "456"), value);
   }
 
@@ -98,9 +99,10 @@ public class MiscPipelineTest extends PipelineTest {
     }
   }
 
+  @Test
   public void testTransform() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new TestTransformJob());
-    Long value = waitForJobToComplete(pipelineId);
+    Long value = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(Long.valueOf(123), value);
   }
 
@@ -129,7 +131,7 @@ public class MiscPipelineTest extends PipelineTest {
   @Test
   public void testWaitForAll() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new RootJob(false));
-    JobInfo jobInfo = waitUntilJobComplete(pipelineId);
+    JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
     assertEquals("123", jobInfo.getOutput());
     assertNotNull(pipelineService.getJobInfo(pipelineId));
@@ -138,7 +140,7 @@ public class MiscPipelineTest extends PipelineTest {
   @Test
   public void testWaitForAllAndDelete() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new RootJob(true));
-    JobInfo jobInfo = waitUntilJobComplete(pipelineId);
+    JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
     assertEquals("123", jobInfo.getOutput());
     waitUntilTaskQueueIsEmpty(getTaskQueue());
@@ -155,12 +157,14 @@ public class MiscPipelineTest extends PipelineTest {
 
     static AtomicBoolean flag = new AtomicBoolean();
 
+    PipelineService pipelineService;
+
     @Override
     public Value<String> run() throws Exception {
       FutureValue<Void> child1 = futureCall(new ChildJob());
       FutureValue<String> child2 = futureCall(new StrJob<>(), immediate(Long.valueOf(123)));
-      String str1 = PipelineTest.pipelineService().startNewPipeline(new EchoJob<>(), child2);
-      String str2 = PipelineTest.pipelineService().startNewPipeline(new CalledJob(), waitFor(child1));
+      String str1 = pipelineService.startNewPipeline(new EchoJob<>(), child2);
+      String str2 = pipelineService.startNewPipeline(new CalledJob(), waitFor(child1));
       return immediate(str1 + "," + str2);
     }
   }
@@ -194,15 +198,16 @@ public class MiscPipelineTest extends PipelineTest {
     }
   }
 
+  @Test
   public void testWaitForUsedByNewPipeline() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new CallerJob());
-    JobInfo jobInfo = waitUntilJobComplete(pipelineId);
+    JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
     String[] calledPipelines = ((String) jobInfo.getOutput()).split(",");
-    jobInfo = waitUntilJobComplete(calledPipelines[0]);
+    jobInfo = waitUntilJobComplete(pipelineService, calledPipelines[0]);
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
     assertEquals("123", jobInfo.getOutput());
-    jobInfo = waitUntilJobComplete(calledPipelines[1]);
+    jobInfo = waitUntilJobComplete(pipelineService, calledPipelines[1]);
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
     assertTrue((Boolean) jobInfo.getOutput());
   }
@@ -238,12 +243,13 @@ public class MiscPipelineTest extends PipelineTest {
     }
   }
 
+  @Test
   public void testGetJobDisplayName() throws Exception {
     ConcreteJob job = new ConcreteJob();
     String pipelineId = pipelineService.startNewPipeline(job);
     JobRecord jobRecord = pipelineManager.getJob(pipelineId);
     assertEquals(job.getJobDisplayName(), jobRecord.getRootJobDisplayName());
-    JobInfo jobInfo = waitUntilJobComplete(pipelineId);
+    JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals("Shalom", jobInfo.getOutput());
     jobRecord = pipelineManager.getJob(pipelineId);
     assertEquals(job.getJobDisplayName(), jobRecord.getRootJobDisplayName());
@@ -253,7 +259,7 @@ public class MiscPipelineTest extends PipelineTest {
 
   public void testJobInheritence() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new ConcreteJob());
-    JobInfo jobInfo = waitUntilJobComplete(pipelineId);
+    JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals("Shalom", jobInfo.getOutput());
   }
 
@@ -266,21 +272,23 @@ public class MiscPipelineTest extends PipelineTest {
     }
   }
 
+  @Test
  public void testJobFailure() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new FailedJob());
-    JobInfo jobInfo = waitUntilJobComplete(pipelineId);
+    JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals(JobInfo.State.STOPPED_BY_ERROR, jobInfo.getJobState());
     assertEquals("koko", jobInfo.getException().getMessage());
     assertNull(jobInfo.getOutput());
   }
 
+  @Test
   public void testReturnValue() throws Exception {
     // Testing that return value from parent is always after all children complete
     // which is not the case right now. This this *SHOULD* change after we fix
     // it, as fixing it should cause a dead-lock.
     // see b/12249138
     String pipelineId = pipelineService.startNewPipeline(new ReturnValueParentJob());
-    String value = waitForJobToComplete(pipelineId);
+    String value = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("bla", value);
     ReturnValueParentJob.latch1.countDown();
     waitUntilTaskQueueIsEmpty(getTaskQueue());
@@ -310,22 +318,26 @@ public class MiscPipelineTest extends PipelineTest {
     }
   }
 
+  @Test
   public void testSubmittingPromisedValueMoreThanOnce() throws Exception {
-    String pipelineId = pipelineService.startNewPipeline(new SubmitPromisedParentJob());
-    String value = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new SubmitPromisedParentJob(pipelineService));
+    String value = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("2", value);
   }
 
   @SuppressWarnings("serial")
+
+  @AllArgsConstructor
   private static class SubmitPromisedParentJob extends Job0<String> {
 
+    PipelineService pipelineService;
     @Override
     public Value<String> run() throws Exception {
       PromisedValue<String> promise = newPromise();
       FutureValue<Void> child1 = futureCall(
-          new FillPromiseJob(), immediate("1"), immediate(promise.getHandle()));
+          new FillPromiseJob(pipelineService), immediate("1"), immediate(promise.getHandle()));
       FutureValue<Void> child2 = futureCall(
-          new FillPromiseJob(), immediate("2"), immediate(promise.getHandle()), waitFor(child1));
+          new FillPromiseJob(pipelineService), immediate("2"), immediate(promise.getHandle()), waitFor(child1));
       FutureValue<String> child3 = futureCall(new ReadPromiseJob(), promise, waitFor(child2));
       // If we return promise directly then the value would be "1" rather than "2", see b/12216307
       //return promise;
@@ -342,15 +354,19 @@ public class MiscPipelineTest extends PipelineTest {
   }
 
   @SuppressWarnings("serial")
+  @AllArgsConstructor
   private static class FillPromiseJob extends Job2<Void, String, String> {
+
+    PipelineService pipelineService;
 
     @Override
     public Value<Void> run(String value, String handle) throws Exception {
-      PipelineServiceFactory.newPipelineService().submitPromisedValue(handle, value);
+      pipelineService.submitPromisedValue(handle, value);
       return null;
     }
   }
 
+  @Test
   public void testCancelPipeline() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new HandleExceptionParentJob(),
         new JobSetting.BackoffSeconds(1), new JobSetting.BackoffFactor(1),
@@ -496,25 +512,25 @@ public class MiscPipelineTest extends PipelineTest {
     }
   }
 
+  @Test
   public void testImmediateChild() throws Exception {
     // This is also testing inheritance of statusConsoleUrl.
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new Returns5FromChildJob(), largeValue);
-    Integer five = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new Returns5FromChildJob(), largeValue);
+    Integer five = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(5, five.intValue());
   }
 
+  @Test
   public void testPromisedValue() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new FillPromisedValueJob());
-    String helloWorld = (String) waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new FillPromisedValueJob());
+    String helloWorld = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("hello world", helloWorld);
   }
 
+  @Test
   public void testDelayedValueInSlowJob() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new UsingDelayedValueInSlowJob());
-    String hello = (String) waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new UsingDelayedValueInSlowJob());
+    String hello = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("I am delayed", hello);
   }
 

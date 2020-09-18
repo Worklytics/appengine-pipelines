@@ -16,6 +16,7 @@ package com.google.appengine.tools.pipeline;
 
 
 import com.google.appengine.tools.pipeline.demo.GCDExample;
+import lombok.AllArgsConstructor;
 
 /**
  *
@@ -46,7 +47,11 @@ public class AsyncGCDExample {
    * print a message on the console with the results.
    */
   @SuppressWarnings("serial")
+  @AllArgsConstructor
   public static class PrintGCDJob extends Job0<Void> {
+
+    PipelineService service;
+
     @Override
     public Value<Void> run() {
       PromisedValue<Integer> a = newPromise();
@@ -61,7 +66,6 @@ public class AsyncGCDExample {
     }
 
     private void asyncAskUserForTwoIntegers(final String aHandle, final String bHandle) {
-      final PipelineService service = PipelineTest.pipelineService();
       Thread thread = new Thread() {
         @Override
         public void run() {
@@ -92,6 +96,9 @@ public class AsyncGCDExample {
    */
   @SuppressWarnings("serial")
   public static class AskUserForNameJob extends Job0<String> {
+
+    PipelineService service;
+
     @Override
     public Value<String> run() {
       PromisedValue<String> userName = newPromise();
@@ -100,7 +107,6 @@ public class AsyncGCDExample {
     }
 
     private void asyncAskUserForName(final String handle) {
-      final PipelineService service = PipelineTest.pipelineService();
       Thread thread = new Thread() {
         @Override
         public void run() {

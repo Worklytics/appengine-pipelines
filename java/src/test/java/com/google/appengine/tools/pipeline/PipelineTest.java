@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
+import static org.mockito.Mockito.mock;
 
 import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
@@ -22,22 +23,19 @@ import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
+import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.apphosting.api.ApiProxy;
 
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.datastore.Datastore;
+import com.google.auth.Credentials;
 import lombok.Getter;
-import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-@ExtendWith({DatastoreExtension.class, DatastoreParameterResolver.class})
+@PipelineSetupExtensions
 public abstract class PipelineTest {
 
   protected LocalServiceTestHelper helper;
@@ -45,7 +43,7 @@ public abstract class PipelineTest {
 
   private static StringBuffer traceBuffer;
 
-  public static final String PROJECT = "project";
+  public static final String PROJECT = DatastoreExtension.TEST_DATASTORE_PROJECT_ID;
 
   @Getter
   private LocalTaskQueue taskQueue;
@@ -74,32 +72,30 @@ public abstract class PipelineTest {
   }
 
   @BeforeEach
-  public void setUp(Datastore datastore) throws Exception {
+  public void setUp(PipelineService pipelineService, PipelineManager pipelineManager, AppEngineBackEnd appEngineBackend) throws Exception {
     traceBuffer = new StringBuffer();
     helper.setUp();
     apiProxyEnvironment = ApiProxy.getCurrentEnvironment();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
     taskQueue = LocalTaskQueueTestConfig.getLocalTaskQueue();
 
-    pipelineService = PipelineServiceFactory.newPipelineService(PROJECT, datastore);
-    appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
-    pipelineManager = new PipelineManager(appEngineBackend, PROJECT);
+    this.appEngineBackend = appEngineBackend;
+    this.pipelineManager = pipelineManager;
+    this.pipelineService = pipelineService;
+
+    //hack to put pipelineManager into taskQueuecallback; we need to replace tasks client any way, so this will go away
+    TestingTaskQueueCallback.pipelineManager = pipelineManager;
   }
 
-  @SneakyThrows
-  public static PipelineManager pipelineManager() {
-    return new PipelineManager(PROJECT, GoogleCredentials.getApplicationDefault());
+  public static SerializationStrategy getSerializationStrategy() {
+    //just fake this, project/credentials shouldn't be used
+    return new AppEngineBackEnd(PROJECT, mock(Credentials.class));
   }
 
-  @SneakyThrows
-  public static PipelineService pipelineService() {
-    return PipelineServiceFactory.newPipelineService(PROJECT);
-  }
 
   @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
   }
-
 
 }

@@ -12,6 +12,7 @@ import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.apphosting.api.ApiProxy;
+import lombok.AllArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -79,8 +80,8 @@ public class OrphanedJobGraphTest extends PipelineTest {
   private void doOrphanedJobGraphTest(boolean usePromisedValue) throws Exception {
 
     // Run GeneratorJob
-    String pipelineHandle = pipelineService.startNewPipeline(new GeneratorJob(usePromisedValue));
-    waitForJobToComplete(pipelineHandle);
+    String pipelineHandle = pipelineService.startNewPipeline(new GeneratorJob(usePromisedValue, pipelineService));
+    waitForJobToComplete(pipelineService, pipelineHandle);
 
     // The GeneratorJob run() should have failed twice just before the final
     // transaction and succeeded a third time
@@ -156,6 +157,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
    * succeed the third time. The job also counts the number of times it was run.
    */
   @SuppressWarnings("serial")
+  @AllArgsConstructor
   private static class GeneratorJob extends Job0<Void> {
 
     public static AtomicInteger runCount = new AtomicInteger(0);
@@ -163,10 +165,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
         getFailureProperty("AppEngineBackeEnd.saveWithJobStateCheck.beforeFinalTransaction");
 
     boolean usePromise;
-
-    public GeneratorJob(boolean usePromise) {
-      this.usePromise = usePromise;
-    }
+    PipelineService pipelineService;
 
     @Override
     public Value<Void> run() {
@@ -178,7 +177,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
       if (usePromise) {
         PromisedValue<Integer> promisedValue = newPromise();
         (new Thread(new SupplyPromisedValueRunnable(ApiProxy.getCurrentEnvironment(),
-            promisedValue.getHandle()))).start();
+            promisedValue.getHandle(), pipelineService))).start();
         dummyValue = promisedValue;
       } else {
         dummyValue = immediate(0);
@@ -209,18 +208,19 @@ public class OrphanedJobGraphTest extends PipelineTest {
    */
   private static class SupplyPromisedValueRunnable implements Runnable {
 
+    private PipelineService pipelineService;
     private String promiseHandle;
     private ApiProxy.Environment apiProxyEnvironment;
     public static AtomicInteger orphanedObjectExcetionCount = new AtomicInteger(0);
 
-    public SupplyPromisedValueRunnable(ApiProxy.Environment environment, String promiseHandle) {
+    public SupplyPromisedValueRunnable(ApiProxy.Environment environment, String promiseHandle, PipelineService pipelineService) {
       this.promiseHandle = promiseHandle;
       this.apiProxyEnvironment = environment;
+      this.pipelineService = pipelineService;
     }
 
     @Override
     public void run() {
-      PipelineService service = PipelineServiceFactory.newPipelineService();
       ApiProxy.setEnvironmentForCurrentThread(apiProxyEnvironment);
       // TODO(user): Try something better than sleep to make sure
       // this happens after the processing the caller's runTask
@@ -230,7 +230,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
         // ignore - use uninterruptables
       }
       try {
-        service.submitPromisedValue(promiseHandle, 0);
+        pipelineService.submitPromisedValue(promiseHandle, 0);
       } catch (NoSuchObjectException e) {
         throw new RuntimeException(e);
       } catch (OrphanedObjectException f) {

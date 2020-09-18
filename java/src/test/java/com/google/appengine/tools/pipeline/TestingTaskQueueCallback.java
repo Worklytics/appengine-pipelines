@@ -21,6 +21,7 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
+import lombok.RequiredArgsConstructor;
 
 import java.net.URLDecoder;
 import java.util.Properties;
@@ -35,6 +36,8 @@ import java.util.logging.Logger;
 @SuppressWarnings("serial")
 public class TestingTaskQueueCallback extends DeferredTaskCallback {
   Logger logger = Logger.getLogger(TestingTaskQueueCallback.class.getName());
+
+  public static PipelineManager pipelineManager;
 
   /**
    * Execute the provided url fetch request.
@@ -78,7 +81,7 @@ public class TestingTaskQueueCallback extends DeferredTaskCallback {
       if (queueName != null && task.getQueueSettings().getOnQueue() == null) {
         task.getQueueSettings().setOnQueue(queueName);
       }
-      PipelineTest.pipelineManager().processTask(task);
+      pipelineManager.processTask(task);
     } catch (Exception e) {
       StringUtils.logRetryMessage(logger, task, retryCount, e);
       return 500;

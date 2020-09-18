@@ -24,17 +24,18 @@ import com.google.appengine.tools.pipeline.demo.UserGuideExamples.ComplexJob;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for the sample code in the User Guide
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-@ExtendWith(DatastoreExtension.class)
+@PipelineSetupExtensions
 public class UserGuideTest {
 
   private transient LocalServiceTestHelper helper;
+  private transient PipelineService pipelineService;
 
   public UserGuideTest() {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
@@ -45,9 +46,10 @@ public class UserGuideTest {
   }
 
   @BeforeEach
-  public void setUp() throws Exception {
+  public void setUp(PipelineService pipelineService) throws Exception {
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
+    this.pipelineService = pipelineService;
   }
 
   @AfterEach
@@ -55,14 +57,15 @@ public class UserGuideTest {
     helper.tearDown();
   }
 
+  @Test
   public void testComplexJob() throws Exception {
     doComplexJobTest(3, 7, 11);
     doComplexJobTest(-5, 71, 6);
   }
 
   private void doComplexJobTest(int x, int y, int z) throws Exception {
-    String pipelineId = PipelineTest.pipelineService().startNewPipeline(new ComplexJob(), x, y, z);
-    JobInfo jobInfo = PipelineTest.pipelineService().getJobInfo(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new ComplexJob(), x, y, z);
+    JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);
     JobInfo.State state = jobInfo.getJobState();
     if (JobInfo.State.COMPLETED_SUCCESSFULLY == state) {
       System.out.println("The output is " + jobInfo.getOutput());
@@ -75,7 +78,7 @@ public class UserGuideTest {
   private <E> E waitForJobToComplete(String pipelineId) throws Exception {
     while (true) {
       Thread.sleep(2000);
-      JobInfo jobInfo = PipelineTest.pipelineService().getJobInfo(pipelineId);
+      JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);
       switch (jobInfo.getJobState()) {
         case COMPLETED_SUCCESSFULLY:
           return (E) jobInfo.getOutput();

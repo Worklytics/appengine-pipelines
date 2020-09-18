@@ -121,11 +121,11 @@ public class JsonListHandlerTest extends PipelineTest {
     String pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
     String pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
         new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
-    String helloWorld = waitForJobToComplete(pipelineId1);
+    String helloWorld = waitForJobToComplete(pipelineService, pipelineId1);
     assertEquals("hello world", helloWorld);
-    String hiThere = waitForJobToComplete(pipelineId2);
+    String hiThere = waitForJobToComplete(pipelineService, pipelineId2);
     assertEquals("hi there", hiThere);
-    String bla = waitForJobToComplete(pipelineId3);
+    String bla = waitForJobToComplete(pipelineService, pipelineId3);
     assertEquals("bla", bla);
     JsonListHandler jsonListHandler = new JsonListHandler(pipelineManager);
     jsonListHandler.doGet(request, response);

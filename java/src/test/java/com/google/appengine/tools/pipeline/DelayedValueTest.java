@@ -61,7 +61,7 @@ public class DelayedValueTest extends PipelineTest {
   @Test
   public void testDelayedValue() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new TestDelayedValueJob());
-    Integer five = waitForJobToComplete(pipelineId);
+    Integer five = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT, five.intValue());
     assertEquals("TestDelayedValueJob.run DelayedJob.run", trace());
     assertTrue(duration2.get() - duration1.get() >= DELAY_SECONDS * 1000);

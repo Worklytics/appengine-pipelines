@@ -126,12 +126,12 @@ public class Barrier extends PipelineModelObject {
     entity.set(TYPE_PROPERTY, StringValue.newBuilder(type.toString()).setExcludeFromIndexes(true).build());
     entity.set(RELEASED_PROPERTY, BooleanValue.newBuilder(released).setExcludeFromIndexes(true).build());
 
-    ListValue.Builder waitOnKeysValue = ListValue.newBuilder().setExcludeFromIndexes(true);
-    waitingOnKeys.stream().map(KeyValue::of).forEachOrdered(waitOnKeysValue::addValue);
+    ListValue.Builder waitOnKeysValue = ListValue.newBuilder();
+    waitingOnKeys.stream().map(k -> KeyValue.newBuilder(k).setExcludeFromIndexes(true).build()).forEachOrdered(waitOnKeysValue::addValue);
     entity.set(WAITING_ON_KEYS_PROPERTY, waitOnKeysValue.build());
 
-    ListValue.Builder waitingOnGroupSizesValue = ListValue.newBuilder().setExcludeFromIndexes(true);
-    waitingOnGroupSizes.stream().forEachOrdered(waitingOnGroupSizesValue::addValue);
+    ListValue.Builder waitingOnGroupSizesValue = ListValue.newBuilder();
+    waitingOnGroupSizes.stream().map(l -> LongValue.newBuilder(l).setExcludeFromIndexes(true).build()).forEachOrdered(waitingOnGroupSizesValue::addValue);
     entity.set(WAITING_ON_GROUP_SIZES_PROPERTY, waitingOnGroupSizesValue.build());
     return entity.build();
   }

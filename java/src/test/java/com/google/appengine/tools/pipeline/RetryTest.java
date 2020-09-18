@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-@ExtendWith(DatastoreExtension.class)
+@PipelineSetupExtensions
 public class RetryTest {
 
   private LocalServiceTestHelper helper;
@@ -52,10 +52,10 @@ public class RetryTest {
   }
 
   @BeforeEach
-  public void setUp() throws Exception {
+  public void setUp(PipelineService pipelineService) throws Exception {
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
-    pipelineService = PipelineTest.pipelineService();
+    this.pipelineService = pipelineService;
   }
 
   @AfterEach
