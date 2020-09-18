@@ -17,7 +17,6 @@ package com.google.appengine.tools.pipeline;
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
@@ -25,12 +24,14 @@ import com.google.appengine.tools.pipeline.demo.UserGuideExamples.ComplexJob;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Tests for the sample code in the User Guide
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@ExtendWith(DatastoreExtension.class)
 public class UserGuideTest {
 
   private transient LocalServiceTestHelper helper;
@@ -40,8 +41,7 @@ public class UserGuideTest {
     taskQueueConfig.setCallbackClass(TestingTaskQueueCallback.class);
     taskQueueConfig.setDisableAutoTaskExecution(false);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig(), taskQueueConfig,
-        new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
   }
 
   @BeforeEach

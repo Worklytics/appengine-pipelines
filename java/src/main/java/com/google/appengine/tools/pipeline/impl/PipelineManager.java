@@ -45,6 +45,7 @@ import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
 import java.lang.reflect.InvocationTargetException;
@@ -64,6 +65,7 @@ import java.util.logging.Level;
  * TODO: make this 1) interface, 2) inject the implementation?
  *
  */
+@RequiredArgsConstructor
 @Log
 public class PipelineManager implements PipelineRunner {
 

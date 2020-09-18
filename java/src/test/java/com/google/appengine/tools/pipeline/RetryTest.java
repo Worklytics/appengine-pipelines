@@ -17,7 +17,6 @@ package com.google.appengine.tools.pipeline;
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
@@ -29,6 +28,7 @@ import com.google.appengine.tools.pipeline.JobSetting.MaxAttempts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.opentest4j.AssertionFailedError;
 
 import java.util.concurrent.CountDownLatch;
@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@ExtendWith(DatastoreExtension.class)
 public class RetryTest {
 
   private LocalServiceTestHelper helper;
@@ -47,8 +48,7 @@ public class RetryTest {
     taskQueueConfig.setCallbackClass(TestingTaskQueueCallback.class);
     taskQueueConfig.setDisableAutoTaskExecution(false);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig(), taskQueueConfig,
-        new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
   }
 
   @BeforeEach

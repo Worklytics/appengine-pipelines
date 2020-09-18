@@ -27,7 +27,10 @@ import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.OrphanedObjectException;
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
 import com.google.auth.Credentials;
+import com.google.cloud.datastore.Datastore;
 
 /**
  * Implements {@link PipelineService} by delegating to {@link PipelineManager}.
@@ -49,6 +52,10 @@ public class PipelineServiceImpl implements PipelineService {
    */
   public PipelineServiceImpl(String projectId, Credentials credentials) {
     pipelineManager = new PipelineManager(projectId, credentials);
+  }
+
+  public PipelineServiceImpl(String projectId, Datastore datastore) {
+    pipelineManager = new PipelineManager(new AppEngineBackEnd(datastore, new AppEngineTaskQueue()), projectId);
   }
 
 

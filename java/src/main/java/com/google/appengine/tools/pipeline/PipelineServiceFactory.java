@@ -19,6 +19,7 @@ import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.datastore.Datastore;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -52,6 +53,10 @@ public final class PipelineServiceFactory {
     } catch (IOException e) {
       throw new RuntimeException("Failed to get default credentials", e);
     }
+  }
+
+  public static PipelineService newPipelineService(String projectId, Datastore datastore) {
+    return new PipelineServiceImpl(projectId, datastore);
   }
 
   /**

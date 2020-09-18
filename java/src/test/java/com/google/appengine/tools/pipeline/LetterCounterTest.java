@@ -30,11 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public class LetterCounterTest extends PipelineTest {
 
-  @Override
-  protected boolean isHrdSafe() {
-    return false;
-  }
-
   private static final String SSB =
       "Oh, say, can you see, by the dawn's early light, \n"
           + "What so proudly we hailed at the twilight's last gleaming? \n"

@@ -16,7 +16,6 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.tools.pipeline.JobInfo.State;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.common.base.Function;
@@ -59,11 +58,6 @@ public class MiscPipelineTest extends PipelineTest {
     for (int i = 0; i < largeValue.length; i++) {
       largeValue[i] = random.nextLong();
     }
-  }
-
-  @Override
-  protected boolean isHrdSafe() {
-    return false;
   }
 
   @SuppressWarnings("serial")

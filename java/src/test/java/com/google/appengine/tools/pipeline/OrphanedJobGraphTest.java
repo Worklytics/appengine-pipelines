@@ -8,8 +8,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.KeyFactory;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
@@ -25,11 +23,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public class OrphanedJobGraphTest extends PipelineTest {
-
-  @Override
-  protected boolean isHrdSafe() {
-    return false;
-  }
 
   @BeforeEach
   public void setUp() throws Exception {
@@ -86,8 +79,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
   private void doOrphanedJobGraphTest(boolean usePromisedValue) throws Exception {
 
     // Run GeneratorJob
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineHandle = service.startNewPipeline(new GeneratorJob(usePromisedValue));
+    String pipelineHandle = pipelineService.startNewPipeline(new GeneratorJob(usePromisedValue));
     waitForJobToComplete(pipelineHandle);
 
     // The GeneratorJob run() should have failed twice just before the final
@@ -146,11 +138,10 @@ public class OrphanedJobGraphTest extends PipelineTest {
     }
 
     // Now delete the whole Pipeline
-    service.deletePipelineRecords(pipelineHandle);
+    pipelineService.deletePipelineRecords(pipelineHandle);
 
     // Check that all jobs have been deleted
-    AppEngineBackEnd backend = new AppEngineBackEnd();
-    Iterable<Entity> jobs = backend.queryAll(JobRecord.DATA_STORE_KIND, rootJobKey);
+    Iterable<Entity> jobs = appEngineBackend.queryAll(JobRecord.DATA_STORE_KIND, rootJobKey);
     numJobs = 0;
     // TODO(user): replace with Iterables.size once b/11899553 is fixed
     for (@SuppressWarnings("unused") Entity entity : jobs) {

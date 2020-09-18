@@ -20,7 +20,6 @@ import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereF
 
 import com.github.rholder.retry.*;
 
-import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.auth.Credentials;
 import com.google.cloud.datastore.*;
 import com.google.cloud.datastore.Cursor;
@@ -67,6 +66,7 @@ import java.util.stream.Collectors;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@RequiredArgsConstructor
 public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy {
 
   public static final int MAX_RETRY_ATTEMPTS = 5;
@@ -95,10 +95,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   private final Datastore datastore;
   private final AppEngineTaskQueue taskQueue;
-
-  public AppEngineBackEnd() {
-    this(null, null);
-  }
 
   /**
    *
