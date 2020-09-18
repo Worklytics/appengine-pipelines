@@ -36,7 +36,7 @@ public class EntityUtils {
       //usual case
       builder.set(propertyName, BlobValue.newBuilder((Blob)value).setExcludeFromIndexes(true).build());
     } else if (value instanceof List) {
-      builder.set(propertyName, ((List<Key>) value).stream().map(KeyValue::of).collect(Collectors.toList()));
+      builder.set(propertyName, ((List<Key>) value).stream().map(k -> KeyValue.newBuilder(k).setExcludeFromIndexes(true).build()).collect(Collectors.toList()));
     } else {
       throw new RuntimeException("value not of type that can be stored into Datastore");
     }
