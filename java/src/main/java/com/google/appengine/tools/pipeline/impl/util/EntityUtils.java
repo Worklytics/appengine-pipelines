@@ -34,7 +34,7 @@ public class EntityUtils {
   public static void setLargeValue(Entity.Builder builder, String propertyName, Object value) {
     if (value instanceof Blob) {
       //usual case
-      builder.set(propertyName, BlobValue.newBuilder((Blob)value).setExcludeFromIndexes(false).build());
+      builder.set(propertyName, BlobValue.newBuilder((Blob)value).setExcludeFromIndexes(true).build());
     } else if (value instanceof List) {
       builder.set(propertyName, ((List<Key>) value).stream().map(KeyValue::of).collect(Collectors.toList()));
     } else {
