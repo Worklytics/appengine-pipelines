@@ -16,12 +16,14 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.tools.pipeline.demo.LetterCountExample;
 import com.google.appengine.tools.pipeline.demo.LetterCountExample.LetterCounter;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
@@ -67,28 +69,34 @@ public class LetterCounterTest extends PipelineTest {
           + "And the star-spangled banner in triumph shall wave \n"
           + "O'er the land of the free and the home of the brave!";
 
+  @Test
   public void testLetterCounter3() throws Exception {
     doLetterCounterTest("Only three words.");
   }
 
+  @Test
   public void testLetterCounter4() throws Exception {
     doLetterCounterTest("Only four short words.");
   }
 
+  @Test
   public void testLetterCounter5() throws Exception {
     doLetterCounterTest("Only five pretty short words.");
   }
 
+  @Test
   public void testLetterCounter6() throws Exception {
     doLetterCounterTest("Only six pretty short words total.");
   }
 
+  @Test
   public void testLetterCounterBig() throws Exception {
     doLetterCounterTest("The woods are lovely dark and deep. "
         + "But I have promises to keep. And miles to go before I sleep.");
   }
 
 
+  @Test
   public void testLetterCounterHuge() throws Exception {
     doLetterCounterTest(SSB);
   }

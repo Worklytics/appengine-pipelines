@@ -22,18 +22,25 @@ import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestC
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.apphosting.api.ApiProxy;
 
-import junit.framework.TestCase;
 import lombok.Getter;
 
 import java.util.Map;
+import com.google.auth.oauth2.GoogleCredentials;
+import lombok.Getter;
+import lombok.SneakyThrows;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+
+import java.io.IOException;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-public abstract class PipelineTest extends TestCase {
+public abstract class PipelineTest {
 
   protected LocalServiceTestHelper helper;
   protected ApiProxy.Environment apiProxyEnvironment;
@@ -42,6 +49,11 @@ public abstract class PipelineTest extends TestCase {
 
   @Getter
   private LocalTaskQueue taskQueue;
+
+  protected PipelineService pipelineService;
+  protected PipelineManager pipelineManager;
+
+  public static final String PROJECT = "project";
 
   public PipelineTest() {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
@@ -76,20 +88,31 @@ public abstract class PipelineTest extends TestCase {
     return traceBuffer.toString();
   }
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     traceBuffer = new StringBuffer();
     helper.setUp();
     apiProxyEnvironment = ApiProxy.getCurrentEnvironment();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
     taskQueue = LocalTaskQueueTestConfig.getLocalTaskQueue();
+
+    pipelineService = pipelineService();
+    pipelineManager = pipelineManager();
   }
 
-  @Override
+  @SneakyThrows
+  public static PipelineManager pipelineManager() {
+    return new PipelineManager(PROJECT, GoogleCredentials.getApplicationDefault());
+  }
+
+  @SneakyThrows
+  public static PipelineService pipelineService() {
+    return PipelineServiceFactory.newPipelineService(PROJECT);
+  }
+
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    super.tearDown();
   }
 
 

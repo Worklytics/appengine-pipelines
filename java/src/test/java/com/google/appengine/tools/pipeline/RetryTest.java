@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
@@ -24,8 +25,10 @@ import com.google.appengine.tools.pipeline.JobSetting.BackoffFactor;
 import com.google.appengine.tools.pipeline.JobSetting.BackoffSeconds;
 import com.google.appengine.tools.pipeline.JobSetting.MaxAttempts;
 
-import junit.framework.AssertionFailedError;
-import junit.framework.TestCase;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +37,7 @@ import java.util.concurrent.TimeUnit;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-public class RetryTest extends TestCase {
+public class RetryTest {
 
   private LocalServiceTestHelper helper;
 
@@ -47,26 +50,28 @@ public class RetryTest extends TestCase {
         new LocalModulesServiceTestConfig());
   }
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
   }
 
-  @Override
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    super.tearDown();
   }
 
   private static volatile CountDownLatch countdownLatch;
 
+  private PipelineService pipelineService;
+
+  @Test
   public void testMaxAttempts() throws Exception {
     doMaxAttemptsTest(true);
     doMaxAttemptsTest(false);
   }
 
+  @Test
   public void testLongBackoffTime() throws Exception {
     // Fail twice with a 3 second backoff factor. Wait 5 seconds. Should
     // succeed.

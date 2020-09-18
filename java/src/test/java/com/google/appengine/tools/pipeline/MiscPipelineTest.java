@@ -21,6 +21,8 @@ import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -32,6 +34,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.appengine.tools.pipeline.TestUtils.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Misc tests including:
@@ -49,9 +52,8 @@ public class MiscPipelineTest extends PipelineTest {
 
   private static long[] largeValue;
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     largeValue = new long[2000000];
     Random random = new Random();
     for (int i = 0; i < largeValue.length; i++) {
@@ -75,6 +77,7 @@ public class MiscPipelineTest extends PipelineTest {
     }
   }
 
+  @Test
   public void testReturnFutureList() throws Exception {
     PipelineService service = PipelineServiceFactory.newPipelineService();
     String pipelineId = service.startNewPipeline(new ReturnFutureListJob());
@@ -131,6 +134,7 @@ public class MiscPipelineTest extends PipelineTest {
     }
   }
 
+  @Test
   public void testWaitForAll() throws Exception {
     PipelineService service = PipelineServiceFactory.newPipelineService();
     String pipelineId = service.startNewPipeline(new RootJob(false));
@@ -140,6 +144,7 @@ public class MiscPipelineTest extends PipelineTest {
     assertNotNull(service.getJobInfo(pipelineId));
   }
 
+  @Test
   public void testWaitForAllAndDelete() throws Exception {
     PipelineService service = PipelineServiceFactory.newPipelineService();
     String pipelineId = service.startNewPipeline(new RootJob(true));

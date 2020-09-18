@@ -16,10 +16,13 @@ package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWhitespace;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
 import com.google.appengine.tools.pipeline.impl.servlets.JsonClassFilterHandler;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -93,29 +96,30 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
     }
   }
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     MockitoAnnotations.initMocks(this);
     when(response.getWriter()).thenReturn(new PrintWriter(output));
   }
 
+  @Test
   public void testHandlerNoResults() throws Exception {
     JsonClassFilterHandler.doGet(request, response);
     assertEqualsIgnoreWhitespace("{\"classPaths\": []}", output.toString());
   }
 
+  @Test
   public void testHandlerWithResults() throws Exception {
     PipelineService service = PipelineServiceFactory.newPipelineService();
     String pipelineId1 = service.startNewPipeline(new Main1Job());
     String pipelineId2 = service.startNewPipeline(new Main2Job(false));
     String pipelineId3 = service.startNewPipeline(new Main2Job(true),
         new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
-    String helloWorld = (String) waitForJobToComplete(pipelineId1);
+    String helloWorld = waitForJobToComplete(pipelineId1);
     assertEquals("hello world", helloWorld);
-    String hiThere = (String) waitForJobToComplete(pipelineId2);
+    String hiThere = waitForJobToComplete(pipelineId2);
     assertEquals("hi there", hiThere);
-    String bla = (String) waitForJobToComplete(pipelineId3);
+    String bla = waitForJobToComplete(pipelineId3);
     assertEquals("bla", bla);
     JsonClassFilterHandler.doGet(request, response);
     System.out.println(output.toString());

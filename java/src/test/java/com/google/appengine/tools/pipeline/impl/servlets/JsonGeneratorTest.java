@@ -1,15 +1,16 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.pipeline.*;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitUntilJobComplete;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class JsonGeneratorTest extends PipelineTest {
 
@@ -53,6 +54,7 @@ public class JsonGeneratorTest extends PipelineTest {
     return PipelineManager.queryFullPipeline(pipelineId);
   }
 
+  @Test
   public void testMap() throws Exception {
     Map<String, Object> asMap = JsonGenerator.objectsToMapRepresentation(exampleObjects());
 

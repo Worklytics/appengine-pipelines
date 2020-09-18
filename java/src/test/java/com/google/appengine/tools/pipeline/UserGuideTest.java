@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
@@ -22,14 +23,15 @@ import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.pipeline.demo.UserGuideExamples.ComplexJob;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 /**
  * Tests for the sample code in the User Guide
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public class UserGuideTest extends TestCase {
+public class UserGuideTest {
 
   private transient LocalServiceTestHelper helper;
 
@@ -42,17 +44,15 @@ public class UserGuideTest extends TestCase {
         new LocalModulesServiceTestConfig());
   }
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
   }
 
-  @Override
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    super.tearDown();
   }
 
   public void testComplexJob() throws Exception {
