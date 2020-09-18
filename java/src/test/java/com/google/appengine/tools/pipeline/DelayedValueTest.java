@@ -14,9 +14,13 @@
 
 package com.google.appengine.tools.pipeline;
 
+import org.junit.jupiter.api.Test;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test error handling through handleException.
@@ -54,6 +58,7 @@ public class DelayedValueTest extends PipelineTest {
     }
   }
 
+  @Test
   public void testDelayedValue() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new TestDelayedValueJob());
     Integer five = waitForJobToComplete(pipelineId);

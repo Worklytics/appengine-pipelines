@@ -26,19 +26,18 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.apphosting.api.ApiProxy;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import junit.framework.TestCase;
 import lombok.Getter;
 import lombok.SneakyThrows;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
-import java.util.Map;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-public abstract class PipelineTest extends TestCase {
+public abstract class PipelineTest {
 
   protected LocalServiceTestHelper helper;
   protected ApiProxy.Environment apiProxyEnvironment;
@@ -86,18 +85,14 @@ public abstract class PipelineTest extends TestCase {
     return traceBuffer.toString();
   }
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     traceBuffer = new StringBuffer();
     helper.setUp();
     apiProxyEnvironment = ApiProxy.getCurrentEnvironment();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
     taskQueue = LocalTaskQueueTestConfig.getLocalTaskQueue();
-  }
 
-  @Before
-  public void setupPipelineEnv() throws IOException {
     pipelineService = pipelineService();
     pipelineManager = pipelineManager();
   }
@@ -112,10 +107,9 @@ public abstract class PipelineTest extends TestCase {
     return PipelineServiceFactory.newPipelineService(PROJECT);
   }
 
-  @Override
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    super.tearDown();
   }
 
 

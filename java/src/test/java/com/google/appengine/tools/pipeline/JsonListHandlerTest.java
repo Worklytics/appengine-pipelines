@@ -16,11 +16,14 @@ package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWhitespace;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
 import com.google.appengine.tools.pipeline.impl.servlets.JsonListHandler;
 import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -99,19 +102,20 @@ public class JsonListHandlerTest extends PipelineTest {
     }
   }
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     MockitoAnnotations.initMocks(this);
     when(response.getWriter()).thenReturn(new PrintWriter(output));
   }
 
+  @Test
   public void testHandlerNoResults() throws Exception {
     JsonListHandler jsonListHandler = new JsonListHandler(pipelineManager);
     jsonListHandler.doGet(request, response);
     assertEqualsIgnoreWhitespace("{\"pipelines\": []}", output.toString());
   }
 
+  @Test
   public void testHandlerWithResults() throws Exception {
     String pipelineId1 = pipelineService.startNewPipeline(new Main1Job());
     String pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));

@@ -31,7 +31,11 @@ import com.google.appengine.tools.pipeline.impl.tasks.RunJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.common.collect.ImmutableList;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 
@@ -48,9 +52,8 @@ public class FanoutTaskTest extends PipelineTest {
   private QueueSettings queueSettings1 = new QueueSettings();
   private QueueSettings queueSettings2 = new QueueSettings().setOnQueue("queue1");
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
     Key key = JobRecord.key(PipelineTest.PROJECT, "", "job1");
@@ -65,16 +68,16 @@ public class FanoutTaskTest extends PipelineTest {
     encodedBytes = FanoutTask.encodeTasks(listOfTasks);
   }
 
-  @Override
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    super.tearDown();
   }
 
   /**
    * Tests the methods {@link FanoutTask#encodeTasks(java.util.Collection)} and
    * {@link FanoutTask#decodeTasks(byte[])}
    */
+  @Test
   public void testEncodeDecode() throws Exception {
     checkBytes(encodedBytes);
   }
@@ -82,6 +85,7 @@ public class FanoutTaskTest extends PipelineTest {
   /**
    * Tests conversion of {@link FanoutTaskRecord} to and from an {@link Entity}
    */
+  @Test
   public void testFanoutTaskRecord() throws Exception {
     Key rootJobKey = JobRecord.generateKey("dummy", "dummy", "dummy");
     FanoutTaskRecord record = new FanoutTaskRecord(rootJobKey, encodedBytes);
@@ -93,7 +97,7 @@ public class FanoutTaskTest extends PipelineTest {
 
   private void checkBytes(byte[] bytes) {
     List<Task> reconstituted = FanoutTask.decodeTasks(bytes);
-    assertEquals(listOfTasks.size(), reconstituted.size());
+    Assertions.assertEquals( listOfTasks.size(), reconstituted.size());
     for (int i = 0; i < listOfTasks.size(); i++) {
       Task expected = listOfTasks.get(i);
       Task actual = reconstituted.get(i);
@@ -102,7 +106,7 @@ public class FanoutTaskTest extends PipelineTest {
   }
 
   private void assertEquals(int i, Task expected, Task actual) {
-    assertEquals("i=" + i, expected.getType(), actual.getType());
-    assertEquals("i=" + i, expected.toProperties(), actual.toProperties());
+    Assertions.assertEquals(expected.getType(), actual.getType(), "i=" + i);
+    Assertions.assertEquals(expected.toProperties(), actual.toProperties(), "i=" + i);
   }
 }

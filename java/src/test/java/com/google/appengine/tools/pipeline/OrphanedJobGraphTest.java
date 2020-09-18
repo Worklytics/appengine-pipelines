@@ -4,6 +4,7 @@ package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static com.google.appengine.tools.pipeline.impl.util.TestUtils.getFailureProperty;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
@@ -13,6 +14,8 @@ import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.apphosting.api.ApiProxy;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,9 +31,8 @@ public class OrphanedJobGraphTest extends PipelineTest {
     return false;
   }
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     GeneratorJob.runCount.set(0);
     ChildJob.runCount.set(0);
     SupplyPromisedValueRunnable.orphanedObjectExcetionCount.set(0);
@@ -51,6 +53,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
    * up when the Pipeline is deleted.
    *
    */
+  @Test
   public void testOrphanedJobGraph() throws Exception {
     doOrphanedJobGraphTest(false);
   }
@@ -67,6 +70,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
    * {@link OrphanedObjectException} when {@code submitPromisedValue()} is
    * invoked on an orphaned promise handle.
    */
+  @Test
   public void testOrphanedJobGraphWithPromisedValue() throws Exception {
     doOrphanedJobGraphTest(true);
   }
@@ -137,8 +141,8 @@ public class OrphanedJobGraphTest extends PipelineTest {
       // OrphanedObjectException should have been caught at least twice.
       int orphanedObjectExcetionCount =
           SupplyPromisedValueRunnable.orphanedObjectExcetionCount.get();
-      assertTrue("Was expecting orphanedObjectExcetionCount to be more than one, but it was "
-          + orphanedObjectExcetionCount, orphanedObjectExcetionCount  >= 2);
+      assertTrue(orphanedObjectExcetionCount  >= 2, "Was expecting orphanedObjectExcetionCount to be more than one, but it was "
+        + orphanedObjectExcetionCount);
     }
 
     // Now delete the whole Pipeline
