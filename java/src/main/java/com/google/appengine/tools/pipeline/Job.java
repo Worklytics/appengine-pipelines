@@ -20,6 +20,8 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.PromisedValueImpl;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
+import lombok.AccessLevel;
+import lombok.Getter;
 
 import java.io.Serializable;
 import java.util.List;
@@ -135,7 +137,8 @@ public abstract class Job<E> implements Serializable {
   private transient JobRecord thisJobRecord;
   private transient UpdateSpec updateSpec;
   private transient String currentRunGUID;
-  private transient PipelineRunner pipelineRunner;
+  @Getter(AccessLevel.MODULE)
+  transient PipelineManager pipelineRunner;
 
   // This method will be invoked by reflection from PipelineManager
   @SuppressWarnings("unused")

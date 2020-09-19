@@ -123,9 +123,8 @@ public class Jobs {
 
         @Override
         public void run() {
-          PipelineService service = PipelineServiceFactory.newPipelineService();
           try {
-            service.deletePipelineRecords(key);
+            getPipelineRunner().deletePipelineRecords(key, false, false);
             log.info("Deleted pipeline: " + key);
           } catch (IllegalStateException e) {
             log.info("Failed to delete pipeline: " + key);
@@ -139,7 +138,7 @@ public class Jobs {
               }
             }
             try {
-              service.deletePipelineRecords(key, true, false);
+              getPipelineRunner().deletePipelineRecords(key, true, false);
               log.info("Force deleted pipeline: " + key);
             } catch (Exception ex) {
               log.log(Level.WARNING, "Failed to force delete pipeline: " + key, ex);

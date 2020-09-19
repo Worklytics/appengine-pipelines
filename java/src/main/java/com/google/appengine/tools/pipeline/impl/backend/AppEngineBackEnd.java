@@ -423,13 +423,14 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     if (serializedVersion instanceof Blob) {
       return SerializationUtils.deserialize(((Blob) serializedVersion).toByteArray());
     } else {
+      //TODO: might this be Collection<KeyValue?
       @SuppressWarnings("unchecked")
-      Collection<Key> keys = (Collection<Key>) serializedVersion;
-      Map<Key, Entity> entities = getEntities("deserializeValue", keys);
+      Collection<KeyValue> keys = (Collection<KeyValue>) serializedVersion;
+      Map<Key, Entity> entities = getEntities("deserializeValue", keys.stream().map(Value::get).collect(Collectors.toList()));
       ShardedValue[] shardedValues = new ShardedValue[entities.size()];
       int totalSize = 0;
       int index = 0;
-      for (Key key : keys) {
+      for (Key key : entities.keySet()) {
         Entity entity = entities.get(key);
         ShardedValue shardedValue = new ShardedValue(entity);
         shardedValues[index++] = shardedValue;
