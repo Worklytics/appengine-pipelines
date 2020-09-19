@@ -57,6 +57,7 @@ public class JobInstanceRecord extends PipelineModelObject {
       throw new RuntimeException("Exception while attempting to serialize the jobInstance "
           + jobInstance, e);
     }
+    this.serializationStrategy = serializationStrategy;
  }
 
   public JobInstanceRecord(Entity entity, SerializationStrategy serializationStrategy) {
@@ -68,7 +69,8 @@ public class JobInstanceRecord extends PipelineModelObject {
     } else {
       jobDisplayName = jobClassName;
     }
-    value = entity.getValue(INSTANCE_VALUE_PROPERTY);
+    value = entity.getValue(INSTANCE_VALUE_PROPERTY).get();
+    this.serializationStrategy = serializationStrategy;
   }
 
   @Override

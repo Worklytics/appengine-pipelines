@@ -156,8 +156,10 @@ public abstract class Job<E> implements Serializable {
   }
 
   // This method will be invoked by reflection from PipelineManager
+  // NOTE: need to specify param as concrete type (PipelineManager) not interface (PipelineRunner), or reflection won't
+  // match it
   @SuppressWarnings("unused")
-  private void setPipelineRunner(PipelineRunner pipelineRunner) {
+  private void setPipelineRunner(PipelineManager pipelineRunner) {
     this.pipelineRunner = pipelineRunner;
   }
 

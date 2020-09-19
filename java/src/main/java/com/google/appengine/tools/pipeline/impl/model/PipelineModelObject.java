@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * The parent class of all Pipeline model objects.
@@ -239,9 +240,11 @@ public abstract class PipelineModelObject {
   }
 
   protected static <E> List<E> getListProperty(String propertyName, Entity entity) {
-    try {
-      return (List<E>) entity.getList(propertyName);
-    } catch (DatastoreException e) {
+    if (entity.contains(propertyName)) {
+      return (List<E>) entity.getList(propertyName).stream()
+        .map(Value::get)
+        .collect(Collectors.toCollection(ArrayList::new));
+    } else {
       return new LinkedList<>();
     }
   }

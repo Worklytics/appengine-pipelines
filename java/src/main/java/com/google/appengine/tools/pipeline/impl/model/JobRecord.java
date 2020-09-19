@@ -246,16 +246,14 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     runBarrierKey = entity.getKey(RUN_BARRIER_PROPERTY);
     outputSlotKey = entity.getKey(OUTPUT_SLOT_PROPERTY);
     state = State.valueOf(entity.getString(STATE_PROPERTY));
-    exceptionHandlingAncestorKey =
-        entity.getKey(EXCEPTION_HANDLING_ANCESTOR_KEY_PROPERTY);
-    exceptionHandlerSpecified =
-        entity.getBoolean(EXCEPTION_HANDLER_SPECIFIED_PROPERTY);
-    exceptionHandlerJobKey = entity.getKey(EXCEPTION_HANDLER_JOB_KEY_PROPERTY);
-    exceptionHandlerJobGraphGuid = entity.getString(EXCEPTION_HANDLER_JOB_GRAPH_GUID_PROPERTY);
+    exceptionHandlingAncestorKey = EntityUtils.getKey(entity, EXCEPTION_HANDLING_ANCESTOR_KEY_PROPERTY);
+    exceptionHandlerSpecified = entity.contains(EXCEPTION_HANDLER_SPECIFIED_PROPERTY) ? entity.getBoolean(EXCEPTION_HANDLER_SPECIFIED_PROPERTY) : false;
+    exceptionHandlerJobKey = EntityUtils.getKey(entity, EXCEPTION_HANDLER_JOB_KEY_PROPERTY);
+    exceptionHandlerJobGraphGuid = EntityUtils.getString(entity, EXCEPTION_HANDLER_JOB_GRAPH_GUID_PROPERTY);
 
     callExceptionHandler = entity.getBoolean(CALL_EXCEPTION_HANDLER_PROPERTY);
     ignoreException = entity.getBoolean(IGNORE_EXCEPTION_PROPERTY);
-    childGraphGuid = entity.getString(CHILD_GRAPH_GUID_PROPERTY);
+    childGraphGuid = EntityUtils.getString(entity, CHILD_GRAPH_GUID_PROPERTY);
     exceptionKey = EntityUtils.getKey(entity, EXCEPTION_KEY_PROPERTY);
     startTime = EntityUtils.getInstant(entity, START_TIME_PROPERTY);
     endTime = EntityUtils.getInstant(entity, END_TIME_PROPERTY);
@@ -270,7 +268,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       queueSettings.setOnQueue(entity.getString(ON_QUEUE_PROPERTY));
     }
     statusConsoleUrl = EntityUtils.getString(entity, STATUS_CONSOLE_URL);
-    rootJobDisplayName = entity.getString(ROOT_JOB_DISPLAY_NAME);
+    rootJobDisplayName = EntityUtils.getString(entity, ROOT_JOB_DISPLAY_NAME);
     projectId = entity.getKey().getProjectId();
     namespace = entity.getKey().getNamespace();
   }

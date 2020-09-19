@@ -69,9 +69,9 @@ public class Slot extends PipelineModelObject {
     super(entity);
     filled = entity.getBoolean(FILLED_PROPERTY);
     fillTime = EntityUtils.getInstant(entity, FILL_TIME_PROPERTY);
-    sourceJobKey = entity.getKey(SOURCE_JOB_KEY_PROPERTY);
+    sourceJobKey = EntityUtils.getKey(entity, SOURCE_JOB_KEY_PROPERTY);
     waitingOnMeKeys = getListProperty(WAITING_ON_ME_PROPERTY, entity);
-    serializationStrategy = serializationStrategy;
+    this.serializationStrategy = serializationStrategy;
     if (lazy) {
       serializedVersion = entity.getBlob(VALUE_PROPERTY);
     } else {
