@@ -76,7 +76,7 @@ public class PipelineManager implements PipelineRunner {
    *
    * @param projectId GCP project under which pipelines will execute
    * @param credentials used to authenticate for access to that GCP project
-   *                                       (must have datastore/task queue perms for proejct )
+   *                                       (must have datastore/task queue perms for project )
    */
   public PipelineManager(String projectId, Credentials credentials) {
     this.backEnd = new AppEngineBackEnd(projectId, credentials);
