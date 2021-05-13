@@ -21,6 +21,7 @@ import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
 
 import java.io.IOException;
 
@@ -39,7 +40,11 @@ public final class PipelineServiceFactory {
   @Deprecated //coupled to AppEngine
   public static PipelineService newPipelineService() {
     try {
-      return newPipelineService(SystemProperty.applicationId.get(), GoogleCredentials.getApplicationDefault());
+      return newPipelineService(AppEngineBackEnd.Options.builder()
+        .projectId(SystemProperty.applicationId.get())
+        .credentials(GoogleCredentials.getApplicationDefault())
+        .datastoreOptions(DatastoreOptions.getDefaultInstance())
+        .build());
     } catch (IOException e) {
       throw new RuntimeException("Failed to get default credentials", e);
     }
@@ -47,16 +52,6 @@ public final class PipelineServiceFactory {
 
   public static PipelineService newPipelineService(PipelineBackEnd backEnd) {
     return new PipelineServiceImpl(backEnd);
-  }
-
-  /**
-   *
-   * @param projectId GCP project under which pipelines will execute
-   * @param gcpCredentials credentials to use when authenticating pipeline service with GCP
-   * @return PipelineService that will execute pipelines in specific project, auth'd by serviceAccountKey
-   */
-  public static PipelineService newPipelineService(String projectId, Credentials gcpCredentials) {
-    return new PipelineServiceImpl(projectId, gcpCredentials);
   }
 
   public static PipelineService newPipelineService(PipelineBackEnd.Options options) {

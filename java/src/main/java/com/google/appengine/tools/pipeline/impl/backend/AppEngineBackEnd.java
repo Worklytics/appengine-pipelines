@@ -94,8 +94,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private final Datastore datastore;
   private final AppEngineTaskQueue taskQueue;
 
-  public AppEngineBackEnd(AppEngineBackEnd.Options as) {
-      this(as.getProjectId(), as.getCredentials());
+  public AppEngineBackEnd(AppEngineBackEnd.Options options) {
+    this(options.getDatastoreOptions().getService(), new AppEngineTaskQueue());
   }
 
 
@@ -109,38 +109,18 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     // in prod ppl should depend on application-default credentials and I think this will be null
     private Credentials credentials;
 
+    private DatastoreOptions datastoreOptions;
+
     //TODO: add any non-default options of Datastore, etc that we need to reconstitute
   }
 
   @Override
   public PipelineBackEnd.Options getOptions() {
     return Options.builder()
+      .datastoreOptions(datastore.getOptions())
       .projectId(this.datastore.getOptions().getProjectId())
       .credentials(this.datastore.getOptions().getCredentials())
       .build();
-  }
-
-  /**
-   *
-   * @param projectId GCP project under which pipelines will execute
-   * @param credentials used to authenticate for access to that GCP project
-   *                    (need not be from same project, but must have datastore/task queue perms)
-   */
-  public AppEngineBackEnd(String projectId, Credentials credentials) {
-    taskQueue = new AppEngineTaskQueue();
-
-    DatastoreOptions.Builder builder = DatastoreOptions.getDefaultInstance().toBuilder();
-    if (projectId != null) {
-      builder.setProjectId(projectId);
-    }
-
-    if (credentials != null) {
-      builder.setCredentials(credentials);
-    }
-
-    DatastoreOptions options = builder.build();
-
-    datastore = options.getService();
   }
 
   @Override

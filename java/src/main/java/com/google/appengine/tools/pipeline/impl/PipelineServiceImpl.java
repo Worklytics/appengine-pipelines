@@ -45,20 +45,6 @@ public class PipelineServiceImpl implements PipelineService {
 
   private final PipelineManager pipelineManager;
 
-  /**
-   *
-   * @param projectId GCP project under which pipelines will execute
-   * @param credentials used to authenticate for access to that GCP project
-   *                    (need not be from same project, but must have datastore/task queue perms)
-   */
-  public PipelineServiceImpl(String projectId, Credentials credentials) {
-    pipelineManager = new PipelineManager(projectId, credentials);
-  }
-
-  public PipelineServiceImpl(Datastore datastore) {
-    pipelineManager = new PipelineManager(new AppEngineBackEnd(datastore, new AppEngineTaskQueue()));
-  }
-
   public PipelineServiceImpl(PipelineBackEnd backEnd) {
     pipelineManager = new PipelineManager(backEnd);
   }

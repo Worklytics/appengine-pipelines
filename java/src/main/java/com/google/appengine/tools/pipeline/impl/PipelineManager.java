@@ -16,7 +16,6 @@ package com.google.appengine.tools.pipeline.impl;
 
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
-import com.google.auth.Credentials;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
@@ -73,16 +72,6 @@ public class PipelineManager implements PipelineRunner {
 
   PipelineBackEnd.Options getBackendOptions() {
     return backEnd.getOptions();
-  }
-
-  /**
-   *
-   * @param projectId GCP project under which pipelines will execute
-   * @param credentials used to authenticate for access to that GCP project
-   *                                       (must have datastore/task queue perms for project )
-   */
-  public PipelineManager(String projectId, Credentials credentials) {
-    this(new AppEngineBackEnd(projectId, credentials));
   }
 
   /**

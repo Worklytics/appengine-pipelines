@@ -16,7 +16,9 @@ package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.api.utils.SystemProperty;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
 import lombok.SneakyThrows;
@@ -104,7 +106,11 @@ public class PipelineServlet extends HttpServlet {
     super.init();
     //TODO: coupled to GAE; could we pull this via ServletConfig somehow, to make more flexible?
     PipelineManager pipelineManager =
-      new PipelineManager(SystemProperty.applicationId.get(), GoogleCredentials.getApplicationDefault());
+      new PipelineManager(new AppEngineBackEnd(AppEngineBackEnd.Options.builder()
+        .projectId(SystemProperty.applicationId.get())
+        .credentials(GoogleCredentials.getApplicationDefault())
+        .datastoreOptions(DatastoreOptions.getDefaultInstance())
+        .build()));
     abortJobHandler = new AbortJobHandler(pipelineManager);
     deleteJobHandler = new DeleteJobHandler(pipelineManager);
     jsonClassFilterHandler = new JsonClassFilterHandler(pipelineManager);

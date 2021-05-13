@@ -1,7 +1,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
-import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.auth.oauth2.UserCredentials;
 import com.google.cloud.NoCredentials;
@@ -18,7 +17,7 @@ class AppEngineBackEndTest {
   @Test
   void getOptions() {
     Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
-    AppEngineBackEnd backend = new AppEngineBackEnd(datastore.getOptions().getProjectId(), datastore.getOptions().getCredentials());
+    AppEngineBackEnd backend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
 
     assertEquals(datastore.getOptions().getProjectId(),
       backend.getOptions().as(AppEngineBackEnd.Options.class).getProjectId());

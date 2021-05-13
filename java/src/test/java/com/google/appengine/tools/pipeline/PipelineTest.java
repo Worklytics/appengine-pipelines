@@ -96,7 +96,7 @@ public abstract class PipelineTest {
 
   public static SerializationStrategy getSerializationStrategy() {
     //just fake this, project/credentials shouldn't be used
-    return new AppEngineBackEnd("project", mock(Credentials.class));
+    return new AppEngineBackEnd(AppEngineBackEnd.Options.builder().build());
   }
 
 
