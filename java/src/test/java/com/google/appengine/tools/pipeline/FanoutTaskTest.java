@@ -18,7 +18,6 @@ import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SI
 
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.FanoutTaskRecord;
@@ -35,6 +34,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
@@ -42,10 +43,11 @@ import java.util.List;
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@ExtendWith(DatastoreExtension.class)
 public class FanoutTaskTest extends PipelineTest {
 
   private LocalServiceTestHelper helper =
-      new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig());
+      new LocalServiceTestHelper();
 
   private List<? extends Task> listOfTasks;
   byte[] encodedBytes;
