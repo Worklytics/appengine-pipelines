@@ -27,6 +27,8 @@ import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.apphosting.api.ApiProxy;
 
 import com.google.auth.Credentials;
+import com.google.cloud.datastore.DatastoreOptions;
+import com.google.datastore.v1.client.Datastore;
 import lombok.Getter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +45,6 @@ public abstract class PipelineTest {
 
   private static StringBuffer traceBuffer;
 
-  public static final String PROJECT = DatastoreExtension.TEST_DATASTORE_PROJECT_ID;
 
   @Getter
   private LocalTaskQueue taskQueue;
@@ -89,7 +90,7 @@ public abstract class PipelineTest {
 
   public static SerializationStrategy getSerializationStrategy() {
     //just fake this, project/credentials shouldn't be used
-    return new AppEngineBackEnd(PROJECT, mock(Credentials.class));
+    return new AppEngineBackEnd("project", mock(Credentials.class));
   }
 
 

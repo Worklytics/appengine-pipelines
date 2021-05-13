@@ -3,7 +3,9 @@ package com.google.appengine.tools.pipeline;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
+import com.google.auth.Credentials;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
 import org.junit.jupiter.api.extension.*;
 
 import java.lang.annotation.ElementType;
@@ -45,10 +47,10 @@ class PipelineComponentsExtension implements BeforeEachCallback {
     datastore = (Datastore) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_CONTEXT_KEY);
 
     //hack to figure out what random projectId the emulator generated
-    String projectId = datastore.newKeyFactory().setKind("fake").newKey().getProjectId();
-    pipelineService = PipelineServiceFactory.newPipelineService(projectId, datastore);
+
     appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
-    pipelineManager = new PipelineManager(appEngineBackend, projectId);
+    pipelineService = PipelineServiceFactory.newPipelineService(appEngineBackend);
+    pipelineManager = new PipelineManager(appEngineBackend);
 
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.PIPELINE_SERVICE.name(), pipelineService);

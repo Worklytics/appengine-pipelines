@@ -16,15 +16,11 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_DISPLAY_NAME;
 import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
-import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
 
 import com.github.rholder.retry.*;
 
 import com.google.auth.Credentials;
 import com.google.cloud.datastore.*;
-import com.google.cloud.datastore.Cursor;
-import com.google.cloud.datastore.Query;
-import com.google.cloud.datastore.Transaction;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
@@ -48,6 +44,7 @@ import com.google.cloud.datastore.Key;
 import com.google.common.base.Strings;
 import com.google.common.collect.Streams;
 import com.google.datastore.v1.QueryResultBatch;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -73,6 +70,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   public static final int RETRY_BACKOFF_MULTIPLIER = 2;
   public static final int RETRY_MAX_BACKOFF_MS = 5000;
 
+
   private <E> Retryer<E> withDefaults(RetryerBuilder<E> builder) {
       return builder
               .withWaitStrategy(WaitStrategies.exponentialWait(RETRY_BACKOFF_MULTIPLIER, RETRY_MAX_BACKOFF_MS, TimeUnit.MILLISECONDS))
@@ -96,6 +94,30 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private final Datastore datastore;
   private final AppEngineTaskQueue taskQueue;
 
+  public AppEngineBackEnd(AppEngineBackEnd.Options as) {
+      this(as.getProjectId(), as.getCredentials());
+  }
+
+
+  @Builder
+  @lombok.Value
+  public static class Options implements PipelineBackEnd.Options {
+
+    private String projectId;
+
+    private Credentials credentials;
+
+    //TODO: add any non-default options of Datastore, etc that we need to reconstitute
+  }
+
+  @Override
+  public PipelineBackEnd.Options getOptions() {
+    return Options.builder()
+      .projectId(this.datastore.getOptions().getProjectId())
+      .credentials(this.datastore.getOptions().getCredentials())
+      .build();
+  }
+
   /**
    *
    * @param projectId GCP project under which pipelines will execute
@@ -114,7 +136,9 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       builder.setCredentials(credentials);
     }
 
-    datastore = builder.build().getService();
+    DatastoreOptions options = builder.build();
+
+    datastore = options.getService();
   }
 
   @Override
@@ -257,10 +281,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       });
     }
 
-    // TODO(user): Replace this with plug-able hooks that could be used by tests,
-    // if needed could be restricted to package-scoped tests.
-    // If a unit test requests us to do so, fail here.
-    throwHereForTesting("AppEngineBackeEnd.saveWithJobStateCheck.beforeFinalTransaction");
     final AtomicBoolean wasSaved = new AtomicBoolean(true);
     tryFiveTimes(new Operation<Void>("save") {
       @Override

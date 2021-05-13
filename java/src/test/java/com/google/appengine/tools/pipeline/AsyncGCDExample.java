@@ -16,7 +16,12 @@ package com.google.appengine.tools.pipeline;
 
 
 import com.google.appengine.tools.pipeline.demo.GCDExample;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.auth.Credentials;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+
+import java.beans.Transient;
 
 /**
  *
@@ -47,20 +52,24 @@ public class AsyncGCDExample {
    * print a message on the console with the results.
    */
   @SuppressWarnings("serial")
-  @AllArgsConstructor
+  @RequiredArgsConstructor
   public static class PrintGCDJob extends Job0<Void> {
 
-    PipelineService service;
+    final PipelineBackEnd.Options pipelineBackendOptions;
+
+    transient PipelineService service;
 
     @Override
     public Value<Void> run() {
+      service = PipelineServiceFactory.newPipelineService(pipelineBackendOptions);
+
       PromisedValue<Integer> a = newPromise();
       PromisedValue<Integer> b = newPromise();
       asyncAskUserForTwoIntegers(a.getHandle(), b.getHandle());
       FutureValue<Integer> gcd = futureCall(new GCDExample.GCDJob(), a, b);
       // Don't ask the user for his name until after he has already
       // answered the first prompt asking for two integers.
-      FutureValue<String> userName = futureCall(new AskUserForNameJob(), waitFor(b));
+      FutureValue<String> userName = futureCall(new AskUserForNameJob(pipelineBackendOptions), waitFor(b));
       futureCall(new PrintResultJob(), userName, a, b, gcd);
       return null;
     }
@@ -95,12 +104,18 @@ public class AsyncGCDExample {
    * starts a new thread which waits for the user to enter his name.
    */
   @SuppressWarnings("serial")
+  @RequiredArgsConstructor
   public static class AskUserForNameJob extends Job0<String> {
 
-    PipelineService service;
+    final PipelineBackEnd.Options pipelineBackendOptions;
+
+    transient PipelineService service;
+
 
     @Override
     public Value<String> run() {
+      service = PipelineServiceFactory.newPipelineService(pipelineBackendOptions);
+
       PromisedValue<String> userName = newPromise();
       asyncAskUserForName(userName.getHandle());
       return userName;

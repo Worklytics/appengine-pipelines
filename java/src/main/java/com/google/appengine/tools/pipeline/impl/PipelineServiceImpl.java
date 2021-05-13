@@ -29,6 +29,7 @@ import com.google.appengine.tools.pipeline.OrphanedObjectException;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.auth.Credentials;
 import com.google.cloud.datastore.Datastore;
 
@@ -54,9 +55,20 @@ public class PipelineServiceImpl implements PipelineService {
     pipelineManager = new PipelineManager(projectId, credentials);
   }
 
-  public PipelineServiceImpl(String projectId, Datastore datastore) {
-    pipelineManager = new PipelineManager(new AppEngineBackEnd(datastore, new AppEngineTaskQueue()), projectId);
+  public PipelineServiceImpl(Datastore datastore) {
+    pipelineManager = new PipelineManager(new AppEngineBackEnd(datastore, new AppEngineTaskQueue()));
   }
+
+  public PipelineServiceImpl(PipelineBackEnd backEnd) {
+    pipelineManager = new PipelineManager(backEnd);
+  }
+
+
+  @Override
+  public PipelineBackEnd.Options getBackendOptions() {
+    return pipelineManager.getOptions();
+  }
+
 
 
   @Override

@@ -18,7 +18,6 @@ import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
-import com.google.appengine.tools.pipeline.impl.model.PipelineModelObject;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
@@ -26,7 +25,7 @@ import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.cloud.datastore.Key;
 
-import java.io.IOException;
+import java.io.Serializable;
 import java.util.Set;
 
 /**
@@ -36,6 +35,8 @@ import java.util.Set;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public interface PipelineBackEnd {
+
+  Options getOptions();
 
   /**
    * Saves entities to the data store and enqueues tasks to the task queue based
@@ -181,5 +182,15 @@ public interface PipelineBackEnd {
    * @return SerializationStrategy to be used for this backend
    */
   SerializationStrategy getSerializationStrategy();
+
+  /**
+   * serializable configuration of a PipelineBackend, so can be re-constituted in another context
+   */
+  interface Options extends Serializable {
+
+    default <T extends Options> T as(Class<T> tClass) {
+      return (tClass.cast(this));
+    }
+  }
 }
 

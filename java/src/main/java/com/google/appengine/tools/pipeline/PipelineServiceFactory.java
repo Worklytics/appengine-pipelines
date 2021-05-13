@@ -16,14 +16,13 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.api.utils.SystemProperty;
 import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.datastore.Datastore;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.Base64;
 
 /**
  * A factory for obtaining instances of {@link PipelineService}
@@ -39,23 +38,15 @@ public final class PipelineServiceFactory {
    */
   @Deprecated //coupled to AppEngine
   public static PipelineService newPipelineService() {
-    return newPipelineService(SystemProperty.applicationId.get());
-  }
-
-  /**
-   * @param projectId GCP project under which pipelines will execute
-   * @return PipelineService that will execute pipelines in specific project, auth'd by application default credentials
-   */
-  public static PipelineService newPipelineService(String projectId) {
     try {
-      return newPipelineService(projectId, GoogleCredentials.getApplicationDefault());
+      return newPipelineService(SystemProperty.applicationId.get(), GoogleCredentials.getApplicationDefault());
     } catch (IOException e) {
       throw new RuntimeException("Failed to get default credentials", e);
     }
   }
 
-  public static PipelineService newPipelineService(String projectId, Datastore datastore) {
-    return new PipelineServiceImpl(projectId, datastore);
+  public static PipelineService newPipelineService(PipelineBackEnd backEnd) {
+    return new PipelineServiceImpl(backEnd);
   }
 
   /**
@@ -66,5 +57,13 @@ public final class PipelineServiceFactory {
    */
   public static PipelineService newPipelineService(String projectId, Credentials gcpCredentials) {
     return new PipelineServiceImpl(projectId, gcpCredentials);
+  }
+
+  public static PipelineService newPipelineService(PipelineBackEnd.Options options) {
+    if (options instanceof AppEngineBackEnd.Options) {
+      return new PipelineServiceImpl(new AppEngineBackEnd(options.as(AppEngineBackEnd.Options.class)));
+    } else {
+      throw new IllegalArgumentException("Options of type that is not supported by PipelineServiceFactory");
+    }
   }
 }
