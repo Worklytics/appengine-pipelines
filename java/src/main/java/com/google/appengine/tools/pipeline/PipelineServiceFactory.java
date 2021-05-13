@@ -48,8 +48,7 @@ public final class PipelineServiceFactory {
    */
   public static PipelineService newPipelineService(String projectId) {
     try {
-      GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-      return new PipelineServiceImpl(projectId, credentials);
+      return newPipelineService(projectId, GoogleCredentials.getApplicationDefault());
     } catch (IOException e) {
       throw new RuntimeException("Failed to get default credentials", e);
     }
@@ -62,17 +61,10 @@ public final class PipelineServiceFactory {
   /**
    *
    * @param projectId GCP project under which pipelines will execute
-   * @param base64EncodedServiceAccountKey service account key used to authenticate for access to that GCP project
-   *                                       (need not be from same project, but must have datastore/task queue perms)
+   * @param gcpCredentials credentials to use when authenticating pipeline service with GCP
    * @return PipelineService that will execute pipelines in specific project, auth'd by serviceAccountKey
    */
-  public static PipelineService newPipelineService(String projectId, String base64EncodedServiceAccountKey) {
-
-    String jsonKey = new String(Base64.getDecoder().decode(base64EncodedServiceAccountKey.trim().getBytes()));
-    try {
-      return new PipelineServiceImpl(projectId, ServiceAccountCredentials.fromStream(new ByteArrayInputStream(jsonKey.getBytes())));
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to build ServiceAccountCredentials from key", e);
-    }
+  public static PipelineService newPipelineService(String projectId, Credentials gcpCredentials) {
+    return new PipelineServiceImpl(projectId, gcpCredentials);
   }
 }
