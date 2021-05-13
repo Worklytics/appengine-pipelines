@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.FutureValueImpl;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
@@ -22,6 +23,7 @@ import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Serializable;
 import java.util.List;
@@ -132,7 +134,11 @@ public abstract class Job<E> implements Serializable {
    * See the <a href="http://goto/java_cascade_user_guide">user's guide</a> for more information.
    */
 
-  private static final long serialVersionUID = 868736209042268959L;
+  private static final long serialVersionUID = 1L;
+
+  //TODO: setter should ONLY be used from futureCall/PipelineManager::startNewPipeline
+  @Getter @Setter
+  private PipelineBackEnd.Options pipelineBackendOptions;
 
   private transient JobRecord thisJobRecord;
   private transient UpdateSpec updateSpec;
@@ -189,6 +195,7 @@ public abstract class Job<E> implements Serializable {
    */
   public <T> FutureValue<T> futureCallUnchecked(JobSetting[] settings, Job<?> jobInstance,
       Object... params) {
+    jobInstance.setPipelineBackendOptions(this.getPipelineBackendOptions());
     JobRecord childJobRecord =
       pipelineRunner.registerNewJobRecord(updateSpec, settings, thisJobRecord, currentRunGUID, jobInstance, params);
     thisJobRecord.appendChildKey(childJobRecord.getKey());

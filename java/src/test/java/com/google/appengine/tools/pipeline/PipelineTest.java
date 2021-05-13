@@ -53,6 +53,8 @@ public abstract class PipelineTest {
   protected PipelineManager pipelineManager;
   protected AppEngineBackEnd appEngineBackend;
 
+
+
   public PipelineTest() {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
     taskQueueConfig.setCallbackClass(TestingTaskQueueCallback.class);
@@ -70,6 +72,10 @@ public abstract class PipelineTest {
 
   protected static String trace() {
     return traceBuffer.toString();
+  }
+
+  String getProjectId() {
+    return this.appEngineBackend.getOptions().as(AppEngineBackEnd.Options.class).getProjectId();
   }
 
   @BeforeEach

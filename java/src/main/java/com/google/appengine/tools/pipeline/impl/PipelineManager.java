@@ -71,7 +71,7 @@ public class PipelineManager implements PipelineRunner {
 
   private final PipelineBackEnd backEnd;
 
-  PipelineBackEnd.Options getOptions() {
+  PipelineBackEnd.Options getBackendOptions() {
     return backEnd.getOptions();
   }
 
@@ -105,6 +105,7 @@ public class PipelineManager implements PipelineRunner {
       JobSetting[] settings, Job<?> jobInstance, Object... params) {
     UpdateSpec updateSpec = new UpdateSpec(null);
     Job<?> rootJobInstance = jobInstance;
+    jobInstance.setPipelineBackendOptions(this.getBackendOptions());
     // If rootJobInstance has exceptionHandler it has to be wrapped to ensure that root job
     // ends up in finalized state in case of exception of run method and
     // exceptionHandler returning a result.

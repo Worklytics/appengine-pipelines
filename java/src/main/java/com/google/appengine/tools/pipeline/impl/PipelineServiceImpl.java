@@ -66,7 +66,7 @@ public class PipelineServiceImpl implements PipelineService {
 
   @Override
   public PipelineBackEnd.Options getBackendOptions() {
-    return pipelineManager.getOptions();
+    return pipelineManager.getBackendOptions();
   }
 
 

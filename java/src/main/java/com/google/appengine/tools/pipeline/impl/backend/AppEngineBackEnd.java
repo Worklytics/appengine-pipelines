@@ -105,6 +105,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
     private String projectId;
 
+    //q: good idea? risk here that we're copying / passing around sensitive info; although really
+    // in prod ppl should depend on application-default credentials and I think this will be null
     private Credentials credentials;
 
     //TODO: add any non-default options of Datastore, etc that we need to reconstitute

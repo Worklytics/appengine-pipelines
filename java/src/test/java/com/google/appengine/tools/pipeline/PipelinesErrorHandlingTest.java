@@ -14,7 +14,6 @@
 
 package com.google.appengine.tools.pipeline;
 
-import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -367,6 +366,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
   @SuppressWarnings("serial")
+  @RequiredArgsConstructor
   static class TestGrandchildCancellationJob extends Job0<Void> {
 
     @Override
@@ -387,13 +387,11 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   @RequiredArgsConstructor
   static class ParentOfJobToCancel extends Job1<Integer, String> {
 
-    private final PipelineBackEnd.Options pipelineBackendOptions;
-
     @Override
     public Value<Integer> run(String unblockTheAngryOneHandle) throws Exception {
       trace("ParentOfJobToCancel.run");
       // Unblocks a sibling that is going to throw an exception
-      PipelineServiceFactory.newPipelineService(pipelineBackendOptions)
+      PipelineServiceFactory.newPipelineService(getPipelineBackendOptions())
         .submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
       PromisedValue<Integer> neverReady = newPromise();
       return futureCall(new JobToCancel(), neverReady);
@@ -411,6 +409,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
   @SuppressWarnings("serial")
+  @RequiredArgsConstructor
   static class ParentOfGrandchildToCancelAndAngryChildJob extends Job0<Void> {
 
     @Override
@@ -603,16 +602,14 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
 
 
   @SuppressWarnings("serial")
-  @RequiredArgsConstructor
   static class JobToGetCancellationInHandleException extends Job1<Integer, String> {
 
-    final PipelineBackEnd.Options pipelineBackEndOptions;
 
     @Override
     public Value<Integer> run(String unblockTheAngryOneHandle) throws Exception {
       trace("JobToGetCancellationInHandleException.run");
       // Unblocks a sibling that is going to throw an exception
-      PipelineServiceFactory.newPipelineService(pipelineBackEndOptions)
+      PipelineServiceFactory.newPipelineService(getPipelineBackendOptions())
         .submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
       throw new IllegalStateException("simulated");
     }
@@ -654,6 +651,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
    * descendant.
    */
   @SuppressWarnings("serial")
+  @RequiredArgsConstructor
   static class TestCancellationOfHandleExceptionJob extends Job0<Integer> {
 
     @Override
