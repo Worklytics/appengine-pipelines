@@ -55,13 +55,11 @@ public class AsyncGCDExample {
   @RequiredArgsConstructor
   public static class PrintGCDJob extends Job0<Void> {
 
-    final PipelineBackEnd.Options pipelineBackendOptions;
-
     transient PipelineService service;
 
     @Override
     public Value<Void> run() {
-      service = PipelineServiceFactory.newPipelineService(pipelineBackendOptions);
+      service = PipelineServiceFactory.newPipelineService(getPipelineBackendOptions());
 
       PromisedValue<Integer> a = newPromise();
       PromisedValue<Integer> b = newPromise();
@@ -69,7 +67,7 @@ public class AsyncGCDExample {
       FutureValue<Integer> gcd = futureCall(new GCDExample.GCDJob(), a, b);
       // Don't ask the user for his name until after he has already
       // answered the first prompt asking for two integers.
-      FutureValue<String> userName = futureCall(new AskUserForNameJob(pipelineBackendOptions), waitFor(b));
+      FutureValue<String> userName = futureCall(new AskUserForNameJob(), waitFor(b));
       futureCall(new PrintResultJob(), userName, a, b, gcd);
       return null;
     }
@@ -107,14 +105,12 @@ public class AsyncGCDExample {
   @RequiredArgsConstructor
   public static class AskUserForNameJob extends Job0<String> {
 
-    final PipelineBackEnd.Options pipelineBackendOptions;
-
     transient PipelineService service;
 
 
     @Override
     public Value<String> run() {
-      service = PipelineServiceFactory.newPipelineService(pipelineBackendOptions);
+      service = PipelineServiceFactory.newPipelineService(getPipelineBackendOptions());
 
       PromisedValue<String> userName = newPromise();
       asyncAskUserForName(userName.getHandle());

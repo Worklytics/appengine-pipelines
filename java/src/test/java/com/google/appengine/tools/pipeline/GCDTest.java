@@ -88,7 +88,7 @@ public class GCDTest extends PipelineTest {
         latch.countDown();
       }
     };
-    String pipelineId = pipelineService.startNewPipeline(new PrintGCDJob(pipelineService.getBackendOptions()));
+    String pipelineId = pipelineService.startNewPipeline(new PrintGCDJob());
     assertTrue(latch.await(3, TimeUnit.MINUTES));
     assertEquals(expectedMessage, builder.toString());
     // Wait for job task thread to complete
