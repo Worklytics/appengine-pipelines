@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.apphosting.api.ApiProxy;
@@ -80,7 +79,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
   private void doOrphanedJobGraphTest(boolean usePromisedValue) throws Exception {
 
     // Run GeneratorJob
-    String pipelineHandle = pipelineService.startNewPipeline(new GeneratorJob(usePromisedValue, pipelineService));
+    String pipelineHandle = pipelineService.startNewPipeline(new GeneratorJob(usePromisedValue));
     waitForJobToComplete(pipelineService, pipelineHandle);
 
     // The GeneratorJob run() should have failed twice just before the final
@@ -165,7 +164,6 @@ public class OrphanedJobGraphTest extends PipelineTest {
         getFailureProperty("AppEngineBackeEnd.saveWithJobStateCheck.beforeFinalTransaction");
 
     boolean usePromise;
-    PipelineService pipelineService;
 
     @Override
     public Value<Void> run() {
@@ -175,6 +173,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
       }
       Value<Integer> dummyValue;
       if (usePromise) {
+        PipelineService pipelineService = PipelineServiceFactory.newPipelineService(getPipelineBackendOptions());
         PromisedValue<Integer> promisedValue = newPromise();
         (new Thread(new SupplyPromisedValueRunnable(ApiProxy.getCurrentEnvironment(),
             promisedValue.getHandle(), pipelineService))).start();
