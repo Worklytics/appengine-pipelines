@@ -10,4 +10,4 @@
 ### Change implications
 
  - breaking change to API? **yes/no**
- - changes dependendencies?  **yes/no**
+ - changes dependencies?  **yes/no**
