@@ -11,7 +11,7 @@
   <version>0.3+worklytics.2</version>
   <packaging>jar</packaging>
   <licenses>
-    <license>https://github.com/Worklytics/appengine-pipelines/actions/runs/919764886/workflow
+    <license>
       <name>The Apache Software License, Version 2.0</name>
       <url>http://www.apache.org/licenses/LICENSE-2.0</url>
     </license>
