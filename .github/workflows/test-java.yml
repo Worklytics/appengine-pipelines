@@ -13,7 +13,7 @@ jobs:
           distribution: 'adopt'
           java-version: '11' # maven won't accept --release argument with java < 8; and 11 is next LTS
       - name: Maven compile
-          run: |
+        run: |
             cd java/
             mvn clear compile
       - name: Build with Maven
