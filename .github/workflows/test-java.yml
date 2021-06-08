@@ -15,7 +15,7 @@ jobs:
       - name: Maven compile
         run: |
             cd java/
-            mvn clear compile
+            mvn clean compile
       - name: Build with Maven
         run: |
           cd java/
