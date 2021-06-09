@@ -8,7 +8,7 @@
   <url>https://github.com/Worklytics/appengine-pipelines/</url>
   <!-- follow semver, with suggested guidance for versioning fork of OSS -->
   <!-- see https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.3+worklytics.1</version>
+  <version>0.3+worklytics.2</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -18,7 +18,8 @@
   </licenses>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <appengine.target.version>[1.9.1, 2.0)</appengine.target.version>
+    <appengine.target.version>1.9.80</appengine.target.version>
+    <!-- <appengine.target.version>[1.9.1, 2.0)</appengine.target.version> -->
     <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
 
