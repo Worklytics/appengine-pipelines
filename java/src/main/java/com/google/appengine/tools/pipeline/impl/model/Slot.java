@@ -17,18 +17,22 @@ package com.google.appengine.tools.pipeline.impl.model;
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import lombok.extern.java.Log;
 
 import java.io.IOException;
+import java.io.NotSerializableException;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 
 /**
  * A slot to be filled in with a value.
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@Log
 public class Slot extends PipelineModelObject {
 
   public static final String DATA_STORE_KIND = "pipeline-slot";
@@ -98,6 +102,9 @@ public class Slot extends PipelineModelObject {
         entity.setUnindexedProperty(VALUE_PROPERTY,
             PipelineManager.getBackEnd().serializeValue(this, value));
       } catch (IOException e) {
+        if (e instanceof NotSerializableException) {
+          log.log(Level.SEVERE, "NotSerializable value of " + value.getClass().getSimpleName() + " contained within: " + this, e);
+        }
         throw new RuntimeException(e);
       }
     }
