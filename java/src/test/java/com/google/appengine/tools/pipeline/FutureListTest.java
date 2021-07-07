@@ -14,10 +14,13 @@
 
 package com.google.appengine.tools.pipeline;
 
+import org.junit.jupiter.api.Test;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Note the difference between testFutureList() and testReturnFutureList(). In
@@ -27,26 +30,26 @@ import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete
  */
 public class FutureListTest extends PipelineTest {
 
+  @Test
   public void testFutureList() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new SumsListJob1());
-    Integer sum = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new SumsListJob1());
+    Integer sum = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(21, sum.intValue());
   }
 
+  @Test
   public void testReturnFutureList() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new SumsListJob2());
-    Integer sum = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new SumsListJob2());
+    Integer sum = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(21, sum.intValue());
   }
 
   // Thanks to Ronoaldo José de Lana Pereira for
   // suggesting this.
+  @Test
   public void testEmptyFutureList() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new SumsEmptyListJob());
-    Integer sum = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new SumsEmptyListJob());
+    Integer sum = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(0, sum.intValue());
   }
 

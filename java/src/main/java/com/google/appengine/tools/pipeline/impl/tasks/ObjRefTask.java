@@ -14,10 +14,10 @@
 
 package com.google.appengine.tools.pipeline.impl.tasks;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 
+import java.util.Base64;
 import java.util.Properties;
 
 /**
@@ -58,7 +58,9 @@ public abstract class ObjRefTask extends Task {
     if (namePrefix == null) {
       throw new IllegalArgumentException("namePrix is null.");
     }
-    return namePrefix + KeyFactory.keyToString(key);
+    //deterministic name based on key, that is legal for Task Queues
+    String legalTaskNameSuffix = Base64.getEncoder().encodeToString(key.toUrlSafe().getBytes()).replace("=", "");
+    return namePrefix + "_" + legalTaskNameSuffix;
   }
 
   /**
@@ -75,7 +77,7 @@ public abstract class ObjRefTask extends Task {
    */
   protected ObjRefTask(Type type, String taskName, Properties properties) {
     super(type, taskName, properties);
-    key = KeyFactory.stringToKey(properties.getProperty(KEY_PARAM));
+    key = Key.fromUrlSafe(properties.getProperty(KEY_PARAM));
   }
 
   public Key getKey() {
@@ -84,8 +86,7 @@ public abstract class ObjRefTask extends Task {
 
   @Override
   protected void addProperties(Properties properties) {
-    String keyString = KeyFactory.keyToString(key);
-    properties.setProperty(KEY_PARAM, keyString);
+    properties.setProperty(KEY_PARAM, key.toUrlSafe());
   }
 
   @Override

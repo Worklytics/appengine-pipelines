@@ -16,11 +16,14 @@ package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWhitespace;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
 import com.google.appengine.tools.pipeline.impl.servlets.JsonListHandler;
 import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -50,8 +53,8 @@ public class JsonListHandlerTest extends PipelineTest {
 
     @Override
     public Value<String> run() {
-      FutureValue<String> v1 = futureCall(new StrJob<String>(), immediate("hello"));
-      FutureValue<String> v2 = futureCall(new StrJob<String>(), immediate(" world"));
+      FutureValue<String> v1 = futureCall(new StrJob<>(), immediate("hello"));
+      FutureValue<String> v2 = futureCall(new StrJob<>(), immediate(" world"));
       return futureCall(new ConcatJob(), v1, v2);
     }
   }
@@ -70,8 +73,8 @@ public class JsonListHandlerTest extends PipelineTest {
       if (shouldThrow) {
         throw new RuntimeException("bla");
       }
-      FutureValue<String> v1 = futureCall(new StrJob<String>(), immediate("hi"));
-      FutureValue<String> v2 = futureCall(new StrJob<String>(), immediate(" there"));
+      FutureValue<String> v1 = futureCall(new StrJob<>(), immediate("hi"));
+      FutureValue<String> v2 = futureCall(new StrJob<>(), immediate(" there"));
       return futureCall(new ConcatJob(), v1, v2);
     }
 
@@ -99,31 +102,33 @@ public class JsonListHandlerTest extends PipelineTest {
     }
   }
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     MockitoAnnotations.initMocks(this);
     when(response.getWriter()).thenReturn(new PrintWriter(output));
   }
 
+  @Test
   public void testHandlerNoResults() throws Exception {
-    JsonListHandler.doGet(request, response);
+    JsonListHandler jsonListHandler = new JsonListHandler(pipelineManager);
+    jsonListHandler.doGet(request, response);
     assertEqualsIgnoreWhitespace("{\"pipelines\": []}", output.toString());
   }
 
+  @Test
   public void testHandlerWithResults() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId1 = service.startNewPipeline(new Main1Job());
-    String pipelineId2 = service.startNewPipeline(new Main2Job(false));
-    String pipelineId3 = service.startNewPipeline(new Main2Job(true),
+    String pipelineId1 = pipelineService.startNewPipeline(new Main1Job());
+    String pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
+    String pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
         new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
-    String helloWorld = (String) waitForJobToComplete(pipelineId1);
+    String helloWorld = waitForJobToComplete(pipelineService, pipelineId1);
     assertEquals("hello world", helloWorld);
-    String hiThere = (String) waitForJobToComplete(pipelineId2);
+    String hiThere = waitForJobToComplete(pipelineService, pipelineId2);
     assertEquals("hi there", hiThere);
-    String bla = (String) waitForJobToComplete(pipelineId3);
+    String bla = waitForJobToComplete(pipelineService, pipelineId3);
     assertEquals("bla", bla);
-    JsonListHandler.doGet(request, response);
+    JsonListHandler jsonListHandler = new JsonListHandler(pipelineManager);
+    jsonListHandler.doGet(request, response);
     Map<String, Object> results = (Map<String, Object>) JsonUtils.fromJson(output.toString());
     assertEquals(1, results.size());
     List<Map<String, Object>> pipelines = (List<Map<String, Object>>) results.get("pipelines");

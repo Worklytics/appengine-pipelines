@@ -14,9 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 
 import java.util.ArrayList;
@@ -51,8 +49,9 @@ public class Barrier extends PipelineModelObject {
   /**
    * The type of Barrier
    */
-  public static enum Type {
-    RUN, FINALIZE
+  public enum Type {
+    RUN,
+    FINALIZE
   }
 
   public static final String DATA_STORE_KIND = "pipeline-barrier";
@@ -102,7 +101,7 @@ public class Barrier extends PipelineModelObject {
   }
 
   public static Barrier dummyInstanceForTesting() {
-    Key dummyKey = KeyFactory.createKey("dummy", "dummy");
+    Key dummyKey = Key.newBuilder("dummy", "dummy", "dummy").build();
     return new Barrier(Type.RUN, dummyKey, dummyKey, dummyKey, "abc");
   }
 
@@ -113,22 +112,28 @@ public class Barrier extends PipelineModelObject {
 
   public Barrier(Entity entity) {
     super(entity);
-    jobKey = (Key) entity.getProperty(JOB_KEY_PROPERTY);
-    type = Type.valueOf((String) entity.getProperty(TYPE_PROPERTY));
-    released = (Boolean) entity.getProperty(RELEASED_PROPERTY);
+    jobKey = entity.getKey(JOB_KEY_PROPERTY);
+    type = Type.valueOf(entity.getString(TYPE_PROPERTY));
+    released = entity.getBoolean(RELEASED_PROPERTY);
     waitingOnKeys = getListProperty(WAITING_ON_KEYS_PROPERTY, entity);
     waitingOnGroupSizes = getListProperty(WAITING_ON_GROUP_SIZES_PROPERTY, entity);
   }
 
   @Override
   public Entity toEntity() {
-    Entity entity = toProtoEntity();
-    entity.setProperty(JOB_KEY_PROPERTY, jobKey);
-    entity.setUnindexedProperty(TYPE_PROPERTY, type.toString());
-    entity.setUnindexedProperty(RELEASED_PROPERTY, released);
-    entity.setUnindexedProperty(WAITING_ON_KEYS_PROPERTY, waitingOnKeys);
-    entity.setUnindexedProperty(WAITING_ON_GROUP_SIZES_PROPERTY, waitingOnGroupSizes);
-    return entity;
+    Entity.Builder entity = toProtoBuilder();
+    entity.set(JOB_KEY_PROPERTY, jobKey);
+    entity.set(TYPE_PROPERTY, StringValue.newBuilder(type.toString()).setExcludeFromIndexes(true).build());
+    entity.set(RELEASED_PROPERTY, BooleanValue.newBuilder(released).setExcludeFromIndexes(true).build());
+
+    ListValue.Builder waitOnKeysValue = ListValue.newBuilder();
+    waitingOnKeys.stream().map(k -> KeyValue.newBuilder(k).setExcludeFromIndexes(true).build()).forEachOrdered(waitOnKeysValue::addValue);
+    entity.set(WAITING_ON_KEYS_PROPERTY, waitOnKeysValue.build());
+
+    ListValue.Builder waitingOnGroupSizesValue = ListValue.newBuilder();
+    waitingOnGroupSizes.stream().map(l -> LongValue.newBuilder(l).setExcludeFromIndexes(true).build()).forEachOrdered(waitingOnGroupSizesValue::addValue);
+    entity.set(WAITING_ON_GROUP_SIZES_PROPERTY, waitingOnGroupSizesValue.build());
+    return entity.build();
   }
 
   @Override

@@ -14,8 +14,11 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Blob;
-import com.google.appengine.api.datastore.Entity;
+
+import com.google.cloud.datastore.Blob;
+import com.google.cloud.datastore.BlobValue;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.LongValue;
 
 /**
  * A data model to represent shard of a large value.
@@ -41,16 +44,16 @@ public class ShardedValue extends PipelineModelObject {
 
   public ShardedValue(Entity entity) {
     super(entity);
-    this.shardId = (Long) entity.getProperty(SHARD_ID_PROPERTY);
-    this.value = ((Blob) entity.getProperty(VALUE_PROPERTY)).getBytes();
+    this.shardId = entity.getLong(SHARD_ID_PROPERTY);
+    this.value = entity.getBlob(VALUE_PROPERTY).toByteArray();
   }
 
   @Override
   public Entity toEntity() {
-    Entity entity = toProtoEntity();
-    entity.setUnindexedProperty(SHARD_ID_PROPERTY, shardId);
-    entity.setUnindexedProperty(VALUE_PROPERTY, new Blob(value));
-    return entity;
+    Entity.Builder entity = toProtoBuilder();
+    entity.set(SHARD_ID_PROPERTY, LongValue.newBuilder(shardId).setExcludeFromIndexes(true).build());
+    entity.set(VALUE_PROPERTY, BlobValue.newBuilder(Blob.copyFrom(value)).setExcludeFromIndexes(true).build());
+    return entity.build();
   }
 
   @Override

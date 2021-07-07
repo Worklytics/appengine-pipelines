@@ -1,9 +1,8 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.appengine.tools.pipeline.DatastoreExtension;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.api.taskqueue.TaskHandle;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
@@ -12,36 +11,40 @@ import com.google.appengine.tools.pipeline.impl.tasks.RunJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 /**
  * @author tkaitchuck
  */
-public class AppEngineTaskQueueTest extends TestCase {
+@ExtendWith(DatastoreExtension.class)
+public class AppEngineTaskQueueTest {
 
   private LocalServiceTestHelper helper;
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
     taskQueueConfig.setDisableAutoTaskExecution(true);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig(), taskQueueConfig,
-        new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
     helper.setUp();
   }
 
-  @Override
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    super.tearDown();
   }
 
+  @Test
   public void testEnqueueSingleTask() {
     AppEngineTaskQueue queue = new AppEngineTaskQueue();
     Task task = createTask();
@@ -54,6 +57,7 @@ public class AppEngineTaskQueueTest extends TestCase {
     assertEquals(0, handles.size());
   }
 
+  @Test
   public void testEnqueueBatchTasks() {
     AppEngineTaskQueue queue = new AppEngineTaskQueue();
     List<Task> tasks = new ArrayList<>(AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE);
@@ -71,6 +75,7 @@ public class AppEngineTaskQueueTest extends TestCase {
     assertEquals(0, handles.size());
   }
 
+  @Test
   public void testEnqueueLargeBatchTasks() {
     AppEngineTaskQueue queue = new AppEngineTaskQueue();
     int batchSize = AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE * 2 + 10;
@@ -89,6 +94,7 @@ public class AppEngineTaskQueueTest extends TestCase {
     assertEquals(0, handles.size());
   }
 
+  @Test
   public void testEnqueueBatchTwoStages() {
     AppEngineTaskQueue queue = new AppEngineTaskQueue();
     int batchSize = AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE * 2;
@@ -118,7 +124,7 @@ public class AppEngineTaskQueueTest extends TestCase {
 
   private Task createTask() {
     String name = GUIDGenerator.nextGUID();
-    Key key = KeyFactory.createKey("testType", name);
+    Key key = Key.newBuilder("testProject", "testType", name).build();
     Task task = new RunJobTask(key, new QueueSettings().setOnServiceVersion("m1"));
     return task;
   }

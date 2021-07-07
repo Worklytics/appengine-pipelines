@@ -14,9 +14,13 @@
 
 package com.google.appengine.tools.pipeline;
 
+import org.junit.jupiter.api.Test;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test error handling through handleException.
@@ -27,8 +31,6 @@ public class DelayedValueTest extends PipelineTest {
 
   private static final int EXPECTED_RESULT = 5;
   private static final long DELAY_SECONDS = 10;
-
-  private PipelineService service = PipelineServiceFactory.newPipelineService();
 
   private static AtomicLong duration1 = new AtomicLong();
   private static AtomicLong duration2 = new AtomicLong();
@@ -56,9 +58,10 @@ public class DelayedValueTest extends PipelineTest {
     }
   }
 
+  @Test
   public void testDelayedValue() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestDelayedValueJob());
-    Integer five = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new TestDelayedValueJob());
+    Integer five = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT, five.intValue());
     assertEquals("TestDelayedValueJob.run DelayedJob.run", trace());
     assertTrue(duration2.get() - duration1.get() >= DELAY_SECONDS * 1000);

@@ -14,8 +14,6 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
 import com.google.appengine.tools.pipeline.impl.model.JobInstanceRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
@@ -24,10 +22,11 @@ import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.appengine.tools.pipeline.impl.model.SlotDescriptor;
 import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.cloud.datastore.Key;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -42,7 +41,7 @@ import java.util.Map;
 class JsonGenerator {
 
   private static String toString(Key key) {
-    return KeyFactory.keyToString(key);
+    return key.toString();
   }
 
   private static final String PIPELINE_ID = "pipelineId";
@@ -149,9 +148,9 @@ class JsonGenerator {
     } catch (RuntimeException ex) {
       map.put(SLOT_VALUE, ex);
     }
-    Date fillTime = slot.getFillTime();
+    Instant fillTime = slot.getFillTime();
     if (null != fillTime) {
-      map.put(SLOT_FILL_TIME, fillTime.getTime());
+      map.put(SLOT_FILL_TIME, fillTime.toEpochMilli());
     }
     Key sourceJobKey = slot.getSourceJobKey();
     if (null != sourceJobKey) {
@@ -196,13 +195,13 @@ class JsonGenerator {
         break;
     }
     map.put(JOB_STATUS, statusString);
-    Date startTime = jobRecord.getStartTime();
+    Instant startTime = jobRecord.getStartTime();
     if (null != startTime) {
-      map.put(JOB_START_TIME, startTime.getTime());
+      map.put(JOB_START_TIME, startTime.toEpochMilli());
     }
-    Date endTime = jobRecord.getEndTime();
+    Instant endTime = jobRecord.getEndTime();
     if (null != endTime) {
-      map.put(JOB_END_TIME, endTime.getTime());
+      map.put(JOB_END_TIME, endTime.toEpochMilli());
     }
     map.put(JOB_CHILDREN, buildArrayRepresentation(jobRecord.getChildKeys()));
     List<Map<String, Object>> argumentListRepresentation = new LinkedList<>();

@@ -5,7 +5,7 @@ import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestUtils {
 
@@ -21,11 +21,10 @@ public class TestUtils {
   }
 
 
-  public static JobInfo waitUntilJobComplete(String pipelineId) throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
+  public static JobInfo waitUntilJobComplete(PipelineService pipelineService, String pipelineId) throws Exception {
     while (true) {
       Thread.sleep(2000);
-      JobInfo jobInfo = service.getJobInfo(pipelineId);
+      JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);
       switch (jobInfo.getJobState()) {
         case RUNNING:
         case WAITING_TO_RETRY:
@@ -37,8 +36,8 @@ public class TestUtils {
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> T waitForJobToComplete(String pipelineId) throws Exception {
-    JobInfo jobInfo = waitUntilJobComplete(pipelineId);
+  public static <T> T waitForJobToComplete(PipelineService pipelineService, String pipelineId) throws Exception {
+    JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     switch (jobInfo.getJobState()) {
       case COMPLETED_SUCCESSFULLY:
         return (T) jobInfo.getOutput();

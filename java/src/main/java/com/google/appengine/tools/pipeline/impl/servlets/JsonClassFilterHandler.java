@@ -18,6 +18,7 @@ import static com.google.appengine.tools.pipeline.impl.util.JsonUtils.mapToJson;
 import static java.util.Collections.singletonMap;
 
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 import java.util.Set;
@@ -28,13 +29,17 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@RequiredArgsConstructor
 public class JsonClassFilterHandler {
 
   public static final String PATH_COMPONENT = "rpc/class_paths";
 
-  public static void doGet(@SuppressWarnings("unused") HttpServletRequest req,
+
+  private final PipelineManager pipelineManager;
+
+  public void doGet(@SuppressWarnings("unused") HttpServletRequest req,
       HttpServletResponse resp) throws IOException {
-    Set<String> pipelines = PipelineManager.getRootPipelinesDisplayName();
+    Set<String> pipelines = pipelineManager.getRootPipelinesDisplayName();
     resp.getWriter().write(mapToJson(singletonMap("classPaths", pipelines)));
   }
 }

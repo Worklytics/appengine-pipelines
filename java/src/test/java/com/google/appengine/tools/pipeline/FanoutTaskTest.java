@@ -16,10 +16,8 @@ package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.FanoutTaskRecord;
@@ -32,50 +30,56 @@ import com.google.appengine.tools.pipeline.impl.tasks.RunJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.common.collect.ImmutableList;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public class FanoutTaskTest extends TestCase {
+@ExtendWith(DatastoreExtension.class)
+public class FanoutTaskTest extends PipelineTest {
 
   private LocalServiceTestHelper helper =
-      new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig());
+      new LocalServiceTestHelper();
 
   private List<? extends Task> listOfTasks;
   byte[] encodedBytes;
   private QueueSettings queueSettings1 = new QueueSettings();
   private QueueSettings queueSettings2 = new QueueSettings().setOnQueue("queue1");
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
-    Key key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, "job1");
+    Key key = JobRecord.key(getProjectId(), "", "job1");
     RunJobTask runJobTask = new RunJobTask(key, queueSettings1);
-    key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, "job2");
+    key = JobRecord.key(getProjectId(), "","job2");
     RunJobTask runJobTask2 = new RunJobTask(key, queueSettings2);
-    key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, "job3");
+    key = JobRecord.key(getProjectId(), "","job3");
     FinalizeJobTask finalizeJobTask = new FinalizeJobTask(key, queueSettings1);
-    key = KeyFactory.createKey(Slot.DATA_STORE_KIND, "slot1");
+    key = Slot.key(getProjectId(), "", "slot1");
     HandleSlotFilledTask hsfTask = new HandleSlotFilledTask(key, queueSettings2);
     listOfTasks = ImmutableList.of(runJobTask, runJobTask2, finalizeJobTask, hsfTask);
     encodedBytes = FanoutTask.encodeTasks(listOfTasks);
   }
 
-  @Override
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    super.tearDown();
   }
 
   /**
    * Tests the methods {@link FanoutTask#encodeTasks(java.util.Collection)} and
    * {@link FanoutTask#decodeTasks(byte[])}
    */
+  @Test
   public void testEncodeDecode() throws Exception {
     checkBytes(encodedBytes);
   }
@@ -83,8 +87,9 @@ public class FanoutTaskTest extends TestCase {
   /**
    * Tests conversion of {@link FanoutTaskRecord} to and from an {@link Entity}
    */
+  @Test
   public void testFanoutTaskRecord() throws Exception {
-    Key rootJobKey = KeyFactory.createKey("dummy", "dummy");
+    Key rootJobKey = JobRecord.generateKey("dummy", "dummy", "dummy");
     FanoutTaskRecord record = new FanoutTaskRecord(rootJobKey, encodedBytes);
     Entity entity = record.toEntity();
     // reconstitute entity
@@ -94,7 +99,7 @@ public class FanoutTaskTest extends TestCase {
 
   private void checkBytes(byte[] bytes) {
     List<Task> reconstituted = FanoutTask.decodeTasks(bytes);
-    assertEquals(listOfTasks.size(), reconstituted.size());
+    Assertions.assertEquals( listOfTasks.size(), reconstituted.size());
     for (int i = 0; i < listOfTasks.size(); i++) {
       Task expected = listOfTasks.get(i);
       Task actual = reconstituted.get(i);
@@ -103,7 +108,7 @@ public class FanoutTaskTest extends TestCase {
   }
 
   private void assertEquals(int i, Task expected, Task actual) {
-    assertEquals("i=" + i, expected.getType(), actual.getType());
-    assertEquals("i=" + i, expected.toProperties(), actual.toProperties());
+    Assertions.assertEquals(expected.getType(), actual.getType(), "i=" + i);
+    Assertions.assertEquals(expected.toProperties(), actual.toProperties(), "i=" + i);
   }
 }

@@ -14,31 +14,13 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import static com.google.appengine.api.datastore.Query.FilterOperator.EQUAL;
-import static com.google.appengine.api.datastore.Query.FilterOperator.GREATER_THAN;
 import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_DISPLAY_NAME;
 import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
-import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
 
 import com.github.rholder.retry.*;
-import com.google.appengine.api.datastore.Blob;
-import com.google.appengine.api.datastore.Cursor;
-import com.google.appengine.api.datastore.DatastoreFailureException;
-import com.google.appengine.api.datastore.DatastoreService;
-import com.google.appengine.api.datastore.DatastoreServiceFactory;
-import com.google.appengine.api.datastore.DatastoreTimeoutException;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.EntityNotFoundException;
-import com.google.appengine.api.datastore.FetchOptions;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.PreparedQuery;
-import com.google.appengine.api.datastore.PropertyProjection;
-import com.google.appengine.api.datastore.Query;
-import com.google.appengine.api.datastore.Query.Filter;
-import com.google.appengine.api.datastore.Query.FilterPredicate;
-import com.google.appengine.api.datastore.QueryResultIterator;
-import com.google.appengine.api.datastore.Transaction;
 
+import com.google.auth.Credentials;
+import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
@@ -56,91 +38,136 @@ import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
 
+import com.google.cloud.datastore.Blob;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.common.base.Strings;
+import com.google.common.collect.Streams;
+import com.google.datastore.v1.QueryResultBatch;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.ConcurrentModificationException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-public class AppEngineBackEnd implements PipelineBackEnd {
+@RequiredArgsConstructor
+public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy {
+
+  public static final int MAX_RETRY_ATTEMPTS = 5;
+  public static final int RETRY_BACKOFF_MULTIPLIER = 2;
+  public static final int RETRY_MAX_BACKOFF_MS = 5000;
+
 
   private <E> Retryer<E> withDefaults(RetryerBuilder<E> builder) {
       return builder
-              .withWaitStrategy(WaitStrategies.exponentialWait(2, 5000, TimeUnit.MILLISECONDS))
-              .retryIfExceptionOfType(ConcurrentModificationException.class)
-              .retryIfExceptionOfType(DatastoreTimeoutException.class)
-              .retryIfExceptionOfType(DatastoreFailureException.class)
-              //abort on EntityNotFoundException/NoSuchObjectException
+              .withWaitStrategy(WaitStrategies.exponentialWait(RETRY_BACKOFF_MULTIPLIER, RETRY_MAX_BACKOFF_MS, TimeUnit.MILLISECONDS))
+              // TODO: possibly we should inspect error code in more detail? see https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
+              .retryIfException(e -> e instanceof DatastoreException && (((DatastoreException) e).isRetryable()))
+              .retryIfExceptionOfType(IOException.class) //q: can this happen?
               .withStopStrategy((Attempt failedAttempt) ->
-                      failedAttempt.getAttemptNumber() > 4
-                      || (failedAttempt.hasException() &&
-                            (failedAttempt.getExceptionCause() instanceof EntityNotFoundException
-                                || failedAttempt.getExceptionCause() instanceof NoSuchObjectException)))
+                      failedAttempt.getAttemptNumber() >= MAX_RETRY_ATTEMPTS
+                       //
+                      //|| (failedAttempt.hasException() && (failedAttempt.getExceptionCause() instanceOf SomePersistentIOException)
+              )
               .build();
 
   }
 
   private static final Logger logger = Logger.getLogger(AppEngineBackEnd.class.getName());
 
+  // @see https://cloud.google.com/datastore/docs/concepts/limits
   private static final int MAX_BLOB_BYTE_SIZE = 1000000;
 
-  private final DatastoreService dataStore;
+  private final Datastore datastore;
   private final AppEngineTaskQueue taskQueue;
 
-  public AppEngineBackEnd() {
-    dataStore = DatastoreServiceFactory.getDatastoreService();
-    taskQueue = new AppEngineTaskQueue();
+  public AppEngineBackEnd(AppEngineBackEnd.Options options) {
+    this(options.getDatastoreOptions().getService(), new AppEngineTaskQueue());
   }
 
-  private void putAll(Collection<? extends PipelineModelObject> objects) {
-    if (objects.isEmpty()) {
-      return;
-    }
-    List<Entity> entityList = new ArrayList<>(objects.size());
-    for (PipelineModelObject x : objects) {
-      logger.finest("Storing: " + x);
-      entityList.add(x.toEntity());
-    }
-    dataStore.put(entityList);
+
+  @Builder
+  @lombok.Value
+  public static class Options implements PipelineBackEnd.Options {
+
+    private String projectId;
+
+    //q: good idea? risk here that we're copying / passing around sensitive info; although really
+    // in prod ppl should depend on application-default credentials and I think this will be null
+    private Credentials credentials;
+
+    private DatastoreOptions datastoreOptions;
+
+    //TODO: add any non-default options of Datastore, etc that we need to reconstitute
+  }
+
+  @Override
+  public PipelineBackEnd.Options getOptions() {
+    return Options.builder()
+      .datastoreOptions(datastore.getOptions())
+      .projectId(this.datastore.getOptions().getProjectId())
+      .credentials(this.datastore.getOptions().getCredentials())
+      .build();
+  }
+
+  @Override
+  public SerializationStrategy getSerializationStrategy() {
+    return this;
+  }
+
+  private void putAll(DatastoreBatchWriter batchWriter, Collection<? extends PipelineModelObject> objects) {
+    objects.stream()
+      .map(PipelineModelObject::toEntity)
+      .forEach(batchWriter::putWithDeferredIdAllocation);
+  }
+
+
+  private void saveAll(Transaction txn, UpdateSpec.Group group) {
+    putAll(txn, group.getBarriers());
+    putAll(txn, group.getJobs());
+    putAll(txn, group.getSlots());
+    putAll(txn, group.getJobInstanceRecords());
+    putAll(txn, group.getFailureRecords());
   }
 
   private void saveAll(UpdateSpec.Group group) {
-    putAll(group.getBarriers());
-    putAll(group.getJobs());
-    putAll(group.getSlots());
-    putAll(group.getJobInstanceRecords());
-    putAll(group.getFailureRecords());
+    Batch batch = datastore.newBatch();
+    putAll(batch, group.getBarriers());
+    putAll(batch, group.getJobs());
+    putAll(batch, group.getSlots());
+    putAll(batch, group.getJobInstanceRecords());
+    putAll(batch, group.getFailureRecords());
+    batch.submit();
   }
 
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
       QueueSettings queueSettings, Key rootJobKey, Key jobKey, JobRecord.State... expectedStates) {
-    Transaction transaction = dataStore.beginTransaction();
+    Transaction transaction = datastore.newTransaction();
     try {
       if (jobKey != null && expectedStates != null) {
         Entity entity = null;
         try {
-          entity = dataStore.get(jobKey);
-        } catch (EntityNotFoundException e) {
-          throw new RuntimeException(
+          entity = transaction.get(jobKey);
+        } catch (DatastoreException e) {
+          if (e.getCode() == 404) {
+            throw new RuntimeException(
               "Fatal Pipeline corruption error. No JobRecord found with key = " + jobKey);
+          } else {
+            throw e;
+          }
         }
         JobRecord jobRecord = new JobRecord(entity);
         JobRecord.State state = jobRecord.getState();
@@ -158,7 +185,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
           return false;
         }
       }
-      saveAll(transactionSpec);
+      saveAll(transaction, transactionSpec);
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
             (UpdateSpec.TransactionWithTasks) transactionSpec;
@@ -170,9 +197,11 @@ public class AppEngineBackEnd implements PipelineBackEnd {
           // the FanoutTask is enqueued. If the put succeeds but the
           // enqueue fails then the FanoutTaskRecord is orphaned. But
           // the Pipeline is still consistent.
-          dataStore.put(null, ftRecord.toEntity());
-          FanoutTask fannoutTask = new FanoutTask(ftRecord.getKey(), queueSettings);
-          taskQueue.enqueue(fannoutTask);
+          datastore.put(ftRecord.toEntity());
+          FanoutTask fanoutTask = new FanoutTask(ftRecord.getKey(), queueSettings);
+
+          //TODO: should this enqueue be in context of transaction??
+          taskQueue.enqueue(fanoutTask);
         }
       }
       transaction.commit();
@@ -184,17 +213,11 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     return true;
   }
 
+  @RequiredArgsConstructor
   private abstract class Operation<R> implements Callable<R> {
 
+    @Getter
     private final String name;
-
-    Operation(String name) {
-      this.name = name;
-    }
-
-    public String getName() {
-      return name;
-    }
   }
 
   private <R> R tryFiveTimes(final Operation<R> operation) {
@@ -240,10 +263,6 @@ public class AppEngineBackEnd implements PipelineBackEnd {
       });
     }
 
-    // TODO(user): Replace this with plug-able hooks that could be used by tests,
-    // if needed could be restricted to package-scoped tests.
-    // If a unit test requests us to do so, fail here.
-    throwHereForTesting("AppEngineBackeEnd.saveWithJobStateCheck.beforeFinalTransaction");
     final AtomicBoolean wasSaved = new AtomicBoolean(true);
     tryFiveTimes(new Operation<Void>("save") {
       @Override
@@ -276,7 +295,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
         runBarrier = queryBarrier(jobRecord.getRunBarrierKey(), true);
         finalizeBarrier = queryBarrier(jobRecord.getFinalizeBarrierKey(), false);
         jobInstanceRecord =
-            new JobInstanceRecord(getEntity("queryJob", jobRecord.getJobInstanceKey()));
+            new JobInstanceRecord(getEntity("queryJob", jobRecord.getJobInstanceKey()), getSerializationStrategy());
         outputSlot = querySlot(jobRecord.getOutputSlotKey(), false);
         break;
       case FOR_FINALIZE:
@@ -332,7 +351,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     // Step 3. Convert into map from key to Slot
     Map<Key, Slot> slotMap = new HashMap<>(entityMap.size());
     for (Key key : keySet) {
-      Slot s = new Slot(entityMap.get(key));
+      Slot s = new Slot(entityMap.get(key), this);
       slotMap.put(key, s);
     }
     // Step 4. Inflate each of the barriers
@@ -344,7 +363,7 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   @Override
   public Slot querySlot(Key slotKey, boolean inflate) throws NoSuchObjectException {
     Entity entity = getEntity("querySlot", slotKey);
-    Slot slot = new Slot(entity);
+    Slot slot = new Slot(entity, this);
     if (inflate) {
       Map<Key, Entity> entities = getEntities("querySlot", slot.getWaitingOnMeKeys());
       Map<Key, Barrier> barriers = new HashMap<>(entities.size());
@@ -366,11 +385,12 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     return new ExceptionRecord(entity);
   }
 
+  //TODO: change return value to some sort of DatastoreValue type?
   @Override
   public Object serializeValue(PipelineModelObject model, Object value) throws IOException {
     byte[] bytes = SerializationUtils.serialize(value);
     if (bytes.length < MAX_BLOB_BYTE_SIZE) {
-      return new Blob(bytes);
+      return Blob.copyFrom(bytes);
     }
     int shardId = 0;
     int offset = 0;
@@ -384,10 +404,10 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     return tryFiveTimes(new Operation<List<Key>>("serializeValue") {
       @Override
       public List<Key> call() {
-        Transaction tx = dataStore.beginTransaction();
-        List<Key> keys;
+        Transaction tx = datastore.newTransaction();
+        List<Key> keys = new ArrayList<>();
         try {
-          keys = dataStore.put(tx, shardedValues);
+          shardedValues.stream().forEachOrdered(v -> keys.add(tx.put(v).getKey()));
           tx.commit();
         } finally {
           if (tx.isActive()) {
@@ -403,15 +423,16 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   public Object deserializeValue(PipelineModelObject model, Object serializedVersion)
       throws IOException {
     if (serializedVersion instanceof Blob) {
-      return SerializationUtils.deserialize(((Blob) serializedVersion).getBytes());
+      return SerializationUtils.deserialize(((Blob) serializedVersion).toByteArray());
     } else {
+      //TODO: might this be Collection<KeyValue?
       @SuppressWarnings("unchecked")
-      Collection<Key> keys = (Collection<Key>) serializedVersion;
-      Map<Key, Entity> entities = getEntities("deserializeValue", keys);
+      Collection<KeyValue> keys = (Collection<KeyValue>) serializedVersion;
+      Map<Key, Entity> entities = getEntities("deserializeValue", keys.stream().map(Value::get).collect(Collectors.toList()));
       ShardedValue[] shardedValues = new ShardedValue[entities.size()];
       int totalSize = 0;
       int index = 0;
-      for (Key key : keys) {
+      for (Key key : entities.keySet()) {
         Entity entity = entities.get(key);
         ShardedValue shardedValue = new ShardedValue(entity);
         shardedValues[index++] = shardedValue;
@@ -432,7 +453,10 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     Map<Key, Entity> result = tryFiveTimes(new Operation<Map<Key, Entity>>(logString) {
       @Override
       public Map<Key, Entity> call() {
-        return dataStore.get(null, keys);
+        //NOTE: this read is strongly consistent now, bc backed by Firestore in Datastore-mode; this library was
+        // designed thinking this read was only event
+        return Streams.stream(datastore.get(keys))
+          .collect(Collectors.toMap(Entity::getKey, Function.identity()));
       }
     });
     if (keys.size() != result.size()) {
@@ -444,21 +468,16 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   }
 
   private Entity getEntity(String logString, final Key key) throws NoSuchObjectException {
-    try {
-      return tryFiveTimes(new Operation<Entity>(logString) {
-        @Override
-        public Entity call() throws EntityNotFoundException  {
-            return dataStore.get(null, key);
+    return tryFiveTimes(new Operation<Entity>("getEntity") {
+      @Override
+      public Entity call() throws Exception {
+        Entity entity = datastore.get(key);
+        if (entity == null) {
+          throw new NoSuchObjectException(key.toString());
         }
-      });
-    } catch (RuntimeException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof EntityNotFoundException) {
-        throw new NoSuchObjectException(key.toString(), cause);
-      } else {
-        throw e;
+        return entity;
       }
-    }
+    });
   }
 
   @Override
@@ -472,14 +491,23 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   }
 
   public List<Entity> queryAll(final String kind, final Key rootJobKey) {
-    Query query = new Query(kind);
-    query.setFilter(new FilterPredicate(ROOT_JOB_KEY_PROPERTY, EQUAL, rootJobKey));
-    final PreparedQuery preparedQuery = dataStore.prepare(query);
-    final FetchOptions options = FetchOptions.Builder.withChunkSize(500);
     return tryFiveTimes(new Operation<List<Entity>>("queryFullPipeline") {
       @Override
       public List<Entity> call() {
-        return preparedQuery.asList(options);
+        EntityQuery.Builder query = Query.newEntityQueryBuilder()
+          .setKind(kind)
+          .setFilter(StructuredQuery.PropertyFilter.eq(ROOT_JOB_KEY_PROPERTY, rootJobKey));
+
+        List<Entity> entities = new ArrayList<>();
+        QueryResults<Entity> queryResults;
+        do {
+          //TODO: set chunkSize? does concept exist in this API client library?
+          queryResults = datastore.run(query.build());
+          queryResults.forEachRemaining(entities::add);
+          query = query.setStartCursor(queryResults.getCursorAfter());
+        } while (queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS);
+
+        return entities;
       }
     });
   }
@@ -487,54 +515,61 @@ public class AppEngineBackEnd implements PipelineBackEnd {
   @Override
   public Pair<? extends Iterable<JobRecord>, String> queryRootPipelines(String classFilter,
       String cursor, final int limit) {
-    Query query = new Query(JobRecord.DATA_STORE_KIND);
-    Filter filter = classFilter == null || classFilter.isEmpty() ? new FilterPredicate(
-        ROOT_JOB_DISPLAY_NAME, GREATER_THAN, null)
-        : new FilterPredicate(ROOT_JOB_DISPLAY_NAME, EQUAL, classFilter);
-    query.setFilter(filter);
-    final PreparedQuery preparedQuery = dataStore.prepare(query);
-    final FetchOptions fetchOptions = FetchOptions.Builder.withDefaults();
+    EntityQuery.Builder query = Query.newEntityQueryBuilder()
+      .setKind(JobRecord.DATA_STORE_KIND);
+
+    if (!Strings.isNullOrEmpty(classFilter)) {
+      query.setFilter(StructuredQuery.PropertyFilter.eq(ROOT_JOB_DISPLAY_NAME, classFilter));
+    }
+
     if (limit > 0) {
-      fetchOptions.limit(limit + 1);
+      query.setLimit(limit + 1);
     }
     if (cursor != null) {
-      fetchOptions.startCursor(Cursor.fromWebSafeString(cursor));
+      query.setStartCursor(Cursor.fromUrlSafe(cursor));
     }
     return tryFiveTimes(
         new Operation<Pair<? extends Iterable<JobRecord>, String>>("queryRootPipelines") {
           @Override
           public Pair<? extends Iterable<JobRecord>, String> call() {
-            QueryResultIterator<Entity> entities =
-                preparedQuery.asQueryResultIterable(fetchOptions).iterator();
+            QueryResults<Entity> entities = datastore.run(query.build());
             Cursor dsCursor = null;
             List<JobRecord> roots = new LinkedList<>();
             while (entities.hasNext()) {
               if (limit > 0 && roots.size() >= limit) {
-                dsCursor = entities.getCursor();
+                dsCursor = entities.getCursorAfter();
                 break;
               }
               JobRecord jobRecord = new JobRecord(entities.next());
               roots.add(jobRecord);
             }
-            return Pair.of(roots, dsCursor == null ? null : dsCursor.toWebSafeString());
+            return Pair.of(roots, dsCursor == null ? null : dsCursor.toUrlSafe());
           }
         });
   }
 
   @Override
   public Set<String> getRootPipelinesDisplayName() {
-    Query query = new Query(JobRecord.DATA_STORE_KIND);
-    query.addProjection(
-        new PropertyProjection(JobRecord.ROOT_JOB_DISPLAY_NAME, String.class));
-    query.setDistinct(true);
-    final PreparedQuery preparedQuery = dataStore.prepare(query);
+
     return tryFiveTimes(new Operation<Set<String>>("getRootPipelinesDisplayName") {
       @Override
       public Set<String> call() {
+        ProjectionEntityQuery.Builder query = Query.newProjectionEntityQueryBuilder()
+          .setKind(JobRecord.DATA_STORE_KIND)
+          .addProjection(JobRecord.ROOT_JOB_DISPLAY_NAME)
+          .addDistinctOn(JobRecord.ROOT_JOB_DISPLAY_NAME);
+
+        QueryResults<ProjectionEntity> queryResults;
         Set<String> pipelines = new LinkedHashSet<>();
-        for (Entity entity : preparedQuery.asIterable()) {
-          pipelines.add((String) entity.getProperty(JobRecord.ROOT_JOB_DISPLAY_NAME));
-        }
+        do {
+          //TODO: set chunkSize? does concept exist in this API client library?
+          queryResults = datastore.run(query.build());
+          Streams.stream(queryResults)
+            .map(entity -> entity.getString(ROOT_JOB_DISPLAY_NAME))
+            .forEachOrdered(pipelines::add);
+          query = query.setStartCursor(queryResults.getCursorAfter());
+        } while (queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS);
+
         return pipelines;
       }
     });
@@ -548,17 +583,18 @@ public class AppEngineBackEnd implements PipelineBackEnd {
     final Map<Key, JobInstanceRecord> jobInstanceRecords = new HashMap<>();
     final Map<Key, ExceptionRecord> failureRecords = new HashMap<>();
 
+    //TODO: parallelize these all
     for (Entity entity : queryAll(Barrier.DATA_STORE_KIND, rootJobKey)) {
       barriers.put(entity.getKey(), new Barrier(entity));
     }
     for (Entity entity : queryAll(Slot.DATA_STORE_KIND, rootJobKey)) {
-      slots.put(entity.getKey(), new Slot(entity, true));
+      slots.put(entity.getKey(), new Slot(entity, this, true));
     }
     for (Entity entity : queryAll(JobRecord.DATA_STORE_KIND, rootJobKey)) {
       jobs.put(entity.getKey(), new JobRecord(entity));
     }
     for (Entity entity : queryAll(JobInstanceRecord.DATA_STORE_KIND, rootJobKey)) {
-      jobInstanceRecords.put(entity.getKey(), new JobInstanceRecord(entity));
+      jobInstanceRecords.put(entity.getKey(), new JobInstanceRecord(entity, getSerializationStrategy()));
     }
     for (Entity entity : queryAll(ExceptionRecord.DATA_STORE_KIND, rootJobKey)) {
       failureRecords.put(entity.getKey(), new ExceptionRecord(entity));
@@ -569,22 +605,27 @@ public class AppEngineBackEnd implements PipelineBackEnd {
 
   private void deleteAll(final String kind, final Key rootJobKey) {
     logger.info("Deleting all " + kind + " with rootJobKey=" + rootJobKey);
-    final int chunkSize = 100;
-    final FetchOptions fetchOptions = FetchOptions.Builder.withChunkSize(chunkSize);
-    final PreparedQuery preparedQuery = dataStore.prepare(new Query(kind).setKeysOnly().setFilter(
-        new FilterPredicate(ROOT_JOB_KEY_PROPERTY, EQUAL, rootJobKey)));
+
+
+
     tryFiveTimes(new Operation<Void>("delete") {
       @Override
       public Void call() {
-        Iterator<Entity> iter = preparedQuery.asIterator(fetchOptions);
-        while (iter.hasNext()) {
-          ArrayList<Key> keys = new ArrayList<>(chunkSize);
-          for (int i = 0; i < chunkSize && iter.hasNext(); i++) {
-            keys.add(iter.next().getKey());
-          }
-          logger.info("Deleting  " + keys.size() + " " + kind + "s with rootJobKey=" + rootJobKey);
-          dataStore.delete(null, keys);
-        }
+        KeyQuery.Builder query = Query.newKeyQueryBuilder()
+          .setKind(kind)
+          .setFilter(StructuredQuery.PropertyFilter.eq(ROOT_JOB_KEY_PROPERTY, rootJobKey));
+
+        QueryResults<Key> queryResults;
+        do {
+          queryResults = datastore.run(query.build());
+          List<Key> keys = Streams.stream(queryResults)
+            .collect(Collectors.toList());
+          logger.info("Deleting " + keys.size() + " " + kind + "s with rootJobKey=" + rootJobKey);
+          Batch batch = datastore.newBatch();
+          keys.forEach(batch::delete);
+          batch.submit();
+          query.setStartCursor(queryResults.getCursorAfter());
+        } while (queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS);
         return null;
       }
     });
