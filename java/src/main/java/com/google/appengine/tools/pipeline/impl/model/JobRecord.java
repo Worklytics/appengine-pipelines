@@ -53,8 +53,6 @@ import java.util.stream.Collectors;
 public class JobRecord extends PipelineModelObject implements JobInfo {
 
 
-
-
   /**
    * The state of the job.
    */

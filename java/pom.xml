@@ -18,8 +18,8 @@
   </licenses>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <appengine.target.version>1.9.80</appengine.target.version>
-    <!-- <appengine.target.version>[1.9.1, 2.0)</appengine.target.version> -->
+    <!--<appengine.target.version>1.9.80</appengine.target.version> -->
+    <appengine.target.version>[1.9.1, 2.0)</appengine.target.version>
     <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
 
@@ -154,7 +154,8 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.20</version>
+      <version>1.18.30</version>
+      <scope>provided</scope>
     </dependency>
 
     <!-- to support Pipelines UX -->

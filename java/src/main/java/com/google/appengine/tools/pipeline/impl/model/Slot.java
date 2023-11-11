@@ -16,10 +16,6 @@ package com.google.appengine.tools.pipeline.impl.model;
 
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
-
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.common.annotations.VisibleForTesting;
@@ -27,7 +23,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.NotSerializableException;
 import java.time.Instant;
-import java.util.Date;
 import java.util.logging.Level;
 import java.util.LinkedList;
 import java.util.List;
