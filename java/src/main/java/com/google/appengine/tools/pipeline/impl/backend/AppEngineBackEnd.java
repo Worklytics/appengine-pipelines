@@ -468,16 +468,17 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   private Entity getEntity(String logString, final Key key) throws NoSuchObjectException {
-    return tryFiveTimes(new Operation<Entity>("getEntity") {
+    Entity entity = tryFiveTimes(new Operation<>("getEntity") {
       @Override
       public Entity call() throws Exception {
-        Entity entity = datastore.get(key);
-        if (entity == null) {
-          throw new NoSuchObjectException(key.toString());
-        }
-        return entity;
+        return datastore.get(key);
       }
     });
+
+    if (entity == null) {
+      throw new NoSuchObjectException(key.toString());
+    }
+    return entity;
   }
 
   @Override
@@ -491,7 +492,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   public List<Entity> queryAll(final String kind, final Key rootJobKey) {
-    return tryFiveTimes(new Operation<List<Entity>>("queryFullPipeline") {
+    return tryFiveTimes(new Operation<>("queryFullPipeline") {
       @Override
       public List<Entity> call() {
         EntityQuery.Builder query = Query.newEntityQueryBuilder()
@@ -611,21 +612,33 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     tryFiveTimes(new Operation<Void>("delete") {
       @Override
       public Void call() {
-        KeyQuery.Builder query = Query.newKeyQueryBuilder()
+        int batchesToAttempt = 5;
+        int batchSize = 100;
+        KeyQuery.Builder queryBuilder = Query.newKeyQueryBuilder()
           .setKind(kind)
-          .setFilter(StructuredQuery.PropertyFilter.eq(ROOT_JOB_KEY_PROPERTY, rootJobKey));
+          .setFilter(StructuredQuery.PropertyFilter.eq(ROOT_JOB_KEY_PROPERTY, rootJobKey))
+          .setLimit(batchSize);
 
         QueryResults<Key> queryResults;
+        List<Key> keys;
+
         do {
-          queryResults = datastore.run(query.build());
-          List<Key> keys = Streams.stream(queryResults)
+          Query query = queryBuilder.build();
+          queryResults = datastore.run(query);
+          keys = Streams.stream(queryResults)
             .collect(Collectors.toList());
-          logger.info("Deleting " + keys.size() + " " + kind + "s with rootJobKey=" + rootJobKey);
-          Batch batch = datastore.newBatch();
-          keys.forEach(batch::delete);
-          batch.submit();
-          query.setStartCursor(queryResults.getCursorAfter());
-        } while (queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS);
+          if (keys.size() > 0) {
+            logger.info("Deleting " + keys.size() + " " + kind + "s with rootJobKey=" + rootJobKey);
+            Batch batch = datastore.newBatch();
+            keys.forEach(batch::delete);
+            batch.submit();
+          }
+          queryBuilder = queryBuilder.setStartCursor(queryResults.getCursorAfter());
+        } while (
+          queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS
+          && keys.size() > 0  // unclear why, but in tests prev check doesn't work as moreResults is always MORE_RESULTS_AFTER_LIMIT
+          && batchesToAttempt-- > 0 // avoid infinite loop
+        );
         return null;
       }
     });
