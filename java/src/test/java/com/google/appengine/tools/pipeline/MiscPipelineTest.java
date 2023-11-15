@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.appengine.tools.pipeline.JobInfo.State;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
@@ -287,7 +288,8 @@ public class MiscPipelineTest extends PipelineTest {
 
   @Test
  public void testJobFailure() throws Exception {
-    String pipelineId = pipelineService.startNewPipeline(new FailedJob());
+    //fail after 1 attempt, to speed up this test (although default is 3)
+    String pipelineId = pipelineService.startNewPipeline(new FailedJob(), new JobSetting.MaxAttempts(1));
     JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals(JobInfo.State.STOPPED_BY_ERROR, jobInfo.getJobState());
     assertEquals("koko", jobInfo.getException().getMessage());
