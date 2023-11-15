@@ -390,33 +390,41 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   public Object serializeValue(PipelineModelObject model, Object value) throws IOException {
     byte[] bytes = SerializationUtils.serialize(value);
     if (bytes.length < MAX_BLOB_BYTE_SIZE) {
+      // fits in a datastore blob, OK.
       return Blob.copyFrom(bytes);
-    }
-    int shardId = 0;
-    int offset = 0;
-    final List<Entity> shardedValues = new ArrayList<>(bytes.length / MAX_BLOB_BYTE_SIZE + 1);
-    while (offset < bytes.length) {
-      int limit = offset + MAX_BLOB_BYTE_SIZE;
-      byte[] chunk = Arrays.copyOfRange(bytes, offset, Math.min(limit, bytes.length));
-      offset = limit;
-      shardedValues.add(new ShardedValue(model, shardId++, chunk).toEntity());
-    }
-    return tryFiveTimes(new Operation<List<Key>>("serializeValue") {
-      @Override
-      public List<Key> call() {
-        Transaction tx = datastore.newTransaction();
-        List<Key> keys = new ArrayList<>();
-        try {
-          shardedValues.stream().forEachOrdered(v -> keys.add(tx.put(v).getKey()));
-          tx.commit();
-        } finally {
-          if (tx.isActive()) {
-            tx.rollback();
-          }
-        }
-        return keys;
+    } else {
+      // split it into multiple datastore entities, and store it that way
+      int shardId = 0;
+      int offset = 0;
+      final List<Entity> shardedValues = new ArrayList<>(bytes.length / MAX_BLOB_BYTE_SIZE + 1);
+      while (offset < bytes.length) {
+        int limit = offset + MAX_BLOB_BYTE_SIZE;
+        byte[] chunk = Arrays.copyOfRange(bytes, offset, Math.min(limit, bytes.length));
+        offset = limit;
+        shardedValues.add(new ShardedValue(model, shardId++, chunk).toEntity());
       }
-    });
+      return tryFiveTimes(new Operation<List<Key>>("serializeValue") {
+        @Override
+        public List<Key> call() {
+          Transaction tx = datastore.newTransaction();
+          List<Key> keys = new ArrayList<>();
+          try {
+            for (Entity v : shardedValues) {
+              Batch batch = tx.getDatastore().newBatch();
+              batch.put(v);
+              batch.submit();
+              keys.add(v.getKey());
+            }
+            tx.commit();
+          } finally {
+            if (tx.isActive()) {
+              tx.rollback();
+            }
+          }
+          return keys;
+        }
+      });
+    }
   }
 
   @Override
@@ -425,14 +433,13 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     if (serializedVersion instanceof Blob) {
       return SerializationUtils.deserialize(((Blob) serializedVersion).toByteArray());
     } else {
-      //TODO: might this be Collection<KeyValue?
       @SuppressWarnings("unchecked")
-      Collection<KeyValue> keys = (Collection<KeyValue>) serializedVersion;
-      Map<Key, Entity> entities = getEntities("deserializeValue", keys.stream().map(Value::get).collect(Collectors.toList()));
+      List<Key> keys = (List<Key>) serializedVersion;
+      Map<Key, Entity> entities = getEntities("deserializeValue", keys);
       ShardedValue[] shardedValues = new ShardedValue[entities.size()];
       int totalSize = 0;
       int index = 0;
-      for (Key key : entities.keySet()) {
+      for (Key key : keys) {
         Entity entity = entities.get(key);
         ShardedValue shardedValue = new ShardedValue(entity);
         shardedValues[index++] = shardedValue;
@@ -455,8 +462,9 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       public Map<Key, Entity> call() {
         //NOTE: this read is strongly consistent now, bc backed by Firestore in Datastore-mode; this library was
         // designed thinking this read was only event
-        return Streams.stream(datastore.get(keys))
-          .collect(Collectors.toMap(Entity::getKey, Function.identity()));
+
+        return keys.stream()
+            .collect(Collectors.toMap(Function.identity(), k -> datastore.get(k)));
       }
     });
     if (keys.size() != result.size()) {
@@ -501,12 +509,19 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
         List<Entity> entities = new ArrayList<>();
         QueryResults<Entity> queryResults;
+        long lastPageCount;
         do {
           //TODO: set chunkSize? does concept exist in this API client library?
           queryResults = datastore.run(query.build());
-          queryResults.forEachRemaining(entities::add);
+          List<Entity> page = Streams.stream(queryResults)
+            .collect(Collectors.toList());
+          lastPageCount = page.size();
+          entities.addAll(page);
           query = query.setStartCursor(queryResults.getCursorAfter());
-        } while (queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS);
+        } while (
+          queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS
+          && lastPageCount > 0 // unclear why, but at least in tests prev check doesn't work as moreResults is always MORE_RESULTS_AFTER_LIMIT
+        );
 
         return entities;
       }
@@ -530,7 +545,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       query.setStartCursor(Cursor.fromUrlSafe(cursor));
     }
     return tryFiveTimes(
-        new Operation<Pair<? extends Iterable<JobRecord>, String>>("queryRootPipelines") {
+        new Operation<>("queryRootPipelines") {
           @Override
           public Pair<? extends Iterable<JobRecord>, String> call() {
             QueryResults<Entity> entities = datastore.run(query.build());
