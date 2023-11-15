@@ -2,13 +2,18 @@ package com.google.appengine.tools.pipeline.impl;
 
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
+import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.cloud.datastore.Key;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.fail;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class PipelineManagerTest extends PipelineTest {
 
@@ -70,5 +75,25 @@ class PipelineManagerTest extends PipelineTest {
     } catch (NoSuchObjectException e) {
       //expected
     }
+  }
+
+  @SneakyThrows
+  @Test
+  void queryRootPipelines(PipelineManager pipelineManager) {
+    JobSetting[] settings = new JobSetting[0];
+    Job<String> jobInstance = new NoopJob();
+    String pipelineId1 = pipelineManager.startNewPipeline(settings, jobInstance);
+    String pipelineId2 = pipelineManager.startNewPipeline(settings, jobInstance);
+
+    assertNotEquals(pipelineId1, pipelineId2);
+
+    Pair<? extends Iterable<JobRecord>, String> page = pipelineManager.queryRootPipelines(NoopJob.class.getName(), null, 100);
+
+    List<JobRecord> rootRecords = StreamSupport.stream(page.getFirst().spliterator(), false).collect(Collectors.toList());
+
+    assertEquals(2, rootRecords.size());
+
+    assertEquals(pipelineId1, rootRecords.get(0).getKey().toUrlSafe());
+    assertEquals(pipelineId2, rootRecords.get(1).getKey().toUrlSafe());
   }
 }
