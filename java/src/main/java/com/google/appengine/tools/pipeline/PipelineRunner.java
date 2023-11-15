@@ -1,13 +1,26 @@
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
+import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
+import com.google.appengine.tools.pipeline.util.Pair;
+
+import java.util.Set;
 
 /**
  * represents component that executes a Pipeline
+ *
+ * TODO: rename to PipelineLauncher (analogue to Spring Batch JobLauncher)?
+ *  - or PipelineRepository? kinda more like that ...
  */
 public interface PipelineRunner {
+
+  /**
+   * @return options necessary to reconstruct this runner via PipelineRunnerFactory
+   */
+  PipelineBackEnd.Options getOptions();
 
   /**
    * @return SerializationStrategy to be used for values sent to this runner
@@ -53,5 +66,49 @@ public interface PipelineRunner {
 
   JobRecord registerNewJobRecord(UpdateSpec updateSpec, JobRecord jobRecord,
                                         Object[] params);
+
+  /**
+   * q: move to a JobRepository or something?
+   */
+   Set<String> getRootPipelinesDisplayName();
+
+  /**
+   * Retrieves a JobRecord for the specified job handle. The returned instance
+   * will be only partially inflated. The run and finalize barriers will not be
+   * available but the output slot will be.
+   *
+   * @param jobHandle The handle of a job.
+   * @return The corresponding JobRecord
+   * @throws NoSuchObjectException If a JobRecord with the given handle cannot
+   *         be found in the data store.
+   */
+   JobRecord getJob(String jobHandle) throws NoSuchObjectException;
+
+  /**
+   * Returns all the associated PipelineModelObject for a root pipeline.
+   *
+   * @throws IllegalArgumentException if root pipeline was not found.
+   */
+   PipelineObjects queryFullPipeline(String rootJobHandle);
+
+   Pair<? extends Iterable<JobRecord>, String> queryRootPipelines(String classFilter, String cursor, int limit);
+
+  /**
+   * Delete all data store entities corresponding to the given pipeline.
+   *
+   * @param pipelineHandle The handle of the pipeline to be deleted
+   * @param force If this parameter is not {@code true} then this method will
+   *        throw an {@link IllegalStateException} if the specified pipeline is
+   *        not in the {@link JobRecord.State#FINALIZED} or {@link JobRecord.State#STOPPED} state.
+   * @param async If this parameter is {@code true} then instead of performing
+   *        the delete operation synchronously, this method will enqueue a task
+   *        to perform the operation.
+   * @throws NoSuchObjectException If there is no Job with the given key.
+   * @throws IllegalStateException If {@code force = false} and the specified
+   *         pipeline is not in the {@link JobRecord.State#FINALIZED} or
+   *         {@link JobRecord.State#STOPPED} state.
+   */
+   void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
+    throws NoSuchObjectException, IllegalStateException;
 
 }

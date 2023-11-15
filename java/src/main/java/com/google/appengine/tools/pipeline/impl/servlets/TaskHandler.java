@@ -14,6 +14,8 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
+import com.google.appengine.tools.pipeline.PipelineOrchestrator;
+import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;

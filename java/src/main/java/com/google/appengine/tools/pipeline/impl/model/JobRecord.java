@@ -21,7 +21,6 @@ import com.google.appengine.tools.pipeline.JobSetting.BackoffFactor;
 import com.google.appengine.tools.pipeline.JobSetting.BackoffSeconds;
 import com.google.appengine.tools.pipeline.JobSetting.IntValuedSetting;
 import com.google.appengine.tools.pipeline.JobSetting.MaxAttempts;
-import com.google.appengine.tools.pipeline.JobSetting.OnBackend;
 import com.google.appengine.tools.pipeline.JobSetting.OnService;
 import com.google.appengine.tools.pipeline.JobSetting.OnQueue;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
@@ -48,20 +47,29 @@ import java.util.stream.Collectors;
 /**
  * The Pipeline model object corresponding to a job.
  *
+ * q: analogous to Spring Batch JobExecution??
+ *
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public class JobRecord extends PipelineModelObject implements JobInfo {
 
+  //TODO: very hacky, probably need to have a factory that builds these, and extend there
   @VisibleForTesting
   public static AppEngineEnvironment environment = new AppEngineStandardGen2();
 
 
   /**
    * The state of the job.
+   *
    */
   public enum State {
     // TODO(user): document states (including valid transitions) and relation to JobInfo.State
-    WAITING_TO_RUN, WAITING_TO_FINALIZE, FINALIZED, STOPPED, CANCELED, RETRY
+    WAITING_TO_RUN,
+    WAITING_TO_FINALIZE,
+    FINALIZED,
+    STOPPED,
+    CANCELED,
+    RETRY
   }
 
   public static final String EXCEPTION_HANDLER_METHOD_NAME = "handleException";
@@ -352,8 +360,13 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
    * @param settings Array of {@code JobSetting} to apply to the newly created
    *        JobRecord.
    */
-  public JobRecord(JobRecord generatorJob, String graphGUIDParam, Job<?> jobInstance,
-      boolean callExceptionHandler, JobSetting[] settings, SerializationStrategy serializationStrategy) {
+  public JobRecord(JobRecord generatorJob,
+                   String graphGUIDParam,
+                   Job<?> jobInstance,
+                   boolean callExceptionHandler,
+                   JobSetting[] settings,
+                   SerializationStrategy serializationStrategy
+      ) {
     this(generatorJob.getRootJobKey(), null, generatorJob.getKey(), graphGUIDParam, jobInstance,
         callExceptionHandler, settings, generatorJob.getQueueSettings(), serializationStrategy);
     // If generator job has exception handler then it should be called in case
@@ -432,12 +445,17 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   /**
    * A factory method for root jobs.
    *
-   * @param jobInstance The non-null user-supplied instance of {@code Job} that
-   *        implements the Job that the newly created JobRecord represents.
-   * @param settings Array of {@code JobSetting} to apply to the newly created
-   *        JobRecord.
+   * @param projectId             The project id of the pipeline
+   * @param jobInstance           The non-null user-supplied instance of {@code Job} that
+   *                              implements the Job that the newly created JobRecord represents.
+   * @param serializationStrategy
+   * @param settings              Array of {@code JobSetting} to apply to the newly created
+   *                              JobRecord.
    */
-  public static JobRecord createRootJobRecord(String projectId, Job<?> jobInstance, JobSetting[] settings, SerializationStrategy serializationStrategy) {
+  public static JobRecord createRootJobRecord(String projectId,
+                                              Job<?> jobInstance,
+                                              SerializationStrategy serializationStrategy,
+                                              JobSetting[] settings) {
     String namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
       .orElse(null);
     Key key = generateKey(projectId, namespace, DATA_STORE_KIND);

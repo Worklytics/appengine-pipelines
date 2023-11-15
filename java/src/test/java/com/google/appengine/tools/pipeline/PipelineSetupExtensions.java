@@ -68,7 +68,6 @@ class PipelineComponentsExtension implements BeforeEachCallback {
     pipelineManager = new PipelineManager(appEngineBackend);
 
 
-
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.PIPELINE_SERVICE.name(), pipelineService);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)

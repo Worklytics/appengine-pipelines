@@ -15,6 +15,9 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.api.utils.SystemProperty;
+import com.google.appengine.tools.pipeline.PipelineOrchestrator;
+import com.google.appengine.tools.pipeline.PipelineRunner;
+import com.google.appengine.tools.pipeline.PipelineRunnerFactory;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -104,19 +107,18 @@ public class PipelineServlet extends HttpServlet {
   @Override
   public void init() throws ServletException {
     super.init();
-    //TODO: coupled to GAE; could we pull this via ServletConfig somehow, to make more flexible?
-    PipelineManager pipelineManager =
-      new PipelineManager(new AppEngineBackEnd(AppEngineBackEnd.Options.builder()
+    PipelineRunnerFactory pipelineRunnerFactory = new PipelineRunnerFactory();
+    PipelineRunner pipelineManager = pipelineRunnerFactory.createPipelineRunner(AppEngineBackEnd.Options.builder()
         .projectId(SystemProperty.applicationId.get())
         .credentials(GoogleCredentials.getApplicationDefault())
         .datastoreOptions(DatastoreOptions.getDefaultInstance())
-        .build()));
-    abortJobHandler = new AbortJobHandler(pipelineManager);
+        .build());
+    abortJobHandler = new AbortJobHandler((PipelineOrchestrator) pipelineManager);
     deleteJobHandler = new DeleteJobHandler(pipelineManager);
     jsonClassFilterHandler = new JsonClassFilterHandler(pipelineManager);
     jsonListHandler = new JsonListHandler(pipelineManager);
     jsonTreeHandler = new JsonTreeHandler(pipelineManager);
-    taskHandler = new TaskHandler(pipelineManager);
+    taskHandler = new TaskHandler((PipelineManager) pipelineManager);
   }
 
   @Override

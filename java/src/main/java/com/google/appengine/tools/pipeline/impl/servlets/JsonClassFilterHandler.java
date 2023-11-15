@@ -17,6 +17,7 @@ package com.google.appengine.tools.pipeline.impl.servlets;
 import static com.google.appengine.tools.pipeline.impl.util.JsonUtils.mapToJson;
 import static java.util.Collections.singletonMap;
 
+import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import lombok.RequiredArgsConstructor;
 
@@ -35,7 +36,7 @@ public class JsonClassFilterHandler {
   public static final String PATH_COMPONENT = "rpc/class_paths";
 
 
-  private final PipelineManager pipelineManager;
+  private final PipelineRunner pipelineManager;
 
   public void doGet(@SuppressWarnings("unused") HttpServletRequest req,
       HttpServletResponse resp) throws IOException {

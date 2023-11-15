@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableList;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -109,6 +110,7 @@ public class MiscPipelineTest extends PipelineTest {
     assertEquals(Long.valueOf(123), value);
   }
 
+  @Log
 
   @SuppressWarnings("serial")
   private static class RootJob extends Job0<String> {

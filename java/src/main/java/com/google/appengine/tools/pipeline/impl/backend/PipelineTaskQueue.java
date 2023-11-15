@@ -24,7 +24,7 @@ import java.util.Collection;
  * 
  */
 public interface PipelineTaskQueue {
-  public void enqueue(Task task);
+  void enqueue(Task task);
 
-  public void enqueue(final Collection<Task> tasks);
+  void enqueue(final Collection<Task> tasks);
 }

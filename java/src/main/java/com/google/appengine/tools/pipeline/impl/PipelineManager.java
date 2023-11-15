@@ -66,7 +66,7 @@ import java.util.logging.Level;
  */
 @RequiredArgsConstructor
 @Log
-public class PipelineManager implements PipelineRunner {
+public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   private final PipelineBackEnd backEnd;
 
@@ -117,9 +117,10 @@ public class PipelineManager implements PipelineRunner {
 
     //TODO: fix this dependency; JobRecord implicitly depends on backend having notion of 'project'
     // (and indeed, is coupled to Cloud Datastore underneath)
+    // --> JobRecordFactory or something, that gets injected
     String projectId = backEnd.getOptions().as(AppEngineBackEnd.Options.class).getProjectId();
 
-    return registerNewJobRecord(updateSpec, JobRecord.createRootJobRecord(projectId, jobInstance, settings, getSerializationStrategy()), params);
+    return registerNewJobRecord(updateSpec, JobRecord.createRootJobRecord(projectId, jobInstance, getSerializationStrategy(), settings), params);
   }
 
   @Override
@@ -284,15 +285,12 @@ public class PipelineManager implements PipelineRunner {
     updateSpec.getFinalTransaction().registerTask(task);
   }
 
-  /**
-   * Returns all the associated PipelineModelObject for a root pipeline.
-   *
-   * @throws IllegalArgumentException if root pipeline was not found.
-   */
+  @Override
   public PipelineObjects queryFullPipeline(String rootJobHandle) {
     return backEnd.queryFullPipeline(JobRecord.keyFromPipelineHandle(rootJobHandle));
   }
 
+  @Override
   public Pair<? extends Iterable<JobRecord>, String> queryRootPipelines(
       String classFilter, String cursor, int limit) {
     return backEnd.queryRootPipelines(classFilter, cursor, limit);
@@ -308,29 +306,14 @@ public class PipelineManager implements PipelineRunner {
     }
   }
 
-  /**
-   * Retrieves a JobRecord for the specified job handle. The returned instance
-   * will be only partially inflated. The run and finalize barriers will not be
-   * available but the output slot will be.
-   *
-   * @param jobHandle The handle of a job.
-   * @return The corresponding JobRecord
-   * @throws NoSuchObjectException If a JobRecord with the given handle cannot
-   *         be found in the data store.
-   */
+
+  @Override
   public JobRecord getJob(String jobHandle) throws NoSuchObjectException {
     checkNonEmpty(jobHandle, "jobHandle");
     log.finest("getJob: " + jobHandle);
     return backEnd.queryJob(JobRecord.keyFromPipelineHandle(jobHandle), InflationType.FOR_OUTPUT);
   }
 
-  /**
-   * Changes the state of the specified job to STOPPED.
-   *
-   * @param jobHandle The handle of a job
-   * @throws NoSuchObjectException If a JobRecord with the given handle cannot
-   *         be found in the data store.
-   */
   public void stopJob(String jobHandle) throws NoSuchObjectException {
     checkNonEmpty(jobHandle, "jobHandle");
     JobRecord jobRecord = backEnd.queryJob(JobRecord.keyFromPipelineHandle(jobHandle), InflationType.NONE);
@@ -340,13 +323,7 @@ public class PipelineManager implements PipelineRunner {
     backEnd.save(updateSpec, jobRecord.getQueueSettings());
   }
 
-  /**
-   * Sends cancellation request to the root job.
-   *
-   * @param jobHandle The handle of a job
-   * @throws NoSuchObjectException If a JobRecord with the given handle cannot
-   *         be found in the data store.
-   */
+
   public void cancelJob(String jobHandle) throws NoSuchObjectException {
     checkNonEmpty(jobHandle, "jobHandle");
     Key key = JobRecord.keyFromPipelineHandle(jobHandle);
@@ -377,6 +354,7 @@ public class PipelineManager implements PipelineRunner {
   public void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
       throws NoSuchObjectException, IllegalStateException {
     checkNonEmpty(pipelineHandle, "pipelineHandle");
+    log.info("pipelineHandle: " + pipelineHandle + ", force: " + force + ", async: " + async);
     backEnd.deletePipeline(JobRecord.keyFromPipelineHandle(pipelineHandle), force, async);
   }
 
@@ -448,6 +426,11 @@ public class PipelineManager implements PipelineRunner {
     backEnd.save(updateSpec, generatorJob.getQueueSettings());
   }
 
+  @Override
+  public PipelineBackEnd.Options getOptions() {
+    return getBackendOptions();
+  }
+
   public SerializationStrategy getSerializationStrategy() {
     return backEnd.getSerializationStrategy();
   }
@@ -493,6 +476,8 @@ public class PipelineManager implements PipelineRunner {
    * Process an incoming task received from the App Engine task queue.
    *
    * @param task The task to be processed.
+   *
+   *
    */
   public void processTask(Task task) {
     log.finest("Processing task " + task);
@@ -536,7 +521,9 @@ public class PipelineManager implements PipelineRunner {
     }
   }
 
+  //TODO: can we implement this in a better way with modern Java?
   private void invokePrivateJobMethod(String methodName, Job<?> job, Object... params) {
+    log.info("Invoking private method " + methodName + " on " + job);
     Class<?>[] signature = new Class<?>[params.length];
     int i = 0;
     for (Object param : params) {
@@ -697,18 +684,8 @@ public class PipelineManager implements PipelineRunner {
     }
 
     // Deserialize the instance of Job and set some values on the instance
-    JobInstanceRecord record = jobRecord.getJobInstanceInflated();
-    if (null == record) {
-      throw new RuntimeException(
-          "Internal logic error:" + jobRecord + " does not have jobInstanceInflated.");
-    }
-    Job<?> job = record.getJobInstanceDeserialized();
-    invokePrivateJobMethod("setPipelineRunner", job, this);
-    UpdateSpec updateSpec = new UpdateSpec(rootJobKey);
-    setJobRecord(job, jobRecord);
-    String currentRunGUID = GUIDGenerator.nextGUID();
-    setCurrentRunGuid(job, currentRunGUID);
-    setUpdateSpec(job, updateSpec);
+    Job<?> job = restore(jobRecord);
+
 
     // Get the run() method we will invoke and its arguments
     Object[] params = runBarrier.buildArgumentArray();
@@ -718,7 +695,7 @@ public class PipelineManager implements PipelineRunner {
     if (callExceptionHandler && methodToExecute == null) {
       // No matching exceptionHandler found. Propagate to the parent.
       Throwable exceptionToHandle = (Throwable) params[0];
-      handleExceptionDuringRun(jobRecord, rootJobRecord, currentRunGUID, exceptionToHandle);
+      handleExceptionDuringRun(jobRecord, rootJobRecord, job.getCurrentRunGUID(), exceptionToHandle);
       return;
     }
     if (log.isLoggable(Level.FINEST)) {
@@ -753,6 +730,11 @@ public class PipelineManager implements PipelineRunner {
     Throwable caughtException = null;
     try {
       methodToExecute.setAccessible(true);
+      if (job.getPipelineRunner() == null) {
+        throw new RuntimeException("PipelineRunner is not set on " + job);
+      }
+      log.info("invoking method on " + job);
+      log.info("method: " + methodToExecute);
       returnValue = (Value<?>) methodToExecute.invoke(job, params);
     } catch (InvocationTargetException e) {
       caughtException = e.getCause();
@@ -763,7 +745,7 @@ public class PipelineManager implements PipelineRunner {
       //TODO(user): use the following condition to keep original exception trace
       //      if (!throwableParams.contains(caughtException)) {
       //      }
-      handleExceptionDuringRun(jobRecord, rootJobRecord, currentRunGUID, caughtException);
+      handleExceptionDuringRun(jobRecord, rootJobRecord, job.getCurrentRunGUID(), caughtException);
       return;
     }
 
@@ -778,14 +760,37 @@ public class PipelineManager implements PipelineRunner {
     // by the running of the job.
     // See "http://goto/java-pipeline-model".
     log.finest("Job returned: " + returnValue);
-    registerSlotsWithBarrier(updateSpec, returnValue, rootJobKey, jobRecord.getKey(),
-        jobRecord.getQueueSettings(), currentRunGUID, finalizeBarrier);
+    registerSlotsWithBarrier(job.getUpdateSpec(), returnValue, rootJobKey, jobRecord.getKey(),
+        jobRecord.getQueueSettings(), job.getCurrentRunGUID(), finalizeBarrier);
     jobRecord.setState(State.WAITING_TO_FINALIZE);
-    jobRecord.setChildGraphGuid(currentRunGUID);
-    updateSpec.getFinalTransaction().includeJob(jobRecord);
-    updateSpec.getFinalTransaction().includeBarrier(finalizeBarrier);
+    jobRecord.setChildGraphGuid(job.getCurrentRunGUID());
+    job.getUpdateSpec().getFinalTransaction().includeJob(jobRecord);
+    job.getUpdateSpec().getFinalTransaction().includeBarrier(finalizeBarrier);
     backEnd.saveWithJobStateCheck(
-        updateSpec, jobRecord.getQueueSettings(), jobKey, State.WAITING_TO_RUN, State.RETRY);
+        job.getUpdateSpec(), jobRecord.getQueueSettings(), jobKey, State.WAITING_TO_RUN, State.RETRY);
+  }
+
+  /**
+   * deserializes the Job instance corresponding to the given JobRecord.
+   * @param jobRecord of execution of Job
+   * @return a Job instance, with runtime values set
+   */
+  Job<?> restore(JobRecord jobRecord) {
+    JobInstanceRecord jobExecutionRecord = jobRecord.getJobInstanceInflated();
+
+    if (jobExecutionRecord == null) {
+      throw new RuntimeException(
+        "Internal logic error:" + jobRecord + " does not have jobInstanceInflated.");
+    }
+
+    Job<?> job = jobExecutionRecord.getJobInstanceDeserialized();
+    invokePrivateJobMethod("setPipelineRunner", job, this);
+    UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
+    setJobRecord(job, jobRecord);
+    String currentRunGUID = GUIDGenerator.nextGUID();
+    setCurrentRunGuid(job, currentRunGUID);
+    setUpdateSpec(job, updateSpec);
+    return job;
   }
 
   private void cancelJob(CancelJobTask cancelJobTask) {

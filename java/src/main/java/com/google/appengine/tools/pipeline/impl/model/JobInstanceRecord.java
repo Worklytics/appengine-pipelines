@@ -26,6 +26,9 @@ import java.io.IOException;
 /**
  * Job's state persistence.
  *
+ * q: analogous to Spring Batch JobInstance?
+ *
+ *
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public class JobInstanceRecord extends PipelineModelObject {

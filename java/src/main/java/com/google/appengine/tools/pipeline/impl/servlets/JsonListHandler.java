@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
+import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.util.Pair;
@@ -36,7 +37,7 @@ public class JsonListHandler {
   private static final String CURSOR_PARAMETER = "cursor";
   private static final String LIMIT_PARAMETER = "limit";
 
-  private final PipelineManager pipelineManager;
+  private final PipelineRunner pipelineManager;
 
   public  void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException {
