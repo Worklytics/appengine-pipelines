@@ -8,7 +8,7 @@
   <url>https://github.com/Worklytics/appengine-pipelines/</url>
   <!-- follow semver, with suggested guidance for versioning fork of OSS -->
   <!-- see https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.3+worklytics.2</version>
+  <version>0.3+worklytics.3</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -18,8 +18,7 @@
   </licenses>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <!--<appengine.target.version>1.9.80</appengine.target.version> -->
-    <appengine.target.version>[1.9.1, 2.0)</appengine.target.version>
+    <appengine.target.version>[2.0.4, 2.0.22)</appengine.target.version>
     <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
 
@@ -37,11 +36,10 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>3.11.0</version>
         <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
-          <release>8</release>
+          <source>17</source>
+          <target>17</target>
         </configuration>
       </plugin>
       <plugin>
@@ -79,12 +77,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M3</version>
-        <configuration>
-          <excludes>
-            <exclude>com/google/appengine/tools/pipeline/PipelineTest.java</exclude>
-          </excludes>
-        </configuration>
+        <version>3.2.2</version>
       </plugin>
     </plugins>
     <resources>
@@ -100,7 +93,7 @@
       <dependency>
         <groupId>com.google.cloud</groupId>
         <artifactId>libraries-bom</artifactId>
-        <version>3.0.0</version>
+        <version>26.27.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -108,7 +101,7 @@
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
-        <version>5.6.2</version>
+        <version>5.10.1</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -133,6 +126,14 @@
       <artifactId>google-cloud-datastore</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-datastore</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-tasks</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <!-- version number of release candidates come before the ##.0 in maven,
@@ -147,16 +148,20 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.github.rholder</groupId>
-      <artifactId>guava-retrying</artifactId>
-      <version>2.0.0</version>
-    </dependency>
-    <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <version>1.18.30</version>
       <scope>provided</scope>
     </dependency>
+
+
+    <dependency>
+      <groupId>com.github.rholder</groupId>
+      <artifactId>guava-retrying</artifactId>
+      <version>2.0.0</version>
+    </dependency>
+
+
 
     <!-- to support Pipelines UX -->
     <dependency>
@@ -211,7 +216,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
        <artifactId>mockito-core</artifactId>
-       <version>3.1.0</version>
+       <version>4.11.0</version>
        <scope>test</scope>
     </dependency>
   </dependencies>

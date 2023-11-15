@@ -14,8 +14,6 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.modules.ModulesService;
-import com.google.appengine.api.modules.ModulesServiceFactory;
 import com.google.appengine.tools.pipeline.Job;
 import com.google.appengine.tools.pipeline.JobInfo;
 import com.google.appengine.tools.pipeline.JobSetting;
@@ -30,6 +28,8 @@ import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.appengine.tools.pipeline.JobSetting.WaitForSetting;
 import com.google.appengine.tools.pipeline.impl.FutureValueImpl;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineStandardGen2;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
@@ -51,7 +51,6 @@ import java.util.stream.Collectors;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public class JobRecord extends PipelineModelObject implements JobInfo {
-
 
   /**
    * The state of the job.
@@ -399,17 +398,20 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       queueSettings.merge(parentQueueSettings);
     }
     String service = queueSettings.getOnService();
-    ModulesService modulesService = ModulesServiceFactory.getModulesService();
+
+    AppEngineEnvironment environment = new AppEngineStandardGen2();
+
     if (service == null) {
       //no service set via jobSettings; so default to the currentModule / currentModuleVersion
-      queueSettings.setOnService(modulesService.getCurrentModule());
-      queueSettings.setOnServiceVersion(modulesService.getCurrentVersion());
+      queueSettings.setOnService(environment.getService());
+      queueSettings.setOnServiceVersion(environment.getVersion());
     } else if (queueSettings.getOnServiceVersion() == null) {
       //service set via JobSettings, but no specific version specified
-      if (service.equals(modulesService.getCurrentModule())) {
-        queueSettings.setOnServiceVersion(modulesService.getCurrentVersion());
+      if (service.equals(environment.getService())) {
+        queueSettings.setOnServiceVersion(environment.getVersion());
       } else {
-        queueSettings.setOnServiceVersion(modulesService.getDefaultVersion(service));
+        //TODO: omitting for now; don't know how to get the default version for a service generally ...
+        //queueSettings.setOnServiceVersion(environment.getDefaultVersion(service));
       }
     }
     projectId = rootJobKey.getProjectId();

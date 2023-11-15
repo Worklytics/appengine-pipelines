@@ -14,10 +14,10 @@
 
 package com.google.appengine.tools.pipeline.impl;
 
+import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.cloud.datastore.Key;
-import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;

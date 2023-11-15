@@ -13,10 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class JsonGeneratorTest extends PipelineTest {
 
-  public JsonGeneratorTest() {
-    super();
-  }
-
   //example response
   static final String EXAMPLE_JSON_RESPONSE = "{\"rootPipelineId\":\"0\",\"slots\":{\"agR0ZXN0chULEg1waXBlbGluZS1zbG90IgIxNAw\":{\"fillTimeMs\":1573682430427,\"status\":\"filled\"},\"agR0ZXN0chULEg1waXBlbGluZS1zbG90IgIxMww\":{\"fillTimeMs\":1573682430576,\"fillerPipelineId\":\"9\",\"status\":\"filled\"},\"agR0ZXN0chQLEg1waXBlbGluZS1zbG90IgE0DA\":{\"fillTimeMs\":1573682430623,\"fillerPipelineId\":\"9\",\"status\":\"filled\"},\"agR0ZXN0chULEg1waXBlbGluZS1zbG90IgIxOAw\":{\"fillTimeMs\":1573682430504,\"status\":\"filled\"},\"agR0ZXN0chQLEg1waXBlbGluZS1zbG90IgE1DA\":{\"fillTimeMs\":1573682430155,\"status\":\"filled\"}},\"pipelines\":{\"0\":{\"outputs\":{\"default\":\"agR0ZXN0chQLEg1waXBlbGluZS1zbG90IgE0DA\"},\"backoffFactor\":2,\"backoffSeconds\":15,\"startTimeMs\":1573682430424,\"currentAttempt\":1,\"endTimeMs\":1573682430623,\"args\":[],\"maxAttempts\":3,\"queueName\":\"default\",\"children\":[\"9\"],\"classPath\":\"ConcreteJob\",\"kwargs\":{},\"afterSlotKeys\":[\"agR0ZXN0chQLEg1waXBlbGluZS1zbG90IgE1DA\"],\"status\":\"done\"},\"9\":{\"outputs\":{\"default\":\"agR0ZXN0chULEg1waXBlbGluZS1zbG90IgIxMww\"},\"backoffFactor\":2,\"backoffSeconds\":15,\"startTimeMs\":1573682430500,\"currentAttempt\":1,\"args\":[],\"maxAttempts\":3,\"queueName\":\"default\",\"children\":[],\"classPath\":\"ConcreteJob\",\"kwargs\":{},\"afterSlotKeys\":[\"agR0ZXN0chULEg1waXBlbGluZS1zbG90IgIxNAw\"],\"status\":\"run\"}}}";
 
