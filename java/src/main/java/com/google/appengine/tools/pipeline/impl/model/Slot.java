@@ -50,6 +50,7 @@ public class Slot extends PipelineModelObject {
   private static final String WAITING_ON_ME_PROPERTY = "waitingOnMe";
   private static final String FILL_TIME_PROPERTY = "fillTime";
   private static final String SOURCE_JOB_KEY_PROPERTY = "sourceJob";
+  private static final String IS_SHARDED_PROPERTY = "isSharded";
 
   // persistent
   private boolean filled;
@@ -82,13 +83,15 @@ public class Slot extends PipelineModelObject {
     sourceJobKey = EntityUtils.getKey(entity, SOURCE_JOB_KEY_PROPERTY);
     waitingOnMeKeys = getListProperty(WAITING_ON_ME_PROPERTY, entity);
     this.serializationStrategy = serializationStrategy;
+
+    Object valueBlob = EntityUtils.getLargeValue(entity, VALUE_PROPERTY);
+
     if (lazy) {
-      serializedVersion = entity.getBlob(VALUE_PROPERTY);
+      serializedVersion = valueBlob;
     } else {
-      value = deserializeValue(entity.getBlob(VALUE_PROPERTY));
+      value = deserializeValue(valueBlob);
     }
   }
-
 
 
   private Object deserializeValue(Object value) {

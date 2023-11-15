@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
  * class to wrap Entity with accessors that are safe for missing properties
  */
 public class EntityUtils {
+  final static String IS_SHARDED_PROPERTY = "isSharded";
 
   public static Key getKey(Entity entity, String propertyName) {
     return entity.contains(propertyName) ? entity.getKey(propertyName) : null;
@@ -32,15 +33,29 @@ public class EntityUtils {
    * @param value either List<Key> or Blob
    */
   public static void setLargeValue(Entity.Builder builder, String propertyName, Object value) {
+    boolean isSharded;
     if (value instanceof Blob) {
       //usual case
+      isSharded = false;
       builder.set(propertyName, BlobValue.newBuilder((Blob)value).setExcludeFromIndexes(true).build());
     } else if (value instanceof List) {
+      isSharded = true;
       builder.set(propertyName, ((List<Key>) value).stream().map(k -> KeyValue.newBuilder(k).setExcludeFromIndexes(true).build()).collect(Collectors.toList()));
+
     } else {
       throw new RuntimeException("value not of type that can be stored into Datastore");
     }
+    builder.set(IS_SHARDED_PROPERTY, BooleanValue.newBuilder(isSharded).setExcludeFromIndexes(true).build());
   }
 
 
+  public static Object getLargeValue(Entity entity, String valueProperty) {
+    if (entity.getBoolean(IS_SHARDED_PROPERTY)) {
+      //sharded case
+      // not great, this is basically knowing internals of serializationStrategy
+      return entity.getList(valueProperty).stream().map(k -> ((KeyValue) k).get()).collect(Collectors.toList());
+    } else {
+      return entity.getBlob(valueProperty);
+    }
+  }
 }

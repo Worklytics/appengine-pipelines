@@ -72,7 +72,7 @@ public class JobInstanceRecord extends PipelineModelObject {
     } else {
       jobDisplayName = jobClassName;
     }
-    value = entity.getValue(INSTANCE_VALUE_PROPERTY).get();
+    value = EntityUtils.getLargeValue(entity, INSTANCE_VALUE_PROPERTY);
     this.serializationStrategy = serializationStrategy;
   }
 
@@ -83,6 +83,7 @@ public class JobInstanceRecord extends PipelineModelObject {
     entity.set(JOB_CLASS_NAME_PROPERTY, jobClassName);
     EntityUtils.setLargeValue(entity, INSTANCE_VALUE_PROPERTY, value);
     entity.set(JOB_DISPLAY_NAME_PROPERTY, jobDisplayName);
+
     return entity.build();
   }
 

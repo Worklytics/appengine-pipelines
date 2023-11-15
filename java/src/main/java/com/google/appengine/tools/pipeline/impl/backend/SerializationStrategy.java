@@ -31,4 +31,5 @@ public interface SerializationStrategy {
    */
   Object deserializeValue(PipelineModelObject model, Object serializedVersion)
     throws IOException;
+
 }

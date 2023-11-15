@@ -457,14 +457,14 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   private Map<Key, Entity> getEntities(String logString, final Collection<Key> keys) {
-    Map<Key, Entity> result = tryFiveTimes(new Operation<Map<Key, Entity>>(logString) {
+    Map<Key, Entity> result = tryFiveTimes(new Operation<>(logString) {
       @Override
       public Map<Key, Entity> call() {
         //NOTE: this read is strongly consistent now, bc backed by Firestore in Datastore-mode; this library was
         // designed thinking this read was only event
 
         return keys.stream()
-            .collect(Collectors.toMap(Function.identity(), k -> datastore.get(k)));
+            .collect(Collectors.toMap(Function.identity(), datastore::get));
       }
     });
     if (keys.size() != result.size()) {

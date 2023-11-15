@@ -72,7 +72,9 @@ public interface JobSetting extends Serializable {
   abstract class StringValuedSetting implements JobSetting {
 
     private static final long serialVersionUID = 7756646651569386669L;
-    @NonNull
+
+    //NOTE: behavior of Pipeline Framework allows this to be null for some settings
+    // (tests verify this)
     private final String value;
 
     @Override
