@@ -523,7 +523,6 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   //TODO: can we implement this in a better way with modern Java?
   private void invokePrivateJobMethod(String methodName, Job<?> job, Object... params) {
-    log.info("Invoking private method " + methodName + " on " + job);
     Class<?>[] signature = new Class<?>[params.length];
     int i = 0;
     for (Object param : params) {
