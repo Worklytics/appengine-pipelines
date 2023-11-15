@@ -18,8 +18,8 @@
   </licenses>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <appengine.target.version>[2.0.4, 2.0.22)</appengine.target.version>
-    <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
+    <appengine.target.version>[2.0.4, 2.0.23)</appengine.target.version>
+    <jackson.version>[2.7, 2.15.4)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
 
   <distributionManagement>
@@ -136,10 +136,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <!-- version number of release candidates come before the ##.0 in maven,
-           use .99 to get latest release within the specified major version -->
-      <!-- GAE *requires* java8, so reasonable that library for GAE should require it too -->
-      <version>[21.0,21.99]</version>
+      <version>[32.1,32.99]</version>
     </dependency>
     <dependency>
       <groupId>javax.servlet</groupId>

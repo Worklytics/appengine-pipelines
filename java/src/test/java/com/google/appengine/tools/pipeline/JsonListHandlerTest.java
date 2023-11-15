@@ -104,7 +104,7 @@ public class JsonListHandlerTest extends PipelineTest {
 
   @BeforeEach
   public void setUp() throws Exception {
-    MockitoAnnotations.initMocks(this);
+    MockitoAnnotations.openMocks(this);
     when(response.getWriter()).thenReturn(new PrintWriter(output));
   }
 

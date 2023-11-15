@@ -3,7 +3,6 @@ package com.google.appengine.tools.pipeline;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
-import com.google.auth.Credentials;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import org.junit.jupiter.api.extension.*;
@@ -17,7 +16,12 @@ import java.util.List;
 
 @Target({ ElementType.TYPE, ElementType.METHOD })
 @Retention(RetentionPolicy.RUNTIME)
-@ExtendWith({ DatastoreExtension.class, PipelineComponentsExtension.class, PipelineComponentsExtension.ParameterResolver.class })
+@ExtendWith({
+  DatastoreExtension.class,
+  AppEngineEnvironmentExtension.class,
+  PipelineComponentsExtension.class,
+  PipelineComponentsExtension.ParameterResolver.class,
+})
 public @interface PipelineSetupExtensions {
 
 }
@@ -25,6 +29,8 @@ public @interface PipelineSetupExtensions {
 class PipelineComponentsExtension implements BeforeEachCallback {
 
   Datastore datastore;
+
+  DatastoreOptions datastoreOptions;
 
   protected PipelineService pipelineService;
   protected PipelineManager pipelineManager;
@@ -39,18 +45,29 @@ class PipelineComponentsExtension implements BeforeEachCallback {
   static final List<Class<?>> PARAMETER_CLASSES = Arrays.asList(
     PipelineManager.class,
     PipelineService.class,
-    AppEngineBackEnd.class
+    AppEngineBackEnd.class,
+    DatastoreOptions.class
   );
+
+
+  static PipelineService reconstituteFromDatastoreOptions(DatastoreOptions options) {
+    return PipelineServiceFactory.newPipelineService(new AppEngineBackEnd(options.getService(), new AppEngineTaskQueue()));
+  }
 
   @Override
   public void beforeEach(ExtensionContext extensionContext) throws Exception {
     datastore = (Datastore) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_CONTEXT_KEY);
+
+    // can be serialized, then used to re-constitute connection to datastore emulator on another thread/process
+    datastoreOptions = (DatastoreOptions) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_OPTIONS_CONTEXT_KEY);
 
     //hack to figure out what random projectId the emulator generated
 
     appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
     pipelineService = PipelineServiceFactory.newPipelineService(appEngineBackend);
     pipelineManager = new PipelineManager(appEngineBackend);
+
+
 
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.PIPELINE_SERVICE.name(), pipelineService);
@@ -83,6 +100,9 @@ class PipelineComponentsExtension implements BeforeEachCallback {
       } else if (parameterContext.getParameter().getType() == AppEngineBackEnd.class) {
         return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
           .get(ContextStoreKey.APP_ENGINE_BACKEND.name());
+      } else if (parameterContext.getParameter().getType() == DatastoreOptions.class) {
+        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
+          .get(DatastoreExtension.DS_OPTIONS_CONTEXT_KEY);
       }
       throw new Error("Shouldn't be reached");
     }

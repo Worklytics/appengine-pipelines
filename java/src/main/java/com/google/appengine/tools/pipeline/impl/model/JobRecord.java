@@ -52,6 +52,10 @@ import java.util.stream.Collectors;
  */
 public class JobRecord extends PipelineModelObject implements JobInfo {
 
+  @VisibleForTesting
+  public static AppEngineEnvironment environment = new AppEngineStandardGen2();
+
+
   /**
    * The state of the job.
    */
@@ -399,8 +403,6 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     }
     String service = queueSettings.getOnService();
 
-    AppEngineEnvironment environment = new AppEngineStandardGen2();
-
     if (service == null) {
       //no service set via jobSettings; so default to the currentModule / currentModuleVersion
       queueSettings.setOnService(environment.getService());
@@ -480,8 +482,6 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       }
     } else if (setting instanceof OnService) {
       queueSettings.setOnService(((JobSetting.OnService) setting).getValue());
-    } else if (setting instanceof OnBackend) {
-      queueSettings.setOnService(((OnBackend) setting).getValue());
     } else if (setting instanceof JobSetting.OnServiceVersion) {
       queueSettings.setOnServiceVersion(((JobSetting.OnServiceVersion) setting).getValue());
     } else if (setting instanceof OnQueue) {

@@ -1,6 +1,7 @@
 package com.google.appengine.tools.pipeline;
 
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.testing.LocalDatastoreHelper;
 import lombok.extern.java.Log;
 import org.junit.jupiter.api.extension.*;
@@ -16,11 +17,16 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
 
   public static String TEST_DATASTORE_PROJECT_ID = "test-project";
   public static String DS_CONTEXT_KEY = "ds-emulator";
+  public static String DS_OPTIONS_CONTEXT_KEY = "ds-options";
+
   private LocalDatastoreHelper globalDatastoreHelper;
 
   @Override
   public void beforeAll(ExtensionContext extensionContext) throws Exception {
-    globalDatastoreHelper = LocalDatastoreHelper.create(1.0);
+    globalDatastoreHelper = LocalDatastoreHelper.newBuilder()
+      .setStoreOnDisk(false)  // can't reset if storing data disk
+      .setConsistency(1.0)
+      .build();
     globalDatastoreHelper.start();
     log.info("Datastore emulator started on port : " + globalDatastoreHelper.getPort());
   }
@@ -35,9 +41,13 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
   public void beforeEach(ExtensionContext extensionContext) throws Exception {
     globalDatastoreHelper.reset();
     log.info("Datastore emulator reset");
-    Datastore datastore = globalDatastoreHelper.getOptions().toBuilder()
+    DatastoreOptions options = globalDatastoreHelper.getOptions().toBuilder()
       .setProjectId(TEST_DATASTORE_PROJECT_ID)
-      .build().getService();
+      .build();
+
+    extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).put(DS_OPTIONS_CONTEXT_KEY, options);
+
+    Datastore datastore = options.getService();
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).put(DS_CONTEXT_KEY, datastore);
   }
 

@@ -143,6 +143,7 @@ public abstract class Job<E> implements Serializable {
   private transient JobRecord thisJobRecord;
   private transient UpdateSpec updateSpec;
   private transient String currentRunGUID;
+
   @Getter(AccessLevel.MODULE)
   transient PipelineManager pipelineRunner;
 

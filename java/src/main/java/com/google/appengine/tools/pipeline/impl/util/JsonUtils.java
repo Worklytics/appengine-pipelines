@@ -37,7 +37,7 @@ public class JsonUtils {
   //initialize ObjectMapper
   static  {
     objectToJsonMapper = new ObjectMapper();
-    objectToJsonMapper.registerModule(new JSR310Module());
+    objectToJsonMapper.registerModule(new Jdk8Module());
     objectToJsonMapper.registerModule(new JavaTimeModule());
 
     objectToJsonMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
