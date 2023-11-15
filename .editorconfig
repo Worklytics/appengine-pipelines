@@ -5,14 +5,14 @@ root = true
 
 [*]
 # https://google.github.io/styleguide/javaguide.html#s4.4-column-limit
-line_width=100
+line_width = 100
 # https://google.github.io/styleguide/javaguide.html#s2.2-file-encoding
 charset = utf-8
 
 # https://google.github.io/styleguide/javaguide.html#s4.2-block-indentation
 [*.java]
 indent_style = space
-indent_size = 2
+indent_size = 2 # this is annoying ...
 
 # https://google.github.io/styleguide/jsguide.html#formatting-block-indentation
 [*.{js,json}]
@@ -26,5 +26,5 @@ indent_size = 2
 
 
 # force-wrap markdown files to 100 column width
-[.md]
+[*.md]
 max_line_length = 100
