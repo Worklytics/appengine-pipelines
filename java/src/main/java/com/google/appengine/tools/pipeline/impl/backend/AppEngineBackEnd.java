@@ -16,9 +16,11 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_DISPLAY_NAME;
 import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
+import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
 
 import com.github.rholder.retry.*;
 
+import com.google.appengine.tools.pipeline.impl.util.TestUtils;
 import com.google.auth.Credentials;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
@@ -253,6 +255,11 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         return null;
       }
     });
+    // TODO(user): Replace this with plug-able hooks that could be used by tests,
+    // if needed could be restricted to package-scoped tests.
+    // If a unit test requests us to do so, fail here.
+    throwHereForTesting(TestUtils.BREAK_AppEngineBackEnd_saveWithJobStateCheck_beforeFinalTransaction);
+
     for (final UpdateSpec.Transaction transactionSpec : updateSpec.getTransactions()) {
       tryFiveTimes(new Operation<Void>("save") {
         @Override

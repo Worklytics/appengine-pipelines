@@ -15,6 +15,8 @@ public class TestUtils {
 
   private static final String FAIL_PROPERTY_PREFIX = TestUtils.class.getName() + ".failAt.";
 
+  public static final String BREAK_AppEngineBackEnd_saveWithJobStateCheck_beforeFinalTransaction = "AppEngineBackEnd.saveWithJobStateCheck.beforeFinalTransaction";
+
   /**
    * Builds the name of the Java System property that should be set to
    * "true" in order for the method {@link #throwHereForTesting(String)}

@@ -3,6 +3,7 @@
 package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+import static com.google.appengine.tools.pipeline.impl.util.TestUtils.BREAK_AppEngineBackEnd_saveWithJobStateCheck_beforeFinalTransaction;
 import static com.google.appengine.tools.pipeline.impl.util.TestUtils.getFailureProperty;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -161,7 +162,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
 
     public static AtomicInteger runCount = new AtomicInteger(0);
     private static final String SHOULD_FAIL_PROPERTY =
-        getFailureProperty("AppEngineBackeEnd.saveWithJobStateCheck.beforeFinalTransaction");
+        getFailureProperty(BREAK_AppEngineBackEnd_saveWithJobStateCheck_beforeFinalTransaction);
 
     boolean usePromise;
 
