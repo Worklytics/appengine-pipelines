@@ -577,7 +577,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   @Override
   public Set<String> getRootPipelinesDisplayName() {
 
-    return tryFiveTimes(new Operation<Set<String>>("getRootPipelinesDisplayName") {
+    return tryFiveTimes(new Operation<>("getRootPipelinesDisplayName") {
       @Override
       public Set<String> call() {
         ProjectionEntityQuery.Builder query = Query.newProjectionEntityQueryBuilder()
@@ -587,14 +587,18 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
         QueryResults<ProjectionEntity> queryResults;
         Set<String> pipelines = new LinkedHashSet<>();
+        List<String> page;
         do {
           //TODO: set chunkSize? does concept exist in this API client library?
           queryResults = datastore.run(query.build());
-          Streams.stream(queryResults)
+          page = Streams.stream(queryResults)
             .map(entity -> entity.getString(ROOT_JOB_DISPLAY_NAME))
-            .forEachOrdered(pipelines::add);
+            .collect(Collectors.toList());
+          pipelines.addAll(page);
           query = query.setStartCursor(queryResults.getCursorAfter());
-        } while (queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS);
+        } while (
+            page.size() > 0 && // unclear why, but at least in tests prev check doesn't work as moreResults is always MORE_RESULTS_AFTER_LIMIT
+            queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS);
 
         return pipelines;
       }
