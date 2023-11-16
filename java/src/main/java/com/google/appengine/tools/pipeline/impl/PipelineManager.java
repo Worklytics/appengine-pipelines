@@ -729,11 +729,6 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     Throwable caughtException = null;
     try {
       methodToExecute.setAccessible(true);
-      if (job.getPipelineRunner() == null) {
-        throw new RuntimeException("PipelineRunner is not set on " + job);
-      }
-      log.info("invoking method on " + job);
-      log.info("method: " + methodToExecute);
       returnValue = (Value<?>) methodToExecute.invoke(job, params);
     } catch (InvocationTargetException e) {
       caughtException = e.getCause();
