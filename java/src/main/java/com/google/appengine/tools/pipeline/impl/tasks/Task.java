@@ -122,7 +122,7 @@ public abstract class Task {
   /**
    * The type of task. The Pipeline framework uses several types
    */
-  public static enum Type {
+  public enum Type {
 
     HANDLE_SLOT_FILLED(HandleSlotFilledTask.class),
     RUN_JOB(RunJobTask.class),

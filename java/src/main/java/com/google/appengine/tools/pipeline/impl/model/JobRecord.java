@@ -334,12 +334,18 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     builder.set(MAX_ATTEMPTS_PROPERTY, LongValue.newBuilder(maxAttempts).setExcludeFromIndexes(true).build());
     builder.set(BACKOFF_SECONDS_PROPERTY, LongValue.newBuilder(backoffSeconds).setExcludeFromIndexes(true).build());
     builder.set(BACKOFF_FACTOR_PROPERTY, LongValue.newBuilder(backoffFactor).setExcludeFromIndexes(true).build());
-    builder.set(ON_SERVICE_PROPERTY, StringValue.newBuilder(queueSettings.getOnService()).setExcludeFromIndexes(true).build());
-    builder.set(ON_SERVICE_VERSION_PROPERTY, StringValue.newBuilder(queueSettings.getOnServiceVersion()).setExcludeFromIndexes(true).build());
 
+    // good idea? or should we force jobs to have these values (take defaults, if nothing else?)
+    if (queueSettings.getOnService() != null) {
+      builder.set(ON_SERVICE_PROPERTY, StringValue.newBuilder(queueSettings.getOnService()).setExcludeFromIndexes(true).build());
+    }
+    if (queueSettings.getOnServiceVersion() != null) {
+      builder.set(ON_SERVICE_VERSION_PROPERTY, StringValue.newBuilder(queueSettings.getOnServiceVersion()).setExcludeFromIndexes(true).build());
+    }
     if (queueSettings.getOnQueue() != null) {
       builder.set(ON_QUEUE_PROPERTY, StringValue.newBuilder(queueSettings.getOnQueue()).setExcludeFromIndexes(true).build());
     }
+
     if (statusConsoleUrl != null) {
       builder.set(STATUS_CONSOLE_URL, StringValue.newBuilder(statusConsoleUrl).setExcludeFromIndexes(true).build());
     }
