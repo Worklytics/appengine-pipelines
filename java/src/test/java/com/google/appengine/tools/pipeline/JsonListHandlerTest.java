@@ -46,7 +46,7 @@ public class JsonListHandlerTest extends PipelineTest {
 
   @Mock private HttpServletRequest request;
   @Mock private HttpServletResponse response;
-  private final StringWriter output = new StringWriter();
+  private StringWriter output = new StringWriter();
 
   @SuppressWarnings("serial")
   private static class Main1Job extends Job0<String> {
@@ -105,6 +105,7 @@ public class JsonListHandlerTest extends PipelineTest {
   @BeforeEach
   public void setUp() throws Exception {
     MockitoAnnotations.openMocks(this);
+    output = new StringWriter();
     when(response.getWriter()).thenReturn(new PrintWriter(output));
   }
 

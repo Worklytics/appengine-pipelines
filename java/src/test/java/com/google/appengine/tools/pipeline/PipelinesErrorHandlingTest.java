@@ -622,7 +622,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
   /**
-   * Invoked from handleException to test long running cleanup.
+   * Invoked from handleException to test long-running cleanup.
    */
   @SuppressWarnings("serial")
   static class CleanupJob extends Job0<Integer> {
@@ -633,7 +633,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
       // Use delay to make sure that cleanup takes enough time for cancellation
       // request to arrive
       return futureCall(
-          new PassThroughJob1<Integer>(), immediate(EXPECTED_RESULT3), waitFor(newDelayedValue(2)));
+          new PassThroughJob1<>(), immediate(EXPECTED_RESULT3), waitFor(newDelayedValue(2)));
       // return immediate(EXPECTED_RESULT);
     }
 

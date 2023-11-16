@@ -154,6 +154,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   private static final String STATUS_CONSOLE_URL = "statusConsoleUrl";
   public static final String ROOT_JOB_DISPLAY_NAME = "rootJobDisplayName";
 
+  public static final String IS_ROOT_JOB_PROPERTY = "isRootJob";
+
   /**
    * projectId for job; must be set
    */
@@ -225,6 +227,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   private String statusConsoleUrl;
   @Getter
   private String rootJobDisplayName;
+  @Getter
+  private Boolean isRootJob;
 
 
   // transient fields
@@ -278,6 +282,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     }
     statusConsoleUrl = EntityUtils.getString(entity, STATUS_CONSOLE_URL);
     rootJobDisplayName = EntityUtils.getString(entity, ROOT_JOB_DISPLAY_NAME);
+    if (entity.contains(IS_ROOT_JOB_PROPERTY)) {
+      isRootJob = entity.getBoolean(IS_ROOT_JOB_PROPERTY);
+    }
     projectId = entity.getKey().getProjectId();
     namespace = entity.getKey().getNamespace();
   }
@@ -337,6 +344,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       builder.set(STATUS_CONSOLE_URL, StringValue.newBuilder(statusConsoleUrl).setExcludeFromIndexes(true).build());
     }
     if (rootJobDisplayName != null) {
+      builder.set(IS_ROOT_JOB_PROPERTY, true);
       builder.set(ROOT_JOB_DISPLAY_NAME, rootJobDisplayName);
     }
     return builder.build();

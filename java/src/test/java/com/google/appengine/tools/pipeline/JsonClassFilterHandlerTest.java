@@ -104,7 +104,6 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
   }
 
 
-  @Disabled //seems to have infinite loop?
   @Test
   public void testHandlerNoResults() throws Exception {
     JsonClassFilterHandler handler = new JsonClassFilterHandler(pipelineManager);
@@ -112,7 +111,6 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
     assertEqualsIgnoreWhitespace("{\"classPaths\": []}", output.toString());
   }
 
-  @Disabled //seems to have infinite loop?
   @Test
   public void testHandlerWithResults() throws Exception {
     String pipelineId1 = pipelineService.startNewPipeline(new Main1Job());

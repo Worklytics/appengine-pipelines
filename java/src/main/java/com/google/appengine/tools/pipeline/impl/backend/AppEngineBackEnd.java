@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import static com.google.appengine.tools.pipeline.impl.model.JobRecord.IS_ROOT_JOB_PROPERTY;
 import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_DISPLAY_NAME;
 import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
 import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
@@ -541,7 +542,9 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     EntityQuery.Builder query = Query.newEntityQueryBuilder()
       .setKind(JobRecord.DATA_STORE_KIND);
 
-    if (!Strings.isNullOrEmpty(classFilter)) {
+    if (Strings.isNullOrEmpty(classFilter)) {
+      query.setFilter(StructuredQuery.PropertyFilter.eq(IS_ROOT_JOB_PROPERTY, true));
+    } else {
       query.setFilter(StructuredQuery.PropertyFilter.eq(ROOT_JOB_DISPLAY_NAME, classFilter));
     }
 
