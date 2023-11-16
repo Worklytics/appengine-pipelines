@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -369,11 +370,13 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   @RequiredArgsConstructor
   static class TestGrandchildCancellationJob extends Job0<Void> {
 
+    final PipelineBackEnd.Options options;
+
     @Override
     public Value<Void> run() {
       trace("TestGrandchildCancellationJob.run");
       return futureCall(
-          new ParentOfGrandchildToCancelAndAngryChildJob(), new JobSetting.MaxAttempts(1));
+          new ParentOfGrandchildToCancelAndAngryChildJob(options), new JobSetting.MaxAttempts(1));
     }
 
     public Value<Integer> handleException(IllegalStateException e) {
@@ -387,11 +390,13 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   @RequiredArgsConstructor
   static class ParentOfJobToCancel extends Job1<Integer, String> {
 
+    final PipelineBackEnd.Options options;
+
     @Override
     public Value<Integer> run(String unblockTheAngryOneHandle) throws Exception {
       trace("ParentOfJobToCancel.run");
       // Unblocks a sibling that is going to throw an exception
-      PipelineServiceFactory.newPipelineService(getPipelineBackendOptions())
+      PipelineServiceFactory.newPipelineService(options)
         .submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
       PromisedValue<Integer> neverReady = newPromise();
       return futureCall(new JobToCancel(), neverReady);
@@ -412,11 +417,13 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   @RequiredArgsConstructor
   static class ParentOfGrandchildToCancelAndAngryChildJob extends Job0<Void> {
 
+    final PipelineBackEnd.Options options;
+
     @Override
     public Value<Void> run() {
       trace("ParentOfGrandchildToCancelAndAngryChildJob.run");
       PromisedValue<Integer> unblockTheAngryOne = newPromise();
-      futureCall(new ParentOfJobToCancel(), immediate(unblockTheAngryOne.getHandle()),
+      futureCall(new ParentOfJobToCancel(options), immediate(unblockTheAngryOne.getHandle()),
           new JobSetting.MaxAttempts(1));
       // This one failing should cause cancellation of the first job, which
       // should execute its error handling job (SimpleCatchJob);
@@ -428,10 +435,9 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   /**
    * Test cancellation of a child of a generator job that had a failed sibling.
    */
-  @Disabled //appears to loop infinitely atm
   @Test
   public void testGrandchildCancellation() throws Exception {
-    String pipelineId = pipelineService.startNewPipeline(new TestGrandchildCancellationJob());
+    String pipelineId = pipelineService.startNewPipeline(new TestGrandchildCancellationJob(pipelineService.getBackendOptions()));
     waitUntilTaskQueueIsEmpty(getTaskQueue());
     Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
@@ -601,15 +607,17 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
 
+  @RequiredArgsConstructor
   @SuppressWarnings("serial")
   static class JobToGetCancellationInHandleException extends Job1<Integer, String> {
 
+    final PipelineBackEnd.Options options;
 
     @Override
     public Value<Integer> run(String unblockTheAngryOneHandle) throws Exception {
       trace("JobToGetCancellationInHandleException.run");
-      // Unblocks a sibling that is going to throw an exception
-      PipelineServiceFactory.newPipelineService(getPipelineBackendOptions())
+
+      PipelineServiceFactory.newPipelineService(options)
         .submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
       throw new IllegalStateException("simulated");
     }
@@ -654,11 +662,13 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   @RequiredArgsConstructor
   static class TestCancellationOfHandleExceptionJob extends Job0<Integer> {
 
+    final PipelineBackEnd.Options options;
+
     @Override
     public Value<Integer> run() {
       trace("TestCancellationOfHandleExceptionJob.run");
       PromisedValue<Integer> unblockTheAngryOne = newPromise();
-      futureCall(new JobToGetCancellationInHandleException(),
+      futureCall(new JobToGetCancellationInHandleException(options),
           immediate(unblockTheAngryOne.getHandle()), new JobSetting.MaxAttempts(1));
       // This one failing should cause cancellation of the first job, which
       // should execute its error handling job (CleanupJob);
@@ -703,7 +713,8 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
    */
   @Test
   public void testCancellationOfHandleExceptionJob() throws Exception {
-    String pipelineId = pipelineService.startNewPipeline(new TestCancellationOfHandleExceptionJob());
+
+    String pipelineId = pipelineService.startNewPipeline(new TestCancellationOfHandleExceptionJob(pipelineService.getBackendOptions()));
     Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("TestCancellationOfHandleExceptionJob.run "
         + "JobToGetCancellationInHandleException.run "
@@ -723,7 +734,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
       futureCall(new UnblockAndThrowJob(), immediate(unblockTheSecondOne.getHandle()),
           new JobSetting.MaxAttempts(1));
 
-      return futureCall(new PassThroughJob1<Integer>(), unblockTheSecondOne);
+      return futureCall(new PassThroughJob1<>(), unblockTheSecondOne);
     }
 
     @SuppressWarnings("unused")
