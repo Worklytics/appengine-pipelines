@@ -61,6 +61,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
@@ -470,9 +471,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       public Map<Key, Entity> call() {
         //NOTE: this read is strongly consistent now, bc backed by Firestore in Datastore-mode; this library was
         // designed thinking this read was only event
-
-        return keys.stream()
-            .collect(Collectors.toMap(Function.identity(), datastore::get));
+        return Streams.stream(datastore.get(keys))
+            .collect(Collectors.toMap(Entity::getKey, Function.identity()));
       }
     });
     if (keys.size() != result.size()) {
@@ -484,7 +484,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   private Entity getEntity(String logString, final Key key) throws NoSuchObjectException {
-    Entity entity = tryFiveTimes(new Operation<>("getEntity") {
+    Entity entity = tryFiveTimes(new Operation<>("getEntity_" + logString) {
       @Override
       public Entity call() throws Exception {
         return datastore.get(key);
