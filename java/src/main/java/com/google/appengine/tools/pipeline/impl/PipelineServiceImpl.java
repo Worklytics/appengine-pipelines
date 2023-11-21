@@ -50,7 +50,7 @@ import javax.inject.Inject;
 public class PipelineServiceImpl implements PipelineService {
 
   @Inject
-  private PipelineManager pipelineManager;
+  PipelineManager pipelineManager;
 
   public PipelineServiceImpl(PipelineBackEnd backEnd) {
     pipelineManager = new PipelineManager(backEnd);

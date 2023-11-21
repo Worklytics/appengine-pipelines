@@ -55,28 +55,22 @@ public class DIUtil {
 	 * @throws RuntimeException if the class is not a Dagger Module or doesn't meet the requirements
 	 */
 	public static ObjectGraph getFromModuleClass(@NonNull String moduleFQNClassName) {
-		synchronized (lock) {
-			if (overridden) {
-				return overriddenObjectGraphCache.getOrDefault(moduleFQNClassName, objectGraphCache.get(moduleFQNClassName));
-			}
-			try {
-				Class<?> moduleClass = Class.forName(moduleFQNClassName);
-				Preconditions.checkArgument(moduleClass.isAnnotationPresent(dagger.Module.class), "Class is not a Dagger Module: " + moduleFQNClassName);
+    synchronized (lock) {
+      if (overridden) {
+        return overriddenObjectGraphCache.getOrDefault(moduleFQNClassName, objectGraphCache.get(moduleFQNClassName));
+      }
+      try {
+        Class<?> moduleClass = Class.forName(moduleFQNClassName);
+        Preconditions.checkArgument(moduleClass.isAnnotationPresent(dagger.Module.class), "Class is not a Dagger Module: " + moduleFQNClassName);
 
-				Method getObjectGraphMethod = moduleClass.getMethod("getObjectGraph");
-
-				Preconditions.checkArgument(Modifier.isStatic(getObjectGraphMethod.getModifiers()), "getObjectGraph is not static");
-				Preconditions.checkArgument(getObjectGraphMethod.getReturnType().equals(ObjectGraph.class), "getObjectGraph does not return an ObjectGraph!");
-
-				ObjectGraph objectGraph = (ObjectGraph) getObjectGraphMethod.invoke(null);
-
-				objectGraphCache.put(moduleFQNClassName, objectGraph);
-				return objectGraph;
-			} catch (ClassNotFoundException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-				throw new RuntimeException("Couldn't get an object graph " + e.getMessage(), e);
-			}
-		}
-	}
+        ObjectGraph objectGraph = ObjectGraph.create(moduleClass.newInstance());
+        objectGraphCache.put(moduleFQNClassName, objectGraph);
+        return objectGraph;
+      } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
+        throw new RuntimeException("Couldn't get an object graph " + e.getMessage(), e);
+      }
+    }
+  }
 
 	/**
 	 * A test helper to directly override the default module with the test's graph

@@ -46,7 +46,6 @@ import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
 import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
@@ -59,7 +58,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
-import java.util.stream.Stream;
 
 /**
  * The central hub of the Pipeline implementation.
@@ -75,7 +73,7 @@ import java.util.stream.Stream;
 public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   @Inject
-  private PipelineBackEnd backEnd;
+  PipelineBackEnd backEnd;
 
   PipelineBackEnd.Options getBackendOptions() {
     return backEnd.getOptions();
@@ -773,11 +771,11 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   private void inject(Job<?> job) {
-    String moduleFqn = Optional.ofNullable(job.getClass().getAnnotation(DIModule.class))
-        .map(DIModule::value)
-        .orElse(DefaultDIModule.class.getName());
+    Optional<Injectable> injectable = Optional.ofNullable(job.getClass().getAnnotation(Injectable.class));
 
-    DIUtil.inject(moduleFqn, job);
+    if (injectable.isPresent()) {
+      DIUtil.inject(injectable.get().value(), job);
+    }
   }
 
   /**
