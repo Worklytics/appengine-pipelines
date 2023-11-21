@@ -14,20 +14,18 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import com.google.appengine.api.utils.SystemProperty;
+import com.google.appengine.tools.pipeline.DefaultDIModule;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
-import com.google.appengine.tools.pipeline.PipelineRunnerFactory;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.datastore.DatastoreOptions;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
 import lombok.SneakyThrows;
 
 import java.io.IOException;
 
+import javax.inject.Inject;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -103,16 +101,18 @@ public class PipelineServlet extends HttpServlet {
   transient JsonTreeHandler jsonTreeHandler;
   transient TaskHandler taskHandler;
 
+  @Inject
+  transient PipelineRunner pipelineManager;
+
   @SneakyThrows
   @Override
   public void init() throws ServletException {
     super.init();
-    PipelineRunnerFactory pipelineRunnerFactory = new PipelineRunnerFactory();
-    PipelineRunner pipelineManager = pipelineRunnerFactory.createPipelineRunner(AppEngineBackEnd.Options.builder()
-        .projectId(SystemProperty.applicationId.get())
-        .credentials(GoogleCredentials.getApplicationDefault())
-        .datastoreOptions(DatastoreOptions.getDefaultInstance())
-        .build());
+
+    // TODO: fix this? may have second copy IF user overrides; OK?
+    DIUtil.inject(DefaultDIModule.class.getName(), this);
+
+    //TODO: move these to DI?
     abortJobHandler = new AbortJobHandler((PipelineOrchestrator) pipelineManager);
     deleteJobHandler = new DeleteJobHandler(pipelineManager);
     jsonClassFilterHandler = new JsonClassFilterHandler(pipelineManager);

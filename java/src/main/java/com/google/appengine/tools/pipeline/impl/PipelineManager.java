@@ -17,6 +17,7 @@ package com.google.appengine.tools.pipeline.impl;
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -44,17 +45,21 @@ import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
+import javax.inject.Inject;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 
 /**
  * The central hub of the Pipeline implementation.
@@ -64,11 +69,13 @@ import java.util.logging.Level;
  * TODO: make this 1) interface, 2) inject the implementation?
  *
  */
-@RequiredArgsConstructor
+
+@AllArgsConstructor
 @Log
 public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
-  private final PipelineBackEnd backEnd;
+  @Inject
+  private PipelineBackEnd backEnd;
 
   PipelineBackEnd.Options getBackendOptions() {
     return backEnd.getOptions();
@@ -96,7 +103,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     Job<?> rootJobInstance = jobInstance;
     jobInstance.setPipelineBackendOptions(this.getBackendOptions());
     // If rootJobInstance has exceptionHandler it has to be wrapped to ensure that root job
-    // ends up in finalized state in case of exception of run method and
+    // ends up in finalized state in case of exception in run method and
     // exceptionHandler returning a result.
     if (JobRecord.isExceptionHandlerSpecified(jobInstance)) {
       rootJobInstance = new RootJobInstance(jobInstance, settings, params);
@@ -684,6 +691,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
     // Deserialize the instance of Job and set some values on the instance
     Job<?> job = restore(jobRecord);
+    inject(job);
 
 
     // Get the run() method we will invoke and its arguments
@@ -764,6 +772,14 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
         job.getUpdateSpec(), jobRecord.getQueueSettings(), jobKey, State.WAITING_TO_RUN, State.RETRY);
   }
 
+  private void inject(Job<?> job) {
+    String moduleFqn = Optional.ofNullable(job.getClass().getAnnotation(DIModule.class))
+        .map(DIModule::value)
+        .orElse(DefaultDIModule.class.getName());
+
+    DIUtil.inject(moduleFqn, job);
+  }
+
   /**
    * deserializes the Job instance corresponding to the given JobRecord.
    * @param jobRecord of execution of Job
@@ -784,6 +800,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     String currentRunGUID = GUIDGenerator.nextGUID();
     setCurrentRunGuid(job, currentRunGUID);
     setUpdateSpec(job, updateSpec);
+
     return job;
   }
 

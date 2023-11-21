@@ -32,6 +32,10 @@ import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.auth.Credentials;
 import com.google.cloud.datastore.Datastore;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
+import javax.inject.Inject;
 
 /**
  * Implements {@link PipelineService} by delegating to {@link PipelineManager}.
@@ -41,20 +45,21 @@ import com.google.cloud.datastore.Datastore;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@NoArgsConstructor
+@AllArgsConstructor
 public class PipelineServiceImpl implements PipelineService {
 
-  private final PipelineManager pipelineManager;
+  @Inject
+  private PipelineManager pipelineManager;
 
   public PipelineServiceImpl(PipelineBackEnd backEnd) {
     pipelineManager = new PipelineManager(backEnd);
   }
 
-
   @Override
   public PipelineBackEnd.Options getBackendOptions() {
     return pipelineManager.getBackendOptions();
   }
-
 
 
   @Override

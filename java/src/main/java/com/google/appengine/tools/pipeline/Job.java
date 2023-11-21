@@ -141,6 +141,10 @@ public abstract class Job<E> implements Serializable {
   private PipelineBackEnd.Options pipelineBackendOptions;
 
   // only available when running job - better way to hide this?
+  @Getter
+  transient PipelineManager pipelineRunner;
+
+  // only available when running job - better way to hide this?
   // probably move to some sort of execution context?
   @Getter
   private transient JobRecord thisJobRecord;
@@ -152,10 +156,6 @@ public abstract class Job<E> implements Serializable {
   // only available when running job - better way to hide this?
   @Getter
   private transient String currentRunGUID;
-
-  // only available when running job - better way to hide this?
-  @Getter
-  transient PipelineManager pipelineRunner;
 
   // This method will be invoked by reflection from PipelineManager
   @SuppressWarnings("unused")
