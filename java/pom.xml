@@ -19,7 +19,6 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <appengine.target.version>[2.0.4, 2.0.23)</appengine.target.version>
-    <!-- <appengine.target.version>[1.9.1, 2.0)</appengine.target.version> -->
     <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
 
