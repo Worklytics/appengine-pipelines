@@ -110,7 +110,9 @@ public class PipelineServlet extends HttpServlet {
     super.init();
 
     // TODO: fix this? may have second copy IF user overrides; OK?
-    DIUtil.inject(DefaultDIModule.class.getName(), this);
+    if (pipelineManager == null) {
+      DIUtil.inject(DefaultDIModule.class.getName(), this);
+    }
 
     //TODO: move these to DI?
     abortJobHandler = new AbortJobHandler((PipelineOrchestrator) pipelineManager);

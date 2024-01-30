@@ -25,12 +25,17 @@ public class DefaultDIModule {
 
   @Provides @Singleton
   @SneakyThrows
-  PipelineBackEnd.Options backendOptions() {
+  AppEngineBackEnd.Options appEngineBackEndOptions() {
     return AppEngineBackEnd.Options.builder()
       .projectId(SystemProperty.applicationId.get())
       .credentials(GoogleCredentials.getApplicationDefault())
       .datastoreOptions(DatastoreOptions.getDefaultInstance())
       .build();
+  }
+
+  @Provides @Singleton
+  PipelineBackEnd.Options backendOptions(AppEngineBackEnd.Options options) {
+    return options;
   }
 
 
