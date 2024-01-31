@@ -18,7 +18,12 @@
   </licenses>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+<<<<<<< HEAD
     <appengine.target.version>[2.0.4, 2.0.23)</appengine.target.version>
+=======
+    <appengine.target.version>2.0.5</appengine.target.version>
+    <!-- <appengine.target.version>[1.9.1, 2.0)</appengine.target.version> -->
+>>>>>>> main
     <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
 
@@ -103,7 +108,7 @@
     <dependency>
       <groupId>com.google.appengine</groupId>
       <artifactId>appengine-api-1.0-sdk</artifactId>
-      <version>${appengine.target.version}</version>
+        <version>${appengine.target.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -168,7 +173,13 @@
       <version>${appengine.target.version}</version>
       <scope>test</scope>
     </dependency>
-      <!-- TODO: bump to junit 5 -->
+    <dependency>
+      <groupId>com.google.appengine</groupId>
+      <artifactId>appengine-tools-sdk</artifactId>
+      <version>${appengine.target.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: bump to junit 5 -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
