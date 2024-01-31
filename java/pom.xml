@@ -96,11 +96,12 @@
   </build>
   <dependencies>
     <!-- Compile/Runtime Dependencies -->
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20231013</version>
+    </dependency>
 
-    <!-- will be deprecated in GAE Java 11 env. need to replace with:
-     1) Cloud Tasks : https://developers.google.com/api-client-library/java/apis/cloudtasks/v2
-     2) Cloud Data store : https://cloud.google.com/datastore/docs/reference/libraries#client-libraries-install-java
-     -->
     <dependency>
       <groupId>com.google.appengine</groupId>
       <artifactId>appengine-api-1.0-sdk</artifactId>
