@@ -143,6 +143,8 @@ public class Jobs {
             log.info("Deleted pipeline: " + key);
           } catch (IllegalStateException e) {
             log.info("Failed to delete pipeline: " + key);
+            // only dep on javax servlet
+            // how can we access request context otherwise
             HttpServletRequest request = DeferredTaskContext.getCurrentRequest();
             if (request != null) {
               int attempts = request.getIntHeader("X-AppEngine-TaskExecutionCount");

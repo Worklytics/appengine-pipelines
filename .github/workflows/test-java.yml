@@ -11,7 +11,7 @@ jobs:
       - uses: actions/setup-java@v3
         with:
           distribution: 'adopt'
-          java-version: '17'
+          java-version: '17' # maven won't accept --release argument with java < 8; and 11 is next LTS
       - name: Maven compile
         run: |
             cd java/
