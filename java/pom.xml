@@ -18,8 +18,7 @@
   </licenses>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <appengine.target.version>2.0.5</appengine.target.version>
-    <!-- <appengine.target.version>[1.9.1, 2.0)</appengine.target.version> -->
+    <appengine.target.version>[2.0.4, 2.0.23)</appengine.target.version>
     <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
 
@@ -37,17 +36,16 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>3.11.0</version>
         <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
-          <release>8</release>
+          <source>17</source>
+          <target>17</target>
         </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>2.6</version>
+        <version>3.3.0</version>
         <configuration>
           <archive>
             <manifest>
@@ -110,12 +108,15 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <!-- version number of release candidates come before the ##.0 in maven,
-           use .99 to get latest release within the specified major version -->
-      <!-- GAE *requires* java8, so reasonable that library for GAE should require it too -->
-      <version>[21.0,21.99]</version>
+      <version>[32.1,32.99]</version>
     </dependency>
     <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <version>6.0.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency> <!-- left bc GAE queues still seems to need it ?? -->
       <groupId>javax.servlet</groupId>
       <artifactId>servlet-api</artifactId>
       <version>2.5</version>
@@ -129,7 +130,7 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.10</version>
+      <version>1.18.30</version>
       <scope>provided</scope>
     </dependency>
 
@@ -183,13 +184,13 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.13.1</version>
+      <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
        <artifactId>mockito-core</artifactId>
-       <version>3.1.0</version>
+       <version>4.11.0</version>
        <scope>test</scope>
     </dependency>
   </dependencies>

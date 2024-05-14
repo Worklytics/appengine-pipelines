@@ -2,7 +2,9 @@
 <appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
   <application>java-pipeline</application>
   <version>1</version>
-  <threadsafe>true</threadsafe>
+
+  <runtime>java17</runtime> <!-- or another supported version -->
+  <app-engine-apis>true</app-engine-apis>
 
   <!-- Configure java.util.logging -->
   <system-properties>
