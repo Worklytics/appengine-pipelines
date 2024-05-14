@@ -19,7 +19,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <appengine.target.version>[2.0.4, 2.0.23)</appengine.target.version>
-    <jackson.version>[2.7, 2.15.4)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
+    <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
   </properties>
 
   <distributionManagement>
@@ -111,15 +111,16 @@
 
   <dependencies>
     <!-- Compile/Runtime Dependencies -->
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20231013</version>
+    </dependency>
 
-    <!-- will be deprecated in GAE Java 11 env. need to replace with:
-     1) Cloud Tasks : https://developers.google.com/api-client-library/java/apis/cloudtasks/v2
-     2) Cloud Data store : https://cloud.google.com/datastore/docs/reference/libraries#client-libraries-install-java
-     -->
     <dependency>
       <groupId>com.google.appengine</groupId>
       <artifactId>appengine-api-1.0-sdk</artifactId>
-      <version>${appengine.target.version}</version>
+        <version>${appengine.target.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
