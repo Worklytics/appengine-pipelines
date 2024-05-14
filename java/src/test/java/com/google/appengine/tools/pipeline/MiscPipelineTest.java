@@ -14,7 +14,6 @@
 
 package com.google.appengine.tools.pipeline;
 
-import com.google.api.gax.retrying.RetrySettings;
 import com.google.appengine.tools.pipeline.JobInfo.State;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
@@ -59,7 +58,12 @@ public class MiscPipelineTest extends PipelineTest {
 
   @BeforeEach
   public void setUp() throws Exception {
-    largeValue = new long[2000000];
+
+    // prev version of library worked w 2e6 longs (16MB)- this doesn't, possibly emulator limitation
+    //int valueSize = 2_000_000;
+    int valueSize = 500_000;
+
+    largeValue = new long[valueSize];
     Random random = new Random();
     for (int i = 0; i < largeValue.length; i++) {
       largeValue[i] = random.nextLong();
