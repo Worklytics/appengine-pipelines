@@ -1,6 +1,8 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
+import com.google.auth.Credentials;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.auth.oauth2.UserCredentials;
 import com.google.cloud.NoCredentials;
@@ -10,13 +12,19 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 class AppEngineBackEndOptionsTest {
 
   @SneakyThrows
   @Test
   void getOptions() {
-    Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+    Datastore datastore = DatastoreOptions.newBuilder()
+      .setProjectId(credentials.getQuotaProjectId())
+      .setCredentials(credentials)
+      .build().getService();
+
     AppEngineBackEnd backend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
 
     assertEquals(datastore.getOptions().getProjectId(),

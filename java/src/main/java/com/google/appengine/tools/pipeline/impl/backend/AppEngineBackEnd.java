@@ -93,7 +93,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private static final Logger logger = Logger.getLogger(AppEngineBackEnd.class.getName());
 
   // @see https://cloud.google.com/datastore/docs/concepts/limits
-  private static final int MAX_BLOB_BYTE_SIZE = 1000000;
+  // actually, 1,048,572 bytes
+  private static final int MAX_BLOB_BYTE_SIZE = 1_000_000;
 
   private final Datastore datastore;
   private final AppEngineTaskQueue taskQueue;
@@ -419,9 +420,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
           List<Key> keys = new ArrayList<>();
           try {
             for (Entity v : shardedValues) {
-              Batch batch = tx.getDatastore().newBatch();
-              batch.put(v);
-              batch.submit();
+              tx.put(v);
               keys.add(v.getKey());
             }
             tx.commit();
