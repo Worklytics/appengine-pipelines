@@ -17,7 +17,6 @@ package com.google.appengine.tools.pipeline;
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
 
 import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
-import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
@@ -28,13 +27,9 @@ import com.google.apphosting.api.ApiProxy;
 
 import lombok.Getter;
 
-import java.util.Map;
-import com.google.auth.oauth2.GoogleCredentials;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-
-import java.io.IOException;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
@@ -102,12 +97,12 @@ public abstract class PipelineTest {
 
   @SneakyThrows
   public static PipelineManager pipelineManager() {
-    return new PipelineManager(PROJECT, GoogleCredentials.getApplicationDefault());
+    return new PipelineManager();
   }
 
   @SneakyThrows
   public static PipelineService pipelineService() {
-    return PipelineServiceFactory.newPipelineService(PROJECT);
+    return PipelineServiceFactory.newPipelineService();
   }
 
   @AfterEach

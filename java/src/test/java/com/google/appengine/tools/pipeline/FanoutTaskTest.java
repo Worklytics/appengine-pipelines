@@ -36,14 +36,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public class FanoutTaskTest extends TestCase {
+public class FanoutTaskTest {
 
   private LocalServiceTestHelper helper =
       new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig());

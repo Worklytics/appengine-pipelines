@@ -23,10 +23,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
-<<<<<<< HEAD
 import static org.junit.jupiter.api.Assertions.assertEquals;
-=======
->>>>>>> 076d650 (extract common test methods, for re-use via utils class, rather than via inheritance)
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
