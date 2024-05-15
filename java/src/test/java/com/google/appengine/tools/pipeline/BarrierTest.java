@@ -38,19 +38,11 @@ import java.util.List;
 @ExtendWith(DatastoreExtension.class)
 public class BarrierTest {
 
-  private LocalServiceTestHelper helper =
-      new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig());
-
   @BeforeEach
   public void setUp() throws Exception {
-    helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
   }
 
-  @AfterEach
-  public void tearDown() throws Exception {
-    helper.tearDown();
-  }
 
   @Test
   public void testArgumentBuilding() throws Exception {
