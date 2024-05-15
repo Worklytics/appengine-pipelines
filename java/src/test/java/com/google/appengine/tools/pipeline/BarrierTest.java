@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.AfterEach;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,9 +38,18 @@ import java.util.List;
 @ExtendWith(DatastoreExtension.class)
 public class BarrierTest {
 
+  private LocalServiceTestHelper helper =
+      new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig());
+
   @BeforeEach
   public void setUp() throws Exception {
+    helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
+  }
+
+  @AfterEach
+  public void tearDown() throws Exception {
+    helper.tearDown();
   }
 
   @Test

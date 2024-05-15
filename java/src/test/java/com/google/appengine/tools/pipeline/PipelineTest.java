@@ -18,10 +18,13 @@ import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SI
 import static org.mockito.Mockito.mock;
 
 import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
+
+
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.apphosting.api.ApiProxy;
@@ -30,6 +33,11 @@ import com.google.auth.Credentials;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.datastore.v1.client.Datastore;
 import lombok.Getter;
+import com.google.apphosting.api.ApiProxy;
+
+import lombok.Getter;
+
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -51,9 +59,10 @@ public abstract class PipelineTest {
 
   protected PipelineService pipelineService;
   protected PipelineManager pipelineManager;
+
   protected AppEngineBackEnd appEngineBackend;
 
-
+  public static final String PROJECT = "project";
 
   public PipelineTest() {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
@@ -73,6 +82,7 @@ public abstract class PipelineTest {
   protected static String trace() {
     return traceBuffer.toString();
   }
+
 
   String getProjectId() {
     return this.appEngineBackend.getOptions().as(AppEngineBackEnd.Options.class).getProjectId();
@@ -104,10 +114,8 @@ public abstract class PipelineTest {
       .build());
   }
 
-
   @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
   }
-
 }

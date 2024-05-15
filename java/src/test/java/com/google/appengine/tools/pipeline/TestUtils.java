@@ -10,10 +10,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class TestUtils {
 
   public static void waitUntilTaskQueueIsEmpty(LocalTaskQueue taskQueue) throws InterruptedException {
+
     boolean hasMoreTasks = true;
     while (hasMoreTasks) {
       Map<String, QueueStateInfo> taskInfoMap = taskQueue.getQueueStateInfo();
-      hasMoreTasks = taskInfoMap.values().stream().anyMatch( i -> i.getCountTasks() > 0);
+      hasMoreTasks = false;
+      for (QueueStateInfo taskQueueInfo : taskInfoMap.values()) {
+        if (taskQueueInfo.getCountTasks() > 0) {
+          hasMoreTasks = true;
+          break;
+        }
+      }
       if (hasMoreTasks) {
         Thread.sleep(100);
       }

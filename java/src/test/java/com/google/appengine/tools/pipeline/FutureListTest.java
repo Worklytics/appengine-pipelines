@@ -22,6 +22,8 @@ import java.util.List;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 /**
  * Note the difference between testFutureList() and testReturnFutureList(). In
  * testFutureList() the call to futureList() happens in the parent job,

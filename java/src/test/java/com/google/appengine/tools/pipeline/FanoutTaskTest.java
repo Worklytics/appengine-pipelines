@@ -38,6 +38,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+
 import java.util.List;
 
 /**
@@ -45,6 +46,7 @@ import java.util.List;
  */
 @ExtendWith(DatastoreExtension.class)
 public class FanoutTaskTest extends PipelineTest {
+
 
   private LocalServiceTestHelper helper =
       new LocalServiceTestHelper();

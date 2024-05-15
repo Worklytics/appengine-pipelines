@@ -21,10 +21,12 @@ import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -58,12 +60,12 @@ public class MiscPipelineTest extends PipelineTest {
 
   @BeforeEach
   public void setUp() throws Exception {
-
     // prev version of library worked w 2e6 longs (16MB)- this doesn't, possibly emulator limitation
     //int valueSize = 2_000_000;
     int valueSize = 500_000;
 
     largeValue = new long[valueSize];
+
     Random random = new Random();
     for (int i = 0; i < largeValue.length; i++) {
       largeValue[i] = random.nextLong();

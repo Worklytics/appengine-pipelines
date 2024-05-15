@@ -17,6 +17,8 @@ package com.google.appengine.tools.pipeline;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Disabled;
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
+
 import org.junit.jupiter.api.Test;
 
 import java.nio.channels.AlreadyConnectedException;
@@ -26,6 +28,7 @@ import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete
 import static com.google.appengine.tools.pipeline.TestUtils.waitUntilTaskQueueIsEmpty;
 import static org.junit.jupiter.api.Assertions.*;
 
+import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test error handling through handleException.
  *

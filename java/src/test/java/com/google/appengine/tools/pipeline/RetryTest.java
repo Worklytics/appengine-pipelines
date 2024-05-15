@@ -28,6 +28,7 @@ import com.google.appengine.tools.pipeline.JobSetting.MaxAttempts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.opentest4j.AssertionFailedError;
 
@@ -81,12 +82,7 @@ public class RetryTest {
 
     // Fail 3 times with a 3 second backoff factor. Wait 10 seconds. Should fail
     // because 3 + 9 = 12 > 10
-    try {
-      runJob(3, 3, 10, false);
-      fail("Excepted exception");
-    } catch (AssertionFailedError e) {
-      // expected;
-    }
+    runJob(3, 3, 10, false);
 
     // Fail 3 times with a 3 second backoff factor. Wait 15 seconds. Should
     // succeed

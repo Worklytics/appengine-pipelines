@@ -17,6 +17,7 @@ package com.google.appengine.tools.pipeline;
 import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWhitespace;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import static org.mockito.Mockito.when;
 
 import com.google.appengine.tools.pipeline.impl.servlets.JsonClassFilterHandler;
@@ -103,7 +104,6 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
     when(response.getWriter()).thenReturn(new PrintWriter(output));
   }
 
-
   @Test
   public void testHandlerNoResults() throws Exception {
     JsonClassFilterHandler handler = new JsonClassFilterHandler(pipelineManager);
@@ -117,11 +117,13 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
     String pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
     String pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
         new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
+
     String helloWorld = waitForJobToComplete(pipelineService, pipelineId1);
     assertEquals("hello world", helloWorld);
     String hiThere = waitForJobToComplete(pipelineService, pipelineId2);
     assertEquals("hi there", hiThere);
     String bla = waitForJobToComplete(pipelineService, pipelineId3);
+
     assertEquals("bla", bla);
 
     JsonClassFilterHandler handler = new JsonClassFilterHandler(pipelineManager);

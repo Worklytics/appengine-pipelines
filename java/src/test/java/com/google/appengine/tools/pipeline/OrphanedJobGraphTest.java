@@ -12,7 +12,9 @@ import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.apphosting.api.ApiProxy;
+
 import lombok.AllArgsConstructor;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +26,12 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public class OrphanedJobGraphTest extends PipelineTest {
+
+
+  @Override
+  protected boolean isHrdSafe() {
+    return false;
+  }
 
   @BeforeEach
   public void setUp() throws Exception {
