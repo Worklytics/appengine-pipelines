@@ -7,10 +7,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          distribution: 'adopt'
+          distribution: 'openjdk'
           java-version: '17' # maven won't accept --release argument with java < 8; and 11 is next LTS
       - name: Maven compile
         run: |
