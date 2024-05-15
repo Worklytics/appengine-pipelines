@@ -16,16 +16,19 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.tools.pipeline.impl.servlets.StaticContentHandler;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-public class StaticContentHandlerTest extends TestCase {
+public class StaticContentHandlerTest {
 
+  @Test
   public void testGetResourceAsStream() throws Exception {
     InputStream in = StaticContentHandler.getResourceAsStream("common.js");
     assertTrue(in.read() != -1);

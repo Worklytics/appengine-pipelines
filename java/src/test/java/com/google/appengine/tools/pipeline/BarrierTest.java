@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.KeyFactory;
@@ -25,7 +26,9 @@ import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,24 +37,23 @@ import java.util.List;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-public class BarrierTest extends TestCase {
+public class BarrierTest {
 
   private LocalServiceTestHelper helper =
       new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig());
 
-  @Override
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
   }
 
-  @Override
+  @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
-    super.tearDown();
   }
 
+  @Test
   public void testArgumentBuilding() throws Exception {
     doArgumentBuildingTest(new Integer[] {});
     doArgumentBuildingTest(new String[] {"hello"}, "hello");
@@ -119,7 +121,7 @@ public class BarrierTest extends TestCase {
   private void assertEqualArrays(Object[] expected, Object[] actual) {
     assertEquals(expected.length, actual.length);
     for (int i = 0; i < expected.length; i++) {
-      assertEquals("i=" + i, expected[i], actual[i]);
+      assertEquals(expected[i], actual[i], "i=" + i);
     }
   }
 
