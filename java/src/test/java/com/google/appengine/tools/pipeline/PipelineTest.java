@@ -31,13 +31,8 @@ import com.google.apphosting.api.ApiProxy;
 
 import com.google.auth.Credentials;
 import com.google.cloud.datastore.DatastoreOptions;
-import com.google.datastore.v1.client.Datastore;
-import lombok.Getter;
-import com.google.apphosting.api.ApiProxy;
-
 import lombok.Getter;
 
-import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 

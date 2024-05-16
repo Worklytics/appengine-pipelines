@@ -6,6 +6,10 @@ import com.google.cloud.datastore.testing.LocalDatastoreHelper;
 import lombok.extern.java.Log;
 import org.junit.jupiter.api.extension.*;
 
+import java.net.ConnectException;
+import java.time.Duration;
+import java.util.logging.Level;
+
 /**
  * Junit5 extension to initialize local datastore emulator for tests
  * Use it in your tests with {@code @ExtendWith(DatastoreExtension.class)}
@@ -33,7 +37,23 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
 
   @Override
   public void afterAll(ExtensionContext extensionContext) throws Exception {
-    globalDatastoreHelper.stop();
+
+    int attempt = 0;
+    boolean stopped = false;
+    while (!stopped && attempt < 3) {
+      ++attempt;
+      try {
+        org.threeten.bp.Duration timeout =
+          org.threeten.bp.Duration.ofSeconds(5).multipliedBy(attempt);
+        globalDatastoreHelper.stop(timeout);
+        stopped = true;
+      } catch (ConnectException e) {
+        // don't want to kill the test, but also don't want to leave the emulator running
+        log.warning("DatastoreExtension : Failed to connect in order to stop datastore emulator; retrying...");
+      } catch (Exception e) {
+        log.log(Level.WARNING, "DatastoreExtension : Failed to stop datastore emulator; retrying...", e);
+      }
+    }
     log.info("Datastore emulator stopped");
   }
 

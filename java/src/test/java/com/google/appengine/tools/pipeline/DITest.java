@@ -36,12 +36,12 @@ public class DITest extends PipelineTest {
       return new AppEngineEnvironment() {
         @Override
         public String getService() {
-          return null;
+          return "service";
         }
 
         @Override
         public String getVersion() {
-          return "dsaf";
+          return "v0.1";
         }
       };
     }
@@ -73,7 +73,7 @@ public class DITest extends PipelineTest {
 
   @SneakyThrows
   @Test
-  public void test(PipelineService pipelineService) {
+  public void testJobWithDependency(PipelineService pipelineService) {
     String pipelineId = pipelineService.startNewPipeline(new JobWithDependency());
     String value = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("dsaf", value);
