@@ -46,15 +46,15 @@ public class JsonListHandlerTest extends PipelineTest {
 
   @Mock private HttpServletRequest request;
   @Mock private HttpServletResponse response;
-  private final StringWriter output = new StringWriter();
+  private StringWriter output = new StringWriter();
 
   @SuppressWarnings("serial")
   private static class Main1Job extends Job0<String> {
 
     @Override
     public Value<String> run() {
-      FutureValue<String> v1 = futureCall(new StrJob<String>(), immediate("hello"));
-      FutureValue<String> v2 = futureCall(new StrJob<String>(), immediate(" world"));
+      FutureValue<String> v1 = futureCall(new StrJob<>(), immediate("hello"));
+      FutureValue<String> v2 = futureCall(new StrJob<>(), immediate(" world"));
       return futureCall(new ConcatJob(), v1, v2);
     }
   }
@@ -73,8 +73,8 @@ public class JsonListHandlerTest extends PipelineTest {
       if (shouldThrow) {
         throw new RuntimeException("bla");
       }
-      FutureValue<String> v1 = futureCall(new StrJob<String>(), immediate("hi"));
-      FutureValue<String> v2 = futureCall(new StrJob<String>(), immediate(" there"));
+      FutureValue<String> v1 = futureCall(new StrJob<>(), immediate("hi"));
+      FutureValue<String> v2 = futureCall(new StrJob<>(), immediate(" there"));
       return futureCall(new ConcatJob(), v1, v2);
     }
 
@@ -104,30 +104,32 @@ public class JsonListHandlerTest extends PipelineTest {
 
   @BeforeEach
   public void setUp() throws Exception {
-    MockitoAnnotations.initMocks(this);
+    MockitoAnnotations.openMocks(this);
+    output = new StringWriter();
     when(response.getWriter()).thenReturn(new PrintWriter(output));
   }
 
   @Test
   public void testHandlerNoResults() throws Exception {
-    JsonListHandler.doGet(request, response);
+    JsonListHandler jsonListHandler = new JsonListHandler(pipelineManager);
+    jsonListHandler.doGet(request, response);
     assertEqualsIgnoreWhitespace("{\"pipelines\": []}", output.toString());
   }
 
   @Test
   public void testHandlerWithResults() throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId1 = service.startNewPipeline(new Main1Job());
-    String pipelineId2 = service.startNewPipeline(new Main2Job(false));
-    String pipelineId3 = service.startNewPipeline(new Main2Job(true),
+    String pipelineId1 = pipelineService.startNewPipeline(new Main1Job());
+    String pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
+    String pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
         new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
-    String helloWorld = (String) waitForJobToComplete(pipelineId1);
+    String helloWorld = waitForJobToComplete(pipelineService, pipelineId1);
     assertEquals("hello world", helloWorld);
-    String hiThere = (String) waitForJobToComplete(pipelineId2);
+    String hiThere = waitForJobToComplete(pipelineService, pipelineId2);
     assertEquals("hi there", hiThere);
-    String bla = (String) waitForJobToComplete(pipelineId3);
+    String bla = waitForJobToComplete(pipelineService, pipelineId3);
     assertEquals("bla", bla);
-    JsonListHandler.doGet(request, response);
+    JsonListHandler jsonListHandler = new JsonListHandler(pipelineManager);
+    jsonListHandler.doGet(request, response);
     Map<String, Object> results = (Map<String, Object>) JsonUtils.fromJson(output.toString());
     assertEquals(1, results.size());
     List<Map<String, Object>> pipelines = (List<Map<String, Object>>) results.get("pipelines");

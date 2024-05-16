@@ -61,6 +61,12 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
           .withWaitStrategy(WaitStrategies.incrementingWait(1000L, TimeUnit.MILLISECONDS, 1000L, TimeUnit.MILLISECONDS))
           .build();
 
+  final String taskHandlerUrl;
+
+  public AppEngineTaskQueue() {
+    this.taskHandlerUrl = TaskHandler.handleTaskUrl();
+  }
+
   @Override
   public void enqueue(Task task) {
     logger.finest("Enqueueing: " + task);
@@ -140,7 +146,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   private TaskOptions toTaskOptions(Task task) {
     final QueueSettings queueSettings = task.getQueueSettings();
 
-    TaskOptions taskOptions = TaskOptions.Builder.withUrl(TaskHandler.handleTaskUrl());
+    TaskOptions taskOptions = TaskOptions.Builder.withUrl(taskHandlerUrl);
 
     String versionHostname;
 

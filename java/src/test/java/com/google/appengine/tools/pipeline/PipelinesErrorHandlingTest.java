@@ -14,7 +14,11 @@
 
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import lombok.RequiredArgsConstructor;
+import org.junit.jupiter.api.Disabled;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+
 import org.junit.jupiter.api.Test;
 
 import java.nio.channels.AlreadyConnectedException;
@@ -22,6 +26,7 @@ import java.util.concurrent.CancellationException;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 import static com.google.appengine.tools.pipeline.TestUtils.waitUntilTaskQueueIsEmpty;
+import static org.junit.jupiter.api.Assertions.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 /**
@@ -34,8 +39,6 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   private static final int EXPECTED_RESULT1 = 5;
   private static final int EXPECTED_RESULT2 = 522;
   private static final int EXPECTED_RESULT3 = 223;
-
-  private PipelineService service = PipelineServiceFactory.newPipelineService();
 
   @SuppressWarnings("serial")
   static class TestImmediateThrowCatchJob extends Job0<Integer> {
@@ -85,8 +88,8 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
 
   @Test
   public void testImmediateThrowCatchJob() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestImmediateThrowCatchJob());
-    Integer result = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new TestImmediateThrowCatchJob());
+    Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
     assertEquals("TestImmediateThrowCatchJob.run ImmediateThrowCatchJob.run "
         + "ImmediateThrowCatchJob.handleException.IllegalStateException", trace());
@@ -141,8 +144,8 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
 
   @Test
   public void testSimpleCatch() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestSimpleCatchJob());
-    Integer result = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new TestSimpleCatchJob());
+    Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
     assertEquals("TestSimpleCatchJob.run AngryJob.run AngryJob.run "
         + "TestSimpleCatchJob.handleException.IllegalStateException", trace());
@@ -191,8 +194,8 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
    */
   @Test
   public void testCatchWithImmediateReturnJob() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestCatchWithImmediateReturnJob());
-    waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new TestCatchWithImmediateReturnJob());
+    waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("TestSimpleCatchJob.run AngryJob.run "
         + "TestSimpleCatchJob.handleException.IllegalStateException", trace());
   }
@@ -232,8 +235,8 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
 
   @Test
   public void testCatchRethrowing() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestCatchRethrowingJob());
-    Integer result = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new TestCatchRethrowingJob());
+    Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
     assertEquals("TestSimpleCatchJob.run AngryJob.run AngryJob.run AngryJob.handleException "
         + "TestSimpleCatchJob.handleException", trace());
@@ -265,8 +268,8 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
 
   @Test
   public void testCatchGenerator() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestCatchGeneratorJob());
-    Integer result = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new TestCatchGeneratorJob());
+    Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
   }
 
@@ -295,8 +298,8 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
 
   @Test
   public void testChildThrowing() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestChildThrowingJob());
-    Integer result = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new TestChildThrowingJob());
+    Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
   }
 
@@ -352,8 +355,8 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
 
   @Test
   public void testChildCancellation() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestChildCancellationJob());
-    Integer result = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new TestChildCancellationJob());
+    Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
     // TODO(user): After implementing handleFinally which requires child
     // reference counting the order of operations will be exactly defined.
@@ -367,13 +370,16 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
   @SuppressWarnings("serial")
+  @RequiredArgsConstructor
   static class TestGrandchildCancellationJob extends Job0<Void> {
+
+    final PipelineBackEnd.Options options;
 
     @Override
     public Value<Void> run() {
       trace("TestGrandchildCancellationJob.run");
       return futureCall(
-          new ParentOfGrandchildToCancelAndAngryChildJob(), new JobSetting.MaxAttempts(1));
+          new ParentOfGrandchildToCancelAndAngryChildJob(options), new JobSetting.MaxAttempts(1));
     }
 
     public Value<Integer> handleException(IllegalStateException e) {
@@ -384,13 +390,17 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
   @SuppressWarnings("serial")
+  @RequiredArgsConstructor
   static class ParentOfJobToCancel extends Job1<Integer, String> {
+
+    final PipelineBackEnd.Options options;
 
     @Override
     public Value<Integer> run(String unblockTheAngryOneHandle) throws Exception {
       trace("ParentOfJobToCancel.run");
       // Unblocks a sibling that is going to throw an exception
-      PipelineManager.acceptPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
+      PipelineServiceFactory.newPipelineService(options)
+        .submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
       PromisedValue<Integer> neverReady = newPromise();
       return futureCall(new JobToCancel(), neverReady);
     }
@@ -407,13 +417,16 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
   @SuppressWarnings("serial")
+  @RequiredArgsConstructor
   static class ParentOfGrandchildToCancelAndAngryChildJob extends Job0<Void> {
+
+    final PipelineBackEnd.Options options;
 
     @Override
     public Value<Void> run() {
       trace("ParentOfGrandchildToCancelAndAngryChildJob.run");
       PromisedValue<Integer> unblockTheAngryOne = newPromise();
-      futureCall(new ParentOfJobToCancel(), immediate(unblockTheAngryOne.getHandle()),
+      futureCall(new ParentOfJobToCancel(options), immediate(unblockTheAngryOne.getHandle()),
           new JobSetting.MaxAttempts(1));
       // This one failing should cause cancellation of the first job, which
       // should execute its error handling job (SimpleCatchJob);
@@ -427,9 +440,9 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
    */
   @Test
   public void testGrandchildCancellation() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestGrandchildCancellationJob());
+    String pipelineId = pipelineService.startNewPipeline(new TestGrandchildCancellationJob(pipelineService.getBackendOptions()));
     waitUntilTaskQueueIsEmpty(getTaskQueue());
-    Integer result = waitForJobToComplete(pipelineId);
+    Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
 
     boolean expectedTraceChildCancelledFirst = ("TestGrandchildCancellationJob.run "
@@ -499,8 +512,8 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
 
   @Test
   public void testChildCancellationFailure() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestChildCancellationFailingJob());
-    Integer result = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new TestChildCancellationFailingJob());
+    Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT1, result.intValue());
     // TODO(user): After implementing handleFinally which requires child
     // reference counting the order of operations will be exactly defined.
@@ -552,11 +565,11 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   @Test
   public void testPipelineCancellation() throws Exception {
     catchCount = 0;
-    String pipelineId = service.startNewPipeline(new TestPipelineCancellationJob());
+    String pipelineId = pipelineService.startNewPipeline(new TestPipelineCancellationJob());
     Thread.sleep(2000);
-    service.cancelPipeline(pipelineId);
+    pipelineService.cancelPipeline(pipelineId);
     try {
-      waitForJobToComplete(pipelineId);
+      waitForJobToComplete(pipelineService, pipelineId);
       fail("should throw");
     } catch (RuntimeException e) {
       assertTrue(e.getMessage().contains("canceled by request"));
@@ -585,9 +598,9 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
    */
   @Test
   public void testPipelineFailureWhenNoErrorHandlerPresent() {
-    String pipelineId = service.startNewPipeline(new AngryJobParent());
+    String pipelineId = pipelineService.startNewPipeline(new AngryJobParent());
     try {
-      waitForJobToComplete(pipelineId);
+      waitForJobToComplete(pipelineService, pipelineId);
       fail("should throw");
     } catch (Exception e) {
       assertTrue(
@@ -597,14 +610,18 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
 
+  @RequiredArgsConstructor
   @SuppressWarnings("serial")
   static class JobToGetCancellationInHandleException extends Job1<Integer, String> {
+
+    final PipelineBackEnd.Options options;
 
     @Override
     public Value<Integer> run(String unblockTheAngryOneHandle) throws Exception {
       trace("JobToGetCancellationInHandleException.run");
-      // Unblocks a sibling that is going to throw an exception
-      PipelineManager.acceptPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
+
+      PipelineServiceFactory.newPipelineService(options)
+        .submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
       throw new IllegalStateException("simulated");
     }
 
@@ -616,7 +633,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
   /**
-   * Invoked from handleException to test long running cleanup.
+   * Invoked from handleException to test long-running cleanup.
    */
   @SuppressWarnings("serial")
   static class CleanupJob extends Job0<Integer> {
@@ -627,7 +644,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
       // Use delay to make sure that cleanup takes enough time for cancellation
       // request to arrive
       return futureCall(
-          new PassThroughJob1<Integer>(), immediate(EXPECTED_RESULT3), waitFor(newDelayedValue(2)));
+          new PassThroughJob1<>(), immediate(EXPECTED_RESULT3), waitFor(newDelayedValue(2)));
       // return immediate(EXPECTED_RESULT);
     }
 
@@ -645,13 +662,16 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
    * descendant.
    */
   @SuppressWarnings("serial")
+  @RequiredArgsConstructor
   static class TestCancellationOfHandleExceptionJob extends Job0<Integer> {
+
+    final PipelineBackEnd.Options options;
 
     @Override
     public Value<Integer> run() {
       trace("TestCancellationOfHandleExceptionJob.run");
       PromisedValue<Integer> unblockTheAngryOne = newPromise();
-      futureCall(new JobToGetCancellationInHandleException(),
+      futureCall(new JobToGetCancellationInHandleException(options),
           immediate(unblockTheAngryOne.getHandle()), new JobSetting.MaxAttempts(1));
       // This one failing should cause cancellation of the first job, which
       // should execute its error handling job (CleanupJob);
@@ -696,8 +716,9 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
    */
   @Test
   public void testCancellationOfHandleExceptionJob() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestCancellationOfHandleExceptionJob());
-    Integer result = waitForJobToComplete(pipelineId);
+
+    String pipelineId = pipelineService.startNewPipeline(new TestCancellationOfHandleExceptionJob(pipelineService.getBackendOptions()));
+    Integer result = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("TestCancellationOfHandleExceptionJob.run "
         + "JobToGetCancellationInHandleException.run "
         + "JobToGetCancellationInHandleException.handleException CleanupJob.run AngryJob.run "
@@ -716,7 +737,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
       futureCall(new UnblockAndThrowJob(), immediate(unblockTheSecondOne.getHandle()),
           new JobSetting.MaxAttempts(1));
 
-      return futureCall(new PassThroughJob1<Integer>(), unblockTheSecondOne);
+      return futureCall(new PassThroughJob1<>(), unblockTheSecondOne);
     }
 
     @SuppressWarnings("unused")
@@ -745,8 +766,8 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
    */
   @Test
   public void testCancellationOfReadyToRunJob() throws Exception {
-    String pipelineId = service.startNewPipeline(new TestCancellationOfReadyToRunJob());
-    Integer result = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new TestCancellationOfReadyToRunJob());
+    Integer result = waitForJobToComplete(pipelineService, pipelineId);
     boolean cancellationFirst = ("TestCancellationOfReadyToRunJob.run "
         + "UnblockAndThrowJob.run TestCancellationOfReadyToRunJob.handleException").equals(trace());
     boolean cancelledRunFirst =

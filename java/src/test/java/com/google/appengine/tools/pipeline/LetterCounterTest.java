@@ -30,11 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public class LetterCounterTest extends PipelineTest {
 
-  @Override
-  protected boolean isHrdSafe() {
-    return false;
-  }
-
   private static final String SSB =
       "Oh, say, can you see, by the dawn's early light, \n"
           + "What so proudly we hailed at the twilight's last gleaming? \n"
@@ -102,9 +97,8 @@ public class LetterCounterTest extends PipelineTest {
   }
 
   private void doLetterCounterTest(String text) throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new LetterCounter(), text);
-    SortedMap<Character, Integer> counts = waitForJobToComplete(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new LetterCounter(), text);
+    SortedMap<Character, Integer> counts = waitForJobToComplete(pipelineService, pipelineId);
     SortedMap<Character, Integer> expectedCounts = LetterCountExample.countLetters(text);
     SortedMap<Character, Integer> expectedCountsLettersOnly = new TreeMap<>();
     for (Entry<Character, Integer> entry : expectedCounts.entrySet()) {

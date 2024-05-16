@@ -14,12 +14,16 @@
 
 package com.google.appengine.tools.pipeline;
 
-import com.google.appengine.api.datastore.Key;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.FutureValueImpl;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.PromisedValueImpl;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Serializable;
 import java.util.List;
@@ -130,10 +134,27 @@ public abstract class Job<E> implements Serializable {
    * See the <a href="http://goto/java_cascade_user_guide">user's guide</a> for more information.
    */
 
-  private static final long serialVersionUID = 868736209042268959L;
+  private static final long serialVersionUID = 1L;
 
+  //TODO: setter should ONLY be used from futureCall/PipelineManager::startNewPipeline
+  @Getter @Setter
+  private PipelineBackEnd.Options pipelineBackendOptions;
+
+  // only available when running job - better way to hide this?
+  @Getter
+  transient PipelineManager pipelineRunner;
+
+  // only available when running job - better way to hide this?
+  // probably move to some sort of execution context?
+  @Getter
   private transient JobRecord thisJobRecord;
+
+  // only available when running job - better way to hide this?
+  @Getter
   private transient UpdateSpec updateSpec;
+
+  // only available when running job - better way to hide this?
+  @Getter
   private transient String currentRunGUID;
 
   // This method will be invoked by reflection from PipelineManager
@@ -152,6 +173,14 @@ public abstract class Job<E> implements Serializable {
   @SuppressWarnings("unused")
   private void setCurrentRunGuid(String guid) {
     this.currentRunGUID = guid;
+  }
+
+  // This method will be invoked by reflection from PipelineManager
+  // NOTE: need to specify param as concrete type (PipelineManager) not interface (PipelineRunner), or reflection won't
+  // match it
+  @SuppressWarnings("unused")
+  private void setPipelineRunner(PipelineManager pipelineRunner) {
+    this.pipelineRunner = pipelineRunner;
   }
 
   /**
@@ -177,8 +206,9 @@ public abstract class Job<E> implements Serializable {
    */
   public <T> FutureValue<T> futureCallUnchecked(JobSetting[] settings, Job<?> jobInstance,
       Object... params) {
-    JobRecord childJobRecord = PipelineManager.registerNewJobRecord(
-        updateSpec, settings, thisJobRecord, currentRunGUID, jobInstance, params);
+    jobInstance.setPipelineBackendOptions(this.getPipelineBackendOptions());
+    JobRecord childJobRecord =
+      pipelineRunner.registerNewJobRecord(updateSpec, settings, thisJobRecord, currentRunGUID, jobInstance, params);
     thisJobRecord.appendChildKey(childJobRecord.getKey());
     return new FutureValueImpl<>(childJobRecord.getOutputSlotInflated());
   }
@@ -374,14 +404,14 @@ public abstract class Job<E> implements Serializable {
   @Deprecated
   public <F> PromisedValue<F> newPromise(Class<F> klass) {
     PromisedValueImpl<F> promisedValue =
-        new PromisedValueImpl<>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID);
+        new PromisedValueImpl<>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID, pipelineRunner.getSerializationStrategy());
     updateSpec.getNonTransactionalGroup().includeSlot(promisedValue.getSlot());
     return promisedValue;
   }
 
   public <F> PromisedValue<F> newPromise() {
     PromisedValueImpl<F> promisedValue =
-        new PromisedValueImpl<>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID);
+        new PromisedValueImpl<F>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID, pipelineRunner.getSerializationStrategy());
     updateSpec.getNonTransactionalGroup().includeSlot(promisedValue.getSlot());
     return promisedValue;
   }

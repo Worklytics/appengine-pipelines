@@ -17,7 +17,6 @@ package com.google.appengine.tools.pipeline;
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
@@ -26,28 +25,32 @@ import com.google.appengine.tools.pipeline.demo.UserGuideExamples.ComplexJob;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import org.junit.jupiter.api.Test;
+
 /**
  * Tests for the sample code in the User Guide
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@PipelineSetupExtensions
 public class UserGuideTest {
 
   private transient LocalServiceTestHelper helper;
+  private transient PipelineService pipelineService;
 
   public UserGuideTest() {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
     taskQueueConfig.setCallbackClass(TestingTaskQueueCallback.class);
     taskQueueConfig.setDisableAutoTaskExecution(false);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig(), taskQueueConfig,
-        new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
   }
 
   @BeforeEach
-  public void setUp() throws Exception {
+  public void setUp(PipelineService pipelineService) throws Exception {
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
+    this.pipelineService = pipelineService;
   }
 
   @AfterEach
@@ -55,15 +58,15 @@ public class UserGuideTest {
     helper.tearDown();
   }
 
+  @Test
   public void testComplexJob() throws Exception {
     doComplexJobTest(3, 7, 11);
     doComplexJobTest(-5, 71, 6);
   }
 
   private void doComplexJobTest(int x, int y, int z) throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(new ComplexJob(), x, y, z);
-    JobInfo jobInfo = service.getJobInfo(pipelineId);
+    String pipelineId = pipelineService.startNewPipeline(new ComplexJob(), x, y, z);
+    JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);
     JobInfo.State state = jobInfo.getJobState();
     if (JobInfo.State.COMPLETED_SUCCESSFULLY == state) {
       System.out.println("The output is " + jobInfo.getOutput());
@@ -74,10 +77,9 @@ public class UserGuideTest {
 
   @SuppressWarnings("unchecked")
   private <E> E waitForJobToComplete(String pipelineId) throws Exception {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
     while (true) {
       Thread.sleep(2000);
-      JobInfo jobInfo = service.getJobInfo(pipelineId);
+      JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);
       switch (jobInfo.getJobState()) {
         case COMPLETED_SUCCESSFULLY:
           return (E) jobInfo.getOutput();

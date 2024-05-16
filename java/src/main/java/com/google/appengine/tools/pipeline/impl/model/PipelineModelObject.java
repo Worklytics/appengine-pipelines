@@ -14,16 +14,17 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
+import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
+import lombok.NonNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * The parent class of all Pipeline model objects.
@@ -103,7 +104,11 @@ public abstract class PipelineModelObject {
     this.generatorJobKey = generatorJobKey;
     this.graphGUID = graphGUID;
     if (null == thisKey) {
-      key = generateKey(egParentKey, getDatastoreKind());
+      if (egParentKey == null) {
+        key = generateKey(rootJobKey.getProjectId(), rootJobKey.getNamespace(), getDatastoreKind());
+      } else {
+        key = generateKey(egParentKey, getDatastoreKind());
+      }
     } else {
       if (egParentKey != null) {
         throw new IllegalArgumentException("You may not specify both thisKey and parentKey");
@@ -151,29 +156,39 @@ public abstract class PipelineModelObject {
 
   protected static Key generateKey(Key parentKey, String kind) {
     String name = GUIDGenerator.nextGUID();
-    Key key;
-    if (null == parentKey) {
-      key = KeyFactory.createKey(kind, name);
-    } else {
-      key = parentKey.getChild(kind, name);
+
+    KeyFactory keyFactory = new KeyFactory(parentKey.getProjectId(), parentKey.getNamespace());
+    keyFactory.addAncestors(parentKey.getAncestors());
+    keyFactory.addAncestor(PathElement.of(parentKey.getKind(), parentKey.getName()));
+    keyFactory.setKind(kind);
+    return keyFactory.newKey(name);
+  }
+
+
+  public static Key generateKey(@NonNull String projectId, String namespace, @NonNull String dataStoreKind) {
+    String name = GUIDGenerator.nextGUID();
+    KeyFactory keyFactory = new KeyFactory(projectId);
+    if (namespace != null ) { //null implies default
+      keyFactory.setNamespace(namespace);
     }
-    return key;
+    keyFactory.setKind(dataStoreKind);
+    return keyFactory.newKey(name);
   }
 
   private static Key extractRootJobKey(Entity entity) {
-    return (Key) entity.getProperty(ROOT_JOB_KEY_PROPERTY);
+    return entity.getKey(ROOT_JOB_KEY_PROPERTY);
   }
 
   private static Key extractGeneratorJobKey(Entity entity) {
-    return (Key) entity.getProperty(GENERATOR_JOB_PROPERTY);
+    return EntityUtils.getKey(entity, GENERATOR_JOB_PROPERTY);
   }
 
   private static String extractGraphGUID(Entity entity) {
-    return (String) entity.getProperty(GRAPH_GUID_PROPERTY);
+    return EntityUtils.getString(entity, GRAPH_GUID_PROPERTY);
   }
 
   private static String extractType(Entity entity) {
-    return entity.getKind();
+    return entity.getKey().getKind();
   }
 
   private static Key extractKey(Entity entity) {
@@ -182,16 +197,16 @@ public abstract class PipelineModelObject {
 
   public abstract Entity toEntity();
 
-  protected Entity toProtoEntity() {
-    Entity entity = new Entity(key);
-    entity.setProperty(ROOT_JOB_KEY_PROPERTY, rootJobKey);
+  protected Entity.Builder toProtoBuilder() {
+    Entity.Builder builder = Entity.newBuilder(key);
+    builder.set(ROOT_JOB_KEY_PROPERTY, rootJobKey);
     if (generatorJobKey != null) {
-      entity.setProperty(GENERATOR_JOB_PROPERTY, generatorJobKey);
+      builder.set(GENERATOR_JOB_PROPERTY, generatorJobKey);
     }
     if (graphGUID != null) {
-      entity.setUnindexedProperty(GRAPH_GUID_PROPERTY, graphGUID);
+      builder.set(GRAPH_GUID_PROPERTY, graphGUID);
     }
-    return entity;
+    return builder;
   }
 
   public Key getKey() {
@@ -225,9 +240,13 @@ public abstract class PipelineModelObject {
   }
 
   protected static <E> List<E> getListProperty(String propertyName, Entity entity) {
-    @SuppressWarnings("unchecked")
-    List<E> list = (List<E>) entity.getProperty(propertyName);
-    return list == null ? new LinkedList<E>() : list;
+    if (entity.contains(propertyName)) {
+      return (List<E>) entity.getList(propertyName).stream()
+        .map(Value::get)
+        .collect(Collectors.toCollection(ArrayList::new));
+    } else {
+      return new LinkedList<>();
+    }
   }
 
   protected static String getKeyName(Key key) {

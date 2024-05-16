@@ -16,6 +16,12 @@ package com.google.appengine.tools.pipeline;
 
 
 import com.google.appengine.tools.pipeline.demo.GCDExample;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.auth.Credentials;
+import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+
+import java.beans.Transient;
 
 /**
  *
@@ -46,9 +52,15 @@ public class AsyncGCDExample {
    * print a message on the console with the results.
    */
   @SuppressWarnings("serial")
+  @RequiredArgsConstructor
   public static class PrintGCDJob extends Job0<Void> {
+
+    transient PipelineService service;
+
     @Override
     public Value<Void> run() {
+      service = PipelineServiceFactory.newPipelineService(getPipelineBackendOptions());
+
       PromisedValue<Integer> a = newPromise();
       PromisedValue<Integer> b = newPromise();
       asyncAskUserForTwoIntegers(a.getHandle(), b.getHandle());
@@ -61,7 +73,6 @@ public class AsyncGCDExample {
     }
 
     private void asyncAskUserForTwoIntegers(final String aHandle, final String bHandle) {
-      final PipelineService service = PipelineServiceFactory.newPipelineService();
       Thread thread = new Thread() {
         @Override
         public void run() {
@@ -91,16 +102,22 @@ public class AsyncGCDExample {
    * starts a new thread which waits for the user to enter his name.
    */
   @SuppressWarnings("serial")
+  @RequiredArgsConstructor
   public static class AskUserForNameJob extends Job0<String> {
+
+    transient PipelineService service;
+
+
     @Override
     public Value<String> run() {
+      service = PipelineServiceFactory.newPipelineService(getPipelineBackendOptions());
+
       PromisedValue<String> userName = newPromise();
       asyncAskUserForName(userName.getHandle());
       return userName;
     }
 
     private void asyncAskUserForName(final String handle) {
-      final PipelineService service = PipelineServiceFactory.newPipelineService();
       Thread thread = new Thread() {
         @Override
         public void run() {

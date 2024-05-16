@@ -14,10 +14,13 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
+import com.google.appengine.tools.pipeline.PipelineOrchestrator;
+import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.apphosting.api.ApiProxy;
+import lombok.RequiredArgsConstructor;
 
 import java.util.Enumeration;
 import java.util.Map;
@@ -32,6 +35,7 @@ import jakarta.servlet.http.HttpServletRequest;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@RequiredArgsConstructor
 public class TaskHandler {
 
   private static Logger logger = Logger.getLogger(TaskHandler.class.getName());
@@ -41,12 +45,13 @@ public class TaskHandler {
   public static final String TASK_RETRY_COUNT_HEADER = "X-AppEngine-TaskRetryCount";
   public static final String TASK_QUEUE_NAME_HEADER = "X-AppEngine-QueueName";
 
+  private final PipelineManager pipelineManager;
 
   public static String handleTaskUrl() {
     return PipelineServlet.baseUrl() + PATH_COMPONENT;
   }
 
-  public static void doPost(HttpServletRequest req) throws ServletException {
+  public void doPost(HttpServletRequest req) throws ServletException {
     Task task = reconstructTask(req);
     int retryCount;
     try {
@@ -55,14 +60,14 @@ public class TaskHandler {
       retryCount = -1;
     }
     try {
-      PipelineManager.processTask(task);
+      pipelineManager.processTask(task);
     } catch (RuntimeException e) {
       StringUtils.logRetryMessage(logger, task, retryCount, e);
       throw new ServletException(e);
     }
   }
 
-  private static Task reconstructTask(HttpServletRequest request) {
+  private Task reconstructTask(HttpServletRequest request) {
     Properties properties = new Properties();
     Enumeration<?> paramNames = request.getParameterNames();
     while (paramNames.hasMoreElements()) {

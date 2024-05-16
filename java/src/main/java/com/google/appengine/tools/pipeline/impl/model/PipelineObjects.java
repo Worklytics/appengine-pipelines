@@ -14,16 +14,13 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Key;
+import com.google.cloud.datastore.Key;
 import com.google.common.collect.Maps;
 import lombok.Getter;
 import lombok.extern.java.Log;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  * A container for holding the results of querying for all objects associated

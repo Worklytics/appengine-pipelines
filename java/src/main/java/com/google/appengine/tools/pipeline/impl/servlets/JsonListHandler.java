@@ -14,9 +14,11 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
+import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.util.Pair;
+import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 
@@ -27,6 +29,7 @@ import jakarta.servlet.http.HttpServletResponse;
 /**
  * @author tkaitchuck@google.com (Tom Kaitchuck)
  */
+@RequiredArgsConstructor
 public class JsonListHandler {
 
   public static final String PATH_COMPONENT = "rpc/list";
@@ -34,12 +37,14 @@ public class JsonListHandler {
   private static final String CURSOR_PARAMETER = "cursor";
   private static final String LIMIT_PARAMETER = "limit";
 
-  public static void doGet(HttpServletRequest req, HttpServletResponse resp)
+  private final PipelineRunner pipelineManager;
+
+  public  void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException {
     String classFilter = getParam(req, CLASS_FILTER_PARAMETER);
     String cursor = getParam(req, CURSOR_PARAMETER);
     String limit = getParam(req, LIMIT_PARAMETER);
-    Pair<? extends Iterable<JobRecord>, String> pipelineRoots = PipelineManager.queryRootPipelines(
+    Pair<? extends Iterable<JobRecord>, String> pipelineRoots = pipelineManager.queryRootPipelines(
         classFilter, cursor, limit == null ? 100 : Integer.parseInt(limit));
     String asJson = JsonGenerator.pipelineRootsToJson(pipelineRoots);
     try {

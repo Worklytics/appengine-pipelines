@@ -14,17 +14,11 @@
 
 package com.google.appengine.tools.pipeline.impl;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
-import com.google.appengine.tools.pipeline.FutureList;
-import com.google.appengine.tools.pipeline.ImmediateValue;
-import com.google.appengine.tools.pipeline.Job;
-import com.google.appengine.tools.pipeline.Job0;
-import com.google.appengine.tools.pipeline.JobSetting;
-import com.google.appengine.tools.pipeline.NoSuchObjectException;
-import com.google.appengine.tools.pipeline.OrphanedObjectException;
-import com.google.appengine.tools.pipeline.Value;
+import com.google.appengine.tools.pipeline.*;
+import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
@@ -51,28 +45,39 @@ import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import lombok.AllArgsConstructor;
+import lombok.extern.java.Log;
 
+import javax.inject.Inject;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * The central hub of the Pipeline implementation.
  *
  * @author rudominer@google.com (Mitch Rudominer)
  *
+ * TODO: make this 1) interface, 2) inject the implementation?
+ *
  */
-public class PipelineManager {
 
-  private static final Logger logger = Logger.getLogger(PipelineManager.class.getName());
+@AllArgsConstructor
+@Log
+public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
-  private static PipelineBackEnd backEnd = new AppEngineBackEnd();
+  @Inject
+  PipelineBackEnd backEnd;
+
+  PipelineBackEnd.Options getBackendOptions() {
+    return backEnd.getOptions();
+  }
 
   /**
    * Creates and launches a new Pipeline
@@ -90,12 +95,13 @@ public class PipelineManager {
    * @return The pipelineID of the newly created pipeline, also known as the
    *         rootJobID.
    */
-  public static String startNewPipeline(
+  public String startNewPipeline(
       JobSetting[] settings, Job<?> jobInstance, Object... params) {
     UpdateSpec updateSpec = new UpdateSpec(null);
     Job<?> rootJobInstance = jobInstance;
+    jobInstance.setPipelineBackendOptions(this.getBackendOptions());
     // If rootJobInstance has exceptionHandler it has to be wrapped to ensure that root job
-    // ends up in finalized state in case of exception of run method and
+    // ends up in finalized state in case of exception in run method and
     // exceptionHandler returning a result.
     if (JobRecord.isExceptionHandlerSpecified(jobInstance)) {
       rootJobInstance = new RootJobInstance(jobInstance, settings, params);
@@ -104,65 +110,36 @@ public class PipelineManager {
     // Create the root Job and its associated Barriers and Slots
     // Passing null for parent JobRecord and graphGUID
     // Create HandleSlotFilledTasks for the input parameters.
-    JobRecord jobRecord = registerNewJobRecord(
-        updateSpec, settings, null, null, rootJobInstance, params);
+    JobRecord jobRecord = registerNewJobRecord(updateSpec, settings, rootJobInstance, params);
     updateSpec.setRootJobKey(jobRecord.getRootJobKey());
     // Save the Pipeline model objects and enqueue the tasks that start the Pipeline executing.
     backEnd.save(updateSpec, jobRecord.getQueueSettings());
-    return jobRecord.getKey().getName();
+    return jobRecord.getKey().toUrlSafe();
   }
 
-  /**
-   * Creates a new JobRecord with its associated Barriers and Slots. Also
-   * creates new {@link HandleSlotFilledTask} for any inputs to the Job that are
-   * immediately specified. Registers all newly created objects with the
-   * provided {@code UpdateSpec} for later saving.
-   * <p>
-   * This method is called when starting a new Pipeline, in which case it is
-   * used to create the root job, and it is called from within the run() method
-   * of a generator job in order to create a child job.
-   *
-   * @param updateSpec The {@code UpdateSpec} with which to register all newly
-   *        created objects. All objects will be added to the
-   *        {@link UpdateSpec#getNonTransactionalGroup() non-transaction group}
-   *        of the {@code UpdateSpec}.
-   * @param settings Array of {@code JobSetting} to apply to the newly created
-   *        JobRecord.
-   * @param generatorJob The generator job or {@code null} if we are creating
-   *        the root job.
-   * @param graphGUID The GUID of the child graph to which the new Job belongs
-   *        or {@code null} if we are creating the root job.
-   * @param jobInstance The user-supplied instance of {@code Job} that
-   *        implements the Job that the newly created JobRecord represents.
-   * @param params The arguments to be passed to the run() method of the newly
-   *        created Job. Each argument may be an actual value or it may be an
-   *        object of type {@link Value} representing either an
-   *        {@link ImmediateValue} or a
-   *        {@link com.google.appengine.tools.pipeline.FutureValue FutureValue}.
-   *        For each element of the array, if the Object is not of type
-   *        {@link Value} then it is interpreted as an {@link ImmediateValue}
-   *        with the given Object as its value.
-   * @return The newly constructed JobRecord.
-   */
-  public static JobRecord registerNewJobRecord(UpdateSpec updateSpec, JobSetting[] settings,
-      JobRecord generatorJob, String graphGUID, Job<?> jobInstance, Object[] params) {
-    JobRecord jobRecord;
-    if (generatorJob == null) {
-      // Root Job
-      if (graphGUID != null) {
-        throw new IllegalArgumentException("graphGUID must be null for root jobs");
-      }
-      jobRecord = JobRecord.createRootJobRecord(jobInstance, settings);
-    } else {
-      jobRecord = new JobRecord(generatorJob, graphGUID, jobInstance, false, settings);
-    }
+  @Override
+  public JobRecord registerNewJobRecord(UpdateSpec updateSpec, JobSetting[] settings, Job<?> jobInstance, Object[] params) {
+
+    //TODO: fix this dependency; JobRecord implicitly depends on backend having notion of 'project'
+    // (and indeed, is coupled to Cloud Datastore underneath)
+    // --> JobRecordFactory or something, that gets injected
+    String projectId = backEnd.getOptions().as(AppEngineBackEnd.Options.class).getProjectId();
+
+    return registerNewJobRecord(updateSpec, JobRecord.createRootJobRecord(projectId, jobInstance, getSerializationStrategy(), settings), params);
+  }
+
+  @Override
+  public JobRecord registerNewJobRecord(UpdateSpec updateSpec, JobSetting[] settings,
+                                        JobRecord generatorJob, String graphGUID, Job<?> jobInstance, Object[] params) {
+    JobRecord jobRecord = new JobRecord(generatorJob, graphGUID, jobInstance, false, settings, getSerializationStrategy());
     return registerNewJobRecord(updateSpec, jobRecord, params);
   }
 
-  public static JobRecord registerNewJobRecord(UpdateSpec updateSpec, JobRecord jobRecord,
+  @Override
+  public JobRecord registerNewJobRecord(UpdateSpec updateSpec, JobRecord jobRecord,
       Object[] params) {
-    if (logger.isLoggable(Level.FINE)) {
-      logger.fine("registerNewJobRecord job(\"" + jobRecord + "\")");
+    if (log.isLoggable(Level.FINE)) {
+      log.fine("registerNewJobRecord job(\"" + jobRecord + "\")");
     }
     updateSpec.setRootJobKey(jobRecord.getRootJobKey());
 
@@ -184,7 +161,7 @@ public class PipelineManager {
       // If the run barrier is not waiting on anything, add a phantom filled
       // slot in order to trigger a HandleSlotFilledTask in order to trigger
       // a RunJobTask.
-      Slot slot = new Slot(jobRecord.getRootJobKey(), generatorKey, graphGuid);
+      Slot slot = new Slot(jobRecord.getRootJobKey(), generatorKey, graphGuid, getSerializationStrategy());
       jobRecord.getRunBarrierInflated().addPhantomArgumentSlot(slot);
       registerSlotFilled(updateSpec, jobRecord.getQueueSettings(), slot, null);
     }
@@ -236,7 +213,7 @@ public class PipelineManager {
    *        {@code null} if the barrier lives in the root Job graph.
    * @param barrier The barrier to which we will add the slots
    */
-  private static void registerSlotsWithBarrier(UpdateSpec updateSpec, Value<?> value,
+  private void registerSlotsWithBarrier(UpdateSpec updateSpec, Value<?> value,
       Key rootJobKey, Key generatorJobKey, QueueSettings queueSettings, String graphGUID,
       Barrier barrier) {
     if (null == value || value instanceof ImmediateValue<?>) {
@@ -245,7 +222,7 @@ public class PipelineManager {
         ImmediateValue<?> iv = (ImmediateValue<?>) value;
         concreteValue = iv.getValue();
       }
-      Slot slot = new Slot(rootJobKey, generatorJobKey, graphGUID);
+      Slot slot = new Slot(rootJobKey, generatorJobKey, graphGUID, backEnd.getSerializationStrategy());
       registerSlotFilled(updateSpec, queueSettings, slot, concreteValue);
       barrier.addRegularArgumentSlot(slot);
     } else if (value instanceof FutureValueImpl<?>) {
@@ -258,13 +235,13 @@ public class PipelineManager {
       List<Slot> slotList = new ArrayList<>(futureList.getListOfValues().size());
       // The dummyListSlot is a marker slot that indicates that the
       // next group of slots forms a single list argument.
-      Slot dummyListSlot = new Slot(rootJobKey, generatorJobKey, graphGUID);
+      Slot dummyListSlot = new Slot(rootJobKey, generatorJobKey, graphGUID, backEnd.getSerializationStrategy());
       registerSlotFilled(updateSpec, queueSettings, dummyListSlot, null);
       for (Value<?> valFromList : futureList.getListOfValues()) {
         Slot slot = null;
         if (valFromList instanceof ImmediateValue<?>) {
           ImmediateValue<?> ivFromList = (ImmediateValue<?>) valFromList;
-          slot = new Slot(rootJobKey, generatorJobKey, graphGUID);
+          slot = new Slot(rootJobKey, generatorJobKey, graphGUID, backEnd.getSerializationStrategy());
           registerSlotFilled(updateSpec, queueSettings, slot, ivFromList.getValue());
         } else if (valFromList instanceof FutureValueImpl<?>) {
           FutureValueImpl<?> futureValFromList = (FutureValueImpl<?>) valFromList;
@@ -284,7 +261,7 @@ public class PipelineManager {
     }
   }
 
-  private static void throwUnrecognizedValueException(Value<?> value) {
+  private void throwUnrecognizedValueException(Value<?> value) {
     throw new RuntimeException(
         "Internal logic error: Unrecognized implementation of Value interface: "
         + value.getClass().getName());
@@ -313,75 +290,48 @@ public class PipelineManager {
     updateSpec.getFinalTransaction().registerTask(task);
   }
 
-  /**
-   * Returns all the associated PipelineModelObject for a root pipeline.
-   *
-   * @throws IllegalArgumentException if root pipeline was not found.
-   */
-  public static PipelineObjects queryFullPipeline(String rootJobHandle) {
-    Key rootJobKey = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, rootJobHandle);
-    return backEnd.queryFullPipeline(rootJobKey);
+  @Override
+  public PipelineObjects queryFullPipeline(String rootJobHandle) {
+    return backEnd.queryFullPipeline(JobRecord.keyFromPipelineHandle(rootJobHandle));
   }
 
-  public static Pair<? extends Iterable<JobRecord>, String> queryRootPipelines(
+  @Override
+  public Pair<? extends Iterable<JobRecord>, String> queryRootPipelines(
       String classFilter, String cursor, int limit) {
     return backEnd.queryRootPipelines(classFilter, cursor, limit);
   }
 
-  public static Set<String> getRootPipelinesDisplayName() {
+  public Set<String> getRootPipelinesDisplayName() {
     return backEnd.getRootPipelinesDisplayName();
   }
 
-  private static void checkNonEmpty(String s, String name) {
+  private void checkNonEmpty(String s, String name) {
     if (null == s || s.trim().length() == 0) {
       throw new IllegalArgumentException(name + " is empty.");
     }
   }
 
-  /**
-   * Retrieves a JobRecord for the specified job handle. The returned instance
-   * will be only partially inflated. The run and finalize barriers will not be
-   * available but the output slot will be.
-   *
-   * @param jobHandle The handle of a job.
-   * @return The corresponding JobRecord
-   * @throws NoSuchObjectException If a JobRecord with the given handle cannot
-   *         be found in the data store.
-   */
-  public static JobRecord getJob(String jobHandle) throws NoSuchObjectException {
+
+  @Override
+  public JobRecord getJob(String jobHandle) throws NoSuchObjectException {
     checkNonEmpty(jobHandle, "jobHandle");
-    Key key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, jobHandle);
-    logger.finest("getJob: " + key.getName());
-    return backEnd.queryJob(key, JobRecord.InflationType.FOR_OUTPUT);
+    log.finest("getJob: " + jobHandle);
+    return backEnd.queryJob(JobRecord.keyFromPipelineHandle(jobHandle), InflationType.FOR_OUTPUT);
   }
 
-  /**
-   * Changes the state of the specified job to STOPPED.
-   *
-   * @param jobHandle The handle of a job
-   * @throws NoSuchObjectException If a JobRecord with the given handle cannot
-   *         be found in the data store.
-   */
-  public static void stopJob(String jobHandle) throws NoSuchObjectException {
+  public void stopJob(String jobHandle) throws NoSuchObjectException {
     checkNonEmpty(jobHandle, "jobHandle");
-    Key key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, jobHandle);
-    JobRecord jobRecord = backEnd.queryJob(key, JobRecord.InflationType.NONE);
+    JobRecord jobRecord = backEnd.queryJob(JobRecord.keyFromPipelineHandle(jobHandle), InflationType.NONE);
     jobRecord.setState(State.STOPPED);
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     updateSpec.getOrCreateTransaction("stopJob").includeJob(jobRecord);
     backEnd.save(updateSpec, jobRecord.getQueueSettings());
   }
 
-  /**
-   * Sends cancellation request to the root job.
-   *
-   * @param jobHandle The handle of a job
-   * @throws NoSuchObjectException If a JobRecord with the given handle cannot
-   *         be found in the data store.
-   */
-  public static void cancelJob(String jobHandle) throws NoSuchObjectException {
+
+  public void cancelJob(String jobHandle) throws NoSuchObjectException {
     checkNonEmpty(jobHandle, "jobHandle");
-    Key key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, jobHandle);
+    Key key = JobRecord.keyFromPipelineHandle(jobHandle);
     JobRecord jobRecord = backEnd.queryJob(key, InflationType.NONE);
     CancelJobTask cancelJobTask = new CancelJobTask(key, jobRecord.getQueueSettings());
     try {
@@ -406,17 +356,25 @@ public class PipelineManager {
    *         pipeline is not in the {@link State#FINALIZED} or
    *         {@link State#STOPPED} state.
    */
-  public static void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
+  public void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
       throws NoSuchObjectException, IllegalStateException {
     checkNonEmpty(pipelineHandle, "pipelineHandle");
-    Key key = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, pipelineHandle);
-    backEnd.deletePipeline(key, force, async);
+    log.info("pipelineHandle: " + pipelineHandle + ", force: " + force + ", async: " + async);
+    backEnd.deletePipeline(JobRecord.keyFromPipelineHandle(pipelineHandle), force, async);
   }
 
-  public static void acceptPromisedValue(String promiseHandle, Object value)
+  /**
+   * just implementation of {@link PipelineService#submitPromisedValue(String, Object)}, not really sure why it's here
+   *
+   * @param promiseHandle
+   * @param value
+   * @throws NoSuchObjectException
+   * @throws OrphanedObjectException
+   */
+  void submitPromisedValue(String promiseHandle, Object value)
       throws NoSuchObjectException, OrphanedObjectException {
     checkNonEmpty(promiseHandle, "promiseHandle");
-    Key key = KeyFactory.stringToKey(promiseHandle);
+    Key key = Slot.keyFromHandle(promiseHandle);
     Slot slot = null;
     // It is possible, though unlikely, that we might be asked to accept a
     // promise before the slot to hold the promise has been saved. We will try 5
@@ -450,7 +408,7 @@ public class PipelineManager {
       throw new RuntimeException(
           "Pipeline is fatally corrupted. Slot for promised value has no generatorJobKey: " + slot);
     }
-    JobRecord generatorJob = backEnd.queryJob(generatorJobKey, JobRecord.InflationType.NONE);
+    JobRecord generatorJob = backEnd.queryJob(generatorJobKey, InflationType.NONE);
     if (null == generatorJob) {
       throw new RuntimeException("Pipeline is fatally corrupted. "
           + "The generator job for a promised value slot was not found: " + generatorJobKey);
@@ -471,6 +429,15 @@ public class PipelineManager {
     UpdateSpec updateSpec = new UpdateSpec(slot.getRootJobKey());
     registerSlotFilled(updateSpec, generatorJob.getQueueSettings(), slot, value);
     backEnd.save(updateSpec, generatorJob.getQueueSettings());
+  }
+
+  @Override
+  public PipelineBackEnd.Options getOptions() {
+    return getBackendOptions();
+  }
+
+  public SerializationStrategy getSerializationStrategy() {
+    return backEnd.getSerializationStrategy();
   }
 
   /**
@@ -506,7 +473,7 @@ public class PipelineManager {
    * A RuntimeException which, when thrown, causes us to abandon the current
    * task, by returning a 200.
    */
-  private static class AbandonTaskException extends RuntimeException {
+  private class AbandonTaskException extends RuntimeException {
     private static final long serialVersionUID = 358437646006972459L;
   }
 
@@ -514,9 +481,11 @@ public class PipelineManager {
    * Process an incoming task received from the App Engine task queue.
    *
    * @param task The task to be processed.
+   *
+   *
    */
-  public static void processTask(Task task) {
-    logger.finest("Processing task " + task);
+  public void processTask(Task task) {
+    log.finest("Processing task " + task);
     try {
       switch (task.getType()) {
         case RUN_JOB:
@@ -540,7 +509,7 @@ public class PipelineManager {
             backEnd.deletePipeline(
                 deletePipelineTask.getRootJobKey(), deletePipelineTask.shouldForce(), false);
           } catch (Exception e) {
-            logger.log(Level.WARNING, "DeletePipeline operation failed.", e);
+            log.log(Level.WARNING, "DeletePipeline operation failed.", e);
           }
           break;
         case HANDLE_CHILD_EXCEPTION:
@@ -557,11 +526,8 @@ public class PipelineManager {
     }
   }
 
-  public static PipelineBackEnd getBackEnd() {
-    return backEnd;
-  }
-
-  private static void invokePrivateJobMethod(String methodName, Job<?> job, Object... params) {
+  //TODO: can we implement this in a better way with modern Java?
+  private void invokePrivateJobMethod(String methodName, Job<?> job, Object... params) {
     Class<?>[] signature = new Class<?>[params.length];
     int i = 0;
     for (Object param : params) {
@@ -570,7 +536,7 @@ public class PipelineManager {
     invokePrivateJobMethod(methodName, job, signature, params);
   }
 
-  private static void invokePrivateJobMethod(
+  private void invokePrivateJobMethod(
       String methodName, Job<?> job, Class<?>[] signature, Object... params) {
     try {
       Method method = Job.class.getDeclaredMethod(methodName, signature);
@@ -600,7 +566,7 @@ public class PipelineManager {
    *
    */
   @SuppressWarnings("unchecked")
-  private static Method findJobMethodToInvoke(
+  private Method findJobMethodToInvoke(
       Class<?> klass, boolean callErrorHandler, Object[] params) {
     Method runMethod = null;
     if (callErrorHandler) {
@@ -639,17 +605,18 @@ public class PipelineManager {
     return runMethod;
   }
 
-  private static void setJobRecord(Job<?> job, JobRecord jobRecord) {
+  private void setJobRecord(Job<?> job, JobRecord jobRecord) {
     invokePrivateJobMethod("setJobRecord", job, jobRecord);
   }
 
-  private static void setCurrentRunGuid(Job<?> job, String guid) {
+  private void setCurrentRunGuid(Job<?> job, String guid) {
     invokePrivateJobMethod("setCurrentRunGuid", job, guid);
   }
 
-  private static void setUpdateSpec(Job<?> job, UpdateSpec updateSpec) {
+  private void setUpdateSpec(Job<?> job, UpdateSpec updateSpec) {
     invokePrivateJobMethod("setUpdateSpec", job, updateSpec);
   }
+
 
   /**
    * Run the job with the given key.
@@ -664,21 +631,21 @@ public class PipelineManager {
    *
    * @see "http://goto/java-pipeline-model"
    */
-  private static void runJob(RunJobTask task) {
+  private void runJob(RunJobTask task) {
     Key jobKey = task.getJobKey();
-    JobRecord jobRecord = queryJobOrAbandonTask(jobKey, JobRecord.InflationType.FOR_RUN);
+    JobRecord jobRecord = queryJobOrAbandonTask(jobKey, InflationType.FOR_RUN);
     jobRecord.getQueueSettings().merge(task.getQueueSettings());
     Key rootJobKey = jobRecord.getRootJobKey();
-    logger.info("Running pipeline job " + jobKey.getName() + "; UI at "
+    log.info("Running pipeline job " + jobKey.getName() + "; UI at "
         + PipelineServlet.makeViewerUrl(rootJobKey, jobKey));
     JobRecord rootJobRecord;
     if (rootJobKey.equals(jobKey)) {
       rootJobRecord = jobRecord;
     } else {
-      rootJobRecord = queryJobOrAbandonTask(rootJobKey, JobRecord.InflationType.NONE);
+      rootJobRecord = queryJobOrAbandonTask(rootJobKey, InflationType.NONE);
     }
     if (rootJobRecord.getState() == State.STOPPED) {
-      logger.warning("The pipeline has been stopped: " + rootJobRecord);
+      log.warning("The pipeline has been stopped: " + rootJobRecord);
       throw new AbandonTaskException();
     }
 
@@ -707,31 +674,23 @@ public class PipelineManager {
         // OK, proceed
         break;
       case WAITING_TO_FINALIZE:
-        logger.info("This job has already been run " + jobRecord);
+        log.info("This job has already been run " + jobRecord);
         return;
       case STOPPED:
-        logger.info("This job has been stoped " + jobRecord);
+        log.info("This job has been stoped " + jobRecord);
         return;
       case CANCELED:
-        logger.info("This job has already been canceled " + jobRecord);
+        log.info("This job has already been canceled " + jobRecord);
         return;
       case FINALIZED:
-        logger.info("This job has already been run " + jobRecord);
+        log.info("This job has already been run " + jobRecord);
         return;
     }
 
     // Deserialize the instance of Job and set some values on the instance
-    JobInstanceRecord record = jobRecord.getJobInstanceInflated();
-    if (null == record) {
-      throw new RuntimeException(
-          "Internal logic error:" + jobRecord + " does not have jobInstanceInflated.");
-    }
-    Job<?> job = record.getJobInstanceDeserialized();
-    UpdateSpec updateSpec = new UpdateSpec(rootJobKey);
-    setJobRecord(job, jobRecord);
-    String currentRunGUID = GUIDGenerator.nextGUID();
-    setCurrentRunGuid(job, currentRunGUID);
-    setUpdateSpec(job, updateSpec);
+    Job<?> job = restore(jobRecord);
+    inject(job);
+
 
     // Get the run() method we will invoke and its arguments
     Object[] params = runBarrier.buildArgumentArray();
@@ -741,25 +700,25 @@ public class PipelineManager {
     if (callExceptionHandler && methodToExecute == null) {
       // No matching exceptionHandler found. Propagate to the parent.
       Throwable exceptionToHandle = (Throwable) params[0];
-      handleExceptionDuringRun(jobRecord, rootJobRecord, currentRunGUID, exceptionToHandle);
+      handleExceptionDuringRun(jobRecord, rootJobRecord, job.getCurrentRunGUID(), exceptionToHandle);
       return;
     }
-    if (logger.isLoggable(Level.FINEST)) {
+    if (log.isLoggable(Level.FINEST)) {
       StringBuilder builder = new StringBuilder(1024);
       builder.append("Running " + jobRecord + " with params: ");
       builder.append(StringUtils.toString(params));
-      logger.finest(builder.toString());
+      log.finest(builder.toString());
     }
 
     // Set the Job's start time and save the jobRecord now before we invoke
     // run(). The start time will be displayed in the UI.
     jobRecord.incrementAttemptNumber();
-    jobRecord.setStartTime(new Date());
+    jobRecord.setStartTime(Instant.now());
     tempSpec = new UpdateSpec(jobRecord.getRootJobKey());
     tempSpec.getNonTransactionalGroup().includeJob(jobRecord);
     if (!backEnd.saveWithJobStateCheck(
         tempSpec, jobRecord.getQueueSettings(), jobKey, State.WAITING_TO_RUN, State.RETRY)) {
-      logger.info("Ignoring runJob request for job " + jobRecord + " which is not in a"
+      log.info("Ignoring runJob request for job " + jobRecord + " which is not in a"
           + " WAITING_TO_RUN or a RETRY state");
       return;
     }
@@ -786,7 +745,7 @@ public class PipelineManager {
       //TODO(user): use the following condition to keep original exception trace
       //      if (!throwableParams.contains(caughtException)) {
       //      }
-      handleExceptionDuringRun(jobRecord, rootJobRecord, currentRunGUID, caughtException);
+      handleExceptionDuringRun(jobRecord, rootJobRecord, job.getCurrentRunGUID(), caughtException);
       return;
     }
 
@@ -800,31 +759,67 @@ public class PipelineManager {
     // HandleSlotFilledTasks for each of the slots that were immediately filled
     // by the running of the job.
     // See "http://goto/java-pipeline-model".
-    logger.finest("Job returned: " + returnValue);
-    registerSlotsWithBarrier(updateSpec, returnValue, rootJobKey, jobRecord.getKey(),
-        jobRecord.getQueueSettings(), currentRunGUID, finalizeBarrier);
+    log.finest("Job returned: " + returnValue);
+    registerSlotsWithBarrier(job.getUpdateSpec(), returnValue, rootJobKey, jobRecord.getKey(),
+        jobRecord.getQueueSettings(), job.getCurrentRunGUID(), finalizeBarrier);
     jobRecord.setState(State.WAITING_TO_FINALIZE);
-    jobRecord.setChildGraphGuid(currentRunGUID);
-    updateSpec.getFinalTransaction().includeJob(jobRecord);
-    updateSpec.getFinalTransaction().includeBarrier(finalizeBarrier);
+    jobRecord.setChildGraphGuid(job.getCurrentRunGUID());
+    job.getUpdateSpec().getFinalTransaction().includeJob(jobRecord);
+    job.getUpdateSpec().getFinalTransaction().includeBarrier(finalizeBarrier);
     backEnd.saveWithJobStateCheck(
-        updateSpec, jobRecord.getQueueSettings(), jobKey, State.WAITING_TO_RUN, State.RETRY);
+        job.getUpdateSpec(), jobRecord.getQueueSettings(), jobKey, State.WAITING_TO_RUN, State.RETRY);
   }
 
-  private static void cancelJob(CancelJobTask cancelJobTask) {
+  private void inject(Job<?> job) {
+    if (job instanceof RootJobInstance) {
+      inject(((RootJobInstance) job).jobInstance);
+    }
+
+    Optional<Injectable> injectable = Optional.ofNullable(job.getClass().getAnnotation(Injectable.class));
+
+    if (injectable.isPresent()) {
+      DIUtil.inject(injectable.get().value().getName(), job);
+    }
+  }
+
+  /**
+   * deserializes the Job instance corresponding to the given JobRecord.
+   * @param jobRecord of execution of Job
+   * @return a Job instance, with runtime values set
+   */
+  Job<?> restore(JobRecord jobRecord) {
+    JobInstanceRecord jobExecutionRecord = jobRecord.getJobInstanceInflated();
+
+    if (jobExecutionRecord == null) {
+      throw new RuntimeException(
+        "Internal logic error:" + jobRecord + " does not have jobInstanceInflated.");
+    }
+
+    Job<?> job = jobExecutionRecord.getJobInstanceDeserialized();
+    invokePrivateJobMethod("setPipelineRunner", job, this);
+    UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
+    setJobRecord(job, jobRecord);
+    String currentRunGUID = GUIDGenerator.nextGUID();
+    setCurrentRunGuid(job, currentRunGUID);
+    setUpdateSpec(job, updateSpec);
+
+    return job;
+  }
+
+  private void cancelJob(CancelJobTask cancelJobTask) {
     Key jobKey = cancelJobTask.getJobKey();
-    JobRecord jobRecord = queryJobOrAbandonTask(jobKey, JobRecord.InflationType.FOR_RUN);
+    JobRecord jobRecord = queryJobOrAbandonTask(jobKey, InflationType.FOR_RUN);
     jobRecord.getQueueSettings().merge(cancelJobTask.getQueueSettings());
     Key rootJobKey = jobRecord.getRootJobKey();
-    logger.info("Cancelling pipeline job " + jobKey.getName());
+    log.info("Cancelling pipeline job " + jobKey.getName());
     JobRecord rootJobRecord;
     if (rootJobKey.equals(jobKey)) {
       rootJobRecord = jobRecord;
     } else {
-      rootJobRecord = queryJobOrAbandonTask(rootJobKey, JobRecord.InflationType.NONE);
+      rootJobRecord = queryJobOrAbandonTask(rootJobKey, InflationType.NONE);
     }
     if (rootJobRecord.getState() == State.STOPPED) {
-      logger.warning("The pipeline has been stopped: " + rootJobRecord);
+      log.warning("The pipeline has been stopped: " + rootJobRecord);
       throw new AbandonTaskException();
     }
 
@@ -835,13 +830,13 @@ public class PipelineManager {
         // OK, proceed
         break;
       case STOPPED:
-        logger.info("This job has been stoped " + jobRecord);
+        log.info("This job has been stoped " + jobRecord);
         return;
       case CANCELED:
-        logger.info("This job has already been canceled " + jobRecord);
+        log.info("This job has already been canceled " + jobRecord);
         return;
       case FINALIZED:
-        logger.info("This job has already been run " + jobRecord);
+        log.info("This job has already been run " + jobRecord);
         return;
     }
 
@@ -850,8 +845,8 @@ public class PipelineManager {
     }
 
     // No error handler present. So just mark this job as CANCELED.
-    if (logger.isLoggable(Level.FINEST)) {
-      logger.finest("Marking " + jobRecord + " as CANCELED");
+    if (log.isLoggable(Level.FINEST)) {
+      log.finest("Marking " + jobRecord + " as CANCELED");
     }
     jobRecord.setState(State.CANCELED);
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
@@ -862,16 +857,16 @@ public class PipelineManager {
     backEnd.save(updateSpec, jobRecord.getQueueSettings());
   }
 
-  private static void handleExceptionDuringRun(JobRecord jobRecord, JobRecord rootJobRecord,
+  private void handleExceptionDuringRun(JobRecord jobRecord, JobRecord rootJobRecord,
       String currentRunGUID, Throwable caughtException) {
-    int attemptNumber = jobRecord.getAttemptNumber();
-    int maxAttempts = jobRecord.getMaxAttempts();
+    long attemptNumber = jobRecord.getAttemptNumber();
+    long maxAttempts = jobRecord.getMaxAttempts();
     if (jobRecord.isCallExceptionHandler()) {
-      logger.log(Level.INFO,
+      log.log(Level.INFO,
           "An exception occurred when attempting to execute exception hander job " + jobRecord
           + ". ", caughtException);
     } else {
-      logger.log(Level.INFO, "An exception occurred when attempting to run " + jobRecord + ". "
+      log.log(Level.INFO, "An exception occurred when attempting to run " + jobRecord + ". "
           + "This was attempt number " + attemptNumber + " of " + maxAttempts + ".",
           caughtException);
     }
@@ -908,8 +903,8 @@ public class PipelineManager {
       backEnd.save(updateSpec, jobRecord.getQueueSettings());
     } else {
       jobRecord.setState(State.RETRY);
-      int backoffFactor = jobRecord.getBackoffFactor();
-      int backoffSeconds = jobRecord.getBackoffSeconds();
+      long backoffFactor = jobRecord.getBackoffFactor();
+      long backoffSeconds = jobRecord.getBackoffSeconds();
       RunJobTask task =
           new RunJobTask(jobRecord.getKey(), attemptNumber, jobRecord.getQueueSettings());
       task.getQueueSettings().setDelayInSeconds(
@@ -927,21 +922,21 @@ public class PipelineManager {
    * @param caughtException failure cause
    * @param ignoreException if failure should be ignored (used for cancellation)
    */
-  private static void executeExceptionHandler(UpdateSpec updateSpec, JobRecord jobRecord,
+  private void executeExceptionHandler(UpdateSpec updateSpec, JobRecord jobRecord,
       Throwable caughtException, boolean ignoreException) {
     updateSpec.getNonTransactionalGroup().includeJob(jobRecord);
     String errorHandlingGraphGuid = GUIDGenerator.nextGUID();
     Job<?> jobInstance = jobRecord.getJobInstanceInflated().getJobInstanceDeserialized();
 
     JobRecord errorHandlingJobRecord =
-        new JobRecord(jobRecord, errorHandlingGraphGuid, jobInstance, true, new JobSetting[0]);
+        new JobRecord(jobRecord, errorHandlingGraphGuid, jobInstance, true, new JobSetting[0], backEnd.getSerializationStrategy());
     errorHandlingJobRecord.setOutputSlotInflated(jobRecord.getOutputSlotInflated());
     errorHandlingJobRecord.setIgnoreException(ignoreException);
     registerNewJobRecord(updateSpec, errorHandlingJobRecord,
         new Object[] {new ImmediateValue<>(caughtException)});
   }
 
-  private static void cancelChildren(JobRecord jobRecord, Key failedChildKey) {
+  private void cancelChildren(JobRecord jobRecord, Key failedChildKey) {
     for (Key childKey : jobRecord.getChildKeys()) {
       if (!childKey.equals(failedChildKey)) {
         CancelJobTask cancelJobTask = new CancelJobTask(childKey, jobRecord.getQueueSettings());
@@ -954,27 +949,27 @@ public class PipelineManager {
     }
   }
 
-  private static void handleChildException(HandleChildExceptionTask handleChildExceptionTask) {
+  private void handleChildException(HandleChildExceptionTask handleChildExceptionTask) {
     Key jobKey = handleChildExceptionTask.getKey();
     Key failedChildKey = handleChildExceptionTask.getFailedChildKey();
-    JobRecord jobRecord = queryJobOrAbandonTask(jobKey, JobRecord.InflationType.FOR_RUN);
+    JobRecord jobRecord = queryJobOrAbandonTask(jobKey, InflationType.FOR_RUN);
     jobRecord.getQueueSettings().merge(handleChildExceptionTask.getQueueSettings());
     Key rootJobKey = jobRecord.getRootJobKey();
-    logger.info("Running pipeline job " + jobKey.getName() + " exception handler; UI at "
+    log.info("Running pipeline job " + jobKey.getName() + " exception handler; UI at "
         + PipelineServlet.makeViewerUrl(rootJobKey, jobKey));
     JobRecord rootJobRecord;
     if (rootJobKey.equals(jobKey)) {
       rootJobRecord = jobRecord;
     } else {
-      rootJobRecord = queryJobOrAbandonTask(rootJobKey, JobRecord.InflationType.NONE);
+      rootJobRecord = queryJobOrAbandonTask(rootJobKey, InflationType.NONE);
     }
     if (rootJobRecord.getState() == State.STOPPED) {
-      logger.warning("The pipeline has been stopped: " + rootJobRecord);
+      log.warning("The pipeline has been stopped: " + rootJobRecord);
       throw new AbandonTaskException();
     }
     // TODO(user): add jobState check
     JobRecord failedJobRecord =
-        queryJobOrAbandonTask(failedChildKey, JobRecord.InflationType.FOR_OUTPUT);
+        queryJobOrAbandonTask(failedChildKey, InflationType.FOR_OUTPUT);
     UpdateSpec updateSpec = new UpdateSpec(rootJobKey);
     cancelChildren(jobRecord, failedChildKey);
     executeExceptionHandler(updateSpec, jobRecord, failedJobRecord.getException(), false);
@@ -995,11 +990,11 @@ public class PipelineManager {
    *
    * @see "http://goto/java-pipeline-model"
    */
-  private static void finalizeJob(FinalizeJobTask finalizeJobTask) {
+  private void finalizeJob(FinalizeJobTask finalizeJobTask) {
     Key jobKey = finalizeJobTask.getJobKey();
     // Get the JobRecord, its finalize Barrier, all the slots in the
     // finalize Barrier, and the job's output Slot.
-    JobRecord jobRecord = queryJobOrAbandonTask(jobKey, JobRecord.InflationType.FOR_FINALIZE);
+    JobRecord jobRecord = queryJobOrAbandonTask(jobKey, InflationType.FOR_FINALIZE);
     jobRecord.getQueueSettings().merge(finalizeJobTask.getQueueSettings());
     switch (jobRecord.getState()) {
       case WAITING_TO_FINALIZE:
@@ -1009,13 +1004,13 @@ public class PipelineManager {
       case RETRY:
         throw new RuntimeException("" + jobRecord + " is in RETRY state");
       case STOPPED:
-        logger.info("This job has been stoped " + jobRecord);
+        log.info("This job has been stoped " + jobRecord);
         return;
       case CANCELED:
-        logger.info("This job has already been canceled " + jobRecord);
+        log.info("This job has already been canceled " + jobRecord);
         return;
       case FINALIZED:
-        logger.info("This job has already been run " + jobRecord);
+        log.info("This job has already been run " + jobRecord);
         return;
     }
     Barrier finalizeBarrier = jobRecord.getFinalizeBarrierInflated();
@@ -1043,12 +1038,12 @@ public class PipelineManager {
           "Internal logic error: numFinalizeArguments=" + numFinalizeArguments);
     }
     Object finalizeValue = finalizeArguments.get(0);
-    logger.finest("Finalizing " + jobRecord + " with value=" + finalizeValue);
+    log.finest("Finalizing " + jobRecord + " with value=" + finalizeValue);
     outputSlot.fill(finalizeValue);
 
     // Change state of the job to FINALIZED and set the end time
     jobRecord.setState(State.FINALIZED);
-    jobRecord.setEndTime(new Date());
+    jobRecord.setEndTime(Instant.now());
 
     // Propagate the filler of the finalize slot to also be the filler of the
     // output slot. If there is no unique filler of the finalize slot then we
@@ -1078,7 +1073,7 @@ public class PipelineManager {
    * @param finalizeBarrier A finalize Barrier
    * @return The unique slot filler for the finalize slots, or {@code null}
    */
-  private static Key getFinalizeSlotFiller(Barrier finalizeBarrier) {
+  private Key getFinalizeSlotFiller(Barrier finalizeBarrier) {
     Key fillerJobKey = null;
     for (SlotDescriptor slotDescriptor : finalizeBarrier.getWaitingOnInflated()) {
       Key key = slotDescriptor.slot.getSourceJobKey();
@@ -1105,7 +1100,7 @@ public class PipelineManager {
    * Release the barrier by enqueueing an appropriate task (either
    * {@link RunJobTask} or {@link FinalizeJobTask}.
    */
-  private static void handleSlotFilled(HandleSlotFilledTask hsfTask) {
+  private void handleSlotFilled(HandleSlotFilledTask hsfTask) {
     Key slotKey = hsfTask.getSlotKey();
     Slot slot = querySlotOrAbandonTask(slotKey, true);
     List<Barrier> waitingList = slot.getWaitingOnMeInflated();
@@ -1114,7 +1109,7 @@ public class PipelineManager {
     }
     // For each barrier that is waiting on the slot ...
     for (Barrier barrier : waitingList) {
-      logger.finest("Checking " + barrier);
+      log.finest("Checking " + barrier);
       // unless the barrier has already been released,
       if (!barrier.isReleased()) {
         // we check whether the barrier should be released.
@@ -1126,14 +1121,14 @@ public class PipelineManager {
         for (SlotDescriptor sd : barrier.getWaitingOnInflated()) {
           // see if it is full.
           if (!sd.slot.isFilled()) {
-            logger.finest("Not filled: " + sd.slot);
+            log.finest("Not filled: " + sd.slot);
             shouldBeReleased = false;
             break;
           }
         }
         if (shouldBeReleased) {
           Key jobKey = barrier.getJobKey();
-          JobRecord jobRecord = queryJobOrAbandonTask(jobKey, JobRecord.InflationType.NONE);
+          JobRecord jobRecord = queryJobOrAbandonTask(jobKey, InflationType.NONE);
           jobRecord.getQueueSettings().merge(hsfTask.getQueueSettings());
           Task task;
           switch (barrier.getType()) {
@@ -1159,7 +1154,7 @@ public class PipelineManager {
   /**
    * Fills the slot with null value and calls handleSlotFilled
    */
-  private static void handleDelayedSlotFill(DelayedSlotFillTask task) {
+  private void handleDelayedSlotFill(DelayedSlotFillTask task) {
     Key slotKey = task.getSlotKey();
     Slot slot = querySlotOrAbandonTask(slotKey, true);
     Key rootJobKey = task.getRootJobKey();
@@ -1183,11 +1178,11 @@ public class PipelineManager {
    * @throws AbandonTaskException If Either the JobRecord or any of the
    *         associated Slots or Barriers are not found in the data store.
    */
-  private static JobRecord queryJobOrAbandonTask(Key key, JobRecord.InflationType inflationType) {
+  private JobRecord queryJobOrAbandonTask(Key key, InflationType inflationType) {
     try {
       return backEnd.queryJob(key, inflationType);
     } catch (NoSuchObjectException e) {
-      logger.log(
+      log.log(
           Level.WARNING, "Cannot find some part of the job: " + key + ". Ignoring the task.", e);
       throw new AbandonTaskException();
     }
@@ -1211,11 +1206,11 @@ public class PipelineManager {
    * @throws AbandonTaskException If either the Slot or the associated Barriers
    *         and slots are not found in the data store.
    */
-  private static Slot querySlotOrAbandonTask(Key key, boolean inflate) {
+  private Slot querySlotOrAbandonTask(Key key, boolean inflate) {
     try {
       return backEnd.querySlot(key, inflate);
     } catch (NoSuchObjectException e) {
-      logger.log(Level.WARNING, "Cannot find the slot: " + key + ". Ignoring the task.", e);
+      log.log(Level.WARNING, "Cannot find the slot: " + key + ". Ignoring the task.", e);
       throw new AbandonTaskException();
     }
   }
@@ -1226,11 +1221,11 @@ public class PipelineManager {
    *
    * @param fanoutTask The FanoutTask to handle
    */
-  private static void handleFanoutTaskOrAbandonTask(FanoutTask fanoutTask) {
+  private void handleFanoutTaskOrAbandonTask(FanoutTask fanoutTask) {
     try {
       backEnd.handleFanoutTask(fanoutTask);
     } catch (NoSuchObjectException e) {
-      logger.log(Level.SEVERE, "Pipeline is fatally corrupted. Fanout task record not found", e);
+      log.log(Level.SEVERE, "Pipeline is fatally corrupted. Fanout task record not found", e);
       throw new AbandonTaskException();
     }
   }

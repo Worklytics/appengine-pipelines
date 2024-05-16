@@ -14,11 +14,15 @@
 
 package com.google.appengine.tools.pipeline.impl.tasks;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import lombok.NonNull;
+import org.apache.commons.codec.digest.DigestUtils;
 
+import java.util.Base64;
 import java.util.Properties;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * A subclass of {@code Task} for tasks which need to reference a particular
@@ -46,19 +50,21 @@ public abstract class ObjRefTask extends Task {
    *        will refer. It will be used as part of the task name if
    *        combined with {@code namePrefix}.
    */
-  protected ObjRefTask(Type type, String namePrefix, Key key, QueueSettings queueSettings) {
+  protected ObjRefTask(Type type, @NonNull String namePrefix, @NonNull Key key, @NonNull QueueSettings queueSettings) {
     super(type, createTaskName(namePrefix, key), queueSettings.clone());
     this.key = key;
   }
 
-  private static String createTaskName(String namePrefix, Key key) {
-    if (null == key) {
-      throw new IllegalArgumentException("key is null.");
-    }
-    if (namePrefix == null) {
-      throw new IllegalArgumentException("namePrix is null.");
-    }
-    return namePrefix + KeyFactory.keyToString(key);
+  private static String createTaskName(@NonNull String namePrefix, @NonNull Key key) {
+    //deterministic name based on key, that is legal for Task Queues
+    return Stream.of(
+        key.getDatabaseId(),
+        key.getNamespace(),
+        namePrefix,
+        DigestUtils.md5Hex(key.getKind() + key.getNameOrId())
+      )
+      .filter(s -> s != null && !s.isEmpty())
+      .collect(Collectors.joining("_"));
   }
 
   /**
@@ -75,7 +81,7 @@ public abstract class ObjRefTask extends Task {
    */
   protected ObjRefTask(Type type, String taskName, Properties properties) {
     super(type, taskName, properties);
-    key = KeyFactory.stringToKey(properties.getProperty(KEY_PARAM));
+    key = Key.fromUrlSafe(properties.getProperty(KEY_PARAM));
   }
 
   public Key getKey() {
@@ -83,9 +89,8 @@ public abstract class ObjRefTask extends Task {
   }
 
   @Override
-  protected void addProperties(Properties properties) {
-    String keyString = KeyFactory.keyToString(key);
-    properties.setProperty(KEY_PARAM, keyString);
+  protected void addProperties(@NonNull Properties properties) {
+    properties.setProperty(KEY_PARAM, key.toUrlSafe());
   }
 
   @Override

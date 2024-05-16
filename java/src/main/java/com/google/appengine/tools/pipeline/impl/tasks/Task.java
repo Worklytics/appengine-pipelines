@@ -25,6 +25,9 @@ import java.util.Set;
 /**
  * An App Engine Task Queue Task. This is the abstract base class for all
  * Pipeline task types.
+ *
+ * q: kinda analogous to a StepExecution in Spring Batch?
+ *
  * <p>
  * This class represents both a task to be enqueued and a task being handled.
  * <p>
@@ -119,7 +122,7 @@ public abstract class Task {
   /**
    * The type of task. The Pipeline framework uses several types
    */
-  public static enum Type {
+  public enum Type {
 
     HANDLE_SLOT_FILLED(HandleSlotFilledTask.class),
     RUN_JOB(RunJobTask.class),

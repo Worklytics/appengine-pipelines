@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JSR310Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.io.IOException;
@@ -36,7 +37,7 @@ public class JsonUtils {
   //initialize ObjectMapper
   static  {
     objectToJsonMapper = new ObjectMapper();
-    objectToJsonMapper.registerModule(new Jdk8Module());  //java.util.Optional, Streams
+    objectToJsonMapper.registerModule(new Jdk8Module());
     objectToJsonMapper.registerModule(new JavaTimeModule());
 
     objectToJsonMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);

@@ -14,18 +14,27 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
-import lombok.extern.java.Log;
+import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
+import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
+import com.google.cloud.Timestamp;
+import com.google.cloud.datastore.*;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.io.NotSerializableException;
-import java.util.Date;
+import java.time.Instant;
+import java.util.logging.Level;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
+import java.util.stream.Collectors;
+
+
+import lombok.extern.java.Log;
+
+
+
+
 
 /**
  * A slot to be filled in with a value.
@@ -41,66 +50,73 @@ public class Slot extends PipelineModelObject {
   private static final String WAITING_ON_ME_PROPERTY = "waitingOnMe";
   private static final String FILL_TIME_PROPERTY = "fillTime";
   private static final String SOURCE_JOB_KEY_PROPERTY = "sourceJob";
+  private static final String IS_SHARDED_PROPERTY = "isSharded";
 
   // persistent
   private boolean filled;
-  private Date fillTime;
+  private Instant fillTime;
   private Object value;
   private Key sourceJobKey;
   private final List<Key> waitingOnMeKeys;
 
   // transient
   private List<Barrier> waitingOnMeInflated;
-  private Object serializedVersion;
+  //either a Blob or List<Key> ... given that we know implementation details of serialization
+  private Object serializedVersion; //TODO: 'guaranteed' to be type serializable by datastore; what does this mean??
+  private SerializationStrategy serializationStrategy;
 
-
-  public Slot(Key rootJobKey, Key generatorJobKey, String graphGUID) {
+  public Slot(Key rootJobKey, Key generatorJobKey, String graphGUID, SerializationStrategy serializationStrategy) {
     super(rootJobKey, generatorJobKey, graphGUID);
-    waitingOnMeKeys = new LinkedList<>();
+    this.waitingOnMeKeys = new LinkedList<>();
+    this.serializationStrategy = serializationStrategy;
   }
 
-  public Slot(Entity entity) {
-    this(entity, false);
+  public Slot(Entity entity, SerializationStrategy serializationStrategy) {
+    this(entity, serializationStrategy, false);
+    this.serializationStrategy = serializationStrategy;
   }
 
-  public Slot(Entity entity, boolean lazy) {
+  public Slot(Entity entity, SerializationStrategy serializationStrategy, boolean lazy) {
     super(entity);
-    filled = (Boolean) entity.getProperty(FILLED_PROPERTY);
-    fillTime = (Date) entity.getProperty(FILL_TIME_PROPERTY);
-    sourceJobKey = (Key) entity.getProperty(SOURCE_JOB_KEY_PROPERTY);
+    filled = entity.getBoolean(FILLED_PROPERTY);
+    fillTime = EntityUtils.getInstant(entity, FILL_TIME_PROPERTY);
+    sourceJobKey = EntityUtils.getKey(entity, SOURCE_JOB_KEY_PROPERTY);
     waitingOnMeKeys = getListProperty(WAITING_ON_ME_PROPERTY, entity);
+    this.serializationStrategy = serializationStrategy;
+
+    Object valueBlob = EntityUtils.getLargeValue(entity, VALUE_PROPERTY);
+
     if (lazy) {
-      serializedVersion = entity.getProperty(VALUE_PROPERTY);
+      serializedVersion = valueBlob;
     } else {
-      value = deserializeValue(entity.getProperty(VALUE_PROPERTY));
+      value = deserializeValue(valueBlob);
     }
   }
 
-  private Object deserializeValue(Object serializedValue) {
+
+  private Object deserializeValue(Object value) {
     try {
-      return PipelineManager.getBackEnd().deserializeValue(this, serializedValue);
+      return serializationStrategy.deserializeValue(this, value);
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to deserialize slot value from " + this.getKey(), e);
     }
   }
 
   @Override
   public Entity toEntity() {
-    Entity entity = toProtoEntity();
-    entity.setUnindexedProperty(FILLED_PROPERTY, filled);
+    Entity.Builder entity = toProtoBuilder();
+    entity.set(FILLED_PROPERTY, BooleanValue.newBuilder(filled).setExcludeFromIndexes(true).build());
     if (null != fillTime) {
-      entity.setUnindexedProperty(FILL_TIME_PROPERTY, fillTime);
+      entity.set(FILL_TIME_PROPERTY,
+        TimestampValue.newBuilder(Timestamp.ofTimeMicroseconds(fillTime.toEpochMilli() * 1000L)).setExcludeFromIndexes(true).build());
     }
     if (null != sourceJobKey) {
-      entity.setProperty(SOURCE_JOB_KEY_PROPERTY, sourceJobKey);
+      entity.set(SOURCE_JOB_KEY_PROPERTY, sourceJobKey);
     }
-    entity.setProperty(WAITING_ON_ME_PROPERTY, waitingOnMeKeys);
-    if (serializedVersion != null) {
-      entity.setUnindexedProperty(VALUE_PROPERTY, serializedVersion);
-    } else {
+    entity.set(WAITING_ON_ME_PROPERTY, waitingOnMeKeys.stream().map(KeyValue::of).collect(Collectors.toList()));
+    if (serializedVersion == null) {
       try {
-        entity.setUnindexedProperty(VALUE_PROPERTY,
-            PipelineManager.getBackEnd().serializeValue(this, value));
+        serializedVersion = serializationStrategy.serializeValue(this, value);
       } catch (IOException e) {
         if (e instanceof NotSerializableException) {
           log.log(Level.SEVERE, "NotSerializable value of " + value.getClass().getSimpleName() + " contained within: " + this, e);
@@ -108,7 +124,9 @@ public class Slot extends PipelineModelObject {
         throw new RuntimeException(e);
       }
     }
-    return entity;
+    EntityUtils.setLargeValue(entity, VALUE_PROPERTY, serializedVersion);
+
+    return entity.build();
   }
 
   @Override
@@ -143,7 +161,7 @@ public class Slot extends PipelineModelObject {
   /**
    * Will return {@code null} if this slot is not filled.
    */
-  public Date getFillTime() {
+  public Instant getFillTime() {
     return fillTime;
   }
 
@@ -159,7 +177,7 @@ public class Slot extends PipelineModelObject {
     filled = true;
     this.value = value;
     serializedVersion = null;
-    fillTime = new Date();
+    fillTime = Instant.now();
   }
 
   public List<Key> getWaitingOnMeKeys() {
@@ -178,5 +196,16 @@ public class Slot extends PipelineModelObject {
     return "Slot[" + getKeyName(getKey()) + ", value=" + (serializedVersion != null ? "..." : value)
         + ", filled=" + filled + ", waitingOnMe=" + waitingOnMeKeys + ", parent="
         + getKeyName(getGeneratorJobKey()) + ", guid=" + getGraphGuid() + "]";
+  }
+
+  public static Key key(String projectId, String namespace, String slotName) {
+    KeyFactory keyFactory = new KeyFactory(projectId, namespace);
+    keyFactory.setKind(DATA_STORE_KIND);
+    return keyFactory.newKey(slotName);
+  }
+
+  @VisibleForTesting
+  public static Key keyFromHandle(String handle) {
+    return Key.fromUrlSafe(handle);
   }
 }

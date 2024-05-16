@@ -1,10 +1,8 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-
+import com.google.appengine.tools.pipeline.DatastoreExtension;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.api.taskqueue.TaskHandle;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
@@ -16,6 +14,7 @@ import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * @author tkaitchuck
  */
+@ExtendWith(DatastoreExtension.class)
 public class AppEngineTaskQueueTest {
 
   private LocalServiceTestHelper helper;
@@ -35,8 +35,7 @@ public class AppEngineTaskQueueTest {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
     taskQueueConfig.setDisableAutoTaskExecution(true);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig(), taskQueueConfig,
-        new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
     helper.setUp();
   }
 
@@ -125,7 +124,7 @@ public class AppEngineTaskQueueTest {
 
   private Task createTask() {
     String name = GUIDGenerator.nextGUID();
-    Key key = KeyFactory.createKey("testType", name);
+    Key key = Key.newBuilder("test-project", "testType", name).build();
     Task task = new RunJobTask(key, new QueueSettings().setOnServiceVersion("m1"));
     return task;
   }

@@ -14,15 +14,23 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import com.google.appengine.api.datastore.Key;
+import com.google.appengine.tools.pipeline.DefaultDIModule;
+import com.google.appengine.tools.pipeline.PipelineOrchestrator;
+import com.google.appengine.tools.pipeline.PipelineRunner;
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
+import lombok.SneakyThrows;
 
 import java.io.IOException;
 
+import javax.inject.Inject;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 
 /**
  * Servlet that handles all requests for the Pipeline framework.
@@ -36,7 +44,6 @@ import jakarta.servlet.http.HttpServletResponse;
 public class PipelineServlet extends HttpServlet {
 
   public static final String BASE_URL_PROPERTY = "com.google.appengine.tools.pipeline.BASE_URL";
-  public static final String BASE_URL = baseUrl();
 
   /**
    * Returns the Pipeline's BASE URL.
@@ -51,10 +58,10 @@ public class PipelineServlet extends HttpServlet {
   }
 
   public static String makeViewerUrl(Key rootJobKey, Key jobKey) {
-    return baseUrl() + "status.html?root=" + rootJobKey.getName() + "#pipeline-" + jobKey.getName();
+    return baseUrl() + "status.html?root=" + rootJobKey.toUrlSafe() + "#pipeline-" + jobKey.toUrlSafe();
   }
 
-  private static enum RequestType {
+  private enum RequestType {
 
     HANDLE_TASK(TaskHandler.PATH_COMPONENT),
     GET_JSON(JsonTreeHandler.PATH_COMPONENT),
@@ -66,7 +73,7 @@ public class PipelineServlet extends HttpServlet {
 
     private final String pathComponent;
 
-    private RequestType(String pathComponent) {
+    RequestType(String pathComponent) {
       this.pathComponent = pathComponent;
     }
 
@@ -88,6 +95,35 @@ public class PipelineServlet extends HttpServlet {
     return Pair.of(path, requestType);
   }
 
+  transient AbortJobHandler abortJobHandler;
+  transient DeleteJobHandler deleteJobHandler;
+  transient JsonClassFilterHandler jsonClassFilterHandler;
+  transient JsonListHandler jsonListHandler;
+  transient JsonTreeHandler jsonTreeHandler;
+  transient TaskHandler taskHandler;
+
+  @Inject
+  transient PipelineRunner pipelineManager;
+
+  @SneakyThrows
+  @Override
+  public void init() throws ServletException {
+    super.init();
+
+    // TODO: fix this? may have second copy IF user overrides; OK?
+    if (pipelineManager == null) {
+      DIUtil.inject(DefaultDIModule.class.getName(), this);
+    }
+
+    //TODO: move these to DI?
+    abortJobHandler = new AbortJobHandler((PipelineOrchestrator) pipelineManager);
+    deleteJobHandler = new DeleteJobHandler(pipelineManager);
+    jsonClassFilterHandler = new JsonClassFilterHandler(pipelineManager);
+    jsonListHandler = new JsonListHandler(pipelineManager);
+    jsonTreeHandler = new JsonTreeHandler(pipelineManager);
+    taskHandler = new TaskHandler((PipelineManager) pipelineManager);
+  }
+
   @Override
   public void doPost(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
@@ -102,22 +138,22 @@ public class PipelineServlet extends HttpServlet {
     String path = pair.getFirst();
     switch (requestType) {
       case HANDLE_TASK:
-        TaskHandler.doPost(req);
+        taskHandler.doPost(req);
         break;
       case GET_JSON:
-        JsonTreeHandler.doGet(req, resp);
+        jsonTreeHandler.doGet(req, resp);
         break;
       case GET_JSON_LIST:
-        JsonListHandler.doGet(req, resp);
+        jsonListHandler.doGet(req, resp);
         break;
       case GET_JSON_CLASS_FILTER:
-        JsonClassFilterHandler.doGet(req, resp);
+        jsonClassFilterHandler.doGet(req, resp);
         break;
       case ABORT_JOB:
-        AbortJobHandler.doGet(req, resp);
+        abortJobHandler.doGet(req, resp);
         break;
       case DELETE_JOB:
-        DeleteJobHandler.doGet(req, resp);
+        deleteJobHandler.doGet(req, resp);
         break;
       case HANDLE_STATIC:
         StaticContentHandler.doGet(resp, path);

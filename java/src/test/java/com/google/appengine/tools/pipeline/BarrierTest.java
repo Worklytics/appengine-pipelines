@@ -17,18 +17,16 @@ package com.google.appengine.tools.pipeline;
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
-import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.AfterEach;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,21 +35,14 @@ import java.util.List;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@ExtendWith(DatastoreExtension.class)
 public class BarrierTest {
-
-  private LocalServiceTestHelper helper =
-      new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig());
 
   @BeforeEach
   public void setUp() throws Exception {
-    helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
   }
 
-  @AfterEach
-  public void tearDown() throws Exception {
-    helper.tearDown();
-  }
 
   @Test
   public void testArgumentBuilding() throws Exception {
@@ -126,7 +117,7 @@ public class BarrierTest {
   }
 
   public static Slot createDummySlot() {
-    Key dummyKey = KeyFactory.createKey("dummy", "dummy");
-    return new Slot(dummyKey, dummyKey, "abc");
+    Key dummyKey = Key.newBuilder("dummy", "dummy", "jobId").build();
+    return new Slot(dummyKey, dummyKey, "abc", PipelineTest.getSerializationStrategy());
   }
 }

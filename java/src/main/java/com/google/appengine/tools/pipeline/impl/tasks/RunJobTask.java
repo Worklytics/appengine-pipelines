@@ -14,7 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.tasks;
 
-import com.google.appengine.api.datastore.Key;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 
 import java.util.Properties;
@@ -27,9 +27,9 @@ import java.util.Properties;
  */
 public class RunJobTask extends ObjRefTask {
 
-  private final Integer attemptNumber;
+  private final Long attemptNumber;
 
-  public RunJobTask(Key jobKey, Integer attemptNumber, QueueSettings queueSettings) {
+  public RunJobTask(Key jobKey, Long attemptNumber, QueueSettings queueSettings) {
     super(Type.RUN_JOB, "runJob", jobKey, queueSettings);
     this.attemptNumber = attemptNumber;
   }

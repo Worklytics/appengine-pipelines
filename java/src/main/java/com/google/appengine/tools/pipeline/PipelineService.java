@@ -14,12 +14,17 @@
 
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+
 /**
  * A service used to start and stop Pipeline jobs and query their status.
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public interface PipelineService {
+
+  PipelineBackEnd.Options getBackendOptions();
+
 
   /**
    * Start a new Pipeline by specifying the root job and its arguments This

@@ -15,7 +15,9 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
+import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 
@@ -26,19 +28,22 @@ import jakarta.servlet.http.HttpServletResponse;
 /**
  * @author ozarov@google.com (Arie Ozarov)
  */
+@RequiredArgsConstructor
 public class DeleteJobHandler {
 
   public static final String PATH_COMPONENT = "rpc/delete";
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
 
-  public static void doGet(HttpServletRequest req, HttpServletResponse resp)
+  private final PipelineRunner pipelineManager;
+
+  public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException, ServletException {
     String rootJobHandle = req.getParameter(ROOT_PIPELINE_ID);
     if (null == rootJobHandle) {
       throw new ServletException(ROOT_PIPELINE_ID + " parameter not found.");
     }
     try {
-      PipelineManager.deletePipelineRecords(rootJobHandle, true, true);
+      pipelineManager.deletePipelineRecords(rootJobHandle, true, true);
     } catch (NoSuchObjectException nsoe) {
       resp.sendError(HttpServletResponse.SC_NOT_FOUND);
       return;

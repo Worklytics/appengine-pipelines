@@ -15,7 +15,10 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
+import com.google.appengine.tools.pipeline.PipelineOrchestrator;
+import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 
@@ -26,19 +29,22 @@ import jakarta.servlet.http.HttpServletResponse;
 /**
  * @author ozarov@google.com (Arie Ozarov)
  */
+@RequiredArgsConstructor
 public class AbortJobHandler {
 
   public static final String PATH_COMPONENT = "rpc/abort";
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
 
-  public static void doGet(HttpServletRequest req, HttpServletResponse resp)
+  private final PipelineOrchestrator pipelineManager;
+
+  public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException, ServletException {
     String rootJobHandle = req.getParameter(ROOT_PIPELINE_ID);
     if (null == rootJobHandle) {
       throw new ServletException(ROOT_PIPELINE_ID + " parameter not found.");
     }
     try {
-      PipelineManager.cancelJob(rootJobHandle);
+      pipelineManager.cancelJob(rootJobHandle);
     } catch (NoSuchObjectException nsoe) {
       resp.sendError(HttpServletResponse.SC_NOT_FOUND);
       return;

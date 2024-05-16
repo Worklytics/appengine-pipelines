@@ -3,17 +3,18 @@
 package com.google.appengine.tools.pipeline;
 
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
+import static com.google.appengine.tools.pipeline.impl.util.TestUtils.BREAK_AppEngineBackEnd_saveWithJobStateCheck_beforeFinalTransaction;
 import static com.google.appengine.tools.pipeline.impl.util.TestUtils.getFailureProperty;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.google.appengine.api.datastore.Entity;
-import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.apphosting.api.ApiProxy;
+
+import lombok.AllArgsConstructor;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,11 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public class OrphanedJobGraphTest extends PipelineTest {
-
-  @Override
-  protected boolean isHrdSafe() {
-    return false;
-  }
 
   @BeforeEach
   public void setUp() throws Exception {
@@ -86,9 +82,8 @@ public class OrphanedJobGraphTest extends PipelineTest {
   private void doOrphanedJobGraphTest(boolean usePromisedValue) throws Exception {
 
     // Run GeneratorJob
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineHandle = service.startNewPipeline(new GeneratorJob(usePromisedValue));
-    waitForJobToComplete(pipelineHandle);
+    String pipelineHandle = pipelineService.startNewPipeline(new GeneratorJob(usePromisedValue));
+    waitForJobToComplete(pipelineService, pipelineHandle);
 
     // The GeneratorJob run() should have failed twice just before the final
     // transaction and succeeded a third time
@@ -100,8 +95,8 @@ public class OrphanedJobGraphTest extends PipelineTest {
 
     // Get all of the Pipeline objects so we can confirm the orphaned jobs are
     // really there
-    PipelineObjects allObjects = PipelineManager.queryFullPipeline(pipelineHandle);
-    Key rootJobKey = KeyFactory.createKey(JobRecord.DATA_STORE_KIND, pipelineHandle);
+    PipelineObjects allObjects = pipelineManager.queryFullPipeline(pipelineHandle);
+    Key rootJobKey = JobRecord.keyFromPipelineHandle(pipelineHandle);
     JobRecord rootJob = allObjects.getJobs().get(rootJobKey);
     assertNotNull(rootJob);
     String graphGuid = rootJob.getChildGraphGuid();
@@ -146,11 +141,10 @@ public class OrphanedJobGraphTest extends PipelineTest {
     }
 
     // Now delete the whole Pipeline
-    service.deletePipelineRecords(pipelineHandle);
+    pipelineService.deletePipelineRecords(pipelineHandle);
 
     // Check that all jobs have been deleted
-    AppEngineBackEnd backend = new AppEngineBackEnd();
-    Iterable<Entity> jobs = backend.queryAll(JobRecord.DATA_STORE_KIND, rootJobKey);
+    Iterable<Entity> jobs = appEngineBackend.queryAll(JobRecord.DATA_STORE_KIND, rootJobKey);
     numJobs = 0;
     // TODO(user): replace with Iterables.size once b/11899553 is fixed
     for (@SuppressWarnings("unused") Entity entity : jobs) {
@@ -165,17 +159,14 @@ public class OrphanedJobGraphTest extends PipelineTest {
    * succeed the third time. The job also counts the number of times it was run.
    */
   @SuppressWarnings("serial")
+  @AllArgsConstructor
   private static class GeneratorJob extends Job0<Void> {
 
     public static AtomicInteger runCount = new AtomicInteger(0);
     private static final String SHOULD_FAIL_PROPERTY =
-        getFailureProperty("AppEngineBackeEnd.saveWithJobStateCheck.beforeFinalTransaction");
+        getFailureProperty(BREAK_AppEngineBackEnd_saveWithJobStateCheck_beforeFinalTransaction);
 
     boolean usePromise;
-
-    public GeneratorJob(boolean usePromise) {
-      this.usePromise = usePromise;
-    }
 
     @Override
     public Value<Void> run() {
@@ -185,9 +176,10 @@ public class OrphanedJobGraphTest extends PipelineTest {
       }
       Value<Integer> dummyValue;
       if (usePromise) {
+        PipelineService pipelineService = PipelineServiceFactory.newPipelineService(getPipelineBackendOptions());
         PromisedValue<Integer> promisedValue = newPromise();
         (new Thread(new SupplyPromisedValueRunnable(ApiProxy.getCurrentEnvironment(),
-            promisedValue.getHandle()))).start();
+            promisedValue.getHandle(), pipelineService))).start();
         dummyValue = promisedValue;
       } else {
         dummyValue = immediate(0);
@@ -218,18 +210,19 @@ public class OrphanedJobGraphTest extends PipelineTest {
    */
   private static class SupplyPromisedValueRunnable implements Runnable {
 
+    private PipelineService pipelineService;
     private String promiseHandle;
     private ApiProxy.Environment apiProxyEnvironment;
     public static AtomicInteger orphanedObjectExcetionCount = new AtomicInteger(0);
 
-    public SupplyPromisedValueRunnable(ApiProxy.Environment environment, String promiseHandle) {
+    public SupplyPromisedValueRunnable(ApiProxy.Environment environment, String promiseHandle, PipelineService pipelineService) {
       this.promiseHandle = promiseHandle;
       this.apiProxyEnvironment = environment;
+      this.pipelineService = pipelineService;
     }
 
     @Override
     public void run() {
-      PipelineService service = PipelineServiceFactory.newPipelineService();
       ApiProxy.setEnvironmentForCurrentThread(apiProxyEnvironment);
       // TODO(user): Try something better than sleep to make sure
       // this happens after the processing the caller's runTask
@@ -239,7 +232,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
         // ignore - use uninterruptables
       }
       try {
-        service.submitPromisedValue(promiseHandle, 0);
+        pipelineService.submitPromisedValue(promiseHandle, 0);
       } catch (NoSuchObjectException e) {
         throw new RuntimeException(e);
       } catch (OrphanedObjectException f) {

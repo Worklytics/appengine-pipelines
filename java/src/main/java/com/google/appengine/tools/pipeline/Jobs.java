@@ -23,9 +23,12 @@ import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.RetryOptions;
 import com.google.appengine.api.taskqueue.TaskOptions;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.cloud.datastore.Key;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import lombok.NonNull;
 
 import java.io.Serializable;
 import java.util.logging.Level;
@@ -97,12 +100,12 @@ public class Jobs {
   public static <T> Value<T> waitForAllAndDelete(
       Job<?> caller, Value<T> value, Value<?>... values) {
     return caller.futureCall(
-        new DeletePipelineJob<T>(caller.getPipelineKey().getName()),
+        new DeletePipelineJob<T>(caller.getPipelineKey().toUrlSafe()),
         value, createWaitForSettingArray(values));
   }
 
   public static <T> Value<T> waitForAllAndDelete(Job<?> caller, T value, Value<?>... values) {
-    return caller.futureCall(new DeletePipelineJob<T>(caller.getPipelineKey().getName()),
+    return caller.futureCall(new DeletePipelineJob<T>(caller.getPipelineKey().toUrlSafe()),
         immediate(value), createWaitForSettingArray(values));
   }
 
@@ -110,22 +113,33 @@ public class Jobs {
 
     private static final long serialVersionUID = -5440838671291502355L;
     private static final Logger log = Logger.getLogger(DeletePipelineJob.class.getName());
+
+    //URL-safe key of the root job
     private final String key;
 
-    DeletePipelineJob(String rootJobKey) {
+    DeletePipelineJob(@NonNull String rootJobKey) {
+      Key.fromUrlSafe(rootJobKey); //validate key (throws IllegalArgumentException if bad)
       this.key = rootJobKey;
     }
 
     @Override
     public Value<T> run(T value) {
+
+      // ugh, they're using a deferred task to delete the pipeline, so we have to somehow serialize the pipelineRunner
+
       DeferredTask deleteRecordsTask = new DeferredTask() {
         private static final long serialVersionUID = -7510918963650055768L;
 
+        private PipelineBackEnd.Options options = getPipelineRunner().getOptions();
+
         @Override
         public void run() {
-          PipelineService service = PipelineServiceFactory.newPipelineService();
+          PipelineRunnerFactory pipelineRunnerFactory = new PipelineRunnerFactory();
+          PipelineRunner pipelineRunner = pipelineRunnerFactory.createPipelineRunner(options);
+
           try {
-            service.deletePipelineRecords(key);
+            log.info("Deleting pipeline: " + key);
+            pipelineRunner.deletePipelineRecords(key, false, false);
             log.info("Deleted pipeline: " + key);
           } catch (IllegalStateException e) {
             log.info("Failed to delete pipeline: " + key);
@@ -141,7 +155,7 @@ public class Jobs {
               }
             }
             try {
-              service.deletePipelineRecords(key, true, false);
+              pipelineRunner.deletePipelineRecords(key, true, false);
               log.info("Force deleted pipeline: " + key);
             } catch (Exception ex) {
               log.log(Level.WARNING, "Failed to force delete pipeline: " + key, ex);
