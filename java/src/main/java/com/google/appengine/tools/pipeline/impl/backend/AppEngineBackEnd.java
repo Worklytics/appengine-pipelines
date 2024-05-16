@@ -437,7 +437,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   @Override
   public Object deserializeValue(PipelineModelObject model, Object serializedVersion)
-      throws IOException {
+    throws IOException, ClassNotFoundException {
     if (serializedVersion instanceof Blob) {
       return SerializationUtils.deserialize(((Blob) serializedVersion).toByteArray());
     } else {

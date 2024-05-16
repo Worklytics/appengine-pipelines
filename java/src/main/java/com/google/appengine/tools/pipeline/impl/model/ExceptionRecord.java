@@ -46,7 +46,7 @@ public class ExceptionRecord extends PipelineModelObject {
     byte[] serializedException = serializedExceptionBlob.toByteArray();
     try {
       exception = (Throwable) SerializationUtils.deserialize(serializedException);
-    } catch (IOException e) {
+    } catch (IOException | ClassNotFoundException e) {
       throw new RuntimeException("Failed to deserialize exception for " + getKey(), e);
     }
   }
