@@ -15,11 +15,12 @@ import java.util.zip.*;
  * worklytics version of this class replaces Google version w same public interface/behavior, but replacement offers
  * much better performance, exploits modern java behavior; eliminates need to measure headers ourselves, etc.
  *
- * q: use JSON serialization? more standard and potentially interoperable
+ * q: use JSON serialization? more standard and potentially interoperable across languages and java versions
  */
 public class SerializationUtils {
 
-  private static final int MAX_UNCOMPRESSED_BYTE_SIZE = 100_000;
+  // err on small; test >= this actually runs faster than < this, suggesting efficiency handling compressed data
+  private static final int MAX_UNCOMPRESSED_BYTE_SIZE = 50_000;
 
   public static byte[] serialize(Object obj) throws IOException {
     // Serialize the object

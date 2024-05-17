@@ -14,8 +14,9 @@ class SerializationUtilsTest {
   // range of values, so test with both compressed and not compressed
   // NOTE: original google pipelines version of this had 1e6, 2e6 cases super slow ... 7s, 13s each - wtf; must have
   // been copying arrays rather than streaming or something
+  // as of 17 May 2024, using java.util.zip.* impl, perf linear - O(n) - in size of array
   @ParameterizedTest
-  @ValueSource(ints = {5, 100, 1000, 10_000, 1_000_000, 2_000_000})
+  @ValueSource(ints = {1_000, 10_000, 49_000, 50_000, 100_000, 150_000, 1_000_000, 2_000_000})
   public void roundtrip(int longs) throws IOException, ClassNotFoundException {
 
     long[] largeValue = new long[longs];
