@@ -112,12 +112,6 @@
   <dependencies>
     <!-- Compile/Runtime Dependencies -->
     <dependency>
-      <groupId>org.json</groupId>
-      <artifactId>json</artifactId>
-      <version>20231013</version>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.appengine</groupId>
       <artifactId>appengine-api-1.0-sdk</artifactId>
         <version>${appengine.target.version}</version>
