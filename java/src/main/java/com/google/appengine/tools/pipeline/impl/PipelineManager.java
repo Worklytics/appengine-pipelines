@@ -778,7 +778,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     Optional<Injectable> injectable = Optional.ofNullable(job.getClass().getAnnotation(Injectable.class));
 
     if (injectable.isPresent()) {
-      DIUtil.inject(injectable.get().value().getName(), job);
+      DIUtil.inject(injectable.get().value(), job);
     }
   }
 

@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * equivalent of Spring component, in a sense
  *
- * FQN of Dagger 1 module class that should be used when filling this classes dependencies, if any.
+ * FQN of Dagger 2 module class that should be used when filling this classes dependencies, if any.
  *
  *
  * Usage:
