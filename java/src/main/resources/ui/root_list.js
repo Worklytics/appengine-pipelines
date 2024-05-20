@@ -23,7 +23,7 @@ function initRootList() {
   setButter('Loading root jobs...');
   $.ajax({
     type: 'GET',
-    url: 'rpc/list' + window.location.search,
+    url: 'rpc/list' + _.escape(window.location.search),
     dataType: 'text',
     error: function(request, textStatus) {
       getResponseDataJson(textStatus);
