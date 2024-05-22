@@ -21,7 +21,6 @@ public class DITest extends PipelineTest {
 
   @Component(
     modules = {
-      //DefaultDIModule.class,
       DIModule.class,
     }
   )

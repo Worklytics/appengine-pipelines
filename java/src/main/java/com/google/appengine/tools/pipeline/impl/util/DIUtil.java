@@ -3,6 +3,7 @@ package com.google.appengine.tools.pipeline.impl.util;
 /**
  * Copyright Worklytics, Co. 2024.
  */
+import com.google.appengine.tools.pipeline.Injectable;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
@@ -12,6 +13,7 @@ import lombok.extern.java.Log;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -32,18 +34,35 @@ public class DIUtil {
 	// just for logging purposes
 	private static boolean overridden = false;
 
+  /**
+   * Injects an instance annotated with @Injectable, based on the module provided in the annotation
+   *
+   * @param instance
+   */
+  public static void inject(Object instance) {
+    Optional<Injectable> injectable = Optional.ofNullable(instance.getClass().getAnnotation(Injectable.class));
+
+    if (injectable.isPresent()) {
+      inject(injectable.get().value(), instance);
+    }
+  }
+
+  public static boolean isInjectable(Object instance) {
+    return instance.getClass().getAnnotation(Injectable.class) != null;
+  }
+
 	/**
 	 * Injects and Injectable instance through Reflection
    * @param componentClass component class (Dagger-generated)
-	 * @param injectable class to inject
+	 * @param instance class instance to inject
 	 */
-	public static void inject(Class<?> componentClass, Object injectable) {
+	public static void inject(Class<?> componentClass, Object instance) {
     Object objectGraph = getFromComponentClass(componentClass);
 
     try {
-      Method injectMethod = objectGraph.getClass().getMethod("inject", injectable.getClass());
+      Method injectMethod = objectGraph.getClass().getMethod("inject", instance.getClass());
       injectMethod.setAccessible(true); //avoid 'volatile' thing
-      injectMethod.invoke(objectGraph, injectable);
+      injectMethod.invoke(objectGraph, instance);
     } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
       throw new RuntimeException("Couldn't inject object " + e.getMessage(), e);
     }
