@@ -22,7 +22,8 @@ import java.util.zip.*;
 public class SerializationUtils {
 
   // err on small; test >= this actually runs faster than < this, suggesting efficiency handling compressed data
-  private static final int MAX_UNCOMPRESSED_BYTE_SIZE = 50_000;
+  @VisibleForTesting
+  static final int MAX_UNCOMPRESSED_BYTE_SIZE = 50_000;
 
   public static byte[] serialize(Object obj) throws IOException {
     // Serialize the object
@@ -30,20 +31,18 @@ public class SerializationUtils {
     try (ObjectOutputStream objectOut = new ObjectOutputStream(byteOut)) {
       objectOut.writeObject(obj);
     }
-    byte[] serializedData = byteOut.toByteArray();
-
     // Compress only if serialized data exceeds threshold
-    if (serializedData.length > MAX_UNCOMPRESSED_BYTE_SIZE) {
+    if (byteOut.size() > MAX_UNCOMPRESSED_BYTE_SIZE) {
       ByteArrayOutputStream compressedByteOut = new ByteArrayOutputStream();
       try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedByteOut);
            ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut)) {
         objectOut.writeObject(obj);
         objectOut.flush();
         gzipOut.finish();
-        serializedData = compressedByteOut.toByteArray();
+        return compressedByteOut.toByteArray();
       }
     }
-    return serializedData;
+    return byteOut.toByteArray();
   }
 
   public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {

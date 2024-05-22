@@ -3,7 +3,7 @@ package com.google.appengine.tools.pipeline.impl.util;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.*;
 import java.util.Arrays;
@@ -12,22 +12,48 @@ import static org.junit.jupiter.api.Assertions.*;
 class SerializationUtilsTest {
 
 
+
+  @Test
+  public void helloWorld() throws IOException, ClassNotFoundException {
+    assertEquals("hello",
+      SerializationUtils.deserialize(SerializationUtils.serialize(new String("hello"))));
+  }
+
   // range of values, so test with both compressed and not compressed
   // NOTE: original google pipelines version of this had 1e6, 2e6 cases super slow ... 7s, 13s each - wtf; must have
   // been copying arrays rather than streaming or something
   // as of 17 May 2024, using java.util.zip.* impl, perf linear - O(n) - in size of array
+  // as a perf test, maybe somewhat unrealistic bc *highly* compressible data
   @ParameterizedTest
-  @ValueSource(ints = {1_000, 10_000, 49_000, 50_000, 100_000, 150_000, 1_000_000, 2_000_000})
-  public void roundtrip(int longs) throws IOException, ClassNotFoundException {
+  @CsvSource({
+      // longs == 8 bytes; compression threshold is 50k bytes
+      "10,false", // 80 bytes
+      "100,false", // 800 bytes
+      "1000,false", // 8k
+      "10000,true", // 80k
+      "49000,true", // 392k
+      "50000,true", // 400k
+      "100000,true", // 800k
+      "150000,true", // 1.2MB
+      "1000000,true", // 8MB
+      "2000000,true", // 16MB
+  })
+  public void roundtrip(int longs, boolean compressed) throws IOException, ClassNotFoundException {
 
     long[] largeValue = generateLongArray(longs);
-    long[] serializationUtilsTest = (long[]) SerializationUtils.deserialize(SerializationUtils.serialize(largeValue));
+    byte[] serialized = SerializationUtils.serialize(largeValue);
 
+    // verify expectations for case are correct
+    assertEquals(compressed, 8*largeValue.length > SerializationUtils.MAX_UNCOMPRESSED_BYTE_SIZE);
+
+    // verify in fact compressed or not
+    assertEquals(compressed, SerializationUtils.isGZIPCompressed(serialized));
+
+    //survives roundtrip
+    long[] serializationUtilsTest = (long[]) SerializationUtils.deserialize(serialized);
     assertArrayEquals(largeValue, serializationUtilsTest);
-
-    assertEquals("hello",
-      SerializationUtils.deserialize(SerializationUtils.serialize(new String("hello"))));
   }
+
 
   @SneakyThrows
   @Test
