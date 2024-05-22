@@ -4,7 +4,6 @@ package com.google.appengine.tools.pipeline;
 import com.google.appengine.api.utils.SystemProperty;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.*;
-import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.DatastoreOptions;
 import dagger.Module;
@@ -14,13 +13,7 @@ import lombok.SneakyThrows;
 import javax.inject.Singleton;
 
 //TODO: split internals v stuff that can be re-used by others
-@Module(
-  injects = { //alphabetical order
-    PipelineServlet.class,
-  },
-  library = true,
-  complete = false
-)
+@Module
 public class DefaultDIModule {
 
   @Provides @Singleton
@@ -31,6 +24,11 @@ public class DefaultDIModule {
       .credentials(GoogleCredentials.getApplicationDefault())
       .datastoreOptions(DatastoreOptions.getDefaultInstance())
       .build();
+  }
+
+  @Provides @Singleton
+  PipelineBackEnd pipelineBackEnd(AppEngineBackEnd appEngineBackEnd) {
+    return appEngineBackEnd;
   }
 
   @Provides @Singleton

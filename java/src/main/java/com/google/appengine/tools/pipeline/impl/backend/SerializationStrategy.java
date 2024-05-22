@@ -30,6 +30,6 @@ public interface SerializationStrategy {
    * @throws IOException if any problem occurs
    */
   Object deserializeValue(PipelineModelObject model, Object serializedVersion)
-    throws IOException;
+    throws IOException, ClassNotFoundException;
 
 }

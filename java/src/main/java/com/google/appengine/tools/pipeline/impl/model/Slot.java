@@ -97,7 +97,7 @@ public class Slot extends PipelineModelObject {
   private Object deserializeValue(Object value) {
     try {
       return serializationStrategy.deserializeValue(this, value);
-    } catch (IOException e) {
+    } catch (IOException | ClassNotFoundException e) {
       throw new RuntimeException("Failed to deserialize slot value from " + this.getKey(), e);
     }
   }

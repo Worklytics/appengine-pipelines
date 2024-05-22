@@ -2,12 +2,14 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import dagger.Component;
 import dagger.Module;
 import javax.inject.Inject; // jakarta.inject.Inject not working with dagger yet (maybe in 2.0??)
 
 import dagger.Provides;
 import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 
@@ -17,18 +19,19 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class DITest extends PipelineTest {
 
-
-  @Module(
-    injects = {
-      JobWithDependency.class,
-    },
-    includes = {
-      DefaultDIModule.class,
-    },
-    complete = false,
-    library = true,
-    overrides = true
+  @Component(
+    modules = {
+      DIModule.class,
+    }
   )
+  public interface Container extends DIContainer<DITest> {
+
+    //NOTE: have to do this for every class that may need to be injected (eg, Jobs, Tests, etc)
+    void inject(JobWithDependency job);
+  }
+
+
+  @Module
   public static class DIModule {
 
     @Provides
@@ -36,22 +39,27 @@ public class DITest extends PipelineTest {
       return new AppEngineEnvironment() {
         @Override
         public String getService() {
-          return null;
+          return "service";
         }
 
         @Override
         public String getVersion() {
-          return "dsaf";
+          return "v0.1-test";
         }
       };
     }
-
-
-
   }
 
+  @BeforeEach
+  public void setup() {
+    Container container = DaggerDITest_Container.create();
+    container.inject(this);
+    DIUtil.overrideComponentInstanceForTests(DaggerDITest_Container.class, container);
+  }
+
+
   @NoArgsConstructor
-  @Injectable(DIModule.class)
+  @Injectable(DaggerDITest_Container.class)
   public static class JobWithDependency extends Job0<String> {
 
     @Inject
@@ -67,15 +75,15 @@ public class DITest extends PipelineTest {
   public void directInjection() {
     JobWithDependency job = new JobWithDependency();
 
-    DIUtil.inject(DIModule.class.getName(), job);
+    DIUtil.inject(DaggerDITest_Container.class, job);
     assertNotNull(job.appEngineEnvironment);
   }
 
   @SneakyThrows
   @Test
-  public void test(PipelineService pipelineService) {
+  public void testJobWithDependency(PipelineService pipelineService) {
     String pipelineId = pipelineService.startNewPipeline(new JobWithDependency());
     String value = waitForJobToComplete(pipelineService, pipelineId);
-    assertEquals("dsaf", value);
+    assertEquals("v0.1-test", value);
   }
 }

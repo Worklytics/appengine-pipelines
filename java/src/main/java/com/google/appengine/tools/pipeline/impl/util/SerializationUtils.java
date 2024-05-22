@@ -1,98 +1,71 @@
-// Copyright 2011 Google Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License"); you may not
-// use this file except in compliance with the License. You may obtain a copy of
-// the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations under
-// the License.
-
+/**
+ * Copyright 2024, Worklytics, Co.
+ *
+ */
 package com.google.appengine.tools.pipeline.impl.util;
+
+import com.google.common.annotations.VisibleForTesting;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.zip.Deflater;
-import java.util.zip.DeflaterOutputStream;
-import java.util.zip.Inflater;
-import java.util.zip.InflaterInputStream;
+import java.util.zip.*;
 
 /**
- * @author rudominer@google.com (Your Name Here)
+ * worklytics version of this class replaces Google version w same public interface/behavior, but replacement offers
+ * much better performance, exploits modern java behavior; eliminates need to measure headers ourselves, etc.
  *
+ * q: use JSON serialization? more standard and potentially interoperable across languages and java versions
  */
 public class SerializationUtils {
 
-  private static final int MAX_UNCOMPRESSED_BYTE_SIZE = 1000000;
-  private static final int ZLIB_COMPRESSION = 1;
+  // err on small; test >= this actually runs faster than < this, suggesting efficiency handling compressed data
+  @VisibleForTesting
+  static final int MAX_UNCOMPRESSED_BYTE_SIZE = 50_000;
 
-  private static class InternalByteArrayOutputStream extends ByteArrayOutputStream {
-
-    public InternalByteArrayOutputStream(int size) {
-      super(size);
+  public static byte[] serialize(Object obj) throws IOException {
+    // Serialize the object
+    ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
+    try (ObjectOutputStream objectOut = new ObjectOutputStream(byteOut)) {
+      objectOut.writeObject(obj);
     }
-
-    private byte[] getInternalBuffer() {
-      return buf;
-    }
-  }
-
-  public static byte[] serialize(Object x) throws IOException {
-    InternalByteArrayOutputStream bytes = new InternalByteArrayOutputStream(512);
-    try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
-      out.writeObject(x);
-    }
-    if (bytes.size() <= MAX_UNCOMPRESSED_BYTE_SIZE) {
-      return bytes.toByteArray();
-    }
-    ByteArrayOutputStream compressedBytes = new ByteArrayOutputStream(bytes.size() / 4);
-    compressedBytes.write(0);
-    compressedBytes.write(ZLIB_COMPRESSION);
-    Deflater deflater =  new Deflater(Deflater.BEST_COMPRESSION, true);
-    try (DeflaterOutputStream out = new DeflaterOutputStream(compressedBytes, deflater)) {
-      // Use internal buffer to avoid copying it.
-      out.write(bytes.getInternalBuffer(), 0, bytes.size());
-    } finally {
-      deflater.end();
-    }
-    return compressedBytes.toByteArray();
-  }
-
-  public static Object deserialize(byte[] bytes) throws IOException {
-    if (bytes.length < 2) {
-      throw new IOException("Invalid bytes content");
-    }
-    InputStream in = new ByteArrayInputStream(bytes);
-    if (bytes[0] == 0) {
-      in.read(); // consume the marker;
-      if (in.read() != ZLIB_COMPRESSION) {
-        throw new IOException("Unknown compression type");
+    // Compress only if serialized data exceeds threshold
+    if (byteOut.size() > MAX_UNCOMPRESSED_BYTE_SIZE) {
+      ByteArrayOutputStream compressedByteOut = new ByteArrayOutputStream();
+      try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedByteOut);
+           ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut)) {
+        objectOut.writeObject(obj);
+        objectOut.flush();
+        gzipOut.finish();
+        return compressedByteOut.toByteArray();
       }
-      final Inflater inflater =  new Inflater(true);
-      in = new InflaterInputStream(in, inflater) {
-        @Override public void close() throws IOException {
-          try {
-            super.close();
-          } finally {
-            inflater.end();
-          }
+    }
+    return byteOut.toByteArray();
+  }
+
+  public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
+    // Attempt to decompress
+    try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data)) {
+      if (isGZIPCompressed(data)) {
+        try (GZIPInputStream gzipIn = new GZIPInputStream(byteIn);
+             ObjectInputStream objectIn = new ObjectInputStream(gzipIn)) {
+          return objectIn.readObject();
         }
-      };
-    }
-    try (ObjectInputStream oin = new ObjectInputStream(in)) {
-      try {
-        return oin.readObject();
-      } catch (ClassNotFoundException e) {
-        throw new IOException("Exception while deserilaizing.", e);
+      } else {
+        try (ObjectInputStream objectIn = new ObjectInputStream(byteIn)) {
+          return objectIn.readObject();
+        }
       }
     }
+  }
+
+  @VisibleForTesting
+  static boolean isGZIPCompressed(byte[] bytes) {
+    return (bytes != null)
+      && (bytes.length >= 2)
+      && ((bytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC))
+      && (bytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
   }
 }

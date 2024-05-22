@@ -8,7 +8,7 @@
   <url>https://github.com/Worklytics/appengine-pipelines/</url>
   <!-- follow semver, with suggested guidance for versioning fork of OSS -->
   <!-- see https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.3+worklytics.3</version>
+  <version>0.3+worklytics.4</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -112,12 +112,6 @@
   <dependencies>
     <!-- Compile/Runtime Dependencies -->
     <dependency>
-      <groupId>org.json</groupId>
-      <artifactId>json</artifactId>
-      <version>20231013</version>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.appengine</groupId>
       <artifactId>appengine-api-1.0-sdk</artifactId>
         <version>${appengine.target.version}</version>
@@ -191,17 +185,19 @@
       <artifactId>jakarta.inject-api</artifactId>
       <version>2.0.1</version>
     </dependency>
-    <!-- Dagger - Dependency Inject FW - http://square.github.io/dagger/ -->
+    <!-- Dagger - Dependency Inject FW - https://github.com/google/dagger -->
+    <!-- TBC: if micronaut, that provides compile-time DI too ... -->
+    <!-- also, is this very extensible? believe this will in effect require users to provide Dagger 2 module FQN to @Injectable to leverage this -->
     <dependency>
-      <groupId>com.squareup.dagger</groupId>
+      <groupId>com.google.dagger</groupId>
       <artifactId>dagger</artifactId>
-      <version>1.2.5</version>
+      <version>2.51.1</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>com.squareup.dagger</groupId>
+      <groupId>com.google.dagger</groupId>
       <artifactId>dagger-compiler</artifactId>
-      <version>1.2.5</version>
+      <version>2.51.1</version>
       <scope>compile</scope>
     </dependency>
 
@@ -230,10 +226,16 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.mockito</groupId>
        <artifactId>mockito-core</artifactId>
        <version>4.11.0</version>
        <scope>test</scope>
     </dependency>
+
   </dependencies>
 </project>

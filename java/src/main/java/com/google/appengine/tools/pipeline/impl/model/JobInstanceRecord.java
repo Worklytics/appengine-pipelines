@@ -111,7 +111,7 @@ public class JobInstanceRecord extends PipelineModelObject {
     if (null == jobInstance) {
       try {
         jobInstance = (Job<?>) serializationStrategy.deserializeValue(this, value);
-      } catch (IOException e) {
+      } catch (IOException | ClassNotFoundException e) {
         throw new RuntimeException(
             "Exception while attempting to deserialize jobInstance for " + jobKey, e);
       }

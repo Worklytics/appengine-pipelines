@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
+import com.google.appengine.tools.pipeline.DaggerDefaultContainer;
 import com.google.appengine.tools.pipeline.DefaultDIModule;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
@@ -112,7 +113,7 @@ public class PipelineServlet extends HttpServlet {
 
     // TODO: fix this? may have second copy IF user overrides; OK?
     if (pipelineManager == null) {
-      DIUtil.inject(DefaultDIModule.class.getName(), this);
+      DIUtil.inject(DaggerDefaultContainer.class, this);
     }
 
     //TODO: move these to DI?
