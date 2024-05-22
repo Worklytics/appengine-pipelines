@@ -666,7 +666,7 @@ function findActivePipeline(pipelineId, isRoot) {
 
 function getSelectedPipelineId() {
   var prefix = '#pipeline-';
-  var pieces = location.hash.split(';', 2);
+  var pieces = _.escape(location.hash).split(';', 2);
   if (pieces[0].indexOf(prefix) == 0) {
     return pieces[0].substr(prefix.length);
   }
@@ -677,7 +677,7 @@ function getSelectedPipelineId() {
 /* Event handlers */
 function handleHashChange() {
   var prefix = '#pipeline-';
-  var hash = location.hash;
+  var hash = _.escape(location.hash);
   var pieces = hash.split(';', 2);
   var pipelineId = null;
 

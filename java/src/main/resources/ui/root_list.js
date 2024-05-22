@@ -21,9 +21,10 @@
 
 function initRootList() {
   setButter('Loading root jobs...');
+  var query = new URLSearchParams(location.search);
   $.ajax({
     type: 'GET',
-    url: 'rpc/list' + window.location.search,
+    url: 'rpc/list' + '?' + _.escape(query.toString()),
     dataType: 'text',
     error: function(request, textStatus) {
       getResponseDataJson(textStatus);
