@@ -4,6 +4,8 @@
  */
 package com.google.appengine.tools.pipeline.impl.util;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -46,16 +48,25 @@ public class SerializationUtils {
 
   public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
     // Attempt to decompress
-    try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data);
-         GZIPInputStream gzipIn = new GZIPInputStream(byteIn);
-         ObjectInputStream objectIn = new ObjectInputStream(gzipIn)) {
-      return objectIn.readObject();
-    } catch (IOException e) {
-      // If decompression fails, assume data was not compressed
-      try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data);
-           ObjectInputStream objectIn = new ObjectInputStream(byteIn)) {
-        return objectIn.readObject();
+    try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data)) {
+      if (isGZIPCompressed(data)) {
+        try (GZIPInputStream gzipIn = new GZIPInputStream(byteIn);
+             ObjectInputStream objectIn = new ObjectInputStream(gzipIn)) {
+          return objectIn.readObject();
+        }
+      } else {
+        try (ObjectInputStream objectIn = new ObjectInputStream(byteIn)) {
+          return objectIn.readObject();
+        }
       }
     }
+  }
+
+  @VisibleForTesting
+  static boolean isGZIPCompressed(byte[] bytes) {
+    return (bytes != null)
+      && (bytes.length >= 2)
+      && ((bytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC))
+      && (bytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
   }
 }
