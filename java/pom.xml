@@ -133,7 +133,7 @@
       <groupId>jakarta.servlet</groupId>
       <artifactId>jakarta.servlet-api</artifactId>
       <version>6.0.0</version>
-      <scope>provided</scope>
+      <scope>provided</scope> <!-- if deploying to GAE standard with legacy apis enabled -->
     </dependency>
     <dependency> <!-- left bc GAE queues still seems to need it ?? -->
       <groupId>javax.servlet</groupId>

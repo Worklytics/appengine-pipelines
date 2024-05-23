@@ -34,7 +34,7 @@ import javax.inject.Inject;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-@AllArgsConstructor
+@AllArgsConstructor(onConstructor_ = @Inject)
 public class TaskHandler {
 
   private static Logger logger = Logger.getLogger(TaskHandler.class.getName());

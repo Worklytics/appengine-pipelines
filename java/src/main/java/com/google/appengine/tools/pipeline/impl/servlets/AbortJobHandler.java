@@ -17,6 +17,7 @@ package com.google.appengine.tools.pipeline.impl.servlets;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
@@ -28,7 +29,7 @@ import javax.inject.Inject;
 /**
  * @author ozarov@google.com (Arie Ozarov)
  */
-@RequiredArgsConstructor
+@AllArgsConstructor(onConstructor_ = @Inject)
 public class AbortJobHandler {
 
   public static final String PATH_COMPONENT = "rpc/abort";

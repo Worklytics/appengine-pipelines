@@ -23,13 +23,14 @@ import java.io.IOException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 
 import javax.inject.Inject;
 
 /**
  * @author ozarov@google.com (Arie Ozarov)
  */
-@AllArgsConstructor
+@AllArgsConstructor(onConstructor_ = @Inject)
 public class DeleteJobHandler {
 
   public static final String PATH_COMPONENT = "rpc/delete";

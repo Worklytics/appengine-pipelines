@@ -32,7 +32,7 @@ import javax.inject.Inject;
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */
-@AllArgsConstructor
+@AllArgsConstructor(onConstructor_ = @Inject)
 public class JsonClassFilterHandler {
 
   public static final String PATH_COMPONENT = "rpc/class_paths";

@@ -30,7 +30,7 @@ import javax.inject.Inject;
 /**
  * @author tkaitchuck@google.com (Tom Kaitchuck)
  */
-@AllArgsConstructor
+@AllArgsConstructor(onConstructor_ = @Inject)
 public class JsonListHandler {
 
   public static final String PATH_COMPONENT = "rpc/list";

@@ -15,13 +15,11 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.pipeline.DaggerDefaultContainer;
-import com.google.appengine.tools.pipeline.DefaultDIModule;
-import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
+import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 
 import java.io.IOException;
@@ -41,6 +39,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@AllArgsConstructor(onConstructor_ = @Inject)
 @SuppressWarnings("serial")
 public class PipelineServlet extends HttpServlet {
 

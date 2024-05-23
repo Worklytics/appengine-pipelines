@@ -27,11 +27,15 @@ import java.util.logging.Logger;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.AllArgsConstructor;
+
+import javax.inject.Inject;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@AllArgsConstructor(onConstructor_ = @Inject)
 public class StaticContentHandler {
   private static Logger logger = Logger.getLogger(StaticContentHandler.class.getName());
 
