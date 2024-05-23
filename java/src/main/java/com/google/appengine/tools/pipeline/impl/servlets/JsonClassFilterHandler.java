@@ -19,24 +19,26 @@ import static java.util.Collections.singletonMap;
 
 import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 import java.util.Set;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class JsonClassFilterHandler {
 
   public static final String PATH_COMPONENT = "rpc/class_paths";
 
-
-  private final PipelineRunner pipelineManager;
+  @Inject
+  PipelineRunner pipelineManager;
 
   public void doGet(@SuppressWarnings("unused") HttpServletRequest req,
       HttpServletResponse resp) throws IOException {

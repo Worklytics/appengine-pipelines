@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 
+import javax.inject.Inject;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -33,7 +34,8 @@ public class AbortJobHandler {
   public static final String PATH_COMPONENT = "rpc/abort";
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
 
-  private final PipelineOrchestrator pipelineManager;
+  @Inject
+  PipelineOrchestrator pipelineManager;
 
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException, ServletException {

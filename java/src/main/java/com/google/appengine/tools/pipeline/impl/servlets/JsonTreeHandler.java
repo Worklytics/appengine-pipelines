@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 
+import javax.inject.Inject;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -37,7 +38,8 @@ public class JsonTreeHandler {
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
 
 
-  private final PipelineRunner pipelineManager;
+  @Inject
+  PipelineRunner pipelineManager;
 
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException {

@@ -20,6 +20,7 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.apphosting.api.ApiProxy;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Enumeration;
@@ -27,6 +28,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import javax.inject.Inject;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 
@@ -35,7 +37,7 @@ import javax.servlet.http.HttpServletRequest;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class TaskHandler {
 
   private static Logger logger = Logger.getLogger(TaskHandler.class.getName());
@@ -45,7 +47,8 @@ public class TaskHandler {
   public static final String TASK_RETRY_COUNT_HEADER = "X-AppEngine-TaskRetryCount";
   public static final String TASK_QUEUE_NAME_HEADER = "X-AppEngine-QueueName";
 
-  private final PipelineManager pipelineManager;
+  @Inject
+  PipelineManager pipelineManager;
 
   public static String handleTaskUrl() {
     return PipelineServlet.baseUrl() + PATH_COMPONENT;
