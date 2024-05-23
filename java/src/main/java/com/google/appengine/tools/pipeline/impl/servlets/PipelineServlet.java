@@ -96,11 +96,17 @@ public class PipelineServlet extends HttpServlet {
     return Pair.of(path, requestType);
   }
 
+  @Inject
   transient AbortJobHandler abortJobHandler;
+  @Inject
   transient DeleteJobHandler deleteJobHandler;
+  @Inject
   transient JsonClassFilterHandler jsonClassFilterHandler;
+  @Inject
   transient JsonListHandler jsonListHandler;
+  @Inject
   transient JsonTreeHandler jsonTreeHandler;
+  @Inject
   transient TaskHandler taskHandler;
 
   @Inject
@@ -113,16 +119,16 @@ public class PipelineServlet extends HttpServlet {
 
     // TODO: fix this? may have second copy IF user overrides; OK?
     if (pipelineManager == null) {
-      DIUtil.inject(DaggerDefaultContainer.class, this);
+      if (DIUtil.isInjectable(this)) {
+        DIUtil.inject(this);
+      } else {
+        //rely on a default
+        DIUtil.inject(DaggerDefaultContainer.class, this);
+      }
     }
 
     //TODO: move these to DI?
-    abortJobHandler = new AbortJobHandler((PipelineOrchestrator) pipelineManager);
-    deleteJobHandler = new DeleteJobHandler(pipelineManager);
-    jsonClassFilterHandler = new JsonClassFilterHandler(pipelineManager);
-    jsonListHandler = new JsonListHandler(pipelineManager);
-    jsonTreeHandler = new JsonTreeHandler(pipelineManager);
-    taskHandler = new TaskHandler((PipelineManager) pipelineManager);
+
   }
 
   @Override

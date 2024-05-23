@@ -16,8 +16,7 @@ package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.PipelineRunner;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.io.IOException;
 
@@ -25,16 +24,19 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import javax.inject.Inject;
+
 /**
  * @author ozarov@google.com (Arie Ozarov)
  */
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class DeleteJobHandler {
 
   public static final String PATH_COMPONENT = "rpc/delete";
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
 
-  private final PipelineRunner pipelineManager;
+  @Inject
+  PipelineRunner pipelineManager;
 
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException, ServletException {

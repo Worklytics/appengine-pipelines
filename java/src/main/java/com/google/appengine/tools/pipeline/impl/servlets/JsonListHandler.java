@@ -15,10 +15,9 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.pipeline.PipelineRunner;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.util.Pair;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.io.IOException;
 
@@ -26,10 +25,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import javax.inject.Inject;
+
 /**
  * @author tkaitchuck@google.com (Tom Kaitchuck)
  */
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class JsonListHandler {
 
   public static final String PATH_COMPONENT = "rpc/list";
@@ -37,7 +38,8 @@ public class JsonListHandler {
   private static final String CURSOR_PARAMETER = "cursor";
   private static final String LIMIT_PARAMETER = "limit";
 
-  private final PipelineRunner pipelineManager;
+  @Inject
+  PipelineRunner pipelineManager;
 
   public  void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException {
