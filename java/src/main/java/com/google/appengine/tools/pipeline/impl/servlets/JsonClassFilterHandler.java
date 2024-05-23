@@ -24,8 +24,8 @@ import lombok.RequiredArgsConstructor;
 import java.io.IOException;
 import java.util.Set;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)

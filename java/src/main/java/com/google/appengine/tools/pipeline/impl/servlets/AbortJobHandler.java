@@ -16,15 +16,13 @@ package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
-import com.google.appengine.tools.pipeline.PipelineRunner;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * @author ozarov@google.com (Arie Ozarov)
