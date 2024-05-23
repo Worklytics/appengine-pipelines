@@ -27,8 +27,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
 
 /**
  * A ServletHelper that handles all requests from the task queue.
