@@ -83,8 +83,11 @@ public class DIUtil {
 	 */
 	public static Object getFromComponentClass(@NonNull Class<?> componentClass) {
     synchronized (lock) {
-      if (overridden) {
-        return overriddenComponentCache.getOrDefault(componentClass, componentCache.get(componentClass));
+      if (overridden && overriddenComponentCache.containsKey(componentClass)) {
+        return overriddenComponentCache.get(componentClass);
+      }
+      if (componentCache.containsKey(componentClass)) {
+        return componentCache.get(componentClass);
       }
       try {
         Object component = componentClass.getMethod("create").invoke(null);

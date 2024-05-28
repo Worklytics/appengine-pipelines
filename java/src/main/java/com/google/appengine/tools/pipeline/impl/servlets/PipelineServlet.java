@@ -15,13 +15,11 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.pipeline.DaggerDefaultContainer;
-import com.google.appengine.tools.pipeline.DefaultDIModule;
-import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
+import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 
 import java.io.IOException;
@@ -41,6 +39,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@AllArgsConstructor(onConstructor_ = @Inject)
 @SuppressWarnings("serial")
 public class PipelineServlet extends HttpServlet {
 
@@ -96,15 +95,13 @@ public class PipelineServlet extends HttpServlet {
     return Pair.of(path, requestType);
   }
 
-  transient AbortJobHandler abortJobHandler;
-  transient DeleteJobHandler deleteJobHandler;
-  transient JsonClassFilterHandler jsonClassFilterHandler;
-  transient JsonListHandler jsonListHandler;
-  transient JsonTreeHandler jsonTreeHandler;
-  transient TaskHandler taskHandler;
-
-  @Inject
-  transient PipelineRunner pipelineManager;
+  private final AbortJobHandler abortJobHandler;
+  private final DeleteJobHandler deleteJobHandler;
+  private final JsonClassFilterHandler jsonClassFilterHandler;
+  private final JsonListHandler jsonListHandler;
+  private final JsonTreeHandler jsonTreeHandler;
+  private final TaskHandler taskHandler;
+  private final PipelineRunner pipelineManager;
 
   @SneakyThrows
   @Override
@@ -113,16 +110,13 @@ public class PipelineServlet extends HttpServlet {
 
     // TODO: fix this? may have second copy IF user overrides; OK?
     if (pipelineManager == null) {
-      DIUtil.inject(DaggerDefaultContainer.class, this);
+      if (DIUtil.isInjectable(this)) {
+        DIUtil.inject(this);
+      } else {
+        //rely on a default
+        DIUtil.inject(DaggerDefaultContainer.class, this);
+      }
     }
-
-    //TODO: move these to DI?
-    abortJobHandler = new AbortJobHandler((PipelineOrchestrator) pipelineManager);
-    deleteJobHandler = new DeleteJobHandler(pipelineManager);
-    jsonClassFilterHandler = new JsonClassFilterHandler(pipelineManager);
-    jsonListHandler = new JsonListHandler(pipelineManager);
-    jsonTreeHandler = new JsonTreeHandler(pipelineManager);
-    taskHandler = new TaskHandler((PipelineManager) pipelineManager);
   }
 
   @Override

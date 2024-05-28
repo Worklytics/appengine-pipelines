@@ -275,11 +275,10 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     maxAttempts = entity.getLong(MAX_ATTEMPTS_PROPERTY);
     backoffSeconds = entity.getLong(BACKOFF_SECONDS_PROPERTY);
     backoffFactor = entity.getLong(BACKOFF_FACTOR_PROPERTY);
-    queueSettings.setOnService(entity.getString(ON_SERVICE_PROPERTY));
-    queueSettings.setOnServiceVersion(entity.getString(ON_SERVICE_VERSION_PROPERTY));
-    if (entity.contains(ON_QUEUE_PROPERTY)) {
-      queueSettings.setOnQueue(entity.getString(ON_QUEUE_PROPERTY));
-    }
+    queueSettings.setOnService(EntityUtils.getString(entity, ON_SERVICE_PROPERTY));
+    queueSettings.setOnServiceVersion(EntityUtils.getString(entity, ON_SERVICE_VERSION_PROPERTY));
+    queueSettings.setOnQueue(EntityUtils.getString(entity, ON_QUEUE_PROPERTY));
+
     statusConsoleUrl = EntityUtils.getString(entity, STATUS_CONSOLE_URL);
     rootJobDisplayName = EntityUtils.getString(entity, ROOT_JOB_DISPLAY_NAME);
     if (entity.contains(IS_ROOT_JOB_PROPERTY)) {

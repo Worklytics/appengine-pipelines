@@ -16,3 +16,5 @@ http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" version="2.5">
     <welcome-file>index.html</welcome-file>
   </welcome-file-list>
 </web-app>
+<!-- req'd to enable legacy app engine APIs; see https://cloud.google.com/appengine/docs/standard/java-gen2/services/access#installing -->
+<app-engine-apis>true</app-engine-apis>

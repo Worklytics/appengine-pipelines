@@ -6,6 +6,7 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.*;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.DatastoreOptions;
+import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
 import lombok.SneakyThrows;
@@ -13,10 +14,13 @@ import lombok.SneakyThrows;
 import javax.inject.Singleton;
 
 //TODO: split internals v stuff that can be re-used by others
-@Module
+@Module(
+  includes = DefaultDIModule.Bindings.class
+)
 public class DefaultDIModule {
 
-  @Provides @Singleton
+  @Provides
+  @Singleton
   @SneakyThrows
   AppEngineBackEnd.Options appEngineBackEndOptions() {
     return AppEngineBackEnd.Options.builder()
@@ -26,40 +30,47 @@ public class DefaultDIModule {
       .build();
   }
 
-  @Provides @Singleton
+  @Provides
+  @Singleton
   PipelineBackEnd pipelineBackEnd(AppEngineBackEnd appEngineBackEnd) {
     return appEngineBackEnd;
   }
 
-  @Provides @Singleton
-  PipelineBackEnd.Options backendOptions(AppEngineBackEnd.Options options) {
-    return options;
-  }
-
-
-  @Provides @Singleton
+  @Provides
+  @Singleton
   AppEngineEnvironment appEngineEnvironment() {
     return new AppEngineStandardGen2();
   }
 
-  @Provides @Singleton
+  @Provides
+  @Singleton
   AppEngineTaskQueue appEngineTaskQueue() {
     return new AppEngineTaskQueue();
   }
-  @Provides @Singleton
+
+  @Provides
+  @Singleton
   AppEngineBackEnd appEngineBackEnd(AppEngineBackEnd.Options options,
                                     AppEngineTaskQueue appEngineTaskQueue) {
     return new AppEngineBackEnd(options.getDatastoreOptions().getService(), appEngineTaskQueue);
   }
 
-  @Provides @Singleton
+  @Provides
+  @Singleton
   PipelineManager pipelineManager(AppEngineBackEnd backend) {
     return new PipelineManager(backend);
   }
 
-  @Provides @Singleton
-  PipelineRunner pipelineRunner(PipelineManager pipelineManager) {
-    return pipelineManager;
-  }
 
+  @Module
+  interface Bindings {
+    @Binds
+    PipelineBackEnd.Options backendOptions(AppEngineBackEnd.Options options);
+
+    @Binds
+    PipelineRunner pipelineRunner(PipelineManager pipelineManager);
+
+    @Binds
+    PipelineOrchestrator pipelineOrchestrator(PipelineManager pipelineManager);
+  }
 }

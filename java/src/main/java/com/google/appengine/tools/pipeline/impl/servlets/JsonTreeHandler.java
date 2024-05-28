@@ -16,9 +16,9 @@ package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.PipelineRunner;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
@@ -26,16 +26,16 @@ import java.io.IOException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import javax.inject.Inject;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */
-@RequiredArgsConstructor
+@AllArgsConstructor(onConstructor_ = @Inject)
 public class JsonTreeHandler {
 
   public static final String PATH_COMPONENT = "rpc/tree";
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
-
 
   private final PipelineRunner pipelineManager;
 
