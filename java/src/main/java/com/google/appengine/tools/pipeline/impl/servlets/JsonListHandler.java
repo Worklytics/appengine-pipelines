@@ -38,10 +38,9 @@ public class JsonListHandler {
   private static final String CURSOR_PARAMETER = "cursor";
   private static final String LIMIT_PARAMETER = "limit";
 
-  @Inject
-  PipelineRunner pipelineManager;
+  transient PipelineRunner pipelineManager;
 
-  public  void doGet(HttpServletRequest req, HttpServletResponse resp)
+  public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException {
     String classFilter = getParam(req, CLASS_FILTER_PARAMETER);
     String cursor = getParam(req, CURSOR_PARAMETER);

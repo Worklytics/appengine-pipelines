@@ -37,9 +37,7 @@ public class JsonTreeHandler {
   public static final String PATH_COMPONENT = "rpc/tree";
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
 
-
-  @Inject
-  PipelineRunner pipelineManager;
+  private final PipelineRunner pipelineManager;
 
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException {

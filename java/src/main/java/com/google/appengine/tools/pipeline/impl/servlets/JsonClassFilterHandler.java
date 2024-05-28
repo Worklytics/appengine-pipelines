@@ -37,8 +37,7 @@ public class JsonClassFilterHandler {
 
   public static final String PATH_COMPONENT = "rpc/class_paths";
 
-  @Inject
-  PipelineRunner pipelineManager;
+  private final PipelineRunner pipelineManager;
 
   public void doGet(@SuppressWarnings("unused") HttpServletRequest req,
       HttpServletResponse resp) throws IOException {

@@ -35,8 +35,7 @@ public class AbortJobHandler {
   public static final String PATH_COMPONENT = "rpc/abort";
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
 
-  @Inject
-  PipelineOrchestrator pipelineManager;
+  private final PipelineOrchestrator pipelineManager;
 
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException, ServletException {

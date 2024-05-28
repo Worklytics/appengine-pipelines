@@ -23,7 +23,6 @@ import java.io.IOException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 
 import javax.inject.Inject;
 
@@ -36,8 +35,7 @@ public class DeleteJobHandler {
   public static final String PATH_COMPONENT = "rpc/delete";
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
 
-  @Inject
-  PipelineRunner pipelineManager;
+  private final PipelineRunner pipelineManager;
 
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException, ServletException {

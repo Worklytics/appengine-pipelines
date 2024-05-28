@@ -95,21 +95,13 @@ public class PipelineServlet extends HttpServlet {
     return Pair.of(path, requestType);
   }
 
-  @Inject
-  transient AbortJobHandler abortJobHandler;
-  @Inject
-  transient DeleteJobHandler deleteJobHandler;
-  @Inject
-  transient JsonClassFilterHandler jsonClassFilterHandler;
-  @Inject
-  transient JsonListHandler jsonListHandler;
-  @Inject
-  transient JsonTreeHandler jsonTreeHandler;
-  @Inject
-  transient TaskHandler taskHandler;
-
-  @Inject
-  transient PipelineRunner pipelineManager;
+  private final AbortJobHandler abortJobHandler;
+  private final DeleteJobHandler deleteJobHandler;
+  private final JsonClassFilterHandler jsonClassFilterHandler;
+  private final JsonListHandler jsonListHandler;
+  private final JsonTreeHandler jsonTreeHandler;
+  private final TaskHandler taskHandler;
+  private final PipelineRunner pipelineManager;
 
   @SneakyThrows
   @Override
@@ -125,9 +117,6 @@ public class PipelineServlet extends HttpServlet {
         DIUtil.inject(DaggerDefaultContainer.class, this);
       }
     }
-
-    //TODO: move these to DI?
-
   }
 
   @Override
