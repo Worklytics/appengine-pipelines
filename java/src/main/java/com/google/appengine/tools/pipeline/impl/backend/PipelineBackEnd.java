@@ -132,24 +132,21 @@ public interface PipelineBackEnd {
    * Delete all datastore entities corresponding to the given pipeline.
    *
    * @param rootJobKey The root job key identifying the pipeline
-   * @param force If this parameter is not {@code true} then this method will
-   *        throw an {@link IllegalStateException} if the specified pipeline is
-   *        not in the
-   *        {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED}
-   *        or
-   *        {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED}
-   *        state.
-   * @param async If this parameter is {@code true} then instead of performing
-   *        the delete operation synchronously, this method will enqueue a task
-   *        to perform the operation.
+   * @param force      If this parameter is not {@code true} then this method will
+   *                   throw an {@link IllegalStateException} if the specified pipeline is
+   *                   not in the
+   *                   {@link JobRecord.State#FINALIZED}
+   *                   or
+   *                   {@link JobRecord.State#STOPPED}
+   *                   state.
    * @throws IllegalStateException If {@code force = false} and the specified
-   *         pipeline is not in the
-   *         {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED}
-   *         or
-   *         {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED}
-   *         state.
+   *                               pipeline is not in the
+   *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED}
+   *                               or
+   *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED}
+   *                               state.
    */
-  void deletePipeline(Key rootJobKey, boolean force, boolean async)
+  void deletePipeline(Key rootJobKey, boolean force)
       throws IllegalStateException;
 
   /**

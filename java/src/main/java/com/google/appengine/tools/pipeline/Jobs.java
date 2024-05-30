@@ -19,20 +19,13 @@ import static com.google.appengine.tools.pipeline.Job.waitFor;
 
 import com.google.appengine.api.taskqueue.DeferredTask;
 import com.google.appengine.api.taskqueue.DeferredTaskContext;
-import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.RetryOptions;
-import com.google.appengine.api.taskqueue.TaskOptions;
-import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.cloud.datastore.Key;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -99,6 +92,19 @@ public class Jobs {
         createWaitForSettingArray(values));
   }
 
+
+  // this is somewhat nonsensical operation; semantics are that caller waits, within its run() method, for some values
+  // and deletes its pipeline records.
+  // but conceptually, this is within the "run()" method of the caller ... so if deletion is immediate, the pipeline
+  // framework's executor (PipelineManager) can't write the completion state of caller to datastore, bc records are
+  // gone
+  // this worked historically in Google's implementation of PipelineFramework bc actual deletion of pipeline records
+  // was async via queued task outside of pipelines, executed with 10s delay, giving a window for FW executor to
+  // complete run() and write state before records deleted.
+  // this method working is in practice coupled to that delay AND presumes something about the FW's execution behavior
+
+  // a better name for this method would be `waitForAllAndScheduleDeletion`
+  @Deprecated // not supported; could in theory corrupt any real pipeline you use it in
   public static <T> Value<T> waitForAllAndDelete(
       Job<?> caller, Value<T> value, Value<?>... values) {
     return caller.futureCall(
@@ -106,9 +112,12 @@ public class Jobs {
         value, createWaitForSettingArray(values));
   }
 
+  @Deprecated // not supported
   public static <T> Value<T> waitForAllAndDelete(Job<?> caller, T value, Value<?>... values) {
-    return caller.futureCall(new DeletePipelineJob<T>(caller.getPipelineKey().toUrlSafe()),
-        immediate(value), createWaitForSettingArray(values));
+    throw new UnsupportedOperationException("Not supported");
+
+    //return caller.futureCall(new DeletePipelineJob<T>(caller.getPipelineKey().toUrlSafe()),
+    //    immediate(value), createWaitForSettingArray(values));
   }
 
   private static class DeletePipelineJob<T> extends Job1<T, T> {
@@ -136,7 +145,7 @@ public class Jobs {
         public void run() {
           try {
             log.info("Deleting pipeline: " + key);
-            getPipelineRunner().deletePipelineRecords(key, false, false);
+            getPipelineRunner().deletePipelineRecords(key, false);
             log.info("Deleted pipeline: " + key);
           } catch (IllegalStateException e) {
             log.info("Failed to delete pipeline: " + key);
@@ -152,7 +161,7 @@ public class Jobs {
               }
             }
             try {
-              getPipelineRunner().deletePipelineRecords(key, true, false);
+              getPipelineRunner().deletePipelineRecords(key, true);
               log.info("Force deleted pipeline: " + key);
             } catch (Exception ex) {
               log.log(Level.WARNING, "Failed to force delete pipeline: " + key, ex);
@@ -163,8 +172,9 @@ public class Jobs {
         }
       };
 
-
+      //
       Thread.sleep(10_000);
+
       deleteRecordsTask.run();
 
       // TODO: previous behavior enqueued this. recover that behavior? or do we care?

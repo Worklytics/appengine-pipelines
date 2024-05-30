@@ -61,7 +61,6 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
@@ -140,6 +139,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
 
+
+  // transactional save all
   private void saveAll(Transaction txn, UpdateSpec.Group group) {
     putAll(txn, group.getBarriers());
     putAll(txn, group.getJobs());
@@ -148,14 +149,23 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     putAll(txn, group.getFailureRecords());
   }
 
-  private void saveAll(UpdateSpec.Group group) {
+  /**
+   * non-transactional save all
+   * @param group
+   * @throws DatastoreException if any datastore failure
+   * @return generated keys, if any
+   */
+  private List<Key> saveAll(UpdateSpec.Group group) {
     Batch batch = datastore.newBatch();
     putAll(batch, group.getBarriers());
     putAll(batch, group.getJobs());
     putAll(batch, group.getSlots());
     putAll(batch, group.getJobInstanceRecords());
     putAll(batch, group.getFailureRecords());
-    batch.submit();
+    Batch.Response response = batch.submit();
+
+    return response.getGeneratedKeys();
+
   }
 
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
@@ -685,26 +695,21 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
    * Delete all datastore entities corresponding to the given pipeline.
    *
    * @param rootJobKey The root job key identifying the pipeline
-   * @param force If this parameter is not {@code true} then this method will
-   *        throw an {@link IllegalStateException} if the specified pipeline is not in the
-   *        {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED} or
-   *        {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED} state.
-   * @param async If this parameter is {@code true} then instead of performing
-   *        the delete operation synchronously, this method will enqueue a task
-   *        to perform the operation.
+   * @param force      If this parameter is not {@code true} then this method will
+   *                   throw an {@link IllegalStateException} if the specified pipeline is not in the
+   *                   {@link JobRecord.State#FINALIZED} or
+   *                   {@link JobRecord.State#STOPPED} state.
    * @throws IllegalStateException If {@code force = false} and the specified
-   *         pipeline is not in the
-   *         {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED} or
-   *         {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED} state.
+   *                               pipeline is not in the
+   *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED} or
+   *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED} state.
    */
   @Override
-  public void deletePipeline(Key rootJobKey, boolean force, boolean async)
+  public void deletePipeline(Key rootJobKey, boolean force)
       throws IllegalStateException {
-    QueueSettings queueSettings = new QueueSettings();
     if (!force) {
       try {
         JobRecord rootJobRecord = queryJob(rootJobKey, JobRecord.InflationType.NONE);
-        queueSettings = rootJobRecord.getQueueSettings();
         switch (rootJobRecord.getState()) {
           case FINALIZED:
           case STOPPED:
@@ -715,13 +720,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       } catch (NoSuchObjectException ex) {
         // Consider missing rootJobRecord as a non-active job and allow further delete
       }
-    }
-    if (async) {
-      // We do all the checks above before bothering to enqueue a task.
-      // They will have to be done again when the task is processed.
-      DeletePipelineTask task = new DeletePipelineTask(rootJobKey, force, queueSettings);
-      taskQueue.enqueue(task);
-      return;
     }
     deleteAll(JobRecord.DATA_STORE_KIND, rootJobKey);
     deleteAll(Slot.DATA_STORE_KIND, rootJobKey);

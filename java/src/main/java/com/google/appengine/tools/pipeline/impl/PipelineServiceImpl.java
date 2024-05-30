@@ -115,13 +115,13 @@ public class PipelineServiceImpl implements PipelineService {
   @Override
   public void deletePipelineRecords(String pipelineHandle) throws NoSuchObjectException,
       IllegalStateException {
-    deletePipelineRecords(pipelineHandle, false, false);
+    deletePipelineRecords(pipelineHandle, false);
   }
 
   @Override
-  public void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
+  public void deletePipelineRecords(String pipelineHandle, boolean force)
       throws NoSuchObjectException, IllegalStateException {
-    pipelineManager.deletePipelineRecords(pipelineHandle, force, async);
+    pipelineManager.deletePipelineRecords(pipelineHandle, force);
   }
 
   @Override

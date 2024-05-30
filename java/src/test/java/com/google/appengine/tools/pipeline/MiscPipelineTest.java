@@ -133,6 +133,11 @@ public class MiscPipelineTest extends PipelineTest {
       FutureValue<String> child1 = futureCall(new StrJob<>(), immediate(Long.valueOf(123)));
       FutureValue<String> child2 = futureCall(new StrJob<>(), immediate(Long.valueOf(456)));
       if (delete) {
+        // this corrupts itself, bc it deletes job records for itself; so then when job executor tries to update state
+        // AFTER execution of run() method, there is no state in datastore to update.
+
+        // previously, this worked in tests bc DeletePipelineJob was async, via queues, with delay. so the job record
+        // existed long enough to be marked as complete by executor before deletion.
         return Jobs.waitForAllAndDelete(this, child1, child2);
       } else {
         return Jobs.waitForAll(this, child1, child2);
@@ -152,9 +157,13 @@ public class MiscPipelineTest extends PipelineTest {
   @Test
   public void testWaitForAllAndDelete() throws Exception {
     String pipelineId = pipelineService.startNewPipeline(new RootJob(true));
-    JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
-    assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
-    assertEquals("123", jobInfo.getOutput());
+
+    try {
+      JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
+      assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
+      assertEquals("123", jobInfo.getOutput());
+    }
+    // expect DeletePipelineJob to delete async via queue, rather than inline ...
     waitUntilTaskQueueIsEmpty(getTaskQueue());
     try {
       pipelineService.getJobInfo(pipelineId);

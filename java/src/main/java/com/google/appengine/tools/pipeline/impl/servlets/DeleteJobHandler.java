@@ -44,7 +44,8 @@ public class DeleteJobHandler {
       throw new ServletException(ROOT_PIPELINE_ID + " parameter not found.");
     }
     try {
-      pipelineManager.deletePipelineRecords(rootJobHandle, true, true);
+      //NOTE: previously this was async in Google's implementation; now sync
+      pipelineManager.deletePipelineRecords(rootJobHandle, true);
     } catch (NoSuchObjectException nsoe) {
       resp.sendError(HttpServletResponse.SC_NOT_FOUND);
       return;

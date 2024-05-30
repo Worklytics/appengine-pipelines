@@ -116,18 +116,15 @@ public interface PipelineRunner {
    * Delete all data store entities corresponding to the given pipeline.
    *
    * @param pipelineHandle The handle of the pipeline to be deleted
-   * @param force If this parameter is not {@code true} then this method will
-   *        throw an {@link IllegalStateException} if the specified pipeline is
-   *        not in the {@link JobRecord.State#FINALIZED} or {@link JobRecord.State#STOPPED} state.
-   * @param async If this parameter is {@code true} then instead of performing
-   *        the delete operation synchronously, this method will enqueue a task
-   *        to perform the operation.
+   * @param force          If this parameter is not {@code true} then this method will
+   *                       throw an {@link IllegalStateException} if the specified pipeline is
+   *                       not in the {@link JobRecord.State#FINALIZED} or {@link JobRecord.State#STOPPED} state.
    * @throws NoSuchObjectException If there is no Job with the given key.
    * @throws IllegalStateException If {@code force = false} and the specified
-   *         pipeline is not in the {@link JobRecord.State#FINALIZED} or
-   *         {@link JobRecord.State#STOPPED} state.
+   *                               pipeline is not in the {@link JobRecord.State#FINALIZED} or
+   *                               {@link JobRecord.State#STOPPED} state.
    */
-   void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
+   void deletePipelineRecords(String pipelineHandle, boolean force)
     throws NoSuchObjectException, IllegalStateException;
 
 }

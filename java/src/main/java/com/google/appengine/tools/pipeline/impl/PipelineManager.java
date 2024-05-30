@@ -405,22 +405,19 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    * Delete all data store entities corresponding to the given pipeline.
    *
    * @param pipelineHandle The handle of the pipeline to be deleted
-   * @param force If this parameter is not {@code true} then this method will
-   *        throw an {@link IllegalStateException} if the specified pipeline is
-   *        not in the {@link State#FINALIZED} or {@link State#STOPPED} state.
-   * @param async If this parameter is {@code true} then instead of performing
-   *        the delete operation synchronously, this method will enqueue a task
-   *        to perform the operation.
+   * @param force          If this parameter is not {@code true} then this method will
+   *                       throw an {@link IllegalStateException} if the specified pipeline is
+   *                       not in the {@link State#FINALIZED} or {@link State#STOPPED} state.
    * @throws NoSuchObjectException If there is no Job with the given key.
    * @throws IllegalStateException If {@code force = false} and the specified
-   *         pipeline is not in the {@link State#FINALIZED} or
-   *         {@link State#STOPPED} state.
+   *                               pipeline is not in the {@link State#FINALIZED} or
+   *                               {@link State#STOPPED} state.
    */
-  public void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
+  public void deletePipelineRecords(String pipelineHandle, boolean force)
       throws NoSuchObjectException, IllegalStateException {
     checkNonEmpty(pipelineHandle, "pipelineHandle");
-    log.info("pipelineHandle: " + pipelineHandle + ", force: " + force + ", async: " + async);
-    backEnd.deletePipeline(JobRecord.keyFromPipelineHandle(pipelineHandle), force, async);
+    log.info("pipelineHandle: " + pipelineHandle + ", force: " + force);
+    backEnd.deletePipeline(JobRecord.keyFromPipelineHandle(pipelineHandle), force);
   }
 
   /**
@@ -566,8 +563,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
         case DELETE_PIPELINE:
           DeletePipelineTask deletePipelineTask = (DeletePipelineTask) task;
           try {
-            backEnd.deletePipeline(
-                deletePipelineTask.getRootJobKey(), deletePipelineTask.shouldForce(), false);
+            backEnd.deletePipeline(deletePipelineTask.getRootJobKey(), deletePipelineTask.shouldForce());
           } catch (Exception e) {
             log.log(Level.WARNING, "DeletePipeline operation failed.", e);
           }
