@@ -162,6 +162,7 @@ public abstract class Job<E> implements Serializable {
     Preconditions.checkNotNull(this.pipelineManager, "PipelineRunner not set");
     return this.pipelineManager;
   }
+
   public PipelineOrchestrator getPipelineOrchestrator() {
     Preconditions.checkNotNull(this.pipelineManager, "PipelineOrchestrator not set");
     return this.pipelineManager;

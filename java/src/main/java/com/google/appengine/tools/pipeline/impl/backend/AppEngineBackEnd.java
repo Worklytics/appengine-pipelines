@@ -174,6 +174,12 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
             throw e;
           }
         }
+        if (entity == null) {
+          //don't believe new datastore lib throws exceptions here anymore
+          throw new RuntimeException(
+            "Fatal Pipeline corruption error. No JobRecord found with key = " + jobKey);
+        }
+
         JobRecord jobRecord = new JobRecord(entity);
         JobRecord.State state = jobRecord.getState();
         boolean stateIsExpected = false;

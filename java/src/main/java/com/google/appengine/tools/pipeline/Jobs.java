@@ -29,8 +29,10 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -122,11 +124,11 @@ public class Jobs {
       this.key = rootJobKey;
     }
 
+    @SneakyThrows
     @Override
     public Value<T> run(T value) {
 
-      // ugh, they're using a deferred task to delete the pipeline, so we have to somehow serialize the pipelineRunner
-
+      // TODO: ugh, they're using a deferred task to delete the pipeline, so we have to somehow serialize the pipelineRunner
       DeferredTask deleteRecordsTask = new DeferredTask() {
         private static final long serialVersionUID = -7510918963650055768L;
 
@@ -160,10 +162,16 @@ public class Jobs {
           }
         }
       };
-      String queueName = Optional.fromNullable(getOnQueue()).or("default");
-      Queue queue = QueueFactory.getQueue(queueName);
-      queue.add(TaskOptions.Builder.withPayload(deleteRecordsTask).countdownMillis(10000)
-          .retryOptions(RetryOptions.Builder.withMinBackoffSeconds(2).maxBackoffSeconds(20)));
+
+
+      Thread.sleep(10_000);
+      deleteRecordsTask.run();
+
+      // TODO: previous behavior enqueued this. recover that behavior? or do we care?
+      //String queueName = Optional.fromNullable(getOnQueue()).or("default");
+      //Queue queue = QueueFactory.getQueue(queueName);
+      //queue.add(TaskOptions.Builder.withPayload(deleteRecordsTask).countdownMillis(10000)
+      //    .retryOptions(RetryOptions.Builder.withMinBackoffSeconds(2).maxBackoffSeconds(20)));
       return immediate(value);
     }
   }
