@@ -15,6 +15,8 @@ public abstract class AbstractShardedJob extends Job0<Void> {
   private static final long serialVersionUID = 6498588928999409114L;
   private static final int SHARDS_PER_JOB = 20;
   private static final JobSetting[] CHILD_JOB_PARAMS = {};
+  private static final long DELETION_DELAY = 10_000L;
+
   private final String jobId;
   private final int taskCount;
 
@@ -34,7 +36,7 @@ public abstract class AbstractShardedJob extends Job0<Void> {
           getChildJobParams(), createShardsJob(startOffset, endOffset));
       startOffset = endOffset;
     }
-    return Jobs.waitForAllAndDelete(this, null, waitFor);
+    return Jobs.waitForAllAndDeleteWithDelay(this, DELETION_DELAY, null, waitFor);
   }
 
   protected abstract Job<?> createShardsJob(int start, int end);

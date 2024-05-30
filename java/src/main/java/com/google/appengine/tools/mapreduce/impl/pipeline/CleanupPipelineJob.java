@@ -13,11 +13,12 @@ import java.util.List;
  * A pipeline to delete MR result with a FilesByShard and removing its traces when completed
  * (therefore should be called as a new pipeline via the {@link #cleanup} method).
  */
-@RequiredArgsConstructor
+@RequiredArgsConstructor(access = lombok.AccessLevel.PRIVATE)
 public class CleanupPipelineJob extends Job1<Void, List<GcsFilename>> {
 
   private static final long serialVersionUID = -5473046989460252781L;
   private static final int DELETE_BATCH_SIZE = 100;
+  private static final long DELETION_DELAY = 10_000L;
 
   private final GcpCredentialOptions gcpCredentialOptions;
 
@@ -32,7 +33,7 @@ public class CleanupPipelineJob extends Job1<Void, List<GcsFilename>> {
           futureCall(new DeleteFilesJob(gcpCredentialOptions), immediate(new ArrayList<>(batch)));
       futures[index++] = futureCall;
     }
-    return Jobs.waitForAllAndDelete(this, null, futures);
+    return Jobs.waitForAllAndDeleteWithDelay(this, DELETION_DELAY, null, futures);
   }
 
   public static void cleanup(PipelineService pipelineService,

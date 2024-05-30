@@ -35,7 +35,6 @@ import com.google.appengine.tools.pipeline.impl.model.PipelineModelObject;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.model.ShardedValue;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
-import com.google.appengine.tools.pipeline.impl.tasks.DeletePipelineTask;
 import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
@@ -653,9 +652,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   private void deleteAll(final String kind, final Key rootJobKey) {
     logger.info("Deleting all " + kind + " with rootJobKey=" + rootJobKey);
-
-
-
     tryFiveTimes(new Operation<Void>("delete") {
       @Override
       public Void call() {

@@ -17,17 +17,20 @@ package com.google.appengine.tools.pipeline;
 import static com.google.appengine.tools.pipeline.Job.immediate;
 import static com.google.appengine.tools.pipeline.Job.waitFor;
 
-import com.google.appengine.api.taskqueue.DeferredTask;
-import com.google.appengine.api.taskqueue.DeferredTaskContext;
+import com.google.appengine.api.taskqueue.*;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.cloud.datastore.Key;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.java.Log;
 
 import java.io.Serializable;
+import java.util.Optional;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -102,14 +105,27 @@ public class Jobs {
   // was async via queued task outside of pipelines, executed with 10s delay, giving a window for FW executor to
   // complete run() and write state before records deleted.
   // this method working is in practice coupled to that delay AND presumes something about the FW's execution behavior
-
-  // a better name for this method would be `waitForAllAndScheduleDeletion`
+  // in practice, this is ONLY used in tests and via the pipeline UX (to delete job records)
   @Deprecated // not supported; could in theory corrupt any real pipeline you use it in
   public static <T> Value<T> waitForAllAndDelete(
       Job<?> caller, Value<T> value, Value<?>... values) {
-    return caller.futureCall(
-        new DeletePipelineJob<T>(caller.getPipelineKey().toUrlSafe()),
-        value, createWaitForSettingArray(values));
+    throw new UnsupportedOperationException("Not supported");
+//    return caller.futureCall(
+//        new DeletePipelineJob<>(caller.getPipelineKey(), 10_000L),
+//        value, createWaitForSettingArray(values));
+  }
+
+  /**
+   * slightly more semantically correct version of the above
+   * @param caller job from which this is called; its records will be deleted too!!
+   * @param delayMillis delay to delete with
+   * @param value to wait on
+   * @param values more values to wait on
+   * @return finalized actual value of {@code value}
+   * @param <T>
+   */
+  public static <T> Value<T> waitForAllAndDeleteWithDelay(Job<?> caller, Long delayMillis, Value<T> value, Value<?>... values) {
+    return caller.futureCall(new DeletePipelineJob<>(caller.getPipelineKey(), delayMillis), value, createWaitForSettingArray(values));
   }
 
   @Deprecated // not supported
@@ -120,35 +136,53 @@ public class Jobs {
     //    immediate(value), createWaitForSettingArray(values));
   }
 
+  /**
+   * *attempt* to delete pipeline; successful completion of this job is NOT a guarantee of deletion, as deletion done
+   * asynchronously via Cloud Task queue, as fire+forget
+   *
+   * this would be more correctly called 'EnqueuePipelineDeletionJob' or 'SchedulePipelineDeletionJob', bc that's all
+   * completion of it ensures
+   *
+   * @param <T>
+   */
+  @RequiredArgsConstructor
+  @Log
   private static class DeletePipelineJob<T> extends Job1<T, T> {
 
-    private static final long serialVersionUID = -5440838671291502355L;
-    private static final Logger log = Logger.getLogger(DeletePipelineJob.class.getName());
+    private static final long serialVersionUID = 1L;
 
-    //URL-safe key of the root job
-    private final String key;
+    /**
+     * key of the root job of the pipeline to delete
+     */
+    @NonNull private final Key rootPipelineKey;
 
-    DeletePipelineJob(@NonNull String rootJobKey) {
-      Key.fromUrlSafe(rootJobKey); //validate key (throws IllegalArgumentException if bad)
-      this.key = rootJobKey;
-    }
+    /**
+     * delay before deletion attempt, in milliseconds; historically, this was always 10s
+     */
+    @NonNull
+    private final Long delayMillis;
 
     @SneakyThrows
     @Override
     public Value<T> run(T value) {
 
-      // TODO: ugh, they're using a deferred task to delete the pipeline, so we have to somehow serialize the pipelineRunner
+      //something that can be serialized
+      PipelineBackEnd.Options options = getPipelineBackendOptions();
+
       DeferredTask deleteRecordsTask = new DeferredTask() {
         private static final long serialVersionUID = -7510918963650055768L;
 
         @Override
         public void run() {
+          //recover backend from serialized options; in theory, all we *should* need is datastoreOptions part
+          AppEngineBackEnd backend = new AppEngineBackEnd(options.as(AppEngineBackEnd.Options.class));
+
           try {
-            log.info("Deleting pipeline: " + key);
-            getPipelineRunner().deletePipelineRecords(key, false);
-            log.info("Deleted pipeline: " + key);
+            log.info("Deleting pipeline: " + rootPipelineKey);
+            backend.deletePipeline(rootPipelineKey, false);
+            log.info("Deleted pipeline: " + rootPipelineKey);
           } catch (IllegalStateException e) {
-            log.info("Failed to delete pipeline: " + key);
+            log.info("Failed to delete pipeline: " + rootPipelineKey);
             // only dep on javax servlet
             // how can we access request context otherwise
             HttpServletRequest request = DeferredTaskContext.getCurrentRequest();
@@ -161,27 +195,22 @@ public class Jobs {
               }
             }
             try {
-              getPipelineRunner().deletePipelineRecords(key, true);
-              log.info("Force deleted pipeline: " + key);
+              backend.deletePipeline(rootPipelineKey, true);
+              log.info("Force deleted pipeline: " + rootPipelineKey);
             } catch (Exception ex) {
-              log.log(Level.WARNING, "Failed to force delete pipeline: " + key, ex);
+              log.log(Level.WARNING, "Failed to force delete pipeline: " + rootPipelineKey, ex);
             }
-          } catch (NoSuchObjectException e) {
-            // Already done
           }
         }
       };
 
-      //
-      Thread.sleep(10_000);
+      //NOTE: this MUST be async as long as this DeleteJob is called from within the same pipeline you're deleting
+      // (which as of 2024-05, is how this is always being used)
+      String queueName = Optional.ofNullable(getOnQueue()).orElse("default");
+      Queue queue = QueueFactory.getQueue(queueName);
+      queue.add(TaskOptions.Builder.withPayload(deleteRecordsTask).countdownMillis(delayMillis)
+          .retryOptions(RetryOptions.Builder.withMinBackoffSeconds(2).maxBackoffSeconds(20)));
 
-      deleteRecordsTask.run();
-
-      // TODO: previous behavior enqueued this. recover that behavior? or do we care?
-      //String queueName = Optional.fromNullable(getOnQueue()).or("default");
-      //Queue queue = QueueFactory.getQueue(queueName);
-      //queue.add(TaskOptions.Builder.withPayload(deleteRecordsTask).countdownMillis(10000)
-      //    .retryOptions(RetryOptions.Builder.withMinBackoffSeconds(2).maxBackoffSeconds(20)));
       return immediate(value);
     }
   }

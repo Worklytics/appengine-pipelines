@@ -535,7 +535,13 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       for (int i = 0; i < filesByShard.getShardCount(); i++) {
         toDelete.addAll(filesByShard.getFilesForShard(i).getFiles());
       }
+
+      // this calls a pipeline job async, in practice a fire-and-forget operation; if fails, files above as well as
+      // records of cleanup job will be left behind; alternatively, we could depend on expiration of these files somehow,
+      // in which case none of this would be needed
       CleanupPipelineJob.cleanup(getPipelineService(), settings, new ArrayList<>(toDelete), settings.toJobSettings());
+
+
       return null;
     }
   }
