@@ -26,13 +26,11 @@ import com.google.appengine.tools.pipeline.JobSetting.BackoffSeconds;
 import com.google.appengine.tools.pipeline.JobSetting.MaxAttempts;
 
 
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.common.base.Stopwatch;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.opentest4j.AssertionFailedError;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -59,6 +57,11 @@ public class RetryTest {
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
     this.pipelineService = pipelineService;
+  }
+
+  @BeforeEach
+  public void setPipelineManager(PipelineManager pipelineManager) {
+    TestingTaskQueueCallback.pipelineManager = pipelineManager;
   }
 
   @AfterEach
