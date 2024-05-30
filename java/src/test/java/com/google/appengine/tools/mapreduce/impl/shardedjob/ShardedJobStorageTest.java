@@ -66,7 +66,7 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
   }
 
   private ShardedJobStateImpl<TestTask> createGenericJobState() {
-    return ShardedJobStateImpl.create("jobId", new TestController(getDatastore().getOptions(), 11),
+    return ShardedJobStateImpl.create("jobId", new TestController(getDatastore().getOptions(), 11, getPipelineService()),
         new ShardedJobSettings.Builder().build(), 10, System.currentTimeMillis());
   }
 

@@ -10,14 +10,10 @@ import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.FutureValue;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.JobSetting;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 import com.google.appengine.tools.pipeline.PromisedValue;
 import com.google.appengine.tools.pipeline.Value;
 import com.google.cloud.datastore.Datastore;
@@ -26,12 +22,13 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-import javax.inject.Inject;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_QUEUE_NAME;
 
 
 /**
@@ -54,24 +51,18 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     this.settings = settings;
   }
 
-  @Inject
-  transient ShardedJobService shardedJobService;
 
 
-  public static final String DEFAULT_QUEUE_NAME = "default";
 
   /**
    * Starts a {@link MapJob} with the given parameters in a new Pipeline.
    * Returns the pipeline id.
    */
+  @Deprecated
   public static <I, O, R> String start(MapSpecification<I, O, R> specification,
       MapSettings settings) {
-    if (settings.getWorkerQueueName() == null) {
-      settings = new MapSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
-    }
-    PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
-    return pipelineService.startNewPipeline(
-        new MapJob<>(specification, settings), settings.toJobSettings());
+    throw new UnsupportedOperationException("Use PipelineOrchestrator:start");
+
   }
 
   @Override
@@ -131,7 +122,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     String mrJobId = getJobKey().getName();
     Datastore datastore = DatastoreOptions.getDefaultInstance().toBuilder()
         .setNamespace(settings.getNamespace()).build().getService();
-    shardedJobService.abortJob(datastore, mrJobId);
+    getPipelineOrchestrator().abortJob(datastore, mrJobId);
     return null;
   }
 

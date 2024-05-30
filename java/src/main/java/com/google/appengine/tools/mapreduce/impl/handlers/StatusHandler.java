@@ -9,10 +9,10 @@ import com.google.appengine.tools.mapreduce.impl.IncrementalTaskContext;
 import com.google.appengine.tools.mapreduce.impl.IncrementalTaskWithContext;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.appengine.tools.pipeline.PipelineOrchestrator;
+import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.cloud.datastore.Datastore;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Longs;
@@ -27,7 +27,6 @@ import com.googlecode.charts4j.Plots;
 
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -56,7 +55,8 @@ final class StatusHandler {
 
   public static final int DEFAULT_JOBS_PER_PAGE_COUNT = 50;
 
-  @Inject ShardedJobService shardedJobService;
+  @Inject PipelineOrchestrator pipelineOrchestrator;
+  @Inject PipelineRunner pipelineRunner;
   @Inject RequestUtils requestUtil;
 
   // Command paths
@@ -67,7 +67,7 @@ final class StatusHandler {
 
   private JSONObject handleCleanupJob(Datastore datastore, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
-    if (shardedJobService.cleanupJob(datastore, jobId)) {
+    if (pipelineOrchestrator.cleanupJob(datastore, jobId)) {
       retValue.put("status", "Successfully deleted requested job.");
     } else {
       retValue.put("status", "Can't delete an active job");
@@ -77,7 +77,7 @@ final class StatusHandler {
 
   private JSONObject handleAbortJob(Datastore datastore, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
-    shardedJobService.abortJob(datastore, jobId);
+    pipelineOrchestrator.abortJob(datastore, jobId);
     retValue.put("status", "Successfully aborted requested job.");
     return retValue;
   }
@@ -170,7 +170,7 @@ final class StatusHandler {
    */
   @VisibleForTesting
   JSONObject handleGetJobDetail(Datastore datastore, String jobId) {
-    ShardedJobState state = shardedJobService.getJobState(datastore, jobId);
+    ShardedJobState state = pipelineRunner.getJobState(datastore, jobId);
     if (state == null) {
       return null;
     }
@@ -205,7 +205,7 @@ final class StatusHandler {
       Counters totalCounters = new CountersImpl();
       int i = 0;
       long[] workerCallCounts = new long[state.getTotalTaskCount()];
-      Iterator<IncrementalTaskState<IncrementalTask>> tasks = shardedJobService.lookupTasks(datastore.newTransaction(), state);
+      Iterator<IncrementalTaskState<IncrementalTask>> tasks = pipelineRunner.lookupTasks(datastore.newTransaction(), state);
       while (tasks.hasNext()) {
         IncrementalTaskState<?> taskState = tasks.next();
         JSONObject shardObject = new JSONObject();

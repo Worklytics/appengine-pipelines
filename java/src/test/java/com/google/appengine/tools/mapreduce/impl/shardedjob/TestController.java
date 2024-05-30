@@ -1,9 +1,8 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.cloud.datastore.DatastoreOptions;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,6 +23,8 @@ public class TestController extends ShardedJobController<TestTask> {
 
   private final DatastoreOptions datastoreOptions;
   private final int expectedResult;
+  @Getter @Setter @NonNull
+  private PipelineService pipelineService;
 
   private boolean completed = false;
 

@@ -11,7 +11,7 @@ import javax.inject.Singleton;
     DefaultDIModule.class,
   }
 )
-public interface DefaultContainer {
+public interface DefaultContainer extends PipelineContainer {
 
   void injects(PipelineManager pipelineManager);
 

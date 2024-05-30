@@ -36,8 +36,6 @@ import com.google.appengine.tools.mapreduce.reducers.KeyProjectionReducer;
 import com.google.appengine.tools.mapreduce.reducers.NoReducer;
 import com.google.appengine.tools.mapreduce.reducers.ValueProjectionReducer;
 import com.google.appengine.tools.pipeline.JobInfo;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.PipelineServiceFactory;
 import com.google.cloud.ReadChannel;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
@@ -123,7 +121,7 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, K, V, O, R> void runTest(MapReduceSettings settings,
       MapReduceSpecification<I, K, V, O, R> mrSpec, Verifier<R> verifier) throws Exception {
-    verifier.verify(InProcessMapReduce.runMapReduce(mrSpec));
+    verifier.verify(InProcessMapReduce.runMapReduce(getPipelineService(), mrSpec));
     runWithPipeline(settings, mrSpec, verifier);
   }
 
@@ -151,7 +149,7 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, O, R> void runTest(MapSpecification<I, O, R> mrSpec, MapSettings settings,
       Verifier<R> verifier) throws Exception {
-    verifier.verify(InProcessMap.runMap(mrSpec));
+    verifier.verify(InProcessMap.runMap(getPipelineService(), mrSpec));
     runWithPipeline(settings, mrSpec, verifier);
   }
 

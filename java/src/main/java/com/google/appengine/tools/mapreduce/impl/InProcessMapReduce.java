@@ -22,8 +22,11 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.outputs.InMemoryOutput;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.common.collect.ImmutableList;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
 
 import java.io.IOException;
@@ -80,9 +83,13 @@ public class InProcessMapReduce<I, K, V, O, R> {
   private final Reducer<K, V, O> reducer;
   private final Output<O, R> output;
   private final int numReducers;
+  @Getter
+  private final PipelineService pipelineService;
 
   @SuppressWarnings("unchecked")
-  public InProcessMapReduce(String id, MapReduceSpecification<I, K, V, O, R> mrSpec) {
+  public InProcessMapReduce(String id,
+                            MapReduceSpecification<I, K, V, O, R> mrSpec,
+                            PipelineService pipelineService) {
     this.id = checkNotNull(id, "Null id");
     input = InProcessUtil.getInput(mrSpec);
     mapper = InProcessUtil.getMapper(mrSpec);
@@ -90,6 +97,8 @@ public class InProcessMapReduce<I, K, V, O, R> {
     reducer = InProcessUtil.getReducer(mrSpec);
     output = InProcessUtil.getOutput(mrSpec);
     numReducers = InProcessUtil.getNumReducers(mrSpec);
+    this.pipelineService = pipelineService;
+
   }
 
   @Override
@@ -111,6 +120,9 @@ public class InProcessMapReduce<I, K, V, O, R> {
       tasks.add(task);
     }
     final Counters counters = new CountersImpl();
+
+
+    final PipelineService finalPipelineService = getPipelineService();
     InProcessShardedJobRunner.runJob(tasks.build(), new ShardedJobController<
         WorkerShardTask<I, KeyValue<K, V>, MapperContext<K, V>>>() {
           // Not really meant to be serialized, but avoid warning.
@@ -121,7 +133,9 @@ public class InProcessMapReduce<I, K, V, O, R> {
             throw new UnsupportedOperationException();
           }
 
-          @Override
+          @Getter @Setter PipelineService pipelineService = finalPipelineService;
+
+           @Override
           public void completed(
               Iterator<WorkerShardTask<I, KeyValue<K, V>, MapperContext<K, V>>> tasks) {
             while (tasks.hasNext()) {
@@ -133,6 +147,7 @@ public class InProcessMapReduce<I, K, V, O, R> {
     log.info("combined counters=" + counters);
     return new MapReduceResultImpl<>(output.finish(writers), counters);
   }
+
 
   List<List<KeyValue<K, List<V>>>> shuffle(
       List<List<KeyValue<K, V>>> mapperOutputs, int reduceShardCount) {
@@ -206,6 +221,9 @@ public class InProcessMapReduce<I, K, V, O, R> {
         throw new UnsupportedOperationException();
       }
 
+      @Getter @Setter
+      PipelineService pipelineService;
+
       @Override
       public void completed(
           Iterator<WorkerShardTask<KeyValue<K, Iterator<V>>, O, ReducerContext<O>>> tasks) {
@@ -224,9 +242,9 @@ public class InProcessMapReduce<I, K, V, O, R> {
   }
 
   public static <I, K, V, O, R> MapReduceResult<R> runMapReduce(
-      MapReduceSpecification<I, K, V, O, R> mrSpec) throws IOException {
+    PipelineService pipelineService, MapReduceSpecification<I, K, V, O, R> mrSpec) throws IOException {
     String mapReduceId = getMapReduceId();
-    InProcessMapReduce<I, K, V, O, R> mapReduce = new InProcessMapReduce<>(mapReduceId, mrSpec);
+    InProcessMapReduce<I, K, V, O, R> mapReduce = new InProcessMapReduce<>(mapReduceId, mrSpec, pipelineService);
     log.info(mapReduce + " started");
 
     List<? extends InputReader<I>> mapInput = mapReduce.input.createReaders();

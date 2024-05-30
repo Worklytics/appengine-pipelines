@@ -4,8 +4,13 @@ package com.google.appengine.tools.mapreduce;
 
 
 import com.google.appengine.tools.mapreduce.impl.InProcessMapReduce;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.common.collect.ImmutableList;
+import lombok.Getter;
+import lombok.Setter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,7 +22,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  */
+@ExtendWith(PipelineComponentsExtension.class)
 public class MapReduceSpecificationTest{
+
+  @Getter @Setter(onMethod_ = @BeforeEach)
+  private PipelineService pipelineService;
 
   @SuppressWarnings("serial")
   private static class InputReader1 extends InputReader<Long> {
@@ -140,7 +149,7 @@ public class MapReduceSpecificationTest{
             .setOutput(new Output1())
             .setNumReducers(1);
     MapReduceSpecification<Number, Short, Integer, Integer, Number> spec = builder.build();
-    Number result = InProcessMapReduce.runMapReduce(spec).getOutputResult();
+    Number result = InProcessMapReduce.runMapReduce(getPipelineService(), spec).getOutputResult();
     assertEquals(Integer.class, result.getClass());
     assertEquals(9, result.intValue());
 
@@ -151,7 +160,7 @@ public class MapReduceSpecificationTest{
             .setOutput(new Output1())
             .setNumReducers(1);
     spec = builder.build();
-    result = InProcessMapReduce.runMapReduce(spec).getOutputResult();
+    result = InProcessMapReduce.runMapReduce(getPipelineService(), spec).getOutputResult();
     assertEquals(Integer.class, result.getClass());
     assertEquals(9, result.intValue());
   }
@@ -166,7 +175,7 @@ public class MapReduceSpecificationTest{
             .setValueMarshaller(Marshallers.<Integer>getSerializationMarshaller())
             .setNumReducers(1);
     MapReduceSpecification<Long, Short, Integer, Number, Integer> spec = builder.build();
-    Number result = InProcessMapReduce.runMapReduce(spec).getOutputResult();
+    Number result = InProcessMapReduce.runMapReduce(getPipelineService(), spec).getOutputResult();
     assertEquals(Integer.class, result.getClass());
     assertEquals(9, result.intValue());
   }
@@ -178,7 +187,7 @@ public class MapReduceSpecificationTest{
         new MapReduceSpecification.Builder<>(new Input1(), new Mapper2(), new Reducer2(),
             new Output1());
     MapReduceSpecification<Long, Short, Integer, Number, Integer> spec = builder.build();
-    Number result = InProcessMapReduce.runMapReduce(spec).getOutputResult();
+    Number result = InProcessMapReduce.runMapReduce(getPipelineService(), spec).getOutputResult();
     assertEquals(Integer.class, result.getClass());
     assertEquals(9, result.intValue());
   }

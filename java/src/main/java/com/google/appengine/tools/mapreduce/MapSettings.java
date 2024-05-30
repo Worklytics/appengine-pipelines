@@ -221,7 +221,7 @@ public class MapSettings implements Serializable {
     maxSliceRetries = builder.maxSliceRetries;
   }
 
-  JobSetting[] toJobSettings(JobSetting... extra) {
+  public JobSetting[] toJobSettings(JobSetting... extra) {
     JobSetting[] settings = new JobSetting[3 + extra.length];
     settings[0] = new JobSetting.OnService(module);
     settings[1] = new JobSetting.OnQueue(workerQueueName);

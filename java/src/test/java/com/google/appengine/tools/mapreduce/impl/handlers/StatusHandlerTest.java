@@ -6,11 +6,15 @@ package com.google.appengine.tools.mapreduce.impl.handlers;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Query;
 import com.google.cloud.datastore.QueryResults;
 import com.google.common.collect.ImmutableList;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,9 +36,13 @@ public class StatusHandlerTest extends EndToEndTestCase {
 
   StatusHandler statusHandler;
 
+  @RequiredArgsConstructor
   private static final class DummyWorkerController
       extends ShardedJobController<TestTask> {
     private static final long serialVersionUID = 1L;
+
+    @Getter @Setter
+    PipelineService pipelineService;
 
     @Override
     public void failed(Status status) {}
@@ -45,20 +53,20 @@ public class StatusHandlerTest extends EndToEndTestCase {
 
   @BeforeEach
   public void setUp() {
-    statusHandler = new StatusHandler(getShardedJobService(), new RequestUtils());
+    statusHandler = new StatusHandler(getPipelineOrchestrator(), getPipelineRunner(), new RequestUtils());
   }
 
   @Test
   public void testCleanupJob() throws Exception {
-    assertTrue(getShardedJobService().cleanupJob(getDatastore(), "testCleanupJob")); // No such job yet
+    assertTrue(getPipelineOrchestrator().cleanupJob(getDatastore(), "testCleanupJob")); // No such job yet
     ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     byte[] bytes = new byte[1024 * 1024];
     new Random().nextBytes(bytes);
     TestTask s1 = new TestTask(0, 2, 2, 2, bytes);
     TestTask s2 = new TestTask(1, 2, 2, 1);
-    getShardedJobService().startJob(getDatastore(), "testCleanupJob", ImmutableList.of(s1, s2), controller, settings);
-    assertFalse(getShardedJobService().cleanupJob(getDatastore(), "testCleanupJob"));
+    getPipelineOrchestrator().startJob(getDatastore(), "testCleanupJob", ImmutableList.of(s1, s2), controller, settings);
+    assertFalse(getPipelineOrchestrator().cleanupJob(getDatastore(), "testCleanupJob"));
     executeTasksUntilEmpty();
 
 
@@ -69,7 +77,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
     assertEquals(3, countResults(getDatastore().run(query)));
 
 
-    assertTrue(getShardedJobService().cleanupJob(getDatastore(), "testCleanupJob"));
+    assertTrue(getPipelineOrchestrator().cleanupJob(getDatastore(), "testCleanupJob"));
     executeTasksUntilEmpty();
     assertEquals(0, countResults(getDatastore().run(query)));
   }
@@ -88,7 +96,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
   public void testGetJobDetail_empty() throws Exception {
     ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
-    getShardedJobService().startJob(getDatastore(), "testGetJobDetail_empty", ImmutableList.<TestTask>of(),
+    getPipelineOrchestrator().startJob(getDatastore(), "testGetJobDetail_empty", ImmutableList.<TestTask>of(),
       controller, settings);
 
     JSONObject result = statusHandler.handleGetJobDetail(getDatastore(), "testGetJobDetail_empty");
@@ -106,9 +114,9 @@ public class StatusHandlerTest extends EndToEndTestCase {
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     TestTask s1 = new TestTask(0, 2, 2, 2);
     TestTask s2 = new TestTask(1, 2, 2, 1);
-    getShardedJobService().startJob(getDatastore(), "testGetJobDetail_populated", ImmutableList.of(s1, s2),
+    getPipelineOrchestrator().startJob(getDatastore(), "testGetJobDetail_populated", ImmutableList.of(s1, s2),
       controller, settings);
-    ShardedJobState state = getShardedJobService().getJobState(getDatastore(), "testGetJobDetail_populated");
+    ShardedJobState state = getPipelineRunner().getJobState(getDatastore(), "testGetJobDetail_populated");
     assertEquals(2, state.getActiveTaskCount());
     assertEquals(2, state.getTotalTaskCount());
     assertEquals(new Status(Status.StatusCode.RUNNING), state.getStatus());

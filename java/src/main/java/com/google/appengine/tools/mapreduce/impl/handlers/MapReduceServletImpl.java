@@ -32,6 +32,7 @@ import javax.inject.Inject;
 @AllArgsConstructor(onConstructor_ = @Inject)
 public final class MapReduceServletImpl {
 
+  ShardedJobRunner shardedJobRunner;
   PipelineService pipelineService;
   StatusHandler statusHandler;
   RequestUtils requestUtils;
@@ -107,7 +108,7 @@ public final class MapReduceServletImpl {
         return;
       }
       Datastore datastore = requestUtils.buildDatastoreFromRequest(request);
-      new ShardedJobRunner<>(pipelineService).completeShard(datastore,
+      shardedJobRunner.completeShard(datastore,
               checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
               checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"));
     } else if (handler.startsWith(WORKER_PATH)) {
@@ -115,7 +116,7 @@ public final class MapReduceServletImpl {
         return;
       }
       Datastore datastore = requestUtils.buildDatastoreFromRequest(request);
-      new ShardedJobRunner<>(pipelineService).runTask(datastore,
+      shardedJobRunner.runTask(datastore,
         checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
         checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"), Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)));
     } else if (handler.startsWith(COMMAND_PATH)) {

@@ -20,8 +20,6 @@ import com.google.appengine.tools.mapreduce.impl.pipeline.CleanupPipelineJob;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.mapreduce.impl.sort.MergeContext;
 import com.google.appengine.tools.mapreduce.impl.sort.MergeShardTask;
@@ -30,13 +28,7 @@ import com.google.appengine.tools.mapreduce.impl.sort.SortShardTask;
 import com.google.appengine.tools.mapreduce.impl.sort.SortWorker;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
-import com.google.appengine.tools.pipeline.FutureValue;
-import com.google.appengine.tools.pipeline.Job0;
-import com.google.appengine.tools.pipeline.Job1;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.PipelineServiceFactory;
-import com.google.appengine.tools.pipeline.PromisedValue;
-import com.google.appengine.tools.pipeline.Value;
+import com.google.appengine.tools.pipeline.*;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.storage.*;
@@ -81,9 +73,6 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   @Setter(onMethod = @__(@VisibleForTesting))
   @Inject
   transient Datastore datastore;
-  @Setter(onMethod = @__(@VisibleForTesting))
-  @Inject
-  transient ShardedJobService shardedJobService;
 
   protected Datastore getDatastore() {
     if (datastore == null) {
@@ -97,18 +86,12 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   /**
    * Starts a {@link MapReduceJob} with the given parameters in a new Pipeline.
    * Returns the pipeline id.
+   * @deprecated Use {@link PipelineOrchestrator#start} instead.
    */
+  @Deprecated
   public static <I, K, V, O, R> String start(
       @NonNull MapReduceSpecification<I, K, V, O, R> specification, @NonNull MapReduceSettings settings) {
-    if (settings.getWorkerQueueName() == null) {
-      settings = new MapReduceSettings.Builder(settings).setWorkerQueueName("default").build();
-    }
-
-    verifyBucketIsWritable(settings);
-
-    PipelineService pipelineService = PipelineServiceFactory.newPipelineService();
-    return pipelineService.startNewPipeline(
-        new MapReduceJob<>(specification, settings), settings.toJobSettings());
+    throw new UnsupportedOperationException("Use PipelineOrchestrator:start");
   }
 
   private static void verifyBucketIsWritable(MapReduceSettings settings) {
@@ -146,9 +129,6 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     @Setter(onMethod = @__(@VisibleForTesting))
     private transient Datastore datastore;
 
-    @Setter(onMethod = @__(@VisibleForTesting))
-    @Inject
-    transient ShardedJobService shardedJobService;
 
     protected Datastore getDatastore() {
       if (datastore == null) {
@@ -222,7 +202,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<MapReduceResult<FilesByShard>> handleException(CancellationException ex) {
-      shardedJobService.abortJob(getDatastore(), getShardedJobId());
+      getPipelineOrchestrator().abortJob(getDatastore(), getShardedJobId());
       return null;
     }
   }
@@ -243,10 +223,6 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @Setter(onMethod = @__(@VisibleForTesting))
     private transient Datastore datastore;
-
-    @Setter(onMethod = @__(@VisibleForTesting))
-    @Inject
-    transient ShardedJobService shardedJobService;
 
     protected Datastore getDatastore() {
       if (datastore == null) {
@@ -329,7 +305,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<FilesByShard> handleException(CancellationException ex) {
-      shardedJobService.abortJob(getDatastore(), getShardedJobId());
+      getPipelineOrchestrator().abortJob(getDatastore(), getShardedJobId());
       return null;
     }
   }
@@ -354,10 +330,6 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @Setter(onMethod = @__(@VisibleForTesting))
     private transient Datastore datastore;
-
-    @Setter(onMethod = @__(@VisibleForTesting))
-    @Inject
-    transient ShardedJobService shardedJobService;
 
     protected Datastore getDatastore() {
       if (datastore == null) {
@@ -454,7 +426,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<FilesByShard> handleException(CancellationException ex) {
-      shardedJobService.abortJob(getDatastore(), getShardedJobId());
+      getPipelineOrchestrator().abortJob(getDatastore(), getShardedJobId());
       return null;
     }
   }
@@ -491,10 +463,6 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       }
       return datastore;
     }
-
-    @Setter(onMethod = @__(@VisibleForTesting))
-    @Inject
-    transient ShardedJobService shardedJobService;
 
     private String getShardedJobId() {
       return "reduce-" + mrJobId;
@@ -546,7 +514,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<MapReduceResult<R>> handleException(CancellationException ex) {
-      shardedJobService.abortJob(getDatastore(), getShardedJobId());
+      getPipelineOrchestrator().abortJob(getDatastore(), getShardedJobId());
       return null;
     }
   }
@@ -567,8 +535,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       for (int i = 0; i < filesByShard.getShardCount(); i++) {
         toDelete.addAll(filesByShard.getFilesForShard(i).getFiles());
       }
-
-      CleanupPipelineJob.cleanup(settings, new ArrayList<>(toDelete), settings.toJobSettings());
+      CleanupPipelineJob.cleanup(getPipelineService(), settings, new ArrayList<>(toDelete), settings.toJobSettings());
       return null;
     }
   }

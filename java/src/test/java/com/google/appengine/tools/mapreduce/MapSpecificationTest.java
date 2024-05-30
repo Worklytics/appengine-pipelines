@@ -1,8 +1,13 @@
 package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.tools.mapreduce.impl.InProcessMap;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.common.collect.ImmutableList;
+import lombok.Getter;
+import lombok.Setter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,7 +20,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  */
+@PipelineSetupExtensions
 public class MapSpecificationTest {
+
+  @Getter @Setter(onMethod_ = @BeforeEach)
+  private PipelineService pipelineService;
 
   @SuppressWarnings("serial")
   private static class InputReader1 extends InputReader<Long> {
@@ -139,7 +148,7 @@ public class MapSpecificationTest {
             .setMapper(new MapOnlyMapper1())
             .setOutput(new Output1());
     MapSpecification<Number, Integer, Number> spec = builder.build();
-    Number result = InProcessMap.runMap(spec).getOutputResult();
+    Number result = InProcessMap.runMap(getPipelineService(), spec).getOutputResult();
     assertEquals(Integer.class, result.getClass());
     assertEquals(15, result.intValue());
 
@@ -150,7 +159,7 @@ public class MapSpecificationTest {
             .setMapper(mapper)
             .setOutput(new Output1());
     spec = builder.build();
-    result = InProcessMap.runMap(spec).getOutputResult();
+    result = InProcessMap.runMap(getPipelineService(), spec).getOutputResult();
     assertEquals(Integer.class, result.getClass());
     assertEquals(15, result.intValue());
   }
@@ -161,13 +170,13 @@ public class MapSpecificationTest {
     MapSpecification.Builder<Long, Void, Void> builder =
         new MapSpecification.Builder<>(new Input1(), new MapOnlyMapper2());
     MapSpecification<Long, Void, Void> spec = builder.build();
-    Void result = InProcessMap.runMap(spec).getOutputResult();
+    Void result = InProcessMap.runMap(getPipelineService(), spec).getOutputResult();
     assertNull(result);
 
     MapOnlyMapper<Long, Void> mapper = MapOnlyMapper.forMapper(new Mapper2());
     builder = new MapSpecification.Builder<>(new Input1(), mapper);
     spec = builder.build();
-    result = InProcessMap.runMap(spec).getOutputResult();
+    result = InProcessMap.runMap(getPipelineService(), spec).getOutputResult();
     assertNull(result);
   }
 
@@ -176,13 +185,13 @@ public class MapSpecificationTest {
     MapSpecification.Builder<Long, Number, Integer> builder =
         new MapSpecification.Builder<>(new Input1(), new MapOnlyMapper3(), new Output1());
     MapSpecification<Long, Number, Integer> spec = builder.build();
-    Integer result = InProcessMap.runMap(spec).getOutputResult();
+    Integer result = InProcessMap.runMap(getPipelineService(), spec).getOutputResult();
     assertEquals(15, result.intValue());
 
     MapOnlyMapper<Long, Number> mapper = MapOnlyMapper.forMapper(new Mapper3());
     builder = new MapSpecification.Builder<>(new Input1(), mapper, new Output1());
     spec = builder.build();
-    result = InProcessMap.runMap(spec).getOutputResult();
+    result = InProcessMap.runMap(getPipelineService(), spec).getOutputResult();
     assertEquals(15, result.intValue());
   }
 }

@@ -1,13 +1,17 @@
 package com.google.appengine.tools.mapreduce;
 
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
+import dagger.Binds;
 import dagger.Component;
 import dagger.Module;
 import dagger.Provides;
@@ -145,7 +149,9 @@ interface PipelineSetupTestContainer {
 }
 
 
-@Module
+@Module(
+  includes = TestDIModule.Bindings.class
+)
 @AllArgsConstructor
 class TestDIModule {
 
@@ -163,29 +169,25 @@ class TestDIModule {
   DatastoreOptions datastoreOptions() {
     return datastoreOptions;
   }
-  @Provides @Singleton
-  PipelineService pipelineService(AppEngineBackEnd appEngineBackend) {
-    return PipelineServiceFactory.newPipelineService(appEngineBackend);
-  }
-  @Provides @Singleton
-  PipelineManager pipelineManager(AppEngineBackEnd appEngineBackend) {
-    return new PipelineManager(appEngineBackend);
-  }
 
   @Provides @Singleton
   AppEngineBackEnd appEngineBackend(Datastore datastore) {
     return new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
   }
 
-  //generic, could be a binding
-  @Provides @Singleton
-  PipelineOrchestrator pipelineOrchestrator(PipelineManager pipelineManager) {
-    return pipelineManager;
-  }
+  @Module
+  interface Bindings {
 
-  //generic, could be a binding
-  @Provides @Singleton
-  PipelineRunner pipelineRunner(PipelineManager pipelineManager) {
-    return pipelineManager;
+    @Binds
+    PipelineOrchestrator pipelineOrchestrator(PipelineManager pipelineManager);
+
+    @Binds
+    PipelineRunner pipelineRunner(PipelineManager pipelineManager);
+
+    @Binds
+    PipelineBackEnd pipelineBackEnd(AppEngineBackEnd appEngineBackEnd);
+
+    @Binds
+    PipelineService pipelineService(PipelineServiceImpl pipelineService);
   }
 }

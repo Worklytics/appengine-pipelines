@@ -2,7 +2,10 @@ package com.google.appengine.tools.pipeline;
 
 
 import com.google.appengine.api.utils.SystemProperty;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
 import com.google.appengine.tools.pipeline.impl.backend.*;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.DatastoreOptions;
@@ -55,10 +58,9 @@ public class DefaultDIModule {
     return new AppEngineBackEnd(options.getDatastoreOptions().getService(), appEngineTaskQueue);
   }
 
-  @Provides
-  @Singleton
-  PipelineManager pipelineManager(AppEngineBackEnd backend) {
-    return new PipelineManager(backend);
+  @Provides @Singleton
+  RequestUtils provideRequestUtils() {
+    return new RequestUtils();
   }
 
 
@@ -72,5 +74,8 @@ public class DefaultDIModule {
 
     @Binds
     PipelineOrchestrator pipelineOrchestrator(PipelineManager pipelineManager);
+
+    @Binds
+    PipelineService pipelineService(PipelineServiceImpl pipelineService);
   }
 }

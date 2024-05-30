@@ -16,9 +16,9 @@ import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.di.DaggerDefaultMapReduceContainer;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobService;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobServiceFactory;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.appengine.tools.pipeline.PipelineOrchestrator;
+import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
@@ -35,6 +35,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -70,12 +71,13 @@ public abstract class EndToEndTestCase {
   PipelineService pipelineService;
 
   @Getter @Setter(onMethod_ = @BeforeEach)
-  PipelineServlet pipelineServlet;
+  PipelineRunner pipelineRunner;
 
-  public ShardedJobService getShardedJobService() {
-    ShardedJobServiceFactory factory = new ShardedJobServiceFactory(getPipelineService());
-    return factory.getShardedJobService();
-  }
+  @Getter @Setter(onMethod_ = @BeforeEach)
+  PipelineOrchestrator pipelineOrchestrator;
+
+  @Getter @Setter(onMethod_ = @BeforeEach)
+  PipelineServlet pipelineServlet;
 
   @Getter
   private CloudStorageIntegrationTestHelper storageTestHelper;
@@ -213,7 +215,7 @@ public abstract class EndToEndTestCase {
     for (String param : params) {
       String[] pair = param.split("=");
       String name = pair[0];
-      String value = URLDecoder.decode(pair[1], "UTF-8");
+      String value = URLDecoder.decode(pair[1], StandardCharsets.UTF_8);
       if (result.containsKey(name)) {
         throw new IllegalArgumentException("Duplicate parameter: " + requestBody);
       }

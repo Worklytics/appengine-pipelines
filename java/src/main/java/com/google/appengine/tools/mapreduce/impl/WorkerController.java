@@ -1,6 +1,5 @@
 package com.google.appengine.tools.mapreduce.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.Counters;
 import com.google.appengine.tools.mapreduce.Output;
@@ -11,10 +10,12 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.OrphanedObjectException;
-import com.google.appengine.tools.pipeline.PipelineServiceFactory;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.common.collect.ImmutableList;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,6 +34,9 @@ public class WorkerController<I, O, R, C extends WorkerContext<O>> extends
   @NonNull private final Counters totalCounters;
   @NonNull private final Output<O, R> output;
   @NonNull private final String resultPromiseHandle;
+
+  @Getter @Setter
+  private transient PipelineService pipelineService;
 
   @Override
   public void completed(Iterator<WorkerShardTask<I, O, C>> workers) {
@@ -71,7 +75,7 @@ public class WorkerController<I, O, R, C extends WorkerContext<O>> extends
 
   private void submitPromisedJob(final ResultAndStatus<R> resultAndStatus) {
     try {
-      PipelineServiceFactory.newPipelineService().submitPromisedValue(resultPromiseHandle, resultAndStatus);
+      getPipelineService().submitPromisedValue(resultPromiseHandle, resultAndStatus);
     } catch (OrphanedObjectException e) {
       log.warning("Discarding an orphaned promiseHandle: " + resultPromiseHandle);
     } catch (NoSuchObjectException e) {

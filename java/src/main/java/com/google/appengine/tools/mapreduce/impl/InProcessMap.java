@@ -17,8 +17,11 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.InProcessShardedJobR
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.common.collect.ImmutableList;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
 
 import java.io.IOException;
@@ -44,13 +47,16 @@ public class InProcessMap<I, O, R> {
   private final Input<I> input;
   private final MapOnlyMapper<I, O> mapper;
   private final Output<O, R> output;
+  private final PipelineService pipelineService;
 
   @SuppressWarnings("unchecked")
-  public InProcessMap(String id, MapSpecification<I, O, R> mapSpec) {
+  public InProcessMap(PipelineService pipelineService, String id,
+                      MapSpecification<I, O, R> mapSpec) {
     this.id = checkNotNull(id, "Null id");
     input = InProcessUtil.getInput(mapSpec);
     mapper = InProcessUtil.getMapper(mapSpec);
     output = InProcessUtil.getOutput(mapSpec);
+    this.pipelineService = pipelineService;
   }
 
   @Override
@@ -81,6 +87,9 @@ public class InProcessMap<I, O, R> {
             throw new UnsupportedOperationException();
           }
 
+          @Getter @Setter
+          PipelineService pipelineService = InProcessMap.this.pipelineService;
+
           @Override
           public void completed(Iterator<WorkerShardTask<I, O, MapOnlyMapperContext<O>>> tasks) {
             while (tasks.hasNext()) {
@@ -105,10 +114,11 @@ public class InProcessMap<I, O, R> {
     return "in-process-map-" + Instant.now().toString() + "-" + new Random().nextInt(1000000);
   }
 
-  public static <I, O, R> MapReduceResult<R> runMap(MapSpecification<I, O, R> mrSpec)
+  public static <I, O, R> MapReduceResult<R> runMap(PipelineService pipelineService,
+                                                    MapSpecification<I, O, R> mrSpec)
       throws IOException {
     String mapReduceId = getMapReduceId();
-    InProcessMap<I,  O, R> mapOnly = new InProcessMap<>(mapReduceId, mrSpec);
+    InProcessMap<I,  O, R> mapOnly = new InProcessMap<>(pipelineService, mapReduceId, mrSpec);
     log.info(mapOnly + " started");
     MapReduceResult<R> result = mapOnly.map();
     log.info(mapOnly + " finished");

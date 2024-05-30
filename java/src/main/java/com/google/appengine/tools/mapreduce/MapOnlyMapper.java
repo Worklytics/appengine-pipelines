@@ -88,7 +88,7 @@ public abstract class MapOnlyMapper<I, O> extends BaseMapper<I, O, MapOnlyMapper
 
     @Override
     public void setContext(MapOnlyMapperContext<V> context) {
-      mapper.setContext(new MapperContextAdapter<K, V>(context));
+      mapper.setContext(new MapperContextAdapter<>(context));
     }
 
     @Override

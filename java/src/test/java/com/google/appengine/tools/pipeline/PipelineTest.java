@@ -23,6 +23,7 @@ import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
+import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;

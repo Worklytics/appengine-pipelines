@@ -2,6 +2,7 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
+import com.google.appengine.tools.pipeline.PipelineService;
 import lombok.EqualsAndHashCode;
 
 import java.io.Serializable;
@@ -30,4 +31,9 @@ public abstract class ShardedJobController<T extends IncrementalTask> implements
    * @param status
    */
   public abstract void failed(Status status);
+
+  public abstract PipelineService getPipelineService();
+
+  public abstract void setPipelineService(PipelineService pipelineService);
+
 }

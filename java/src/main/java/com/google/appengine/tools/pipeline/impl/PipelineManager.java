@@ -15,9 +15,12 @@
 package com.google.appengine.tools.pipeline.impl;
 
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
+import com.google.appengine.tools.mapreduce.*;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -45,16 +48,20 @@ import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.cloud.datastore.Transaction;
 import lombok.AllArgsConstructor;
+import lombok.NonNull;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
+import javax.inject.Singleton;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
@@ -68,12 +75,17 @@ import java.util.logging.Level;
  *
  */
 
-@AllArgsConstructor
+@Singleton
+@AllArgsConstructor(onConstructor_ = @Inject)
 @Log
 public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
-  @Inject
+  public static final String DEFAULT_QUEUE_NAME = "default";
+
+
   PipelineBackEnd backEnd;
+  ShardedJobRunner shardedJobRunner;
+  Provider<PipelineService> pipelineServiceProvider;
 
   PipelineBackEnd.Options getBackendOptions() {
     return backEnd.getOptions();
@@ -115,6 +127,25 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     // Save the Pipeline model objects and enqueue the tasks that start the Pipeline executing.
     backEnd.save(updateSpec, jobRecord.getQueueSettings());
     return jobRecord.getKey().toUrlSafe();
+  }
+
+  @Override
+  public <T extends IncrementalTask> void startJob(
+    Datastore datastore, String jobId,
+    List<? extends T> initialTasks,
+    ShardedJobController<T> controller,
+    ShardedJobSettings settings) {
+    shardedJobRunner.startJob(datastore, jobId, initialTasks, controller, settings);
+  }
+
+  @Override
+  public void abortJob(Datastore datastore, String jobId) {
+    shardedJobRunner.abortJob(datastore, jobId);
+  }
+
+  @Override
+  public boolean cleanupJob(Datastore datastore, String jobId) {
+    return shardedJobRunner.cleanupJob(datastore, jobId);
   }
 
   @Override
@@ -179,6 +210,17 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
     return jobRecord;
   }
+
+  @Override
+  public ShardedJobState getJobState(Datastore datastore, String jobId) {
+    return shardedJobRunner.getJobState(datastore, jobId);
+  }
+
+  @Override
+  public Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(Transaction tx, ShardedJobState state) {
+    return shardedJobRunner.lookupTasks(tx, state.getJobId(), state.getTotalTaskCount(), true);
+  }
+
 
   /**
    * Given a {@code Value} and a {@code Barrier}, we add one or more slots to
@@ -327,6 +369,24 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     updateSpec.getOrCreateTransaction("stopJob").includeJob(jobRecord);
     backEnd.save(updateSpec, jobRecord.getQueueSettings());
   }
+
+  @Override
+  public <I, O, R> String start(MapSpecification<I, O, R> specification, MapSettings settings) {
+    if (settings.getWorkerQueueName() == null) {
+      settings = new MapSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
+    }
+    return startNewPipeline(settings.toJobSettings(), new MapJob<>(specification, settings));
+  }
+
+  @Override
+  public <I, K, V, O, R> String start(
+    @NonNull MapReduceSpecification<I, K, V, O, R> specification, @NonNull MapReduceSettings settings) {
+    if (settings.getWorkerQueueName() == null) {
+      settings = new MapReduceSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
+    }
+    return startNewPipeline(settings.toJobSettings(), new MapReduceJob<>(specification, settings));
+  }
+
 
 
   public void cancelJob(String jobHandle) throws NoSuchObjectException {
@@ -794,7 +854,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     }
 
     Job<?> job = jobExecutionRecord.getJobInstanceDeserialized();
-    invokePrivateJobMethod("setPipelineRunner", job, this);
+    invokePrivateJobMethod("setPipelineManager", job, this);
+    invokePrivateJobMethod("setPipelineService", job,  pipelineServiceProvider.get());
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     setJobRecord(job, jobRecord);
     String currentRunGUID = GUIDGenerator.nextGUID();

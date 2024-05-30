@@ -130,16 +130,11 @@ public class Jobs {
       DeferredTask deleteRecordsTask = new DeferredTask() {
         private static final long serialVersionUID = -7510918963650055768L;
 
-        private PipelineBackEnd.Options options = getPipelineRunner().getOptions();
-
         @Override
         public void run() {
-          PipelineRunnerFactory pipelineRunnerFactory = new PipelineRunnerFactory();
-          PipelineRunner pipelineRunner = pipelineRunnerFactory.createPipelineRunner(options);
-
           try {
             log.info("Deleting pipeline: " + key);
-            pipelineRunner.deletePipelineRecords(key, false, false);
+            getPipelineRunner().deletePipelineRecords(key, false, false);
             log.info("Deleted pipeline: " + key);
           } catch (IllegalStateException e) {
             log.info("Failed to delete pipeline: " + key);
@@ -155,7 +150,7 @@ public class Jobs {
               }
             }
             try {
-              pipelineRunner.deletePipelineRecords(key, true, false);
+              getPipelineRunner().deletePipelineRecords(key, true, false);
               log.info("Force deleted pipeline: " + key);
             } catch (Exception ex) {
               log.log(Level.WARNING, "Failed to force delete pipeline: " + key, ex);

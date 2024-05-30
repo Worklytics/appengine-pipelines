@@ -25,6 +25,7 @@ import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.mapreduce.*;
+import com.google.appengine.tools.mapreduce.di.DaggerDefaultMapReduceContainer;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
@@ -35,13 +36,8 @@ import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageLevelDbOutput;
 import com.google.appengine.tools.mapreduce.outputs.MarshallingOutput;
 import com.google.appengine.tools.mapreduce.reducers.IdentityReducer;
-import com.google.appengine.tools.pipeline.FutureValue;
-import com.google.appengine.tools.pipeline.Job0;
-import com.google.appengine.tools.pipeline.Job1;
-import com.google.appengine.tools.pipeline.JobSetting;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.PipelineServiceFactory;
-import com.google.appengine.tools.pipeline.Value;
+import com.google.appengine.tools.pipeline.*;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.apphosting.api.ApiProxy.ArgumentException;
 import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
 import com.google.cloud.WriteChannel;
@@ -50,6 +46,8 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
 import lombok.SneakyThrows;
 
 import java.io.IOException;
@@ -67,12 +65,15 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import javax.inject.Inject;
+
 /**
  * This servlet provides a way for Python MapReduce Jobs to use the Java MapReduce as a shuffle. It
  * takes in a list of files to shuffle and a task queue to send the completion notification to. When
  * the job finishes a message will be sent to that queue which indicates the status and where to
  * find the results.
  */
+@Injectable(DaggerDefaultMapReduceContainer.class)
 public class ShufflerServlet extends HttpServlet {
 
   private static final long serialVersionUID = 2L;
@@ -94,6 +95,15 @@ public class ShufflerServlet extends HttpServlet {
       )
       .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
       .withStopStrategy(StopStrategies.stopAfterAttempt(10));
+  }
+
+  @Inject
+  PipelineService pipelineService;
+
+  @Override
+  public void init(ServletConfig config) throws ServletException {
+    super.init(config);
+    DIUtil.inject(this);
   }
 
   @VisibleForTesting
@@ -276,8 +286,7 @@ public class ShufflerServlet extends HttpServlet {
   @Override
   public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     ShufflerParams shufflerParams = readShufflerParams(req.getInputStream());
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    String pipelineId = service.startNewPipeline(
+    String pipelineId = pipelineService.startNewPipeline(
         new ShuffleMapReduce(shufflerParams),
         new JobSetting.OnQueue(shufflerParams.getShufflerQueue()),
         new JobSetting.DatastoreNamespace(shufflerParams.getNamespace()));

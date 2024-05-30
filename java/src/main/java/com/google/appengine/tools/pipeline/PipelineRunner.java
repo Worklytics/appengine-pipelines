@@ -1,21 +1,40 @@
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.Transaction;
 
+import java.util.Iterator;
 import java.util.Set;
 
 /**
  * represents component that executes a Pipeline
  *
+ * in theory, can be private to Pipelines? (not something people running jobs actually need)
+ *
  * TODO: rename to PipelineLauncher (analogue to Spring Batch JobLauncher)?
  *  - or PipelineRepository? kinda more like that ...
  */
 public interface PipelineRunner {
+
+  /**
+   * Returns the state of the job with the given ID.  Returns null if no such
+   * job exists.
+   */
+  ShardedJobState getJobState(Datastore datastore, String jobId);
+
+  /**
+   * Returns the tasks associated with this ShardedJob.
+   */
+  Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(Transaction tx, ShardedJobState state);
 
   /**
    * @return options necessary to reconstruct this runner via PipelineRunnerFactory

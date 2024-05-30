@@ -15,14 +15,12 @@ import java.util.List;
  */
 public class InProcessShardedJobRunner {
 
-  private InProcessShardedJobRunner() {
-  }
-
   /**
    * Runs the given job and returns its result.
    */
   public static <T extends IncrementalTask> void runJob(
-      List<T> initialTasks, ShardedJobController<T> controller) {
+      List<T> initialTasks,
+      ShardedJobController<T> controller) {
     List<T> results = new ArrayList<>();
     for (T task : initialTasks) {
       Preconditions.checkNotNull(task, "Null initial task: %s", initialTasks);
@@ -33,6 +31,7 @@ public class InProcessShardedJobRunner {
       task.cleanup();
       results.add(task);
     }
+
     controller.completed(results.iterator());
   }
 }

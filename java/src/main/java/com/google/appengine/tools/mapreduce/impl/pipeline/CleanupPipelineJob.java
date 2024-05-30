@@ -35,8 +35,10 @@ public class CleanupPipelineJob extends Job1<Void, List<GcsFilename>> {
     return Jobs.waitForAllAndDelete(this, null, futures);
   }
 
-  public static void cleanup(GcpCredentialOptions gcpCredentialOptions, List<GcsFilename> toDelete, JobSetting... settings) {
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    service.startNewPipeline(new CleanupPipelineJob(gcpCredentialOptions), toDelete, settings);
+  public static void cleanup(PipelineService pipelineService,
+                             GcpCredentialOptions gcpCredentialOptions,
+                             List<GcsFilename> toDelete,
+                             JobSetting... settings) {
+    pipelineService.startNewPipeline(new CleanupPipelineJob(gcpCredentialOptions), toDelete, settings);
   }
 }
