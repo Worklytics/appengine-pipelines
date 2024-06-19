@@ -14,18 +14,16 @@
 
 package com.google.appengine.tools.mapreduce;
 
-import com.google.appengine.tools.mapreduce.di.DaggerDefaultMapReduceContainer;
-import com.google.appengine.tools.mapreduce.di.DefaultMapReduceContainer;
-import com.google.appengine.tools.mapreduce.impl.handlers.MapReduceServletImpl;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.RejectRequestException;
-import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
-import com.google.appengine.tools.pipeline.Injectable;
-import com.google.cloud.datastore.Datastore;
+import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -55,24 +53,26 @@ import javax.inject.Inject;
  * Security and Authentication</a>)
  * for more details.
  * </pre>
- *
  */
-@Injectable(DaggerDefaultMapReduceContainer.class)
 public class MapReduceServlet extends HttpServlet {
   private static final long serialVersionUID = 1L;
   private static final Logger log = Logger.getLogger(MapReduceServlet.class.getName());
 
   private static final int REJECT_REQUEST_STATUSCODE = 429; // See rfc6585
 
-  @Inject
-  MapReduceServletImpl mapReduceServletImpl;
+  JobRunServiceComponent component;
+
+  @Override
+  public void init(ServletConfig config) throws ServletException {
+    super.init(config);
+    component = DaggerJobRunServiceComponent.create();
+  }
 
   @Override
   public void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    //datastore, setting namespace for request somehow
 
     try {
-      mapReduceServletImpl.doPost(req, resp);
+      component.mapReduceServletImpl().doPost(req, resp);
     } catch (RejectRequestException e) {
       handleRejectedRequest(resp, e);
     }
@@ -81,7 +81,7 @@ public class MapReduceServlet extends HttpServlet {
   @Override
   public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     try {
-      mapReduceServletImpl.doGet(req, resp);
+      component.mapReduceServletImpl().doGet(req, resp);
     } catch (RejectRequestException e) {
       handleRejectedRequest(resp, e);
     }

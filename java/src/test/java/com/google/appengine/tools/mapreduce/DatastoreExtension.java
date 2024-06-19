@@ -76,13 +76,20 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
     @Override
     public boolean supportsParameter(ParameterContext parameterContext,
                                      ExtensionContext extensionContext) throws ParameterResolutionException {
-      return parameterContext.getParameter().getType() == Datastore.class;
+      return parameterContext.getParameter().getType() == Datastore.class
+        || parameterContext.getParameter().getType() == DatastoreOptions.class;
     }
 
     @Override
     public Object resolveParameter(ParameterContext parameterContext,
                                    ExtensionContext extensionContext) throws ParameterResolutionException {
-      return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_CONTEXT_KEY);
+      if (parameterContext.getParameter().getType() == Datastore.class) {
+        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_CONTEXT_KEY);
+      } else if (parameterContext.getParameter().getType() == DatastoreOptions.class) {
+        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_OPTIONS_CONTEXT_KEY);
+      } else {
+        throw new ParameterResolutionException("Unsupported parameter type: " + parameterContext.getParameter().getType());
+      }
     }
   }
 

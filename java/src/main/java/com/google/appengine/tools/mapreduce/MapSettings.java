@@ -63,6 +63,7 @@ public class MapSettings implements Serializable {
   public static final int DEFAULT_SHARD_RETRIES = 4;
   public static final int DEFAULT_SLICE_RETRIES = 20;
 
+  private final String datastoreHost;
   private final String projectId;
   private final String databaseId;
   private final String namespace;
@@ -77,6 +78,7 @@ public class MapSettings implements Serializable {
   @ToString
   abstract static class BaseBuilder<B extends BaseBuilder<B>> {
 
+    protected String datastoreHost;
     protected String projectId;
     protected String databaseId;
     protected String namespace;
@@ -92,6 +94,7 @@ public class MapSettings implements Serializable {
     }
 
     BaseBuilder(MapSettings settings) {
+      datastoreHost = settings.getDatastoreHost();
       projectId = settings.getProjectId();
       databaseId = settings.getDatabaseId();
       namespace = settings.getNamespace();
@@ -105,6 +108,11 @@ public class MapSettings implements Serializable {
     }
 
     protected abstract B self();
+
+    public B setDatastoreHost(String datastoreHost) {
+      this.datastoreHost = datastoreHost;
+      return self();
+    }
 
     /**
      * Sets the namespace that will be used for all requests related to this job.
@@ -209,6 +217,7 @@ public class MapSettings implements Serializable {
   }
 
   MapSettings(BaseBuilder<?> builder) {
+    datastoreHost = builder.datastoreHost;
     projectId = builder.projectId;
     databaseId = builder.databaseId;
     namespace = builder.namespace;
@@ -296,14 +305,11 @@ public class MapSettings implements Serializable {
   }
 
   DatastoreOptions getDatastoreOptions() {
-    DatastoreOptions.Builder optionsBuilder = DatastoreOptions.newBuilder();
-    optionsBuilder.setProjectId(Optional.ofNullable(projectId).orElseGet(DatastoreOptions::getDefaultProjectId));
-    if (databaseId != null) {
-      optionsBuilder.setDatabaseId(databaseId);
-    }
-    if (namespace != null) {
-      optionsBuilder.setNamespace(namespace);
-    }
+    DatastoreOptions.Builder optionsBuilder = DatastoreOptions.getDefaultInstance().toBuilder();
+    Optional.ofNullable(datastoreHost).ifPresent(optionsBuilder::setHost);
+    Optional.ofNullable(projectId).ifPresent(optionsBuilder::setProjectId);
+    Optional.ofNullable(databaseId).ifPresent(optionsBuilder::setDatabaseId);
+    Optional.ofNullable(namespace).ifPresent(optionsBuilder::setNamespace);
     return optionsBuilder.build();
   }
 }

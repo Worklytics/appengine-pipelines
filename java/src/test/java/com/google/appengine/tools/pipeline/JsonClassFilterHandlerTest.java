@@ -102,11 +102,13 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
   public void setUp() throws Exception {
     MockitoAnnotations.openMocks(this);
     when(response.getWriter()).thenReturn(new PrintWriter(output));
+    handler = getComponent().jsonClassFilterHandler();
   }
+
+  JsonClassFilterHandler handler;
 
   @Test
   public void testHandlerNoResults() throws Exception {
-    JsonClassFilterHandler handler = new JsonClassFilterHandler(pipelineManager);
     handler.doGet(request, response);
     assertEqualsIgnoreWhitespace("{\"classPaths\": []}", output.toString());
   }
@@ -126,7 +128,6 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
 
     assertEquals("bla", bla);
 
-    JsonClassFilterHandler handler = new JsonClassFilterHandler(pipelineManager);
     handler.doGet(request, response);
     System.out.println(output.toString());
     String expected = "{\"classPaths\": [\n"

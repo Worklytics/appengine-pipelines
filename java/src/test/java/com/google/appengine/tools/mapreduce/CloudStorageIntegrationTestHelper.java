@@ -96,7 +96,6 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
   }
 
   @Deprecated //attach delete to global runtime shutdown
-  @SneakyThrows
   @Override
   public void tearDown() {
   }

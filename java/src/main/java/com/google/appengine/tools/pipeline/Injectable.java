@@ -1,5 +1,7 @@
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
@@ -25,6 +27,6 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Injectable {
 
-  Class<?> value() default DaggerDefaultContainer.class;
+  Class<?> value() default DaggerJobRunServiceComponent.class;
 
 }

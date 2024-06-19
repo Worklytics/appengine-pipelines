@@ -1,4 +1,4 @@
-package com.google.appengine.tools.pipeline;
+package com.google.appengine.tools.pipeline.di;
 
 public interface DIContainer<T> {
 

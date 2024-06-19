@@ -8,9 +8,8 @@ import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
+import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.util.Pair;
-import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.Transaction;
 
 import java.util.Iterator;
 import java.util.Set;
@@ -18,10 +17,9 @@ import java.util.Set;
 /**
  * represents component that executes a Pipeline
  *
- * in theory, can be private to Pipelines? (not something people running jobs actually need)
+ * in theory, can be private to Pipelines? (not something people launhcing jobs actually need)
  *
- * TODO: rename to PipelineLauncher (analogue to Spring Batch JobLauncher)?
- *  - or PipelineRepository? kinda more like that ...
+ * TODO: rename to PipelineRepository (analogue to Spring Batch PipelineRepository)?
  */
 public interface PipelineRunner {
 
@@ -29,12 +27,12 @@ public interface PipelineRunner {
    * Returns the state of the job with the given ID.  Returns null if no such
    * job exists.
    */
-  ShardedJobState getJobState(Datastore datastore, String jobId);
+  ShardedJobState getJobState(String jobId);
 
   /**
    * Returns the tasks associated with this ShardedJob.
    */
-  Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(Transaction tx, ShardedJobState state);
+  Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state);
 
   /**
    * @return options necessary to reconstruct this runner via PipelineRunnerFactory
@@ -127,4 +125,12 @@ public interface PipelineRunner {
    void deletePipelineRecords(String pipelineHandle, boolean force)
     throws NoSuchObjectException, IllegalStateException;
 
+
+  /**
+   * Process an incoming task received from the App Engine task queue.
+   *
+   * @param task The task to be processed.
+   *
+   */
+   void processTask(Task task);
 }

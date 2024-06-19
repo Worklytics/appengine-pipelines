@@ -17,8 +17,12 @@ package com.google.appengine.tools.pipeline.impl.servlets;
 import static com.google.appengine.tools.pipeline.impl.util.JsonUtils.mapToJson;
 import static java.util.Collections.singletonMap;
 
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.PipelineRunner;
 
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import lombok.AllArgsConstructor;
 
 import java.io.IOException;
@@ -26,22 +30,32 @@ import java.util.Set;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Setter;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@Singleton
 @AllArgsConstructor(onConstructor_ = @Inject)
 public class JsonClassFilterHandler {
 
   public static final String PATH_COMPONENT = "rpc/class_paths";
 
-  private final PipelineRunner pipelineManager;
+  final JobRunServiceComponent component;
+  final RequestUtils requestUtils;
 
   public void doGet(@SuppressWarnings("unused") HttpServletRequest req,
       HttpServletResponse resp) throws IOException {
-    Set<String> pipelines = pipelineManager.getRootPipelinesDisplayName();
+
+    StepExecutionComponent stepExecutionComponent =
+      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+    PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
+
+
+    Set<String> pipelines = pipelineRunner.getRootPipelinesDisplayName();
     resp.getWriter().write(mapToJson(singletonMap("classPaths", pipelines)));
   }
 }

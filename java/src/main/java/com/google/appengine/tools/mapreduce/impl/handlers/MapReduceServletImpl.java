@@ -12,8 +12,9 @@ import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.cloud.datastore.Datastore;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.common.collect.ImmutableMap;
 import lombok.AllArgsConstructor;
 
@@ -28,12 +29,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
+//TODO: not actually a servlet
+@Singleton
 @AllArgsConstructor(onConstructor_ = @Inject)
 public final class MapReduceServletImpl {
 
-  ShardedJobRunner shardedJobRunner;
-  PipelineService pipelineService;
+
+  JobRunServiceComponent component;
   StatusHandler statusHandler;
   RequestUtils requestUtils;
 
@@ -103,20 +107,23 @@ public final class MapReduceServletImpl {
       throws IOException {
     String handler = getHandler(request);
 
+    StepExecutionComponent stepExecutionComponent =
+      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(request)));
+
     if (handler.startsWith(CONTROLLER_PATH)) {
       if (!checkForTaskQueue(request, response)) {
         return;
       }
-      Datastore datastore = requestUtils.buildDatastoreFromRequest(request);
-      shardedJobRunner.completeShard(datastore,
+      ShardedJobRunner shardedJobRunner = stepExecutionComponent.shardedJobRunner();
+      shardedJobRunner.completeShard(
               checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
               checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"));
     } else if (handler.startsWith(WORKER_PATH)) {
       if (!checkForTaskQueue(request, response)) {
         return;
       }
-      Datastore datastore = requestUtils.buildDatastoreFromRequest(request);
-      shardedJobRunner.runTask(datastore,
+      ShardedJobRunner shardedJobRunner = stepExecutionComponent.shardedJobRunner();
+      shardedJobRunner.runTask(
         checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
         checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"), Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)));
     } else if (handler.startsWith(COMMAND_PATH)) {

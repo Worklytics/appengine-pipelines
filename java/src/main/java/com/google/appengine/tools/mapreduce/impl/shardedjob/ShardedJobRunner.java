@@ -10,6 +10,7 @@ import static java.util.concurrent.Executors.callable;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
@@ -22,7 +23,6 @@ import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.DeleteShardedJob;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.FinalizeShardedJob;
-import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.apphosting.api.ApiProxy.ApiProxyException;
 import com.google.apphosting.api.ApiProxy.ArgumentException;
 import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
@@ -34,28 +34,33 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
- * Contains all logic to manage and run sharded jobs.
+ * Contains all logic to manage and run sharded jobs; specific to a given backend configuration (injected as backend)
  *
  * @author ohler@google.com (Christian Ohler)
  *
  */
-@RequiredArgsConstructor(onConstructor_ = @Inject)
+@AllArgsConstructor(onConstructor_ = @Inject)
+@Log
 public class ShardedJobRunner implements ShardedJobHandler {
 
+  @Getter
+  final Provider<PipelineService> pipelineServiceProvider;
+  @Getter
+  final Datastore datastore;
 
-  //provider here avoids cycle ... TODO: revisit
-  final Provider<PipelineService> pipelineService;
 
   // High-level overview:
   //
@@ -74,9 +79,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
   //
   // Each task also checks the job state entity to detect if the job has been
   // aborted or deleted, and terminates if so.
-
-
-  private static final Logger log = Logger.getLogger(ShardedJobRunner.class.getName());
 
   // NOTE: no StopStrategy set, must be set by the caller prior to build
   public static RetryerBuilder getRetryerBuilder() {
@@ -158,11 +160,16 @@ public class ShardedJobRunner implements ShardedJobHandler {
     };
   }
 
+  public <T extends IncrementalTask> Iterator<IncrementalTaskState<T>> lookupTasks(
+    final String jobId, final int taskCount, final boolean lenient) {
+    return lookupTasks(datastore.newTransaction(), jobId, taskCount, lenient);
+  }
+
   private <T extends IncrementalTask> void callCompleted(Transaction tx, ShardedJobStateImpl<T> jobState) {
     Iterator<IncrementalTaskState<T>> taskStates =
         lookupTasks(tx, jobState.getJobId(), jobState.getTotalTaskCount(), false);
     Iterator<T> tasks = Iterators.transform(taskStates, IncrementalTaskState::getTask);
-    jobState.getController().setPipelineService(pipelineService.get());
+    jobState.getController().setPipelineService(pipelineServiceProvider.get());
     jobState.getController().completed(tasks);
   }
 
@@ -196,11 +203,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   @Override
-  public void completeShard(Datastore datastore, final String jobId, final String taskId) {
+  public void completeShard(final String jobId, final String taskId) {
     log.info("Polling task states for job " + jobId);
     final int shardNumber = parseTaskNumberFromTaskId(jobId, taskId);
+
     ShardedJobStateImpl<?> jobState = RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(8)), () -> {
-      Transaction tx = datastore.newTransaction();
+      Transaction tx = getDatastore().newTransaction();
       try {
         ShardedJobStateImpl<?> jobState1 = lookupJobState(tx, jobId);
         if (jobState1 == null) {
@@ -240,7 +248,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         log.info("Calling failed for " + jobId + ", status=" + jobState.getStatus());
         jobState.getController().failed(jobState.getStatus());
       }
-      pipelineService.get().startNewPipeline(
+      pipelineServiceProvider.get().startNewPipeline(
           new FinalizeShardedJob(datastore.getOptions(), jobId, jobState.getTotalTaskCount(), jobState.getStatus()));
     }
   }
@@ -351,8 +359,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   @Override
-  public void runTask(Datastore datastore, final String jobId, final String taskId, final int sequenceNumber) {
-    Transaction tx = datastore.newTransaction();
+  public void runTask(final String jobId, final String taskId, final int sequenceNumber) {
+
+    Transaction tx = getDatastore().newTransaction();
     final ShardedJobStateImpl<? extends IncrementalTask> jobState = lookupJobState(tx, jobId);
     runTask(datastore, tx, jobState, taskId, sequenceNumber);
   }
@@ -504,7 +513,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       callable(new Runnable() {
         @Override
         public void run() {
-          Transaction tx = datastore.newTransaction();
+          Transaction tx = getDatastore().newTransaction();
           try {
             String taskId = taskState.getTaskId();
             IncrementalTaskState<T> existing = lookupTaskState(tx, taskId);
@@ -607,9 +616,10 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  public <T extends IncrementalTask> void startJob(Datastore datastore, final String jobId, List<? extends T> initialTasks,
-                       ShardedJobController<T> controller, ShardedJobSettings settings) {
+  public <T extends IncrementalTask> void startJob(final String jobId, List<? extends T> initialTasks,
+                                                   ShardedJobController<T> controller, ShardedJobSettings settings) {
     long startTime = System.currentTimeMillis();
+    Datastore datastore = getDatastore();
     Preconditions.checkArgument(!Iterables.any(initialTasks, Predicates.isNull()),
         "Task list must not contain null values");
     ShardedJobStateImpl<T> jobState =
@@ -620,7 +630,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       Transaction tx = datastore.newTransaction();
       datastore.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState));
       tx.commit();
-      controller.setPipelineService(pipelineService.get());
+      controller.setPipelineService(pipelineServiceProvider.get());
       controller.completed(Collections.<T>emptyIterator());
     } else {
       writeInitialJobState(datastore, jobState);
@@ -629,7 +639,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  public ShardedJobState getJobState(Datastore datastore, String jobId) {
+  public ShardedJobState getJobState(String jobId) {
+    Datastore datastore = getDatastore();
     return Optional.ofNullable(datastore.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId)))
       .map(in -> ShardedJobStateImpl.ShardedJobSerializer.fromEntity(datastore.newTransaction(), in, true))
       .orElse(null);
@@ -662,12 +673,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  public void abortJob(Datastore datastore, String jobId) {
+  public void abortJob(String jobId) {
     changeJobStatus(datastore, jobId, new Status(ABORTED));
   }
 
 
-  public boolean cleanupJob(Datastore datastore, String jobId) {
+  public boolean cleanupJob(String jobId) {
     Transaction txn = datastore.newTransaction();
     ShardedJobStateImpl<?> jobState = lookupJobState(txn, jobId);
     if (jobState == null) {
@@ -678,7 +689,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
     int taskCount = jobState.getTotalTaskCount();
     if (taskCount > 0) {
-      pipelineService.get().startNewPipeline(new DeleteShardedJob(datastore.getOptions(), jobId, taskCount));
+      pipelineServiceProvider.get().startNewPipeline(new DeleteShardedJob(datastore.getOptions(), jobId, taskCount));
     }
     final Key jobKey = ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId);
 

@@ -14,22 +14,11 @@
 
 package com.google.appengine.tools.pipeline.impl;
 
-import com.google.appengine.tools.pipeline.Job;
-import com.google.appengine.tools.pipeline.Job0;
-import com.google.appengine.tools.pipeline.Job1;
-import com.google.appengine.tools.pipeline.Job2;
-import com.google.appengine.tools.pipeline.Job3;
-import com.google.appengine.tools.pipeline.Job4;
-import com.google.appengine.tools.pipeline.Job5;
-import com.google.appengine.tools.pipeline.Job6;
-import com.google.appengine.tools.pipeline.JobInfo;
-import com.google.appengine.tools.pipeline.JobSetting;
-import com.google.appengine.tools.pipeline.NoSuchObjectException;
-import com.google.appengine.tools.pipeline.OrphanedObjectException;
-import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedInject;
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 
 import javax.inject.Inject;
 
@@ -41,12 +30,11 @@ import javax.inject.Inject;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-@NoArgsConstructor
 @AllArgsConstructor(onConstructor_ = @Inject)
 public class PipelineServiceImpl implements PipelineService {
 
-  @Inject
   PipelineManager pipelineManager;
+  PipelineBackEnd backend;
 
   @Override
   public PipelineBackEnd.Options getBackendOptions() {

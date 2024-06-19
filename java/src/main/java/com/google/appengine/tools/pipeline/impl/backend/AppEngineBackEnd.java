@@ -114,7 +114,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
     private DatastoreOptions datastoreOptions;
 
-    //TODO: add any non-default options of Datastore, etc that we need to reconstitute
   }
 
   @Override

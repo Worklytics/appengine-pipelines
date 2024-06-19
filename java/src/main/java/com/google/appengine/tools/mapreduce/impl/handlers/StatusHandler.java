@@ -13,7 +13,9 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
-import com.google.cloud.datastore.Datastore;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Longs;
 
@@ -26,7 +28,7 @@ import com.googlecode.charts4j.Plot;
 import com.googlecode.charts4j.Plots;
 
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
+import lombok.extern.java.Log;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -36,7 +38,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -47,17 +48,15 @@ import javax.inject.Inject;
  * UI Status view logic handler.
  *
  */
+@Log
 @AllArgsConstructor(onConstructor_ = @Inject)
-@NoArgsConstructor
 final class StatusHandler {
-
-  private static final Logger log = Logger.getLogger(StatusHandler.class.getName());
 
   public static final int DEFAULT_JOBS_PER_PAGE_COUNT = 50;
 
-  @Inject PipelineOrchestrator pipelineOrchestrator;
-  @Inject PipelineRunner pipelineRunner;
-  @Inject RequestUtils requestUtil;
+  final JobRunServiceComponent component;
+  final RequestUtils requestUtils;
+
 
   // Command paths
   public static final String LIST_JOBS_PATH = "list_jobs";
@@ -65,9 +64,9 @@ final class StatusHandler {
   public static final String ABORT_JOB_PATH = "abort_job";
   public static final String GET_JOB_DETAIL_PATH = "get_job_detail";
 
-  private JSONObject handleCleanupJob(Datastore datastore, String jobId) throws JSONException {
+  private JSONObject handleCleanupJob(PipelineOrchestrator pipelineOrchestrator, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
-    if (pipelineOrchestrator.cleanupJob(datastore, jobId)) {
+    if (pipelineOrchestrator.cleanupJob(jobId)) {
       retValue.put("status", "Successfully deleted requested job.");
     } else {
       retValue.put("status", "Can't delete an active job");
@@ -75,9 +74,9 @@ final class StatusHandler {
     return retValue;
   }
 
-  private JSONObject handleAbortJob(Datastore datastore, String jobId) throws JSONException {
+  private JSONObject handleAbortJob(PipelineOrchestrator pipelineOrchestrator, String jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
-    pipelineOrchestrator.abortJob(datastore, jobId);
+    pipelineOrchestrator.abortJob(jobId);
     retValue.put("status", "Successfully aborted requested job.");
     return retValue;
   }
@@ -91,17 +90,20 @@ final class StatusHandler {
     boolean isPost = "POST".equals(request.getMethod());
     JSONObject retValue = null;
 
-    Datastore datastore = requestUtil.buildDatastoreFromRequest(request);
+    StepExecutionComponent stepExecutionComponent =
+      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(request)));
+    PipelineOrchestrator pipelineOrchestrator = stepExecutionComponent.pipelineOrchestrator();
+    PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
 
     try {
       if (command.equals(LIST_JOBS_PATH) && !isPost) {
         retValue = handleListJobs(request);
       } else if (command.equals(CLEANUP_JOB_PATH) && isPost) {
-        retValue = handleCleanupJob(datastore, request.getParameter("mapreduce_id"));
+        retValue = handleCleanupJob(pipelineOrchestrator, request.getParameter("mapreduce_id"));
       } else if (command.equals(ABORT_JOB_PATH) && isPost) {
-        retValue = handleAbortJob(datastore, request.getParameter("mapreduce_id"));
+        retValue = handleAbortJob(pipelineOrchestrator, request.getParameter("mapreduce_id"));
       } else if (command.equals(GET_JOB_DETAIL_PATH) && !isPost) {
-        retValue = handleGetJobDetail(datastore, request.getParameter("mapreduce_id"));
+        retValue = handleGetJobDetail(pipelineRunner, request.getParameter("mapreduce_id"));
       }
     } catch (Exception t) {
       log.log(Level.SEVERE, "Got exception while running command", t);
@@ -169,8 +171,8 @@ final class StatusHandler {
    * Handle the get_job_detail AJAX command.
    */
   @VisibleForTesting
-  JSONObject handleGetJobDetail(Datastore datastore, String jobId) {
-    ShardedJobState state = pipelineRunner.getJobState(datastore, jobId);
+  JSONObject handleGetJobDetail(PipelineRunner pipelineRunner, String jobId) {
+    ShardedJobState state = pipelineRunner.getJobState(jobId);
     if (state == null) {
       return null;
     }
@@ -205,7 +207,7 @@ final class StatusHandler {
       Counters totalCounters = new CountersImpl();
       int i = 0;
       long[] workerCallCounts = new long[state.getTotalTaskCount()];
-      Iterator<IncrementalTaskState<IncrementalTask>> tasks = pipelineRunner.lookupTasks(datastore.newTransaction(), state);
+      Iterator<IncrementalTaskState<IncrementalTask>> tasks = pipelineRunner.lookupTasks(state);
       while (tasks.hasNext()) {
         IncrementalTaskState<?> taskState = tasks.next();
         JSONObject shardObject = new JSONObject();

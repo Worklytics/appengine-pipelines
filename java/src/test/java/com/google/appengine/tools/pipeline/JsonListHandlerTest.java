@@ -102,16 +102,18 @@ public class JsonListHandlerTest extends PipelineTest {
     }
   }
 
+  JsonListHandler jsonListHandler;
+
   @BeforeEach
   public void setUp() throws Exception {
     MockitoAnnotations.openMocks(this);
     output = new StringWriter();
     when(response.getWriter()).thenReturn(new PrintWriter(output));
+    jsonListHandler = getComponent().jsonListHandler();
   }
 
   @Test
   public void testHandlerNoResults() throws Exception {
-    JsonListHandler jsonListHandler = new JsonListHandler(pipelineManager);
     jsonListHandler.doGet(request, response);
     assertEqualsIgnoreWhitespace("{\"pipelines\": []}", output.toString());
   }
@@ -128,7 +130,6 @@ public class JsonListHandlerTest extends PipelineTest {
     assertEquals("hi there", hiThere);
     String bla = waitForJobToComplete(pipelineService, pipelineId3);
     assertEquals("bla", bla);
-    JsonListHandler jsonListHandler = new JsonListHandler(pipelineManager);
     jsonListHandler.doGet(request, response);
     Map<String, Object> results = (Map<String, Object>) JsonUtils.fromJson(output.toString());
     assertEquals(1, results.size());

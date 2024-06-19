@@ -20,7 +20,6 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
-import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -48,14 +47,14 @@ import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
-import com.google.cloud.datastore.Transaction;
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedInject;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
-import javax.inject.Singleton;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Instant;
@@ -71,21 +70,17 @@ import java.util.logging.Level;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  *
- * TODO: make this 1) interface, 2) inject the implementation?
- *
+ * TODO: this is implementation; NOT really part of public API of pkg, although we depend on it somewhat.
  */
-
-@Singleton
 @AllArgsConstructor(onConstructor_ = @Inject)
 @Log
 public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   public static final String DEFAULT_QUEUE_NAME = "default";
 
-
-  PipelineBackEnd backEnd;
-  ShardedJobRunner shardedJobRunner;
-  Provider<PipelineService> pipelineServiceProvider;
+  final Provider<PipelineService> pipelineServiceProvider;
+  final ShardedJobRunner shardedJobRunner;
+  final PipelineBackEnd backEnd;
 
   PipelineBackEnd.Options getBackendOptions() {
     return backEnd.getOptions();
@@ -131,21 +126,21 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   @Override
   public <T extends IncrementalTask> void startJob(
-    Datastore datastore, String jobId,
+    String jobId,
     List<? extends T> initialTasks,
     ShardedJobController<T> controller,
     ShardedJobSettings settings) {
-    shardedJobRunner.startJob(datastore, jobId, initialTasks, controller, settings);
+    shardedJobRunner.startJob(jobId, initialTasks, controller, settings);
   }
 
   @Override
-  public void abortJob(Datastore datastore, String jobId) {
-    shardedJobRunner.abortJob(datastore, jobId);
+  public void abortJob(String jobId) {
+    shardedJobRunner.abortJob(jobId);
   }
 
   @Override
-  public boolean cleanupJob(Datastore datastore, String jobId) {
-    return shardedJobRunner.cleanupJob(datastore, jobId);
+  public boolean cleanupJob(String jobId) {
+    return shardedJobRunner.cleanupJob(jobId);
   }
 
   @Override
@@ -212,13 +207,13 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public ShardedJobState getJobState(Datastore datastore, String jobId) {
-    return shardedJobRunner.getJobState(datastore, jobId);
+  public ShardedJobState getJobState(String jobId) {
+    return shardedJobRunner.getJobState(jobId);
   }
 
   @Override
-  public Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(Transaction tx, ShardedJobState state) {
-    return shardedJobRunner.lookupTasks(tx, state.getJobId(), state.getTotalTaskCount(), true);
+  public Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state) {
+    return shardedJobRunner.lookupTasks(state.getJobId(), state.getTotalTaskCount(), true);
   }
 
 
@@ -851,7 +846,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
     Job<?> job = jobExecutionRecord.getJobInstanceDeserialized();
     invokePrivateJobMethod("setPipelineManager", job, this);
-    invokePrivateJobMethod("setPipelineService", job,  pipelineServiceProvider.get());
+    invokePrivateJobMethod("setPipelineService", job, (PipelineService) pipelineServiceProvider.get());
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     setJobRecord(job, jobRecord);
     String currentRunGUID = GUIDGenerator.nextGUID();

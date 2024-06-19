@@ -14,7 +14,11 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.PipelineRunner;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.util.Pair;
 import lombok.AllArgsConstructor;
@@ -26,25 +30,33 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /**
  * @author tkaitchuck@google.com (Tom Kaitchuck)
  */
+@Singleton
 @AllArgsConstructor(onConstructor_ = @Inject)
 public class JsonListHandler {
+
+  final JobRunServiceComponent component;
+  final RequestUtils requestUtils;
 
   public static final String PATH_COMPONENT = "rpc/list";
   private static final String CLASS_FILTER_PARAMETER = "class_path";
   private static final String CURSOR_PARAMETER = "cursor";
   private static final String LIMIT_PARAMETER = "limit";
 
-  transient PipelineRunner pipelineManager;
-
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException {
     String classFilter = getParam(req, CLASS_FILTER_PARAMETER);
     String cursor = getParam(req, CURSOR_PARAMETER);
     String limit = getParam(req, LIMIT_PARAMETER);
+
+    StepExecutionComponent stepExecutionComponent =
+      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+    PipelineRunner pipelineManager = stepExecutionComponent.pipelineRunner();
+
     Pair<? extends Iterable<JobRecord>, String> pipelineRoots = pipelineManager.queryRootPipelines(
         classFilter, cursor, limit == null ? 100 : Integer.parseInt(limit));
     String asJson = JsonGenerator.pipelineRootsToJson(pipelineRoots);

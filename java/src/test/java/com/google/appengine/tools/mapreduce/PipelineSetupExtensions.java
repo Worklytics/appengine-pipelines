@@ -2,25 +2,19 @@ package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.pipeline.*;
+import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
-import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
-import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
-import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
-import dagger.Binds;
-import dagger.Component;
-import dagger.Module;
-import dagger.Provides;
-import lombok.AllArgsConstructor;
-import lombok.Setter;
+
 import org.junit.jupiter.api.extension.*;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -33,7 +27,6 @@ import java.util.List;
 @ExtendWith({
   DatastoreExtension.class,
   DatastoreExtension.ParameterResolver.class,
-  //AppEngineEnvironmentExtension.class,
   PipelineComponentsExtension.class,
   PipelineComponentsExtension.ParameterResolver.class,
 })
@@ -41,64 +34,59 @@ public @interface PipelineSetupExtensions {
 
 }
 
-class PipelineComponentsExtension implements BeforeEachCallback {
+class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallback {
 
   Datastore datastore;
 
   DatastoreOptions datastoreOptions;
 
-  @Inject
-  protected PipelineService pipelineService;
-  @Inject
-  protected PipelineManager pipelineManager;
-  @Inject
-  protected AppEngineBackEnd appEngineBackend;
-  @Inject
-  protected PipelineServlet pipelineServlet;
+  JobRunServiceComponent component;
 
   enum ContextStoreKey {
     PIPELINE_SERVICE,
     PIPELINE_MANAGER,
     APP_ENGINE_BACKEND,
-    PIPELINE_SERVLET;
+    PIPELINE_SERVLET,
+    SHARDED_JOB_RUNNER,
+    JOB_RUN_SERVICE_COMPONENT,
   }
 
   static final List<Class<?>> PARAMETER_CLASSES = Arrays.asList(
     PipelineManager.class,
     PipelineService.class,
     AppEngineBackEnd.class,
-    DatastoreOptions.class,
-    PipelineServlet.class
+    PipelineOrchestrator.class,
+    PipelineRunner.class,
+    JobRunServiceComponent.class,
+    ShardedJobRunner.class
   );
 
+  @Override
+  public void beforeAll(ExtensionContext extensionContext) throws Exception {
+    component = DaggerJobRunServiceComponent.create();
+  }
 
   @Override
   public void beforeEach(ExtensionContext extensionContext) throws Exception {
-    datastore = (Datastore) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_CONTEXT_KEY);
-
     // can be serialized, then used to re-constitute connection to datastore emulator on another thread/process
+    datastore = (Datastore) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_CONTEXT_KEY);
     datastoreOptions = (DatastoreOptions) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_OPTIONS_CONTEXT_KEY);
 
+    AppEngineBackEnd appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
 
-    TestDIModule.setDatastore(datastore);
-    TestDIModule.setDatastoreOptions(datastoreOptions);
-
-    PipelineSetupTestContainer container = DaggerPipelineSetupTestContainer.create();
-
-
-    container.injectExtension(this);
+    StepExecutionComponent stepExecutionComponent
+      = component.stepExecutionComponent(new StepExecutionModule(appEngineBackend));
 
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.PIPELINE_SERVICE.name(), pipelineService);
+      .put(ContextStoreKey.PIPELINE_SERVICE.name(), stepExecutionComponent.pipelineService());
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.PIPELINE_MANAGER.name(), pipelineManager);
+      .put(ContextStoreKey.PIPELINE_MANAGER.name(), stepExecutionComponent.pipelineManager());
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.APP_ENGINE_BACKEND.name(), appEngineBackend);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.PIPELINE_SERVLET.name(), pipelineServlet);
-
-
-    DIUtil.overrideComponentInstanceForTests(DaggerDefaultContainer.class, container);
+      .put(ContextStoreKey.JOB_RUN_SERVICE_COMPONENT.name(), component);
+    extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
+      .put(ContextStoreKey.SHARDED_JOB_RUNNER, stepExecutionComponent.shardedJobRunner());
   }
 
   public static class ParameterResolver implements org.junit.jupiter.api.extension.ParameterResolver {
@@ -125,69 +113,23 @@ class PipelineComponentsExtension implements BeforeEachCallback {
         return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
           .get(DatastoreExtension.DS_OPTIONS_CONTEXT_KEY);
       } else if (parameterContext.getParameter().getType() == PipelineServlet.class) {
+        throw new Error("Not supported!");
+      } else if (parameterContext.getParameter().getType() == PipelineOrchestrator.class) {
         return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-          .get(ContextStoreKey.PIPELINE_SERVLET.name());
+          .get(ContextStoreKey.PIPELINE_MANAGER.name());
+      } else if (parameterContext.getParameter().getType() == PipelineRunner.class) {
+        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
+          .get(ContextStoreKey.PIPELINE_MANAGER.name());
+      } else if (parameterContext.getParameter().getType() == JobRunServiceComponent.class) {
+        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
+          .get(ContextStoreKey.JOB_RUN_SERVICE_COMPONENT.name());
+      } else if (parameterContext.getParameter().getType() == ShardedJobRunner.class) {
+        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
+          .get(ContextStoreKey.SHARDED_JOB_RUNNER);
+      } else {
+        throw new Error("Shouldn't be reached");
       }
-      throw new Error("Shouldn't be reached");
     }
   }
 
-}
-
-@Singleton
-@Component(
-  modules = {
-    TestDIModule.class,
-  }
-)
-interface PipelineSetupTestContainer {
-
-  //NOTE: have to do this for every class that may need to be injected (eg, Jobs, Tests, etc)
-  //void injectPipelineServlet(PipelineServlet servlet);
-
-  void injectExtension(PipelineComponentsExtension extension);
-}
-
-
-@Module(
-  includes = TestDIModule.Bindings.class
-)
-@AllArgsConstructor
-class TestDIModule {
-
-  @Setter
-  static Datastore datastore;
-  @Setter
-  static DatastoreOptions datastoreOptions;
-
-  @Provides @Singleton
-  Datastore datastore() {
-    return datastore;
-  }
-
-  @Provides @Singleton
-  DatastoreOptions datastoreOptions() {
-    return datastoreOptions;
-  }
-
-  @Provides @Singleton
-  AppEngineBackEnd appEngineBackend(Datastore datastore) {
-    return new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
-  }
-
-  @Module
-  interface Bindings {
-
-    @Binds
-    PipelineOrchestrator pipelineOrchestrator(PipelineManager pipelineManager);
-
-    @Binds
-    PipelineRunner pipelineRunner(PipelineManager pipelineManager);
-
-    @Binds
-    PipelineBackEnd pipelineBackEnd(AppEngineBackEnd appEngineBackEnd);
-
-    @Binds
-    PipelineService pipelineService(PipelineServiceImpl pipelineService);
-  }
 }

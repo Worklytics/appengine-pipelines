@@ -99,9 +99,10 @@ public class CustomOutputTest extends EndToEndTestCase {
     MapReduceSettings mrSettings = new MapReduceSettings.Builder()
       .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .setBucketName(getStorageTestHelper().getBucket())
+      .setDatastoreHost(datastore.getOptions().getHost())
       .setProjectId(datastore.getOptions().getProjectId())
-      .setNamespace(datastore.getOptions().getNamespace())
       .setDatabaseId(datastore.getOptions().getDatabaseId())
+      .setNamespace(datastore.getOptions().getNamespace())
       .build();
     String jobId = pipelineService.startNewPipeline(
         new MapReduceJob<>(mrSpecBuilder.build(), mrSettings));

@@ -151,8 +151,14 @@ public abstract class Job<E> implements Serializable {
   @NonNull @Setter(AccessLevel.PRIVATE)
   transient PipelineManager pipelineManager;
   // only available when running job - better way to hide this?
-  @NonNull @Setter(AccessLevel.PRIVATE)
-  transient PipelineServiceImpl pipelineService;
+  @NonNull
+  transient PipelineService pipelineService;
+
+  //NOTE: bc invoked via reflection, MUST use concrete type, not interface
+  private void setPipelineService(PipelineServiceImpl pipelineService) {
+    this.pipelineService = pipelineService;
+  }
+
   // only available when running job - better way to hide this?
 
   @NonNull @Getter @Setter(AccessLevel.PRIVATE)

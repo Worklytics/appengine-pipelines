@@ -8,12 +8,14 @@ import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 import com.google.cloud.datastore.Transaction;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.SettableFuture;
 
+import lombok.Getter;
 import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +42,14 @@ public class LockingTest extends EndToEndTestCase {
 
   @Setter(onMethod_ = @BeforeEach)
   PipelineService pipelineService;
+
+  @Setter(onMethod_ = @BeforeEach)
+  AppEngineBackEnd appEngineBackend;
+
+  @Getter
+  @Setter(onMethod_ = @BeforeEach)
+  ShardedJobRunner shardedJobRunner;
+
 
   /**
    * This class relies on a static member to block and to count so that it works across
@@ -92,7 +102,7 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(1, StaticBlockingTask.timesRun.get());
     StaticBlockingTask.finishRun.release();
     result.get();
-    ShardedJobState state = getPipelineRunner().getJobState(getDatastore(), jobId);
+    ShardedJobState state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
@@ -105,7 +115,7 @@ public class LockingTest extends EndToEndTestCase {
 
     //Finish execution of job.
     executeTasksUntilEmpty();
-    state = getPipelineRunner().getJobState(getDatastore(), jobId);
+    state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(DONE), state.getStatus());
     assertEquals(0, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
@@ -120,10 +130,10 @@ public class LockingTest extends EndToEndTestCase {
 
   private String startNewTask(ShardedJobSettings settings) {
     String jobId = "job1";
-    assertNull(getPipelineRunner().getJobState(getDatastore(), jobId));
+    assertNull(getPipelineRunner().getJobState(jobId));
     StaticBlockingTask task = new StaticBlockingTask(1);
-    getPipelineOrchestrator().startJob(getDatastore(), jobId, ImmutableList.<TestTask>of(task), new TestController(getDatastore().getOptions(), 1, getPipelineService()), settings);
-    ShardedJobState state = getPipelineRunner().getJobState(getDatastore(), jobId);
+    getPipelineOrchestrator().startJob(jobId, ImmutableList.<TestTask>of(task), new TestController(getDatastore().getOptions(), 1, getPipelineService()), settings);
+    ShardedJobState state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
@@ -132,7 +142,7 @@ public class LockingTest extends EndToEndTestCase {
   }
 
   private void assertDone(final String jobId) {
-    ShardedJobState state = getPipelineRunner().getJobState(getDatastore(), jobId);
+    ShardedJobState state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(DONE), state.getStatus());
     assertEquals(0, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
@@ -151,7 +161,7 @@ public class LockingTest extends EndToEndTestCase {
     //Start task
     SettableFuture<Void> result = runInNewThread(taskFromQueue);
     assertEquals(1, StaticBlockingTask.timesRun.get());
-    ShardedJobState state = getPipelineRunner().getJobState(getDatastore(), jobId);
+    ShardedJobState state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
@@ -168,7 +178,7 @@ public class LockingTest extends EndToEndTestCase {
 
     //Finish execution of job.
     executeTasksUntilEmpty();
-    state = getPipelineRunner().getJobState(getDatastore(), jobId);
+    state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(DONE), state.getStatus());
     assertEquals(0, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
@@ -197,7 +207,7 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(0, getShardRetryCount(getDatastore().newTransaction(), taskFromQueue));
     SettableFuture<Void> result = runInNewThread(taskFromQueue);
     assertEquals(1, StaticBlockingTask.timesRun.get());
-    ShardedJobState state = getPipelineRunner().getJobState(getDatastore(), jobId);
+    ShardedJobState state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
@@ -207,7 +217,7 @@ public class LockingTest extends EndToEndTestCase {
     //Duplicate task
     executeTask(jobId, taskFromQueue); //Should not block because will not execute run.
     assertEquals(1, getShardRetryCount(getDatastore().newTransaction(), taskFromQueue));
-    state = getPipelineRunner().getJobState(getDatastore(), jobId);
+    state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
@@ -218,14 +228,14 @@ public class LockingTest extends EndToEndTestCase {
     StaticBlockingTask.finishRun.release();
     result.get();
     assertAreEqual(taskState, lookupTaskState(taskFromQueue));
-    state = getPipelineRunner().getJobState(getDatastore(), jobId);
+    state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
 
     //Run next task in queue (Which is a re-try of the shard)
     TaskStateInfo retry = grabNextTaskFromQueue(queueName);
     result = runInNewThread(retry);
     assertEquals(2, StaticBlockingTask.timesRun.get());
-    state = getPipelineRunner().getJobState(getDatastore(), jobId);
+    state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
@@ -269,15 +279,6 @@ public class LockingTest extends EndToEndTestCase {
     return settableFuture;
   }
 
-  //hacky for tests
-  ShardedJobRunner getShardedJobRunner() {
-    return new ShardedJobRunner(new Provider<PipelineService>() {
-      @Override
-      public PipelineService get() {
-        return getPipelineService();
-      }
-    });
-  }
 
   private int getShardRetryCount(Transaction tx, final TaskStateInfo taskFromQueue)
       throws UnsupportedEncodingException {

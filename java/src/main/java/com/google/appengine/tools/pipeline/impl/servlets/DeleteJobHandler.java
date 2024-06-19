@@ -14,8 +14,12 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.PipelineRunner;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import lombok.AllArgsConstructor;
 
 import java.io.IOException;
@@ -25,17 +29,20 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /**
  * @author ozarov@google.com (Arie Ozarov)
  */
+@Singleton
 @AllArgsConstructor(onConstructor_ = @Inject)
 public class DeleteJobHandler {
 
   public static final String PATH_COMPONENT = "rpc/delete";
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
 
-  private final PipelineRunner pipelineManager;
+  final JobRunServiceComponent component;
+  final RequestUtils requestUtils;
 
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException, ServletException {
@@ -43,9 +50,14 @@ public class DeleteJobHandler {
     if (null == rootJobHandle) {
       throw new ServletException(ROOT_PIPELINE_ID + " parameter not found.");
     }
+
+    StepExecutionComponent stepExecutionComponent =
+      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+    PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
+
     try {
       //NOTE: previously this was async in Google's implementation; now sync
-      pipelineManager.deletePipelineRecords(rootJobHandle, true);
+      pipelineRunner.deletePipelineRecords(rootJobHandle, true);
     } catch (NoSuchObjectException nsoe) {
       resp.sendError(HttpServletResponse.SC_NOT_FOUND);
       return;

@@ -23,9 +23,11 @@ import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.auth.Credentials;
 import com.google.cloud.datastore.Key;
 
 import java.io.Serializable;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -188,6 +190,7 @@ public interface PipelineBackEnd {
     default <T extends Options> T as(Class<T> tClass) {
       return (tClass.cast(this));
     }
+
   }
 }
 

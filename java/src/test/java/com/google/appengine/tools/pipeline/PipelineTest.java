@@ -24,6 +24,7 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
@@ -34,6 +35,7 @@ import com.google.auth.Credentials;
 import com.google.cloud.datastore.DatastoreOptions;
 import lombok.Getter;
 
+import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -99,6 +101,11 @@ public abstract class PipelineTest {
     //hack to put pipelineManager into taskQueuecallback; we need to replace tasks client any way, so this will go away
     TestingTaskQueueCallback.pipelineManager = pipelineManager;
   }
+
+  @Getter
+  @Setter(onMethod_ = @BeforeEach)
+  JobRunServiceComponent component;
+
 
   public static SerializationStrategy getSerializationStrategy() {
     //just fake this, project/credentials shouldn't be used

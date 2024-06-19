@@ -100,7 +100,7 @@ public class ShufflerServletTest {
     private static final Map<String, HttpServlet> servletMap =
         new ImmutableMap.Builder<String, HttpServlet>()
             .put("/mapreduce", new MapReduceServlet())
-            .put("/_ah/pipeline", new PipelineServlet(null, null, null, null, null, null, null))
+            .put("/_ah/pipeline", new PipelineServlet())
             .put(CALLBACK_PATH, new CallbackServlet())
             .build();
 

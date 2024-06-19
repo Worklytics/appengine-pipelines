@@ -70,7 +70,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   @NonNull private final MapReduceSpecification<I, K, V, O, R> specification;
   @NonNull private final MapReduceSettings settings;
 
-  @Setter(onMethod = @__(@VisibleForTesting))
+  @Setter(onMethod_ = @VisibleForTesting)
   @Inject
   transient Datastore datastore;
 
@@ -189,7 +189,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
       DatastoreOptions datastoreOptions = settings.getDatastoreOptions();
       ShardedJob<?> shardedJob =
-          new ShardedJob<>(datastoreOptions, getShardedJobId(), mapTasks.build(), workerController, shardedJobSettings);
+          new ShardedJob<>(getShardedJobId(), mapTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
       return futureCall(new ExamineStatusAndReturnResult<>(getShardedJobId()),
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
@@ -202,7 +202,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<MapReduceResult<FilesByShard>> handleException(CancellationException ex) {
-      getPipelineOrchestrator().abortJob(getDatastore(), getShardedJobId());
+      getPipelineOrchestrator().abortJob(getShardedJobId());
       return null;
     }
   }
@@ -295,7 +295,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
       DatastoreOptions datastoreOptions = settings.getDatastoreOptions();
       ShardedJob<?> shardedJob =
-          new ShardedJob<>(datastoreOptions, getShardedJobId(), sortTasks.build(), workerController, shardedJobSettings);
+          new ShardedJob<>(getShardedJobId(), sortTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
 
       return futureCall(new ExamineStatusAndReturnResult<>(getShardedJobId()),
@@ -305,7 +305,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<FilesByShard> handleException(CancellationException ex) {
-      getPipelineOrchestrator().abortJob(getDatastore(), getShardedJobId());
+      getPipelineOrchestrator().abortJob(getShardedJobId());
       return null;
     }
   }
@@ -412,7 +412,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           new WorkerController<>(mrJobId, priorResult.getCounters(), output, resultAndStatus.getHandle());
       DatastoreOptions datastoreOptions = settings.getDatastoreOptions();
       ShardedJob<?> shardedJob =
-          new ShardedJob<>(datastoreOptions, getShardedJobId(), mergeTasks.build(), workerController, shardedJobSettings);
+          new ShardedJob<>(getShardedJobId(), mergeTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
 
       FutureValue<MapReduceResult<FilesByShard>> finished = futureCall(
@@ -426,7 +426,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<FilesByShard> handleException(CancellationException ex) {
-      getPipelineOrchestrator().abortJob(getDatastore(), getShardedJobId());
+      getPipelineOrchestrator().abortJob(getShardedJobId());
       return null;
     }
   }
@@ -503,9 +503,8 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       WorkerController<KeyValue<K, Iterator<V>>, O, R, ReducerContext<O>> workerController =
           new WorkerController<>(mrJobId, mergeResult.getCounters(), output,
               resultAndStatus.getHandle());
-      DatastoreOptions datastoreOptions = settings.getDatastoreOptions();
       ShardedJob<?> shardedJob =
-          new ShardedJob<>(datastoreOptions, getShardedJobId(), reduceTasks.build(), workerController, shardedJobSettings);
+          new ShardedJob<>(getShardedJobId(), reduceTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
       return futureCall(new ExamineStatusAndReturnResult<>(getShardedJobId()), resultAndStatus,
           settings.toJobSettings(waitFor(shardedJobResult),
@@ -514,7 +513,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @SuppressWarnings("unused")
     public Value<MapReduceResult<R>> handleException(CancellationException ex) {
-      getPipelineOrchestrator().abortJob(getDatastore(), getShardedJobId());
+      getPipelineOrchestrator().abortJob(getShardedJobId());
       return null;
     }
   }

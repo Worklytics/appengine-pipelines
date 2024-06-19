@@ -108,7 +108,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     WorkerController<I, O, R, MapOnlyMapperContext<O>> workerController = new WorkerController<>(
         jobId, new CountersImpl(), output, resultAndStatus.getHandle());
     ShardedJob<?> shardedJob =
-        new ShardedJob<>(settings.getDatastoreOptions(), jobId, mapTasks.build(), workerController, shardedJobSettings);
+        new ShardedJob<>(jobId, mapTasks.build(), workerController, shardedJobSettings);
     FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
     JobSetting[] jobSetting = settings.toJobSettings(waitFor(shardedJobResult),
             statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl()), maxAttempts(1));
@@ -122,7 +122,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     String mrJobId = getJobKey().getName();
     Datastore datastore = DatastoreOptions.getDefaultInstance().toBuilder()
         .setNamespace(settings.getNamespace()).build().getService();
-    getPipelineOrchestrator().abortJob(datastore, mrJobId);
+    getPipelineOrchestrator().abortJob(mrJobId);
     return null;
   }
 
