@@ -63,8 +63,8 @@ public class MapReduceServlet extends HttpServlet {
   JobRunServiceComponent component;
 
   @Override
-  public void init(ServletConfig config) throws ServletException {
-    super.init(config);
+  public void init() throws ServletException {
+    super.init();
     component = DaggerJobRunServiceComponent.create();
   }
 

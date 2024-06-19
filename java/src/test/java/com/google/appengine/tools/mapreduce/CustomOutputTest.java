@@ -93,7 +93,7 @@ public class CustomOutputTest extends EndToEndTestCase {
     mrSpecBuilder.setJobName("Test MR").setInput(input)
         .setMapper(new TestMapper()).setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller())
-        .setReducer(ValueProjectionReducer.<String, Long>create())
+        .setReducer(ValueProjectionReducer.create())
         .setOutput(new CustomOutput())
         .setNumReducers(17);
     MapReduceSettings mrSettings = new MapReduceSettings.Builder()

@@ -46,7 +46,6 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
     PIPELINE_SERVICE,
     PIPELINE_MANAGER,
     APP_ENGINE_BACKEND,
-    PIPELINE_SERVLET,
     SHARDED_JOB_RUNNER,
     JOB_RUN_SERVICE_COMPONENT,
   }

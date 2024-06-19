@@ -21,6 +21,7 @@ import com.google.appengine.tools.mapreduce.CorruptDataException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 
 import java.io.ByteArrayInputStream;
@@ -148,7 +149,7 @@ public class SerializationUtil {
     }
   }
 
-  public static Iterable<Key> getShardedValueKeysFor(Transaction tx, Key parent, String property) {
+  public static Iterable<Key> getShardedValueKeysFor(@NonNull Transaction tx, Key parent, String property) {
 
     KeyQuery.Builder queryBuilder = Query.newKeyQueryBuilder()
       .setKind(SHARDED_VALUE_KIND);

@@ -20,13 +20,13 @@ import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
-import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Datastore;
 import com.google.common.base.CharMatcher;
 
 import lombok.Getter;
 import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.io.ByteArrayInputStream;
@@ -47,8 +47,6 @@ import jakarta.servlet.http.HttpServletResponse;
 public abstract class EndToEndTestCase {
 
   private static final Logger logger = Logger.getLogger(EndToEndTestCase.class.getName());
-
-  private MapReduceServlet mrServlet = new MapReduceServlet();
 
   private final LocalServiceTestHelper helper =
       new LocalServiceTestHelper(
@@ -75,8 +73,9 @@ public abstract class EndToEndTestCase {
   @Getter @Setter(onMethod_ = @BeforeEach)
   PipelineOrchestrator pipelineOrchestrator;
 
-  @Getter @Setter(onMethod_ = @BeforeEach)
-  PipelineServlet pipelineServlet;
+  // will this magically have right context?
+  private PipelineServlet pipelineServlet = new PipelineServlet();
+  private MapReduceServlet mrServlet = new MapReduceServlet();
 
   @Getter
   private CloudStorageIntegrationTestHelper storageTestHelper;
@@ -93,9 +92,8 @@ public abstract class EndToEndTestCase {
     storageTestHelper = new CloudStorageIntegrationTestHelper();
     storageTestHelper.setUp();
 
-    // still using default module, which builds pipeline options with defualts, which is not good
-
-    mrServlet.init(null);
+    pipelineServlet.init();
+    mrServlet.init();
   }
 
   @AfterEach
@@ -157,6 +155,12 @@ public abstract class EndToEndTestCase {
       .andReturn(datastore.getOptions().getHost()).anyTimes();
 
     expect(request.getParameter(RequestUtils.Params.DATASTORE_NAMESPACE))
+      .andReturn(null).anyTimes();
+
+    expect(request.getParameter(RequestUtils.Params.DATASTORE_PROJECT_ID))
+      .andReturn(datastore.getOptions().getProjectId()).anyTimes();
+
+    expect(request.getParameter(RequestUtils.Params.DATASTORE_DATABASE_ID))
       .andReturn(null).anyTimes();
 
     replay(request, response);
