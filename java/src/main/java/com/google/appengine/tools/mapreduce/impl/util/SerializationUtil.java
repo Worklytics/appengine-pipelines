@@ -69,8 +69,9 @@ public class SerializationUtil {
         gzipOut.finish();
         return compressedByteOut.toByteArray();
       }
+    } else {
+      return byteOut.toByteArray();
     }
-    return byteOut.toByteArray();
   }
 
   @SneakyThrows

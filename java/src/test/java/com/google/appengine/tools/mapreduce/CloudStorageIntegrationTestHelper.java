@@ -5,14 +5,12 @@ import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageFactory;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.testing.RemoteStorageHelper;
 import lombok.Getter;
 import lombok.SneakyThrows;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.util.Base64;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;

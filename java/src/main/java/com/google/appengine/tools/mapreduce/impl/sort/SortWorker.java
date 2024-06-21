@@ -15,6 +15,7 @@ import com.google.common.primitives.Ints;
 import it.unimi.dsi.fastutil.Arrays;
 import it.unimi.dsi.fastutil.Swapper;
 import it.unimi.dsi.fastutil.ints.IntComparator;
+import lombok.extern.java.Log;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -38,10 +39,10 @@ import java.util.logging.Logger;
  * This class is NOT threadSafe.
  *
  */
+@Log
 public class SortWorker extends Worker<SortContext> {
 
   private static final long serialVersionUID = 5872735741738296902L;
-  private static final Logger log = Logger.getLogger(SortWorker.class.getName());
 
   private static final long SORT_MEMORY_OVERHEAD = 8 * 1024 * 1024; // Estimate.
   private static final String DISABLE_ALLOCATE_DIRECT_PROPERTY =
