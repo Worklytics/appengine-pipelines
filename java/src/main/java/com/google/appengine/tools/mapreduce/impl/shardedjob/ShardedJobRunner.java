@@ -139,7 +139,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       protected IncrementalTaskState<T> computeNext() {
         if (lastBatch.hasNext()) {
           Entity entity = lastBatch.next();
-          return IncrementalTaskState.Serializer.<T>fromEntity(tx, entity, lenient);
+          return IncrementalTaskState.Serializer.fromEntity(tx, entity, lenient);
         } else if (lastCount >= taskCount) {
           return endOfData();
         }
