@@ -24,7 +24,7 @@ public class TestController extends ShardedJobController<TestTask> {
   private final DatastoreOptions datastoreOptions;
   private final int expectedResult;
   @Getter @Setter @NonNull
-  private PipelineService pipelineService;
+  private transient PipelineService pipelineService;
 
   private boolean completed = false;
 

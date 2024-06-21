@@ -159,7 +159,10 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
         }
         in = null;
       } else {
-        throw new IllegalStateException("Expected ReadableByteChannel to be Serializable or Restorable<?>");
+        // have to rely on fresh channel + offset
+        channelState = null;
+        in = null;
+        //throw new IllegalStateException("Expected ReadableByteChannel to be Serializable or Restorable<?>");
       }
     }
   }

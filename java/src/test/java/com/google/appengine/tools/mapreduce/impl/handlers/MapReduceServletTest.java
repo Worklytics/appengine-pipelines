@@ -60,7 +60,7 @@ public class MapReduceServletTest{
   public void setUp() throws Exception {
     helper.setUp();
     servlet = new MapReduceServlet();
-    servlet.init(null);
+    servlet.init();
   }
 
   @AfterEach

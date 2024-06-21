@@ -87,6 +87,7 @@ public abstract class JakartaServletInvokingTaskCallback  extends LocalTaskQueue
           request.setSerletPath(servletPath.substring(servletPathStart));
           request.setPathInfo(url.getPath().substring(servletPath.length()));
         }
+        servlet.init();
         servlet.service(request, response);
         int result = response.getStatus();
         return result;
