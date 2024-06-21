@@ -1,15 +1,7 @@
 package com.google.appengine.tools.mapreduce;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
-import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRequest;
-import com.google.api.client.googleapis.services.json.CommonGoogleJsonClientRequestInitializer;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.auth.Credentials;
-import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;

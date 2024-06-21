@@ -7,9 +7,11 @@ import com.google.appengine.tools.mapreduce.InputReader;
 import com.google.appengine.tools.mapreduce.impl.util.Crc32c;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants.RecordType;
+import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.cloud.Restorable;
 import com.google.cloud.RestorableState;
 import com.google.common.annotations.VisibleForTesting;
+import lombok.SneakyThrows;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -19,6 +21,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Properties;
 
 /**
  * Reads LevelDB formatted input. (Which is produced by
@@ -107,14 +110,23 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
     }
   }
 
+  @SneakyThrows
   @Override
   public void beginSlice() {
     tmpBuffer = allocate(blockSize);
     if (in == null) {
-      in = channelState.restore();
+      if (channelState == null) {
+        // no state to restore; so get fresh channel, and skip to offset
+        in = createReadableByteChannel();
+        skipByOffset(in, offset);
+      } else {
+        in = channelState.restore();
+      }
       channelState = null;
     }
   }
+
+
 
   @Override
   public void endSlice() throws IOException {
@@ -125,10 +137,30 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
   private void prepareForSerialization() {
     //hacky, but maintains legacy implementation of LevelDbInputReader, which didn't require createReadableByteChannel()
     // to return something serializable, but in practice expected it. This supports Restorable<> as alternative to serializable
-    if (!(in instanceof Serializable) && in instanceof Restorable<?>) {
-      channelState = ((Restorable<? extends ReadableByteChannel>) in).capture();
-      //q: should we close channel here??
-      in = null;
+    if (!(in instanceof Serializable)) {
+      if (in instanceof Restorable<?>) {
+        channelState = ((Restorable<? extends ReadableByteChannel>) in).capture();
+
+        try {
+          SerializationUtil.deserialize(SerializationUtil.serialize((Serializable) channelState));
+        } catch (Throwable e) {
+          //wtf - Restorable is not *always* serializable, even though docs for `Restorable<>` says it MUST be.
+          // possible we bring this on ourselves in tests, because of CloudStorageIntegrationTestHelper???
+
+
+          //problem is that in request (ApiaryReadRequest) custom readObject() method tries the following, which fails
+          //      JsonReader jsonReader = gson.newJsonReader(new StringReader(this.objectJson));
+          //      this.object = gson.fromJson(jsonReader, StorageObject.class);
+          // w java.lang.IllegalArgumentException: Can not set java.lang.Long field com.google.api.services.storage.model.StorageObject.generation to java.lang.Double
+
+          //work-around for now is the set channelState to null, and then recovery by reading by offset in beginSlice(),
+          // if now channelState
+          channelState = null;
+        }
+        in = null;
+      } else {
+        throw new IllegalStateException("Expected ReadableByteChannel to be Serializable or Restorable<?>");
+      }
     }
   }
 
@@ -154,13 +186,6 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
     public RecordType type() {
       return this.type;
     }
-  }
-
-  /**
-   * @return How far into the file has been read.
-   */
-  long getOffset() {
-    return offset;
   }
 
   /**
@@ -266,7 +291,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
     return new Record(type, data);
   }
 
-  private final int findBytesToBlockEnd() {
+  private int findBytesToBlockEnd() {
     return (int) (blockSize - (offset % blockSize));
   }
 
@@ -303,5 +328,20 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
     }
     result.flip();
     return result;
+  }
+
+  //TODO: add test
+  @SneakyThrows
+  void skipByOffset(ReadableByteChannel readChannel, long bytesToSkip) {
+    // respect blockSize, skipping in chunks of that size
+    long blocks = Math.floorDiv(bytesToSkip, blockSize);
+    for (int i = 0; i < blocks; i++) {
+      readChannel.read(tmpBuffer);
+    }
+
+    long remaining = bytesToSkip % blockSize;
+    if (remaining > 0) {
+      readChannel.read(ByteBuffer.allocate((int) remaining));
+    }
   }
 }
