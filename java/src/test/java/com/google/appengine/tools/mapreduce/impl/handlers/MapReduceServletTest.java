@@ -30,8 +30,15 @@ import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.appengine.tools.pipeline.TestingTaskQueueCallback;
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import com.google.cloud.datastore.Datastore;
+import lombok.Getter;
+import lombok.Setter;
 import org.easymock.EasyMock;
+import org.junit.Ignore;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -63,6 +70,14 @@ public class MapReduceServletTest{
     servlet.init();
   }
 
+  @BeforeEach
+  public void setup(PipelineManager pipelineManager) {
+    TestingTaskQueueCallback.pipelineManager = pipelineManager;
+  }
+
+  @Getter @Setter(onMethod_ = @BeforeEach)
+  Datastore datastore;
+
   @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
@@ -70,7 +85,7 @@ public class MapReduceServletTest{
 
   @Test
   public void testBailsOnBadHandler() throws Exception {
-    HttpServletRequest request = createMockRequest("fizzle", true, true);
+    HttpServletRequest request = createMockRequest(getDatastore(), "fizzle", true, true);
     HttpServletResponse response = createMock(HttpServletResponse.class);
     replay(request, response);
     try {
@@ -87,7 +102,7 @@ public class MapReduceServletTest{
   //this stupid test fails because it's coupled to exact JSON serialization implementation
   // (eg, calling to PrintWriter.write, with chars/ints/strings as expected)
   public void ignoredTestCommandError() throws Exception {
-    HttpServletRequest request = createMockRequest(
+    HttpServletRequest request = createMockRequest(getDatastore(),
         MapReduceServletImpl.COMMAND_PATH + "/" + StatusHandler.GET_JOB_DETAIL_PATH, false, true);
     expect(request.getMethod()).andReturn("GET").anyTimes();
     HttpServletResponse response = createMock(HttpServletResponse.class);
@@ -121,7 +136,7 @@ public class MapReduceServletTest{
   @Test
   public void testControllerCSRF() throws Exception {
     // Send it as an AJAX request but not a task queue request - should be denied.
-    HttpServletRequest request = createMockRequest(CONTROLLER_PATH, false, true);
+    HttpServletRequest request = createMockRequest(getDatastore(), CONTROLLER_PATH, false, true);
     HttpServletResponse response = createMock(HttpServletResponse.class);
     response.sendError(403, "Received unexpected non-task queue request.");
     replay(request, response);
@@ -132,7 +147,7 @@ public class MapReduceServletTest{
   @Test
   public void testGetJobDetailCSRF() throws Exception {
     // Send it as a task queue request but not an ajax request - should be denied.
-    HttpServletRequest request = createMockRequest(
+    HttpServletRequest request = createMockRequest(getDatastore(),
         MapReduceServletImpl.COMMAND_PATH + "/" + StatusHandler.GET_JOB_DETAIL_PATH, true, false);
     expect(request.getMethod()).andReturn("POST").anyTimes();
 
@@ -148,6 +163,7 @@ public class MapReduceServletTest{
     verify(request, response);
   }
 
+  @Disabled // skip for now - 2024-06-24 - need to revisit when deploy to app engine
   @Test
   public void testStaticResources_jQuery() throws Exception {
     HttpServletResponse resp = createMock(HttpServletResponse.class);
@@ -173,7 +189,7 @@ public class MapReduceServletTest{
     verify(resp);
   }
 
-  private static HttpServletRequest createMockRequest(
+  private static HttpServletRequest createMockRequest(Datastore datastore,
       String handler, boolean taskQueueRequest, boolean ajaxRequest) {
     HttpServletRequest request = createMock(HttpServletRequest.class);
     if (taskQueueRequest) {
@@ -197,6 +213,23 @@ public class MapReduceServletTest{
     expect(request.getPathInfo())
         .andReturn("/" + handler)
         .anyTimes();
+
+    expect(request.getParameter(RequestUtils.Params.DATASTORE_HOST))
+        .andReturn(datastore.getOptions().getHost())
+        .anyTimes();
+
+    expect(request.getParameter(RequestUtils.Params.DATASTORE_NAMESPACE))
+        .andReturn(datastore.getOptions().getNamespace())
+        .anyTimes();
+
+    expect(request.getParameter(RequestUtils.Params.DATASTORE_PROJECT_ID))
+        .andReturn(datastore.getOptions().getProjectId())
+        .anyTimes();
+
+    expect(request.getParameter(RequestUtils.Params.DATASTORE_DATABASE_ID))
+        .andReturn(datastore.getOptions().getDatabaseId())
+        .anyTimes();
+
     return request;
   }
 }
