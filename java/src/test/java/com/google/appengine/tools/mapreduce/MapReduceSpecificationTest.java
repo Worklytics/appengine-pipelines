@@ -22,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  */
-@ExtendWith(PipelineComponentsExtension.class)
-public class MapReduceSpecificationTest{
+@PipelineSetupExtensions
+public class MapReduceSpecificationTest {
 
   @Getter @Setter(onMethod_ = @BeforeEach)
   private PipelineService pipelineService;
