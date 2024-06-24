@@ -60,6 +60,8 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
@@ -154,16 +156,25 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
    * @return generated keys, if any
    */
   private List<Key> saveAll(UpdateSpec.Group group) {
-    Batch batch = datastore.newBatch();
-    putAll(batch, group.getBarriers());
-    putAll(batch, group.getJobs());
-    putAll(batch, group.getSlots());
-    putAll(batch, group.getJobInstanceRecords());
-    putAll(batch, group.getFailureRecords());
-    Batch.Response response = batch.submit();
+    // collect into batches of 500
+    List<PipelineModelObject> toSave = Streams.concat(group.getBarriers().stream(),
+      group.getJobs().stream(),
+      group.getSlots().stream(),
+      group.getJobInstanceRecords().stream(),
+      group.getFailureRecords().stream()
+    ).toList();
 
-    return response.getGeneratedKeys();
+    List<Key> keys = new ArrayList<>(toSave.size());
+    final int MAX_BATCH_SIZE = 500; // limit from Datastore API
+    int batchIndex = 0;
+    do {
+      Batch batch = datastore.newBatch();
+      int batchOffset = batchIndex * MAX_BATCH_SIZE;
+      putAll(batch, toSave.subList(batchOffset, batchOffset + Math.min(MAX_BATCH_SIZE, toSave.size() - batchOffset)));
+      keys.addAll(batch.submit().getGeneratedKeys());
+    } while (++batchIndex * MAX_BATCH_SIZE < toSave.size());
 
+    return keys;
   }
 
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
