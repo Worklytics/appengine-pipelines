@@ -95,7 +95,7 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
         } catch (NoSuchElementException e) {
           break;
         }
-        assertEquals("Record mismatch", recordWithoutSeparator, new String(value));
+        assertEquals(recordWithoutSeparator, new String(value), "Record mismatch");
         recordsRead++;
 
         reader.endSlice();
