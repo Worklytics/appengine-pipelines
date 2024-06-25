@@ -65,6 +65,7 @@ import java.util.logging.Logger;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.codec.digest.DigestUtils;
 
 /**
  * This servlet provides a way for Python MapReduce Jobs to use the Java MapReduce as a shuffle. It
@@ -173,7 +174,9 @@ public class ShufflerServlet extends HttpServlet {
 
     @VisibleForTesting
     String getOutputNamePattern(String jobId) {
-      return shufflerParams.getOutputDir() + "/sortedData-" + jobId + "/shard-%04d";
+      //as JobId might be URL-encoded string, make it safe for a format
+      String safeJobId = DigestUtils.sha256Hex(jobId.getBytes());
+      return shufflerParams.getOutputDir() + "/sortedData-" + safeJobId + "/shard-%04d";
     }
 
     private UnmarshallingInput<KeyValue<ByteBuffer, ByteBuffer>> createInput() {
@@ -246,10 +249,16 @@ public class ShufflerServlet extends HttpServlet {
         Queue queue = QueueFactory.getQueue(shufflerParams.getCallbackQueue());
         String separator = shufflerParams.getCallbackPath().contains("?") ? "&" : "?";
         try {
-          queue.add(TaskOptions.Builder.withUrl(shufflerParams.getCallbackPath() + separator + url)
+          TaskOptions builder = TaskOptions.Builder.withUrl(shufflerParams.getCallbackPath() + separator + url)
             .method(TaskOptions.Method.GET)
-            .param(RequestUtils.Params.DATASTORE_NAMESPACE, shufflerParams.getNamespace())
-            .header("Host", hostname).taskName(taskName));
+            .header("Host", hostname)
+              .taskName(taskName);
+
+          if (shufflerParams.getNamespace() != null) {
+            builder.param(RequestUtils.Params.DATASTORE_NAMESPACE, shufflerParams.getNamespace());
+          }
+
+          queue.add(builder);
         } catch (TaskAlreadyExistsException e) {
           // harmless dup.
         }
