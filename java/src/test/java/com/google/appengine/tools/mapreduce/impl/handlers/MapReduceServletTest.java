@@ -31,6 +31,7 @@ import com.google.appengine.tools.mapreduce.MapReduceServlet;
 
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.appengine.tools.pipeline.TestUtils;
 import com.google.appengine.tools.pipeline.TestingTaskQueueCallback;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
@@ -214,21 +215,7 @@ public class MapReduceServletTest{
         .andReturn("/" + handler)
         .anyTimes();
 
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_HOST))
-        .andReturn(datastore.getOptions().getHost())
-        .anyTimes();
-
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_NAMESPACE))
-        .andReturn(datastore.getOptions().getNamespace())
-        .anyTimes();
-
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_PROJECT_ID))
-        .andReturn(datastore.getOptions().getProjectId())
-        .anyTimes();
-
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_DATABASE_ID))
-        .andReturn(datastore.getOptions().getDatabaseId())
-        .anyTimes();
+    TestUtils.addDatastoreHeadersToRequest(request, datastore.getOptions());
 
     return request;
   }

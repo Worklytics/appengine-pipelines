@@ -12,18 +12,21 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-package com.google.appengine.tools.pipeline;
+package com.google.appengine.tools.pipeline.impl.servlets;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
 import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWhitespace;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
-import com.google.appengine.tools.pipeline.impl.servlets.JsonClassFilterHandler;
+import com.google.appengine.tools.pipeline.*;
+import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
 
+import com.google.cloud.datastore.Datastore;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -31,18 +34,23 @@ import org.mockito.MockitoAnnotations;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-/**
- * Test for {@link JsonClassFilterHandler}.
- */
-public class JsonClassFilterHandlerTest extends PipelineTest {
 
-  @Mock private HttpServletRequest request;
+/**
+ * Test for {@link JsonListHandlerTest}.
+ */
+public class JsonListHandlerTest extends PipelineTest {
+
+
+  private HttpServletRequest request;
   @Mock private HttpServletResponse response;
-  private final StringWriter output = new StringWriter();
+  private StringWriter output = new StringWriter();
 
   @SuppressWarnings("serial")
   private static class Main1Job extends Job0<String> {
@@ -98,19 +106,27 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
     }
   }
 
-  @BeforeEach
-  public void setUp() throws Exception {
-    MockitoAnnotations.openMocks(this);
-    when(response.getWriter()).thenReturn(new PrintWriter(output));
-    handler = getComponent().jsonClassFilterHandler();
-  }
+  JsonListHandler jsonListHandler;
 
-  JsonClassFilterHandler handler;
+  @BeforeEach
+  public void setUp(Datastore datastore) throws Exception {
+    MockitoAnnotations.openMocks(this);
+    output = new StringWriter();
+    when(response.getWriter()).thenReturn(new PrintWriter(output));
+    jsonListHandler = getComponent().jsonListHandler();
+
+    request = createMock(HttpServletRequest.class);
+    TestUtils.addDatastoreHeadersToRequest(request, datastore.getOptions());
+
+    expect(request.getParameter(JsonListHandler.CLASS_FILTER_PARAMETER)).andReturn(null).anyTimes();
+    expect(request.getParameter(JsonListHandler.CURSOR_PARAMETER)).andReturn(null).anyTimes();
+    expect(request.getParameter(JsonListHandler.LIMIT_PARAMETER)).andReturn(null).anyTimes();
+  }
 
   @Test
   public void testHandlerNoResults() throws Exception {
-    handler.doGet(request, response);
-    assertEqualsIgnoreWhitespace("{\"classPaths\": []}", output.toString());
+    jsonListHandler.doGet(request, response);
+    assertEqualsIgnoreWhitespace("{\"pipelines\": []}", output.toString());
   }
 
   @Test
@@ -119,21 +135,24 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
     String pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
     String pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
         new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
-
     String helloWorld = waitForJobToComplete(pipelineService, pipelineId1);
     assertEquals("hello world", helloWorld);
     String hiThere = waitForJobToComplete(pipelineService, pipelineId2);
     assertEquals("hi there", hiThere);
     String bla = waitForJobToComplete(pipelineService, pipelineId3);
-
     assertEquals("bla", bla);
-
-    handler.doGet(request, response);
-    System.out.println(output.toString());
-    String expected = "{\"classPaths\": [\n"
-        + "  \"" + Main1Job.class.getName() + "\",\n"
-        + "  \"" + Main2Job.class.getName() + "\"\n"
-        + "]}";
-    assertEqualsIgnoreWhitespace(expected, output.toString());
+    jsonListHandler.doGet(request, response);
+    Map<String, Object> results = (Map<String, Object>) JsonUtils.fromJson(output.toString());
+    assertEquals(1, results.size());
+    List<Map<String, Object>> pipelines = (List<Map<String, Object>>) results.get("pipelines");
+    assertEquals(3, pipelines.size());
+    Map<String, String> pipelineIdToClass = new HashMap<>();
+    for (Map<String, Object> pipeline : pipelines) {
+      pipelineIdToClass.put(
+          (String) pipeline.get("pipelineId"), (String) pipeline.get("classPath"));
+    }
+    assertEquals(Main1Job.class.getName(), pipelineIdToClass.get(pipelineId1));
+    assertEquals(Main2Job.class.getName(), pipelineIdToClass.get(pipelineId2));
+    assertEquals(Main2Job.class.getName(), pipelineIdToClass.get(pipelineId3));
   }
 }

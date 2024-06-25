@@ -43,9 +43,9 @@ public class JsonListHandler {
   final RequestUtils requestUtils;
 
   public static final String PATH_COMPONENT = "rpc/list";
-  private static final String CLASS_FILTER_PARAMETER = "class_path";
-  private static final String CURSOR_PARAMETER = "cursor";
-  private static final String LIMIT_PARAMETER = "limit";
+  static final String CLASS_FILTER_PARAMETER = "class_path";
+  static final String CURSOR_PARAMETER = "cursor";
+  static final String LIMIT_PARAMETER = "limit";
 
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException {

@@ -634,6 +634,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       controller.completed(Collections.<T>emptyIterator());
     } else {
       writeInitialJobState(datastore, jobState);
+      controller.setPipelineService(pipelineServiceProvider.get());
       createTasks(datastore, settings, jobId, initialTasks, startTime);
       log.info(jobId + ": All tasks were created");
     }

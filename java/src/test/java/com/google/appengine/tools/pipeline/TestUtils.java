@@ -2,9 +2,13 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.cloud.datastore.DatastoreOptions;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Map;
 
+import static org.easymock.EasyMock.expect;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestUtils {
@@ -70,5 +74,19 @@ public class TestUtils {
 
   private static String stripWhitespace(String s) {
     return s.replaceAll("\\s+","");
+  }
+
+  public static void addDatastoreHeadersToRequest(HttpServletRequest request, DatastoreOptions datastoreOptions) {
+    expect(request.getParameter(RequestUtils.Params.DATASTORE_HOST))
+      .andReturn(datastoreOptions.getHost()).anyTimes();
+
+    expect(request.getParameter(RequestUtils.Params.DATASTORE_NAMESPACE))
+      .andReturn(datastoreOptions.getNamespace()).anyTimes();
+
+    expect(request.getParameter(RequestUtils.Params.DATASTORE_PROJECT_ID))
+      .andReturn(datastoreOptions.getProjectId()).anyTimes();
+
+    expect(request.getParameter(RequestUtils.Params.DATASTORE_DATABASE_ID))
+      .andReturn(datastoreOptions.getDatabaseId()).anyTimes();
   }
 }

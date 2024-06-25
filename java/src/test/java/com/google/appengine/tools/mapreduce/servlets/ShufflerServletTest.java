@@ -28,6 +28,7 @@ import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
@@ -35,8 +36,10 @@ import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 import com.google.appengine.tools.mapreduce.servlets.ShufflerServlet.ShuffleMapReduce;
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.apphosting.api.ApiProxy;
+import com.google.cloud.datastore.Datastore;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.TreeMultimap;
 
@@ -97,12 +100,7 @@ public class ShufflerServletTest {
 
   public static class TaskRunner extends JakartaServletInvokingTaskCallback {
 
-    private static final Map<String, HttpServlet> servletMap =
-        new ImmutableMap.Builder<String, HttpServlet>()
-            .put("/mapreduce", new MapReduceServlet())
-            .put("/_ah/pipeline", new PipelineServlet())
-            .put(CALLBACK_PATH, new CallbackServlet())
-            .build();
+    static Map<String, HttpServlet> servletMap;
 
     @Override
     protected Map<String, HttpServlet> getServletMap() {
@@ -113,6 +111,13 @@ public class ShufflerServletTest {
     @Override
     protected HttpServlet getDefaultServlet() {
       return new HttpServlet() {};
+    }
+
+    static Map<String, String> extraParamValues;
+
+    @Override
+    public Map<String, String> getExtraParamValues() {
+      return this.extraParamValues;
     }
   }
 
@@ -133,7 +138,8 @@ public class ShufflerServletTest {
   PipelineService pipelineService;
 
   @BeforeEach
-  public void setUp() throws Exception {
+  public void setUp(JobRunServiceComponent component,
+                    Datastore datastore) throws Exception {
     helper.setUp();
     ApiProxyLocal proxy = (ApiProxyLocal) ApiProxy.getDelegate();
     // Creating files is not allowed in some test execution environments, so don't.
@@ -141,6 +147,20 @@ public class ShufflerServletTest {
     WAIT_ON.drainPermits();
     storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     storageIntegrationTestHelper.setUp();
+
+    TaskRunner.extraParamValues = Map.of(RequestUtils.Params.DATASTORE_HOST,
+      datastore.getOptions().getHost());
+
+    PipelineServlet pipelineServlet = new PipelineServlet();
+    pipelineServlet.init();
+    MapReduceServlet mapReduceServlet = new MapReduceServlet();
+    mapReduceServlet.init();
+
+    TaskRunner.servletMap = new ImmutableMap.Builder<String, HttpServlet>()
+      .put("/mapreduce", mapReduceServlet)
+      .put("/_ah/pipeline", pipelineServlet)
+      .put(CALLBACK_PATH, new CallbackServlet())
+      .build();
   }
 
 

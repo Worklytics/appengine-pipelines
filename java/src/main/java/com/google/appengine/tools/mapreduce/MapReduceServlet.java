@@ -22,11 +22,13 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.google.common.annotations.VisibleForTesting;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Setter;
 
 import javax.inject.Inject;
 
@@ -60,6 +62,7 @@ public class MapReduceServlet extends HttpServlet {
 
   private static final int REJECT_REQUEST_STATUSCODE = 429; // See rfc6585
 
+  @Setter(onMethod_ = @VisibleForTesting)
   JobRunServiceComponent component;
 
   @Override

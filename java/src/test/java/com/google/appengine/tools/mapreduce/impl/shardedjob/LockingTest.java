@@ -41,9 +41,6 @@ public class LockingTest extends EndToEndTestCase {
   }
 
   @Setter(onMethod_ = @BeforeEach)
-  PipelineService pipelineService;
-
-  @Setter(onMethod_ = @BeforeEach)
   AppEngineBackEnd appEngineBackend;
 
   @Getter

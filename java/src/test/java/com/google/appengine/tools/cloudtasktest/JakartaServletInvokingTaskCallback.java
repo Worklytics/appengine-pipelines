@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.logging.Level;
 
 @Log
-public abstract class JakartaServletInvokingTaskCallback  extends LocalTaskQueueTestConfig.DeferredTaskCallback {
+public abstract class JakartaServletInvokingTaskCallback extends LocalTaskQueueTestConfig.DeferredTaskCallback {
 
     /**
      * @return A mapping from url path to HttpServlet. Where url path is a string that looks like
@@ -24,6 +24,10 @@ public abstract class JakartaServletInvokingTaskCallback  extends LocalTaskQueue
      *         allowed in the path portion of a url.)
      */
     protected abstract Map<String, ? extends HttpServlet> getServletMap();
+
+    protected Map<String, String> getExtraParamValues() {
+      return Map.of();
+    }
 
     /**
      * @return A servlet that will be used if none of the ones from {@link #getServletMap()} match.
@@ -66,6 +70,11 @@ public abstract class JakartaServletInvokingTaskCallback  extends LocalTaskQueue
         for (Map.Entry<String, String> entry : extractParamValues(payload).entrySet()) {
           request.addParameter(entry.getKey(), entry.getValue());
         }
+
+        for (Map.Entry<String, String> entry : getExtraParamValues().entrySet()) {
+          request.addParameter(entry.getKey(), entry.getValue());
+        }
+
         String servletPath = null;
         HttpServlet servlet = null;
         for (Map.Entry<String, ? extends HttpServlet> entry : getServletMap().entrySet()) {
@@ -95,12 +104,5 @@ public abstract class JakartaServletInvokingTaskCallback  extends LocalTaskQueue
         log.log(Level.WARNING, ex.getMessage(), ex);
         return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
       }
-    }
-
-    @SneakyThrows
-    private void invokeSetter(Object object, String name, Object value) {
-      Method method = object.getClass().getDeclaredMethod("set" + name, value.getClass());
-      method.setAccessible(true);
-      method.invoke(object, value);
     }
   }

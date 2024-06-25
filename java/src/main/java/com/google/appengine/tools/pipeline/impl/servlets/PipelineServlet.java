@@ -18,6 +18,7 @@ import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.common.annotations.VisibleForTesting;
 import jakarta.servlet.ServletConfig;
 
 import java.io.IOException;
@@ -26,6 +27,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Setter;
+import lombok.Value;
 
 
 /**
@@ -41,6 +44,7 @@ public class PipelineServlet extends HttpServlet {
 
   public static final String BASE_URL_PROPERTY = "com.google.appengine.tools.pipeline.BASE_URL";
 
+  @Setter(onMethod_ = @VisibleForTesting)
   JobRunServiceComponent component;
 
   @Override

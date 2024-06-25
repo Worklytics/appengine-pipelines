@@ -18,6 +18,7 @@ import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.TestUtils;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.cloud.datastore.Datastore;
@@ -26,7 +27,6 @@ import com.google.common.base.CharMatcher;
 import lombok.Getter;
 import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.io.ByteArrayInputStream;
@@ -151,17 +151,7 @@ public abstract class EndToEndTestCase {
     expect(request.getParameterNames()).andReturn(Collections.enumeration(parameters.keySet()))
         .anyTimes();
 
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_HOST))
-      .andReturn(datastore.getOptions().getHost()).anyTimes();
-
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_NAMESPACE))
-      .andReturn(null).anyTimes();
-
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_PROJECT_ID))
-      .andReturn(datastore.getOptions().getProjectId()).anyTimes();
-
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_DATABASE_ID))
-      .andReturn(null).anyTimes();
+    TestUtils.addDatastoreHeadersToRequest(request, datastore.getOptions());
 
     replay(request, response);
 

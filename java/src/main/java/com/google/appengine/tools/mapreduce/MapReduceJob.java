@@ -293,7 +293,6 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           FilesByShard, SortContext> workerController = new WorkerController<>(mrJobId,
           mapResult.getCounters(), output, resultAndStatus.getHandle());
 
-      DatastoreOptions datastoreOptions = settings.getDatastoreOptions();
       ShardedJob<?> shardedJob =
           new ShardedJob<>(getShardedJobId(), sortTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
