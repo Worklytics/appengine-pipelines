@@ -6,6 +6,7 @@ package com.google.appengine.tools.mapreduce.impl.handlers;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.TestUtils;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Query;
@@ -70,25 +71,12 @@ public class StatusHandlerTest extends EndToEndTestCase {
     executeTasksUntilEmpty();
 
 
-    Query<Entity> query = Query.newEntityQueryBuilder()
-      .setKind("MR-ShardedJob") // Specify your entity kind here
-      .build();
-    //TODO: what other entities to count??
-    assertEquals(3, countResults(getDatastore().run(query)));
+    assertEquals(3, TestUtils.countDatastoreEntities(getDatastore()));
 
 
     assertTrue(getPipelineOrchestrator().cleanupJob("testCleanupJob"));
     executeTasksUntilEmpty();
-    assertEquals(0, countResults(getDatastore().run(query)));
-  }
-
-  int countResults(QueryResults<?> results) {
-    int i = 0;
-    while (results.hasNext()) {
-      results.next();
-      i++;
-    }
-    return i;
+    assertEquals(0, TestUtils.countDatastoreEntities(getDatastore()));
   }
 
   // Tests that an job that has just been initialized returns a reasonable job detail.
