@@ -3,14 +3,22 @@ package com.google.appengine.tools.pipeline;
 import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
-import com.google.cloud.datastore.DatastoreOptions;
+import com.google.appengine.tools.pipeline.impl.model.*;
+import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
+import com.google.cloud.datastore.*;
+import com.google.common.collect.Lists;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import static org.easymock.EasyMock.expect;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@Log
 public class TestUtils {
 
   public static void waitUntilTaskQueueIsEmpty(LocalTaskQueue taskQueue) throws InterruptedException {
@@ -88,5 +96,43 @@ public class TestUtils {
 
     expect(request.getParameter(RequestUtils.Params.DATASTORE_DATABASE_ID))
       .andReturn(datastoreOptions.getDatabaseId()).anyTimes();
+  }
+
+
+  /**
+   * count datastore entities of kinds used by pipelines fw
+   *
+   * (original tests leveraged GAE Datastore SDK count() method that counted everything in datastore)
+   *
+   * @param datastore
+   * @return
+   */
+  public static int countDatastoreEntities(Datastore datastore) {
+    List<String> kinds = Arrays.asList(
+      "MR-ShardedJob", //ShardedJobStateImpl.ShardedJobSerializer.ENTITY_KIND
+      "MR-IncrementalTask", //IncrementalTaskState.Serializer.ENTITY_KIND
+      "MR-IncrementalTask-ShardInfo", //IncrementalTaskState.Serializer.SHARD_INFO_ENTITY_KIND
+      "MR-ShardRetryState", // ShardRetryState.Serializer.ENTITY_KIND
+
+      //6 pipeline- kinds
+      Barrier.DATA_STORE_KIND,
+      FanoutTaskRecord.DATA_STORE_KIND,
+      JobRecord.DATA_STORE_KIND,
+      JobInstanceRecord.DATA_STORE_KIND,
+      ShardedValue.DATA_STORE_KIND, // as of 2024-06-25, none of these in staging
+      Slot.DATA_STORE_KIND,
+      ExceptionRecord.DATA_STORE_KIND
+    );
+    int count = 0;
+    for (String kind : kinds) {
+      Query<Entity> query = Query.newEntityQueryBuilder().setKind(kind).build();
+      QueryResults<Entity> entities = datastore.run(query);
+      int entityCount = Lists.newArrayList(entities).size();
+      count += entityCount;
+      if (entityCount > 0) {
+        log.info("kind: " + kind + " count: " + entityCount);
+      }
+    }
+    return count;
   }
 }

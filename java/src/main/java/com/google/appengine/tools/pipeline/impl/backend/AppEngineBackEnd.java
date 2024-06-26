@@ -49,6 +49,7 @@ import com.google.datastore.v1.QueryResultBatch;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 
 import java.io.IOException;
 import java.util.*;
@@ -67,6 +68,7 @@ import java.util.stream.StreamSupport;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@Log
 @RequiredArgsConstructor
 public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy {
 
@@ -135,6 +137,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private void putAll(DatastoreBatchWriter batchWriter, Collection<? extends PipelineModelObject> objects) {
     objects.stream()
       .map(PipelineModelObject::toEntity)
+      //extra logging for debug
+      //.peek(e -> logger.info("putting entity: " + e.getKey().toString()))
       .forEach(batchWriter::putWithDeferredIdAllocation);
   }
 
@@ -228,6 +232,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
           // enqueue fails then the FanoutTaskRecord is orphaned. But
           // the Pipeline is still consistent.
           datastore.put(ftRecord.toEntity());
+          ftRecord.toEntity().getKey().getKind();
           FanoutTask fanoutTask = new FanoutTask(ftRecord.getKey(), queueSettings);
 
           //TODO: should this enqueue be in context of transaction??

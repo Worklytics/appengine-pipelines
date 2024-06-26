@@ -11,8 +11,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SerializationUtilsTest {
 
-
-
   @Test
   public void helloWorld() throws IOException, ClassNotFoundException {
     assertEquals("hello",
