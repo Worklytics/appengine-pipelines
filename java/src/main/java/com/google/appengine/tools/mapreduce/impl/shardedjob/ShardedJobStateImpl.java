@@ -108,6 +108,10 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     static Entity toEntity(@NonNull Transaction tx, ShardedJobStateImpl<?> in) {
       Key key = makeKey(tx.getDatastore(), in.getJobId());
       Entity.Builder jobState = Entity.newBuilder(key);
+
+      //avoid serialization issue; will fill on deserialization
+      in.getController().setPipelineService(null);
+
       serializeToDatastoreProperty(tx, jobState, CONTROLLER_PROPERTY, in.getController());
       serializeToDatastoreProperty(tx, jobState, SETTINGS_PROPERTY, in.getSettings());
       serializeToDatastoreProperty(tx, jobState, SHARDS_COMPLETED_PROPERTY, in.shardsCompleted);
