@@ -50,7 +50,7 @@ public class JsonListHandlerTest extends PipelineTest {
 
 
   private HttpServletRequest request;
-  @Mock private HttpServletResponse response;
+ private HttpServletResponse response;
   private StringWriter output = new StringWriter();
 
   @SuppressWarnings("serial")
@@ -111,9 +111,6 @@ public class JsonListHandlerTest extends PipelineTest {
 
   @BeforeEach
   public void setUp(Datastore datastore) throws Exception {
-    MockitoAnnotations.openMocks(this);
-    output = new StringWriter();
-    when(response.getWriter()).thenReturn(new PrintWriter(output));
     jsonListHandler = getComponent().jsonListHandler();
 
     request = mock(HttpServletRequest.class);
@@ -121,6 +118,10 @@ public class JsonListHandlerTest extends PipelineTest {
     when(request.getParameter(JsonListHandler.CLASS_FILTER_PARAMETER)).thenReturn(null);
     when(request.getParameter(JsonListHandler.CURSOR_PARAMETER)).thenReturn(null);
     when(request.getParameter(JsonListHandler.LIMIT_PARAMETER)).thenReturn(null);
+
+    output = new StringWriter();
+    response = mock(HttpServletResponse.class);
+    when(response.getWriter()).thenReturn(new PrintWriter(output));
   }
 
   @Test
