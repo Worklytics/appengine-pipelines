@@ -14,7 +14,6 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
-import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.PipelineService;
@@ -151,7 +150,7 @@ public abstract class EndToEndTestCase {
     expect(request.getParameterNames()).andReturn(Collections.enumeration(parameters.keySet()))
         .anyTimes();
 
-    TestUtils.addDatastoreHeadersToRequest(request, datastore.getOptions());
+    TestUtils.addDatastoreHeadersToRequestEasymock(request, datastore.getOptions());
 
     replay(request, response);
 

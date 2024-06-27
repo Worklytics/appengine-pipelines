@@ -30,16 +30,13 @@ import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
-import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.TestUtils;
 import com.google.appengine.tools.pipeline.TestingTaskQueueCallback;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
-import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.cloud.datastore.Datastore;
 import lombok.Getter;
 import lombok.Setter;
 import org.easymock.EasyMock;
-import org.junit.Ignore;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -215,7 +212,7 @@ public class MapReduceServletTest{
         .andReturn("/" + handler)
         .anyTimes();
 
-    TestUtils.addDatastoreHeadersToRequest(request, datastore.getOptions());
+    TestUtils.addDatastoreHeadersToRequestEasymock(request, datastore.getOptions());
 
     return request;
   }

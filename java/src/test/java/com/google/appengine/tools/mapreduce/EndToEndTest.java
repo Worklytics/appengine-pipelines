@@ -653,7 +653,7 @@ public class EndToEndTest extends EndToEndTestCase {
       MapReduceSettings mrSettings = new MapReduceSettings.Builder().setMillisPerSlice(0).build();
       MapReduceSpecification<Long, String, Long, String, String> mrSpec =
           new MapReduceSpecification.Builder<>(input, new RougeMapper(shardsCount, run[0], run[1]),
-              NoReducer.<String, Long, String>create(), new NoOutput<String, String>())
+              NoReducer.create(), new NoOutput<String, String>())
               .setJobName("Shard-retry failed").setKeyMarshaller(Marshallers.getStringMarshaller())
               .setValueMarshaller(Marshallers.getLongMarshaller()).build();
       String jobId = pipelineService.startNewPipeline(new MapReduceJob<>(mrSpec, mrSettings));
