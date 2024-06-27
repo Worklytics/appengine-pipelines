@@ -43,6 +43,7 @@ import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.apphosting.api.ApiProxy.ArgumentException;
 import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
 import com.google.cloud.WriteChannel;
+import com.google.cloud.datastore.Key;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
@@ -116,6 +117,8 @@ public class ShufflerServlet extends HttpServlet {
 
     private final ShufflerParams shufflerParams;
 
+
+
     public ShuffleMapReduce(ShufflerParams shufflerParams) {
       this.shufflerParams = shufflerParams;
     }
@@ -161,7 +164,7 @@ public class ShufflerServlet extends HttpServlet {
 
     private MarshallingOutput<KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>,
         GoogleCloudStorageFileSet> createOutput() {
-      String jobId = getPipelineKey().getName();
+      String jobId = getJobKey().toUrlSafe();
 
       GoogleCloudStorageFileOutput.Options gcsOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
         .withServiceAccountKey(shufflerParams.getServiceAccountKey());
@@ -172,11 +175,16 @@ public class ShufflerServlet extends HttpServlet {
       );
     }
 
-    @VisibleForTesting
-    String getOutputNamePattern(String jobId) {
+    private String getOutputNamePattern(String jobId) {
       //as JobId might be URL-encoded string, make it safe for a format
       String safeJobId = DigestUtils.sha256Hex(jobId.getBytes());
       return shufflerParams.getOutputDir() + "/sortedData-" + safeJobId + "/shard-%04d";
+    }
+
+    @VisibleForTesting
+    static GcsFilename getManifestFile(Key pipelineKey, ShufflerParams shufflerParams) {
+      String jobId = DigestUtils.sha256Hex(pipelineKey.toUrlSafe());
+      return new GcsFilename(pipelineKey.getNamespace(), shufflerParams.getOutputDir() + "/Manifest-" + jobId + ".txt");
     }
 
     private UnmarshallingInput<KeyValue<ByteBuffer, ByteBuffer>> createInput() {
@@ -212,15 +220,15 @@ public class ShufflerServlet extends HttpServlet {
 
     @Override
     public Value<Void> run(MapReduceResult<GoogleCloudStorageFileSet> result) throws Exception {
-      String jobId = getPipelineKey().getName();
+      String jobId = DigestUtils.sha256Hex(getPipelineKey().toUrlSafe());
 
-      String manifestPath = shufflerParams.getOutputDir() + "/Manifest-" + jobId + ".txt";
+      GcsFilename manifestFile = ShuffleMapReduce.getManifestFile(getPipelineKey(), shufflerParams);
 
-      log.info("Shuffle job done: jobId=" + jobId + ", results located in " + manifestPath + "]");
+      log.info("Shuffle job done: jobId=" + jobId + ", results located in " + manifestFile + "]");
 
       Storage client = GcpCredentialOptions.getStorageClient(this.shufflerParams);
 
-      Blob blob = client.create(BlobInfo.newBuilder(shufflerParams.getGcsBucket(), manifestPath).setContentType("text/plain").build());
+      Blob blob = client.create(BlobInfo.newBuilder(manifestFile.asBlobId()).setContentType("text/plain").build());
 
       WriteChannel output = blob.writer();
 
@@ -231,9 +239,9 @@ public class ShufflerServlet extends HttpServlet {
       output.close();
 
       enqueueCallbackTask(shufflerParams,
-          "job=" + jobId + "&status=done&output=" + URLEncoder.encode(manifestPath, "UTF-8"),
+          "job=" + jobId + "&status=done&output=" + URLEncoder.encode(manifestFile.getObjectName(), "UTF-8"),
           "Shuffled-" + jobId);
-      return null;
+      return immediate(null);
     }
   }
 
