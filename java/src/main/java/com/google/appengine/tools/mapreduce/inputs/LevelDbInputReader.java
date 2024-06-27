@@ -46,6 +46,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
 
   private static final long serialVersionUID = -2949371665085068120L;
 
+  // byte position within shard
   private long offset = 0L;
 
   private final int blockSize;
@@ -113,17 +114,18 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
   @SneakyThrows
   @Override
   public void beginSlice() {
-    tmpBuffer = allocate(blockSize);
     if (in == null) {
       if (channelState == null) {
         // no state to restore; so get fresh channel, and skip to offset
         in = createReadableByteChannel();
-        skipByOffset(in, offset);
+        skipByOffset(in, bytesRead);
       } else {
         in = channelState.restore();
       }
       channelState = null;
     }
+
+    tmpBuffer = allocate(blockSize);
   }
 
 
@@ -333,13 +335,15 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
     return result;
   }
 
-  //TODO: add test
   @SneakyThrows
   void skipByOffset(ReadableByteChannel readChannel, long bytesToSkip) {
     // respect blockSize, skipping in chunks of that size
+    ByteBuffer discardBuffer = ByteBuffer.allocate(blockSize);
     long blocks = Math.floorDiv(bytesToSkip, blockSize);
+    discardBuffer.limit(blockSize);
     for (int i = 0; i < blocks; i++) {
-      readChannel.read(tmpBuffer);
+      readChannel.read(discardBuffer);
+      discardBuffer.clear();
     }
 
     long remaining = bytesToSkip % blockSize;

@@ -23,6 +23,8 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   private final GcsFilename file;
   @NonNull
   private final GoogleCloudStorageLineInputReader.Options options;
+
+  // The length of the file being read; -1 if unknown.
   private long length = -1;
 
   private transient Storage client;
@@ -43,6 +45,12 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
       client = GcpCredentialOptions.getStorageClient(this.options);
     }
     return client;
+  }
+
+  @Override
+  public void beginShard() throws IOException {
+    super.beginShard();
+    length = -1;
   }
 
   @Override
@@ -67,7 +75,6 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
 
   @Override
   public ReadableByteChannel createReadableByteChannel() throws IOException {
-    length = -1;
     ReadChannel reader = getClient().reader(file.asBlobId());
     reader.setChunkSize(options.getBufferSize());
     return reader;

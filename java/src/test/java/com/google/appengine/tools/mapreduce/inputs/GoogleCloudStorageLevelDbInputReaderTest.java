@@ -17,9 +17,15 @@ import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -65,6 +71,10 @@ public class GoogleCloudStorageLevelDbInputReaderTest {
     .build();
   }
 
+  /**
+   * generates N random byteBuffers
+   * (N also used as seed, so deterministic for a given N)
+   */
   private class ByteBufferGenerator implements Iterator<ByteBuffer> {
     Random r;
     int remaining;
@@ -100,7 +110,8 @@ public class GoogleCloudStorageLevelDbInputReaderTest {
 
   public void writeData(GcsFilename filename, ByteBufferGenerator gen) throws IOException {
     LevelDbOutputWriter writer = new GoogleCloudStorageLevelDbOutputWriter(
-        new GoogleCloudStorageFileOutputWriter(filename, "", GoogleCloudStorageFileOutput.BaseOptions.defaults().withServiceAccountKey(storageHelper.getBase64EncodedServiceAccountKey())));
+        new GoogleCloudStorageFileOutputWriter(filename, "application/leveldb", GoogleCloudStorageFileOutput.BaseOptions.defaults()
+          .withServiceAccountKey(storageHelper.getBase64EncodedServiceAccountKey())));
     writer.beginShard();
     writer.beginSlice();
     while (gen.hasNext()) {
@@ -112,11 +123,12 @@ public class GoogleCloudStorageLevelDbInputReaderTest {
 
   @Test
   public void testReading() throws IOException {
-    writeData(filename, new ByteBufferGenerator(100));
+    final int RANDOM_SEED = 100;
+    writeData(filename, new ByteBufferGenerator(RANDOM_SEED));
     GoogleCloudStorageLevelDbInputReader reader =
         new GoogleCloudStorageLevelDbInputReader(filename, inputOptions());
     reader.beginShard();
-    ByteBufferGenerator expected = new ByteBufferGenerator(100);
+    ByteBufferGenerator expected = new ByteBufferGenerator(RANDOM_SEED);
     reader.beginSlice();
     while (expected.hasNext()) {
       ByteBuffer read = reader.next();
@@ -128,11 +140,12 @@ public class GoogleCloudStorageLevelDbInputReaderTest {
 
   @Test
   public void testRecordsDontChange() throws IOException {
-    writeData(filename, new ByteBufferGenerator(1000));
+    final int RANDOM_SEED = 1000;
+    writeData(filename, new ByteBufferGenerator(RANDOM_SEED));
     GoogleCloudStorageLevelDbInputReader reader =
         new GoogleCloudStorageLevelDbInputReader(filename, inputOptions());
     reader.beginShard();
-    ByteBufferGenerator expected = new ByteBufferGenerator(1000);
+    ByteBufferGenerator expected = new ByteBufferGenerator(RANDOM_SEED);
     reader.beginSlice();
     ArrayList<ByteBuffer> recordsRead = new ArrayList<>();
     try {
@@ -151,13 +164,22 @@ public class GoogleCloudStorageLevelDbInputReaderTest {
     reader.endSlice();
   }
 
-  @Test
-  public void testReadingWithSerialization() throws IOException, ClassNotFoundException {
-    writeData(filename, new ByteBufferGenerator(100));
+  /**
+   * tests reading with reader undergoing serialization between records
+   *
+   * @throws IOException
+   * @throws ClassNotFoundException
+   */
+  // failure case is different in different values ... wtf
+  @ValueSource(ints = {17, 34, 100})
+  @ParameterizedTest
+  public void testReadingWithSerialization(int records) throws IOException, ClassNotFoundException {
+
+    writeData(filename, new ByteBufferGenerator(records));
     GoogleCloudStorageLevelDbInputReader reader =
         new GoogleCloudStorageLevelDbInputReader(filename, inputOptions());
     reader.beginShard();
-    ByteBufferGenerator expected = new ByteBufferGenerator(100);
+    ByteBufferGenerator expected = new ByteBufferGenerator(records);
     while (expected.hasNext()) {
       reader = SerializationUtil.clone(reader);
       reader.beginSlice();
@@ -178,5 +200,21 @@ public class GoogleCloudStorageLevelDbInputReaderTest {
     } catch (NoSuchElementException e) {
       // expected
     }
+  }
+
+  //not a great test, bc block size is a (large) constant
+  @CsvSource(value = {
+    "blah,0,blah",
+    "blah,2,ah",
+  })
+  @ParameterizedTest
+  public void testSkipByOffset(String whole, int skip, String remaining) throws IOException {
+    GoogleCloudStorageLevelDbInputReader reader = new GoogleCloudStorageLevelDbInputReader(filename, inputOptions());
+    ByteArrayInputStream inputStream = new ByteArrayInputStream(whole.toString().getBytes());
+    ReadableByteChannel readChannel = Channels.newChannel(inputStream);
+    reader.skipByOffset(readChannel, skip);
+    byte[] remainingBytes = new byte[remaining.length()];
+    readChannel.read(ByteBuffer.wrap(remainingBytes));
+    assertEquals(remaining, new String(remainingBytes));
   }
 }
