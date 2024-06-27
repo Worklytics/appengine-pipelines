@@ -184,7 +184,7 @@ public class ShufflerServlet extends HttpServlet {
     @VisibleForTesting
     static GcsFilename getManifestFile(Key pipelineKey, ShufflerParams shufflerParams) {
       String jobId = DigestUtils.sha256Hex(pipelineKey.toUrlSafe());
-      return new GcsFilename(pipelineKey.getNamespace(), shufflerParams.getOutputDir() + "/Manifest-" + jobId + ".txt");
+      return new GcsFilename(shufflerParams.getGcsBucket(), shufflerParams.getOutputDir() + "/Manifest-" + jobId + ".txt");
     }
 
     private UnmarshallingInput<KeyValue<ByteBuffer, ByteBuffer>> createInput() {
