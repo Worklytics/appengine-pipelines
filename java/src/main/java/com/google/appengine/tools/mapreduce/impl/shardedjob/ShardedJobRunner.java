@@ -207,6 +207,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
     log.info("Polling task states for job " + jobId);
     final int shardNumber = parseTaskNumberFromTaskId(jobId, taskId);
 
+    PipelineService pipelineService = pipelineServiceProvider.get();
+
     ShardedJobStateImpl<?> jobState = RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(8)), () -> {
       Transaction tx = getDatastore().newTransaction();
       try {
@@ -216,6 +218,10 @@ public class ShardedJobRunner implements ShardedJobHandler {
         }
         jobState1.setMostRecentUpdateTimeMillis(
           Math.max(System.currentTimeMillis(), jobState1.getMostRecentUpdateTimeMillis()));
+
+        //arguably, should be a function of deserializing jobState ...
+        jobState1.getController().setPipelineService(pipelineService);
+
         jobState1.markShardCompleted(shardNumber);
 
         if (jobState1.getActiveTaskCount() == 0 && jobState1.getStatus().isActive()) {
