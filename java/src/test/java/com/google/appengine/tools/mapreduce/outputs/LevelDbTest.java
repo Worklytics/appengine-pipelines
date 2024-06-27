@@ -9,6 +9,8 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.inputs.LevelDbInputReader;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -22,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.function.Supplier;
 
 /**
  * Tests for {@link LevelDbInputReader} and {@link LevelDbOutputWriter}
@@ -32,23 +35,22 @@ public class LevelDbTest {
   private static final int MAX_SINGLE_BLOCK_RECORD_SIZE =
       LevelDbConstants.BLOCK_SIZE - LevelDbConstants.HEADER_LENGTH;
 
-  @SuppressWarnings("serial")
+
+
+  @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+@SuppressWarnings("serial")
   private static class TestLevelDbInputReader extends LevelDbInputReader {
 
-    private final ReadableByteChannel channel;
+    private final Supplier<ReadableByteChannel> channelSupplier;
 
-    TestLevelDbInputReader(ReadableByteChannel channel) {
-      this.channel = channel;
-    }
-
-    TestLevelDbInputReader(ReadableByteChannel channel, int blockSize) {
+    TestLevelDbInputReader(Supplier<ReadableByteChannel>  channelSupplier, int blockSize) {
       super(blockSize);
-      this.channel = channel;
+      this.channelSupplier = channelSupplier;
     }
 
     @Override
     public ReadableByteChannel createReadableByteChannel() {
-      return channel;
+      return channelSupplier.get();
     }
   }
 
@@ -91,9 +93,8 @@ public class LevelDbTest {
     for (int i = 0; i < writtenData.length; i++) {
       for (int j = 0; j < 8; j++) {
         writtenData[i] = (byte) (writtenData[i] ^ (1 << j));
-        ByteArrayInputStream arrayInputStream = new ByteArrayInputStream(writtenData);
         LevelDbInputReader reader =
-            new TestLevelDbInputReader(Channels.newChannel(arrayInputStream), overriddenBlockSize);
+            new TestLevelDbInputReader(() -> Channels.newChannel(new ByteArrayInputStream(writtenData)), overriddenBlockSize);
         try {
           verifyWrittenData(written, reader);
           fail();
@@ -121,9 +122,8 @@ public class LevelDbTest {
     byte[] writtenData = arrayOutputWriter.toByteArray();
     for (int i = 0; i < 11 * 10; i++) {
       byte[] toRead = Arrays.copyOf(writtenData, i);
-      ByteArrayInputStream arrayInputStream = new ByteArrayInputStream(toRead);
       LevelDbInputReader reader =
-          new TestLevelDbInputReader(Channels.newChannel(arrayInputStream), overriddenBlockSize);
+          new TestLevelDbInputReader(() -> Channels.newChannel(new ByteArrayInputStream(toRead)), overriddenBlockSize);
       try {
         verifyWrittenData(written, reader);
         fail();
@@ -161,8 +161,7 @@ public class LevelDbTest {
     writer.endShard();
     byte[] writtenData = arrayOutputWriter.toByteArray();
     assertEquals(0, writtenData.length % BLOCK_SIZE);
-    ByteArrayInputStream arrayInputStream = new ByteArrayInputStream(writtenData);
-    LevelDbInputReader reader = new TestLevelDbInputReader(Channels.newChannel(arrayInputStream));
+    LevelDbInputReader reader = new TestLevelDbInputReader(() -> Channels.newChannel(new ByteArrayInputStream(writtenData)));
     verifyWrittenData(written, reader);
   }
 
@@ -221,8 +220,7 @@ public class LevelDbTest {
     writer.endShard();
     byte[] writtenData = arrayOutputWriter.toByteArray();
     assertEquals(0, writtenData.length % BLOCK_SIZE);
-    ByteArrayInputStream arrayInputStream = new ByteArrayInputStream(writtenData);
-    LevelDbInputReader reader = new TestLevelDbInputReader(Channels.newChannel(arrayInputStream));
+    LevelDbInputReader reader = new TestLevelDbInputReader(() -> Channels.newChannel(new ByteArrayInputStream(writtenData)));
     verifyWrittenData(written, reader);
   }
 
