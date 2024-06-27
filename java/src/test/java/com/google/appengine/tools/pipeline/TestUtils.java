@@ -4,12 +4,10 @@ import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.impl.model.*;
-import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.cloud.datastore.*;
 import com.google.common.collect.Lists;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.java.Log;
-import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
 import java.util.List;
@@ -17,6 +15,8 @@ import java.util.Map;
 
 import static org.easymock.EasyMock.expect;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 
 @Log
 public class TestUtils {
@@ -84,7 +84,8 @@ public class TestUtils {
     return s.replaceAll("\\s+","");
   }
 
-  public static void addDatastoreHeadersToRequest(HttpServletRequest request, DatastoreOptions datastoreOptions) {
+  @Deprecated
+  public static void addDatastoreHeadersToRequestEasymock(HttpServletRequest request, DatastoreOptions datastoreOptions) {
     expect(request.getParameter(RequestUtils.Params.DATASTORE_HOST))
       .andReturn(datastoreOptions.getHost()).anyTimes();
 
@@ -96,6 +97,17 @@ public class TestUtils {
 
     expect(request.getParameter(RequestUtils.Params.DATASTORE_DATABASE_ID))
       .andReturn(datastoreOptions.getDatabaseId()).anyTimes();
+  }
+
+  public static void addDatastoreHeadersToRequest(HttpServletRequest request, DatastoreOptions datastoreOptions) {
+    when(request.getParameter(eq(RequestUtils.Params.DATASTORE_HOST)))
+      .thenReturn(datastoreOptions.getHost());
+    when(request.getParameter(eq(RequestUtils.Params.DATASTORE_NAMESPACE)))
+      .thenReturn(datastoreOptions.getNamespace());
+    when(request.getParameter(eq(RequestUtils.Params.DATASTORE_PROJECT_ID)))
+      .thenReturn(datastoreOptions.getProjectId());
+    when(request.getParameter(eq(RequestUtils.Params.DATASTORE_DATABASE_ID))
+    ).thenReturn(datastoreOptions.getDatabaseId());
   }
 
 

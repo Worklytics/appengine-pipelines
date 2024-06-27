@@ -20,6 +20,7 @@ import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWh
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.appengine.tools.pipeline.*;
@@ -115,12 +116,11 @@ public class JsonListHandlerTest extends PipelineTest {
     when(response.getWriter()).thenReturn(new PrintWriter(output));
     jsonListHandler = getComponent().jsonListHandler();
 
-    request = createMock(HttpServletRequest.class);
+    request = mock(HttpServletRequest.class);
     TestUtils.addDatastoreHeadersToRequest(request, datastore.getOptions());
-
-    expect(request.getParameter(JsonListHandler.CLASS_FILTER_PARAMETER)).andReturn(null).anyTimes();
-    expect(request.getParameter(JsonListHandler.CURSOR_PARAMETER)).andReturn(null).anyTimes();
-    expect(request.getParameter(JsonListHandler.LIMIT_PARAMETER)).andReturn(null).anyTimes();
+    when(request.getParameter(JsonListHandler.CLASS_FILTER_PARAMETER)).thenReturn(null);
+    when(request.getParameter(JsonListHandler.CURSOR_PARAMETER)).thenReturn(null);
+    when(request.getParameter(JsonListHandler.LIMIT_PARAMETER)).thenReturn(null);
   }
 
   @Test

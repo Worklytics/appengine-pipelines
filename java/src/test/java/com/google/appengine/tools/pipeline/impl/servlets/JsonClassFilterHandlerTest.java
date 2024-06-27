@@ -16,10 +16,10 @@ package com.google.appengine.tools.pipeline.impl.servlets;
 
 import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWhitespace;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.appengine.tools.pipeline.*;
@@ -27,8 +27,6 @@ import com.google.appengine.tools.pipeline.*;
 import com.google.cloud.datastore.Datastore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import java.io.PrintWriter;
 import java.io.Serializable;
@@ -43,9 +41,9 @@ import jakarta.servlet.http.HttpServletResponse;
 public class JsonClassFilterHandlerTest extends PipelineTest {
 
   private HttpServletRequest request;
-  @Mock private HttpServletResponse response;
-  private final StringWriter output = new StringWriter();
+  private HttpServletResponse response;
 
+  private final StringWriter output = new StringWriter();
   @SuppressWarnings("serial")
   private static class Main1Job extends Job0<String> {
 
@@ -102,16 +100,15 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
 
   @BeforeEach
   public void setUp(Datastore datastore) throws Exception {
-    MockitoAnnotations.openMocks(this);
-    when(response.getWriter()).thenReturn(new PrintWriter(output));
     handler = getComponent().jsonClassFilterHandler();
 
-    request = createMock(HttpServletRequest.class);
+    response = mock(HttpServletResponse.class);
+    request = mock(HttpServletRequest.class);
     TestUtils.addDatastoreHeadersToRequest(request, datastore.getOptions());
-
-    expect(request.getParameter(JsonListHandler.CLASS_FILTER_PARAMETER)).andReturn(null).anyTimes();
-    expect(request.getParameter(JsonListHandler.CURSOR_PARAMETER)).andReturn(null).anyTimes();
-    expect(request.getParameter(JsonListHandler.LIMIT_PARAMETER)).andReturn(null).anyTimes();
+    when(request.getParameter(JsonListHandler.CLASS_FILTER_PARAMETER)).thenReturn(null);
+    when(request.getParameter(JsonListHandler.CURSOR_PARAMETER)).thenReturn(null);
+    when(request.getParameter(JsonListHandler.LIMIT_PARAMETER)).thenReturn(null);
+    when(response.getWriter()).thenReturn(new PrintWriter(output));
   }
 
   JsonClassFilterHandler handler;
