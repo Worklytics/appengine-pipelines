@@ -5,7 +5,7 @@ import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
-import dagger.Provides;
+
 import dagger.Subcomponent;
 
 @StepExecutionScoped
