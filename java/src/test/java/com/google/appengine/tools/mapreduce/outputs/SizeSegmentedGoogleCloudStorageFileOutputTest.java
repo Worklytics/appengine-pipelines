@@ -90,7 +90,7 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest {
   public void testSegmentation() throws IOException {
     int segmentSizeLimit = 10;
     SizeSegmentedGoogleCloudStorageFileOutput segmenter =
-        new SizeSegmentedGoogleCloudStorageFileOutput(cloudStorageIntegrationTestHelper.getBucket(), segmentSizeLimit, "testJob",
+        new SizeSegmentedGoogleCloudStorageFileOutput(cloudStorageIntegrationTestHelper.getBucket(), segmentSizeLimit, "testJob/%%04d_%d",
            MIME_TYPE, options);
     List<? extends OutputWriter<ByteBuffer>> writers = segmenter.createWriters(5);
     int countFiles = 0;

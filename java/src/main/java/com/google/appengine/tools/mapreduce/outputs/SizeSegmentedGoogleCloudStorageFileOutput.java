@@ -11,6 +11,7 @@ import lombok.NonNull;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -81,7 +82,7 @@ public final class SizeSegmentedGoogleCloudStorageFileOutput extends
 
     @Override
     protected OutputWriter<ByteBuffer> createWriter(int fileNum) {
-      String fileName = String.format(fileNamePattern, shardNumber, System.currentTimeMillis());
+      String fileName = String.format(fileNamePattern, shardNumber, Instant.now().getEpochSecond());
       GoogleCloudStorageFileOutputWriter toReturn =
           new GoogleCloudStorageFileOutputWriter(new GcsFilename(bucket, fileName), mimeType, this.options);
       delegatedWriters.add(toReturn);
