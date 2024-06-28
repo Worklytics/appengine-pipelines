@@ -48,7 +48,7 @@ public class EndToEndTest extends EndToEndTestCase {
     assertNull(getPipelineRunner().getJobState(jobId));
 
     assertEquals(0, getTasks().size());
-    TestController controller = new TestController(getDatastore().getOptions(), expectedResult, getPipelineService());
+    TestController controller = new TestController(getDatastore().getOptions(), expectedResult, getPipelineService(), false);
     getPipelineOrchestrator().startJob(jobId, tasks, controller, settings);
     assertEquals(new Status(RUNNING), getPipelineRunner().getJobState(jobId).getStatus());
     // 5 initial tasks
@@ -57,7 +57,7 @@ public class EndToEndTest extends EndToEndTestCase {
     assertEquals(5, getPipelineRunner().getJobState(jobId).getTotalTaskCount());
 
     // Starting again should not add any tasks.
-    controller = new TestController(getDatastore().getOptions(), expectedResult, getPipelineService());
+    controller = new TestController(getDatastore().getOptions(), expectedResult, getPipelineService(), false);
     getPipelineOrchestrator().startJob(jobId, tasks, controller, settings);
     assertEquals(new Status(RUNNING), getPipelineRunner().getJobState(jobId).getStatus());
     assertEquals(5, getTasks().size());
@@ -77,7 +77,7 @@ public class EndToEndTest extends EndToEndTestCase {
     private static final long serialVersionUID = 8297824686146604329L;
 
     public TestController1(DatastoreOptions datastoreOptions, int expectedResult, PipelineService pipelineService) {
-      super(datastoreOptions, expectedResult, pipelineService);
+      super(datastoreOptions, expectedResult, pipelineService, false);
     }
 
     @Override
@@ -116,7 +116,7 @@ public class EndToEndTest extends EndToEndTestCase {
   public void testNoTasks() throws Exception {
     String jobId = "job1";
     assertNull(getPipelineRunner().getJobState(jobId));
-    TestController controller = new TestController(getDatastore().getOptions(), 0, getPipelineService());
+    TestController controller = new TestController(getDatastore().getOptions(), 0, getPipelineService(), false);
     getPipelineOrchestrator().startJob(jobId, ImmutableList.of(), controller, settings);
     ShardedJobState state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(DONE), state.getStatus());

@@ -208,7 +208,7 @@ public class EndToEndTest extends EndToEndTestCase {
           fileNames.add(file.toString());
         }
         HashSet<String> uniqueNames = Sets.newHashSet(fileNames);
-        assertTrue(fileNames.size() == uniqueNames.size());
+        assertEquals(fileNames.size(), uniqueNames.size());
       }
     });
   }

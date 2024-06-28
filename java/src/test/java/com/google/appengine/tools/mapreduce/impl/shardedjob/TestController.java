@@ -16,14 +16,14 @@ import java.util.Iterator;
  */
 @Getter
 @EqualsAndHashCode(callSuper = true)
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class TestController extends ShardedJobController<TestTask> {
 
   private static final long serialVersionUID = 2L;
 
   private final DatastoreOptions datastoreOptions;
   private final int expectedResult;
-  @Getter @Setter @NonNull
+  @Getter @Setter
   private transient PipelineService pipelineService;
 
   private boolean completed = false;

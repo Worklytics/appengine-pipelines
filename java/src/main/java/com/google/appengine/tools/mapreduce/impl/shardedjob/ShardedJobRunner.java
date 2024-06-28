@@ -239,6 +239,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       log.info(taskId + ": Job is gone, ignoring completeShard call.");
       return;
     }
+    jobState.getController().setPipelineService(pipelineService);
 
     if (jobState.getActiveTaskCount() == 0) {
       if (jobState.getStatus().getStatusCode() == DONE) {

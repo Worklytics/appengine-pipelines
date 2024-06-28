@@ -129,7 +129,7 @@ public class LockingTest extends EndToEndTestCase {
     String jobId = "job1";
     assertNull(getPipelineRunner().getJobState(jobId));
     StaticBlockingTask task = new StaticBlockingTask(1);
-    getPipelineOrchestrator().startJob(jobId, ImmutableList.<TestTask>of(task), new TestController(getDatastore().getOptions(), 1, getPipelineService()), settings);
+    getPipelineOrchestrator().startJob(jobId, ImmutableList.<TestTask>of(task), new TestController(getDatastore().getOptions(), 1, getPipelineService(), false), settings);
     ShardedJobState state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());

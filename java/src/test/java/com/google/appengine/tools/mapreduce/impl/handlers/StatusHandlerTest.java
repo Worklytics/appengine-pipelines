@@ -43,7 +43,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
     private static final long serialVersionUID = 1L;
 
     @Getter @Setter
-    PipelineService pipelineService;
+    transient PipelineService pipelineService;
 
     @Override
     public void failed(Status status) {}
