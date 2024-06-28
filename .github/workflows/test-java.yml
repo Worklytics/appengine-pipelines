@@ -17,6 +17,8 @@ jobs:
             cd java/
             mvn clean compile
       - name: Build with Maven
+        env:
+          APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY: ${{ secrets.APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY }}
         run: |
           cd java/
           mvn test

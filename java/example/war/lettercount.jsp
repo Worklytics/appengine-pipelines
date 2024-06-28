@@ -2,6 +2,9 @@
 <%@ page import="com.google.appengine.tools.pipeline.demo.*" %>
 <%@ page import="com.google.appengine.tools.pipeline.demo.LetterCountExample.LetterCounter" %>
 <%@ page import="java.util.SortedMap" %>
+<%@ page import="com.google.appengine.tools.pipeline.impl.PipelineServiceImpl" %>
+<%@ page import="com.google.appengine.tools.pipeline.impl.PipelineManager" %>
+<%@ page import="com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd" %>
 <%@taglib uri="http://github.com/GoogleCloudPlatform/appengine-pipelines/functions" prefix="f" %>
 
 <%!
@@ -33,7 +36,7 @@
     String text = request.getParameter(TEXT_PARAM_NAME);
     String pipelineId = request.getParameter(PIPELINE_ID_PARAM_NAME);
     String cleanupId = request.getParameter(CLEANUP_PIPELINE_ID_PARAM_NAME);
-    PipelineService service = PipelineServiceFactory.newPipelineService();
+   PipelineService service = new PipelineServiceImpl(new PipelineManager(AppEngineBackEnd.))
     if (null != cleanupId) {
         service.deletePipelineRecords(cleanupId);
     }

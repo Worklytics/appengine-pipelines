@@ -1,17 +1,19 @@
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /**
  * equivalent of Spring component, in a sense
  *
- * FQN of Dagger 2 module class that should be used when filling this classes dependencies, if any.
+ * FQN of Dagger 2 container class that should be used when filling this classes dependencies, if any.
  *
  *
  * Usage:
  *
- * @Injectable(AsyncModule.class)
+ * @Injectable(DaggerAsyncContainer.class)
  * public class MyJob extends Job0<Void> {
  *
  *   @Inject transient SomeDependency someDependency;
@@ -25,6 +27,6 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Injectable {
 
-  Class<?> value() default DefaultDIModule.class;
+  Class<?> value() default DaggerJobRunServiceComponent.class;
 
 }

@@ -399,8 +399,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
     public Value<Integer> run(String unblockTheAngryOneHandle) throws Exception {
       trace("ParentOfJobToCancel.run");
       // Unblocks a sibling that is going to throw an exception
-      PipelineServiceFactory.newPipelineService(options)
-        .submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
+      getPipelineService().submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
       PromisedValue<Integer> neverReady = newPromise();
       return futureCall(new JobToCancel(), neverReady);
     }
@@ -620,8 +619,7 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
     public Value<Integer> run(String unblockTheAngryOneHandle) throws Exception {
       trace("JobToGetCancellationInHandleException.run");
 
-      PipelineServiceFactory.newPipelineService(options)
-        .submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
+      getPipelineService().submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
       throw new IllegalStateException("simulated");
     }
 

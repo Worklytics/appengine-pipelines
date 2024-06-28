@@ -30,12 +30,7 @@ import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.apphosting.api.ApiProxy;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -83,6 +78,11 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     if (queueName == null) {
       Map<String, Object> attributes = ApiProxy.getCurrentEnvironment().getAttributes();
       queueName = (String) attributes.get(TaskHandler.TASK_QUEUE_NAME_HEADER);
+    }
+    //good idea? seems needed to make tests pass in CI now; risk is that if someone uses a queue named 'default', but
+    // it's not the *default* queue
+    if (Objects.equals(queueName, "default")) {
+      queueName = null;
     }
     return queueName == null ? QueueFactory.getDefaultQueue() : QueueFactory.getQueue(queueName);
   }

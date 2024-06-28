@@ -14,12 +14,15 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.PipelineRunner;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 
@@ -27,17 +30,20 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@Singleton
 @AllArgsConstructor(onConstructor_ = @Inject)
 public class JsonTreeHandler {
 
+  final JobRunServiceComponent component;
+  final RequestUtils requestUtils;
+
   public static final String PATH_COMPONENT = "rpc/tree";
   private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
-
-  private final PipelineRunner pipelineManager;
 
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException {
@@ -47,9 +53,14 @@ public class JsonTreeHandler {
       throw new ServletException(ROOT_PIPELINE_ID + " parameter not found.");
     }
     try {
+
+      StepExecutionComponent stepExecutionComponent =
+        component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+      PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
+
       JobRecord jobInfo;
       try {
-        jobInfo = pipelineManager.getJob(rootJobHandle);
+        jobInfo = pipelineRunner.getJob(rootJobHandle);
       } catch (NoSuchObjectException nsoe) {
         resp.sendError(HttpServletResponse.SC_NOT_FOUND);
         return;
@@ -60,7 +71,7 @@ public class JsonTreeHandler {
         resp.sendError(449, rootJobKey);
         return;
       }
-      PipelineObjects pipelineObjects = pipelineManager.queryFullPipeline(rootJobKey);
+      PipelineObjects pipelineObjects = pipelineRunner.queryFullPipeline(rootJobKey);
       String asJson = JsonGenerator.pipelineObjectsToJson(pipelineObjects);
       // TODO(user): Temporary until we support abort/delete in Python
       resp.addHeader("Pipeline-Lang", "Java");

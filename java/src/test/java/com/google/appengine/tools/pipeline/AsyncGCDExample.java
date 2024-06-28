@@ -54,12 +54,8 @@ public class AsyncGCDExample {
   @SuppressWarnings("serial")
   @RequiredArgsConstructor
   public static class PrintGCDJob extends Job0<Void> {
-
-    transient PipelineService service;
-
     @Override
     public Value<Void> run() {
-      service = PipelineServiceFactory.newPipelineService(getPipelineBackendOptions());
 
       PromisedValue<Integer> a = newPromise();
       PromisedValue<Integer> b = newPromise();
@@ -84,8 +80,8 @@ public class AsyncGCDExample {
           int a = callback.getFirstInt();
           int b = callback.getSecondInt();
           try {
-            service.submitPromisedValue(aHandle, a);
-            service.submitPromisedValue(bHandle, b);
+            getPipelineService().submitPromisedValue(aHandle, a);
+            getPipelineService().submitPromisedValue(bHandle, b);
           } catch (NoSuchObjectException e) {
             throw new RuntimeException(e);
           } catch (OrphanedObjectException f) {
@@ -105,12 +101,8 @@ public class AsyncGCDExample {
   @RequiredArgsConstructor
   public static class AskUserForNameJob extends Job0<String> {
 
-    transient PipelineService service;
-
-
     @Override
     public Value<String> run() {
-      service = PipelineServiceFactory.newPipelineService(getPipelineBackendOptions());
 
       PromisedValue<String> userName = newPromise();
       asyncAskUserForName(userName.getHandle());
@@ -128,7 +120,7 @@ public class AsyncGCDExample {
           }
           String name = callback.getUserName();
           try {
-            service.submitPromisedValue(handle, name);
+            getPipelineService().submitPromisedValue(handle, name);
           } catch (NoSuchObjectException e) {
             throw new RuntimeException(e);
           } catch (OrphanedObjectException f) {

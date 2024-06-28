@@ -14,26 +14,11 @@
 
 package com.google.appengine.tools.pipeline.impl;
 
-import com.google.appengine.tools.pipeline.Job;
-import com.google.appengine.tools.pipeline.Job0;
-import com.google.appengine.tools.pipeline.Job1;
-import com.google.appengine.tools.pipeline.Job2;
-import com.google.appengine.tools.pipeline.Job3;
-import com.google.appengine.tools.pipeline.Job4;
-import com.google.appengine.tools.pipeline.Job5;
-import com.google.appengine.tools.pipeline.Job6;
-import com.google.appengine.tools.pipeline.JobInfo;
-import com.google.appengine.tools.pipeline.JobSetting;
-import com.google.appengine.tools.pipeline.NoSuchObjectException;
-import com.google.appengine.tools.pipeline.OrphanedObjectException;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
+import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
-import com.google.auth.Credentials;
-import com.google.cloud.datastore.Datastore;
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedInject;
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 
 import javax.inject.Inject;
 
@@ -45,16 +30,11 @@ import javax.inject.Inject;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-@NoArgsConstructor
-@AllArgsConstructor
+@AllArgsConstructor(onConstructor_ = @Inject)
 public class PipelineServiceImpl implements PipelineService {
 
-  @Inject
   PipelineManager pipelineManager;
-
-  public PipelineServiceImpl(PipelineBackEnd backEnd) {
-    pipelineManager = new PipelineManager(backEnd);
-  }
+  PipelineBackEnd backend;
 
   @Override
   public PipelineBackEnd.Options getBackendOptions() {
@@ -123,13 +103,13 @@ public class PipelineServiceImpl implements PipelineService {
   @Override
   public void deletePipelineRecords(String pipelineHandle) throws NoSuchObjectException,
       IllegalStateException {
-    deletePipelineRecords(pipelineHandle, false, false);
+    deletePipelineRecords(pipelineHandle, false);
   }
 
   @Override
-  public void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
+  public void deletePipelineRecords(String pipelineHandle, boolean force)
       throws NoSuchObjectException, IllegalStateException {
-    pipelineManager.deletePipelineRecords(pipelineHandle, force, async);
+    pipelineManager.deletePipelineRecords(pipelineHandle, force);
   }
 
   @Override

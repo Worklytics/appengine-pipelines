@@ -27,6 +27,7 @@ import java.util.Set;
  * Pipeline task types.
  *
  * q: kinda analogous to a StepExecution in Spring Batch?
+ *  --> yeah, think so; not *really* coupled to GAE Task queue ... that's more of implementation detail of runner
  *
  * <p>
  * This class represents both a task to be enqueued and a task being handled.
