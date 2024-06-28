@@ -14,7 +14,15 @@
 
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.di.DaggerMultiTenantComponent;
+import com.google.appengine.tools.pipeline.di.TenantComponent;
+import com.google.appengine.tools.pipeline.di.TenantModule;
+import com.google.appengine.tools.pipeline.di.MultiTenantComponent;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.datastore.DatastoreOptions;
+import lombok.SneakyThrows;
 
 /**
  * A service used to start and stop Pipeline jobs and query their status.
@@ -22,6 +30,37 @@ import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public interface PipelineService {
+
+  /**
+   *
+   * @param options
+   * @return pipeline service for given options
+   */
+  static PipelineService getService(AppEngineBackEnd.Options options) {
+    MultiTenantComponent component = DaggerMultiTenantComponent.create();
+    TenantComponent clientComponent = component.clientComponent(new TenantModule(new AppEngineBackEnd(options)));
+    return clientComponent.pipelineService();
+  }
+
+  /**
+   * @return The default PipelineService instance.
+   */
+  @SneakyThrows
+  static PipelineService get() {
+    MultiTenantComponent component = DaggerMultiTenantComponent.create();
+
+    GoogleCredentials defaults = GoogleCredentials.getApplicationDefault();
+
+    AppEngineBackEnd.Options options = AppEngineBackEnd.Options.builder()
+      .credentials(defaults)
+      .projectId(DatastoreOptions.getDefaultProjectId())
+      .datastoreOptions(DatastoreOptions.getDefaultInstance())
+      .build();
+
+    TenantComponent clientComponent = component.clientComponent(new TenantModule(new AppEngineBackEnd(options)));
+    return clientComponent.pipelineService();
+  }
+
 
   PipelineBackEnd.Options getBackendOptions();
 
