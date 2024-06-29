@@ -1,6 +1,7 @@
 package com.google.appengine.tools.pipeline.di;
 
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import dagger.Subcomponent;
 
 /**
@@ -16,6 +17,5 @@ public interface TenantComponent {
 
   PipelineService pipelineService();
 
-
-
+  PipelineManager pipelineManager();
 }

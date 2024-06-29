@@ -18,8 +18,12 @@ import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.pipeline.*;
+import com.google.appengine.tools.pipeline.di.DaggerMultiTenantComponent;
+import com.google.appengine.tools.pipeline.di.MultiTenantComponent;
+import com.google.appengine.tools.pipeline.di.TenantModule;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -81,6 +85,15 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   final Provider<PipelineService> pipelineServiceProvider;
   final ShardedJobRunner shardedJobRunner;
   final PipelineBackEnd backEnd;
+
+  public static PipelineManager getInstance(AppEngineBackEnd.Options options) {
+    MultiTenantComponent multiTenantComponent =  DaggerMultiTenantComponent.create();
+    return multiTenantComponent.clientComponent(new TenantModule(new AppEngineBackEnd(options))).pipelineManager();
+  }
+
+  public static PipelineManager getInstance() {
+    return getInstance(AppEngineBackEnd.Options.defaults());
+  }
 
   PipelineBackEnd.Options getBackendOptions() {
     return backEnd.getOptions();

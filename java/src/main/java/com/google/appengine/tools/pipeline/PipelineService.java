@@ -36,7 +36,7 @@ public interface PipelineService {
    * @param options
    * @return pipeline service for given options
    */
-  static PipelineService getService(AppEngineBackEnd.Options options) {
+  static PipelineService getInstance(AppEngineBackEnd.Options options) {
     MultiTenantComponent component = DaggerMultiTenantComponent.create();
     TenantComponent clientComponent = component.clientComponent(new TenantModule(new AppEngineBackEnd(options)));
     return clientComponent.pipelineService();
@@ -46,19 +46,8 @@ public interface PipelineService {
    * @return The default PipelineService instance.
    */
   @SneakyThrows
-  static PipelineService get() {
-    MultiTenantComponent component = DaggerMultiTenantComponent.create();
-
-    GoogleCredentials defaults = GoogleCredentials.getApplicationDefault();
-
-    AppEngineBackEnd.Options options = AppEngineBackEnd.Options.builder()
-      .credentials(defaults)
-      .projectId(DatastoreOptions.getDefaultProjectId())
-      .datastoreOptions(DatastoreOptions.getDefaultInstance())
-      .build();
-
-    TenantComponent clientComponent = component.clientComponent(new TenantModule(new AppEngineBackEnd(options)));
-    return clientComponent.pipelineService();
+  static PipelineService getInstance() {
+    return getInstance(AppEngineBackEnd.Options.defaults());
   }
 
 

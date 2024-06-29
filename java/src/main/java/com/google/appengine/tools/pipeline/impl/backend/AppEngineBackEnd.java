@@ -23,6 +23,7 @@ import com.github.rholder.retry.*;
 
 import com.google.appengine.tools.pipeline.impl.util.TestUtils;
 import com.google.auth.Credentials;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
@@ -49,6 +50,7 @@ import com.google.datastore.v1.QueryResultBatch;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 
 import java.io.IOException;
@@ -117,6 +119,15 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     private Credentials credentials;
 
     private DatastoreOptions datastoreOptions;
+
+    @SneakyThrows
+    public static AppEngineBackEnd.Options defaults() {
+      return Options.builder()
+        .datastoreOptions(DatastoreOptions.getDefaultInstance())
+        .credentials(GoogleCredentials.getApplicationDefault())
+        .projectId(DatastoreOptions.getDefaultProjectId())
+        .build();
+    }
 
   }
 

@@ -1,7 +1,6 @@
 package com.google.appengine.tools.pipeline.di;
 
 import com.google.appengine.tools.mapreduce.impl.handlers.MapReduceServletImpl;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.impl.servlets.*;
 import dagger.Component;
