@@ -41,7 +41,6 @@ import javax.inject.Singleton;
 public class AbortJobHandler {
 
   public static final String PATH_COMPONENT = "rpc/abort";
-  private static final String ROOT_PIPELINE_ID = "root_pipeline_id";
 
   final JobRunServiceComponent component;
   final RequestUtils requestUtils;
@@ -49,10 +48,8 @@ public class AbortJobHandler {
 
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException, ServletException {
-    String rootJobHandle = req.getParameter(ROOT_PIPELINE_ID);
-    if (null == rootJobHandle) {
-      throw new ServletException(ROOT_PIPELINE_ID + " parameter not found.");
-    }
+    String rootJobHandle = requestUtils.getRootPipelineId(req);
+
     try {
       StepExecutionComponent stepExecutionComponent =
         component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));

@@ -6,11 +6,13 @@ import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 
+import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.net.URLEncoder;
 import java.util.Optional;
 
 /**
@@ -28,6 +30,9 @@ public class RequestUtils {
     public static final String DATASTORE_DATABASE_ID = "dsDatabaseId";
     public static final String DATASTORE_NAMESPACE = "dsNamespace";
     public static final String DATASTORE_HOST = "dsHost";
+
+    //originally defined per-handler in the gae pipelines project
+    public static final String ROOT_PIPELINE_ID = "root_pipeline_id";
   }
 
   public PipelineBackEnd buildBackendFromRequest(HttpServletRequest request) {
@@ -55,5 +60,18 @@ public class RequestUtils {
 
   Optional<String> getParam(HttpServletRequest request, String name) {
     return Optional.ofNullable(request.getParameter(name));
+  }
+
+  // instead of URL-safe encoded keys, should be base64-encode them to avoid this issue???
+
+  // deals with fact that HttpServletRequest *decodes* url params, so even if pipeline id was originally url-encoded,
+  // we need to ensure it remains so
+  public Optional<String> getJobId(HttpServletRequest request, String paramName) {
+    return getParam(request, paramName).map(URLEncoder::encode);
+  }
+
+  public String getRootPipelineId(HttpServletRequest request) throws ServletException {
+    return getJobId(request, Params.ROOT_PIPELINE_ID)
+      .orElseThrow(() -> new ServletException(Params.ROOT_PIPELINE_ID + " parameter not found."));
   }
 }

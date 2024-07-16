@@ -25,6 +25,7 @@ import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import lombok.AllArgsConstructor;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -48,12 +49,8 @@ public class JsonTreeHandler {
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException {
 
-    String rootJobHandle = req.getParameter(ROOT_PIPELINE_ID);
-    if (null == rootJobHandle) {
-      throw new ServletException(ROOT_PIPELINE_ID + " parameter not found.");
-    }
+    String rootJobHandle = requestUtils.getRootPipelineId(req);
     try {
-
       StepExecutionComponent stepExecutionComponent =
         component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
       PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
@@ -65,10 +62,11 @@ public class JsonTreeHandler {
         resp.sendError(HttpServletResponse.SC_NOT_FOUND);
         return;
       }
-      String rootJobKey = jobInfo.getRootJobKey().getName();
+      String rootJobKey = jobInfo.getRootJobKey().toUrlSafe();
       if (!rootJobKey.equals(rootJobHandle)) {
+        //in effect, value passed to servlet for root_pipeline_id is not in fact the id of a root job of a pipeline
         resp.addHeader(ROOT_PIPELINE_ID, rootJobKey);
-        resp.sendError(449, rootJobKey);
+        resp.sendError(449, "parsed root_pipeline_id (" + rootJobHandle + ") has JobInfo from different root job : "+ rootJobKey);
         return;
       }
       PipelineObjects pipelineObjects = pipelineRunner.queryFullPipeline(rootJobKey);
