@@ -151,6 +151,12 @@ public class FakeHttpServletRequest implements HttpServletRequest {
   public int getContentLength() {
     return -1;
   }
+
+  @Override
+  public long getContentLengthLong() {
+    return 0;
+  }
+
   @Override
   public String getContentType() {
     return contentType;
@@ -168,8 +174,25 @@ public class FakeHttpServletRequest implements HttpServletRequest {
     }
     getInputStreamCalled = true; // so that getReader() can no longer be called
 
+
     final InputStream in = new ByteArrayInputStream(bodyData);
     return new ServletInputStream() {
+      @Override
+      public boolean isFinished() {
+
+        return true;
+      }
+
+      @Override
+      public boolean isReady() {
+        return true;
+      }
+
+      @Override
+      public void setReadListener(ReadListener readListener) {
+
+      }
+
       @Override
       public int read() throws IOException {
         return in.read();
@@ -200,6 +223,41 @@ public class FakeHttpServletRequest implements HttpServletRequest {
   @Override
   public int getLocalPort() {
     return port;
+  }
+
+  @Override
+  public ServletContext getServletContext() {
+    return null;
+  }
+
+  @Override
+  public AsyncContext startAsync() throws IllegalStateException {
+    return null;
+  }
+
+  @Override
+  public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException {
+    return null;
+  }
+
+  @Override
+  public boolean isAsyncStarted() {
+    return false;
+  }
+
+  @Override
+  public boolean isAsyncSupported() {
+    return false;
+  }
+
+  @Override
+  public AsyncContext getAsyncContext() {
+    return null;
+  }
+
+  @Override
+  public DispatcherType getDispatcherType() {
+    return null;
   }
 
   @Override
@@ -437,6 +495,11 @@ public class FakeHttpServletRequest implements HttpServletRequest {
     throw new UnsupportedOperationException();
   }
 
+  @Override
+  public String changeSessionId() {
+    throw new UnsupportedOperationException();
+  }
+
 
   @Override
   public HttpSession getSession(boolean create) {
@@ -460,7 +523,42 @@ public class FakeHttpServletRequest implements HttpServletRequest {
 
   @Override
   public boolean isRequestedSessionIdFromUrl() {
-    return false;
+
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean authenticate(HttpServletResponse httpServletResponse) throws IOException, ServletException {
+
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void login(String s, String s1) throws ServletException {
+
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void logout() throws ServletException {
+
+  }
+
+  @Override
+  public Collection<Part> getParts() throws IOException, ServletException {
+
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public Part getPart(String s) throws IOException, ServletException {
+
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public <T extends HttpUpgradeHandler> T upgrade(Class<T> aClass) throws IOException, ServletException {
+    return null;
   }
 
   @Override

@@ -21,10 +21,12 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.net.HttpHeaders;
 
+import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
@@ -197,6 +199,11 @@ public class FakeHttpServletResponse implements javax.servlet.http.HttpServletRe
   }
 
   @Override
+  public void setContentLengthLong(long l) {
+
+  }
+
+  @Override
   public void setContentType(String type) {
     headers.removeAll(HttpHeaders.CONTENT_TYPE);
     headers.put(HttpHeaders.CONTENT_TYPE, type);
@@ -271,7 +278,7 @@ public class FakeHttpServletResponse implements javax.servlet.http.HttpServletRe
 
   @Override
   public String encodeRedirectUrl(String s) {
-    return "";
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -338,7 +345,7 @@ public class FakeHttpServletResponse implements javax.servlet.http.HttpServletRe
 
   @Override
   public void setStatus(int i, String s) {
-
+    status = i;
   }
 
   public synchronized int getStatus() {
@@ -347,6 +354,17 @@ public class FakeHttpServletResponse implements javax.servlet.http.HttpServletRe
 
   public String getHeader(String name) {
     return Iterables.getFirst(headers.get(checkNotNull(name)), null);
+  }
+
+  @Override
+  public Collection<String> getHeaders(String s) {
+
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public Collection<String> getHeaderNames() {
+    return List.of();
   }
 
 
@@ -385,6 +403,18 @@ public class FakeHttpServletResponse implements javax.servlet.http.HttpServletRe
 
     long getCount() {
       return count;
+    }
+
+    @Override
+    public boolean isReady() {
+
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setWriteListener(WriteListener writeListener) {
+
+      throw new UnsupportedOperationException();
     }
   }
 }
