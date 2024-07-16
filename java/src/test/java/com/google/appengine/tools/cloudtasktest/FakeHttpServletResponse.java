@@ -20,16 +20,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.net.HttpHeaders;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.WriteListener;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
@@ -37,7 +33,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 /** Simple fake implementation of {@link HttpServletResponse}. */
-public class FakeHttpServletResponse implements HttpServletResponse {
+public class FakeHttpServletResponse implements javax.servlet.http.HttpServletResponse {
   private static final String DEFAULT_CHARSET = "ISO-8859-1";
   private final ListMultimap<String, String> headers = LinkedListMultimap.create();
   // The API docs says the default is implicitly set to "ISO-8859-1". But
@@ -48,7 +44,7 @@ public class FakeHttpServletResponse implements HttpServletResponse {
   private ByteArrayOutputStream actualBody;
   private int status = 200;
   private boolean committed;
-  private ServletOutputStream outputStream;
+  private javax.servlet.ServletOutputStream outputStream;
   private PrintWriter writer;
   protected HttpServletRequest request = null;
 
@@ -96,7 +92,7 @@ public class FakeHttpServletResponse implements HttpServletResponse {
   }
 
   @Override
-  public synchronized ServletOutputStream getOutputStream() {
+  public synchronized javax.servlet.ServletOutputStream getOutputStream() {
     checkCommit();
     checkState(writer == null, "getWriter() already called");
     if (outputStream == null) {
@@ -202,13 +198,6 @@ public class FakeHttpServletResponse implements HttpServletResponse {
   }
 
   @Override
-  public void setContentLengthLong(long l) {
-    headers.removeAll(HttpHeaders.CONTENT_LENGTH);
-    headers.put(HttpHeaders.CONTENT_LENGTH, Long.toString(l));
-
-  }
-
-  @Override
   public void setContentType(String type) {
     headers.removeAll(HttpHeaders.CONTENT_TYPE);
     headers.put(HttpHeaders.CONTENT_TYPE, type);
@@ -245,10 +234,6 @@ public class FakeHttpServletResponse implements HttpServletResponse {
     throw new UnsupportedOperationException();
   }
 
-  @Override
-  public void addCookie(Cookie cookie) {
-    throw new UnsupportedOperationException();
-  }
 
   @Override
   public void addDateHeader(String name, long value) {
@@ -266,6 +251,11 @@ public class FakeHttpServletResponse implements HttpServletResponse {
   }
 
   @Override
+  public void addCookie(javax.servlet.http.Cookie cookie) {
+
+  }
+
+  @Override
   public boolean containsHeader(String name) {
     return !headers.get(name).isEmpty();
   }
@@ -273,6 +263,16 @@ public class FakeHttpServletResponse implements HttpServletResponse {
   @Override
   public String encodeRedirectURL(String url) {
     return url;
+  }
+
+  @Override
+  public String encodeUrl(String s) {
+    return "";
+  }
+
+  @Override
+  public String encodeRedirectUrl(String s) {
+    return "";
   }
 
   @Override
@@ -337,6 +337,11 @@ public class FakeHttpServletResponse implements HttpServletResponse {
     status = sc;
   }
 
+  @Override
+  public void setStatus(int i, String s) {
+
+  }
+
   public synchronized int getStatus() {
     return status;
   }
@@ -345,15 +350,6 @@ public class FakeHttpServletResponse implements HttpServletResponse {
     return Iterables.getFirst(headers.get(checkNotNull(name)), null);
   }
 
-  @Override
-  public Collection<String> getHeaders(String s) {
-    return headers.get(checkNotNull(s));
-  }
-
-  @Override
-  public Collection<String> getHeaderNames() {
-    return headers.keys();
-  }
 
   private void checkCommit() {
     if (isCommitted()) {
@@ -361,7 +357,7 @@ public class FakeHttpServletResponse implements HttpServletResponse {
     }
   }
 
-  private static class FakeServletOutputStream extends ServletOutputStream {
+  private static class FakeServletOutputStream extends javax.servlet.ServletOutputStream {
 
     private final ByteArrayOutputStream byteStream;
     private long count;
@@ -386,14 +382,6 @@ public class FakeHttpServletResponse implements HttpServletResponse {
     public void write(int b) throws IOException {
       byteStream.write(b);
       count++;
-    }
-
-    @Override
-    public void setWriteListener(WriteListener writeListener) {}
-
-    @Override
-    public boolean isReady() {
-      return true;
     }
 
     long getCount() {

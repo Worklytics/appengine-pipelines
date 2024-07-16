@@ -151,12 +151,6 @@ public class FakeHttpServletRequest implements HttpServletRequest {
   public int getContentLength() {
     return -1;
   }
-
-  @Override
-  public long getContentLengthLong() {
-    return -1;
-  }
-
   @Override
   public String getContentType() {
     return contentType;
@@ -190,21 +184,6 @@ public class FakeHttpServletRequest implements HttpServletRequest {
       public void close() throws IOException {
         in.close();
       }
-
-      @Override
-      public boolean isFinished() {
-        return true;
-      }
-
-      @Override
-      public boolean isReady() {
-        return true;
-      }
-
-      @Override
-      public void setReadListener(ReadListener readListener) {
-        throw new UnsupportedOperationException();
-      }
     };
   }
 
@@ -221,56 +200,6 @@ public class FakeHttpServletRequest implements HttpServletRequest {
   @Override
   public int getLocalPort() {
     return port;
-  }
-
-  @Override
-  public ServletContext getServletContext() {
-    return null;
-  }
-
-  @Override
-  public AsyncContext startAsync() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean isAsyncStarted() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean isAsyncSupported() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public AsyncContext getAsyncContext() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public DispatcherType getDispatcherType() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public String getRequestId() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public String getProtocolRequestId() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public ServletConnection getServletConnection() {
-    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -341,6 +270,11 @@ public class FakeHttpServletRequest implements HttpServletRequest {
   @Override
   public RequestDispatcher getRequestDispatcher(String path) {
     throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public String getRealPath(String s) {
+    return "";
   }
 
   @Override
@@ -503,10 +437,6 @@ public class FakeHttpServletRequest implements HttpServletRequest {
     throw new UnsupportedOperationException();
   }
 
-  @Override
-  public String changeSessionId() {
-    throw new UnsupportedOperationException();
-  }
 
   @Override
   public HttpSession getSession(boolean create) {
@@ -529,35 +459,8 @@ public class FakeHttpServletRequest implements HttpServletRequest {
   }
 
   @Override
-  public boolean authenticate(HttpServletResponse httpServletResponse)
-      throws IOException, ServletException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void login(String s, String s1) throws ServletException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void logout() throws ServletException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Collection<Part> getParts() throws IOException, ServletException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Part getPart(String s) throws IOException, ServletException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public <T extends HttpUpgradeHandler> T upgrade(Class<T> aClass)
-      throws IOException, ServletException {
-    throw new UnsupportedOperationException();
+  public boolean isRequestedSessionIdFromUrl() {
+    return false;
   }
 
   @Override
