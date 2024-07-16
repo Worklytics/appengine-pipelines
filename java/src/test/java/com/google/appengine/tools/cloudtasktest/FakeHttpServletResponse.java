@@ -20,9 +20,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.net.HttpHeaders;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -32,7 +31,7 @@ import java.util.Locale;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-/** Simple fake implementation of {@link HttpServletResponse}. */
+/** Simple fake implementation of {@link HttpServletResponse}. Intended for compatibility with jakarta */
 public class FakeHttpServletResponse implements javax.servlet.http.HttpServletResponse {
   private static final String DEFAULT_CHARSET = "ISO-8859-1";
   private final ListMultimap<String, String> headers = LinkedListMultimap.create();
