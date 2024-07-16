@@ -28,8 +28,8 @@ import java.util.Enumeration;
 import java.util.Map;
 import java.util.Properties;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;

@@ -9,7 +9,7 @@
     private static final String PIPELINE_ID_PARAM_NAME = "pipelineId";
     private static final String CLEANUP_PIPELINE_ID_PARAM_NAME = "cleanupId";
 
-    private Integer getInteger(String paramName, jakarta.servlet.http.HttpServletRequest request) {
+    private Integer getInteger(String paramName, javax.servlet.http.HttpServletRequest request) {
         try {
             return Integer.parseInt((String) request.getParameter(paramName));
         } catch (Exception e) {

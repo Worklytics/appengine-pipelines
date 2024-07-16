@@ -3,8 +3,8 @@ package com.google.appengine.tools.cloudtasktest;
 import com.google.appengine.api.urlfetch.URLFetchServicePb;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.common.collect.Maps;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 

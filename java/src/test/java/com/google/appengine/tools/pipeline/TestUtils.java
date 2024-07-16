@@ -6,7 +6,7 @@ import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.impl.model.*;
 import com.google.cloud.datastore.*;
 import com.google.common.collect.Lists;
-import jakarta.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequest;
 import lombok.extern.java.Log;
 
 import java.util.Arrays;

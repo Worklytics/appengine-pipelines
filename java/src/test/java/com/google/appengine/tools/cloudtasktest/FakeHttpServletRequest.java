@@ -20,8 +20,8 @@ import com.google.common.base.Ascii;
 import com.google.common.base.Function;
 import com.google.common.base.Splitter;
 import com.google.common.collect.*;
-import jakarta.servlet.*;
-import jakarta.servlet.http.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
 
 import java.io.*;
 import java.net.MalformedURLException;
