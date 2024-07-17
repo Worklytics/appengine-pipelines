@@ -28,6 +28,7 @@ import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
+import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 
@@ -35,9 +36,9 @@ import javax.inject.Inject;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@Log
 @AllArgsConstructor(onConstructor_ = @Inject)
 public class StaticContentHandler {
-  private static Logger logger = Logger.getLogger(StaticContentHandler.class.getName());
 
   private static final int BUFFER_SIZE = 1024 * 2;
   private static final String UI_DIR = "ui/";
@@ -62,6 +63,7 @@ public class StaticContentHandler {
       {"jquery.ba-hashchange.min.js", "jquery.ba-hashchange.min.js", "text/javascript"},
       {"jquery.json.min.js", "jquery.json.min.js", "text/javascript"},
       {"jquery.treeview.css", "jquery.treeview.css", "text/css"},
+      {"lodash-4.17.15.js", "lodash-4.17.15.js", "text/javascript"},
       {"images/treeview-default.gif", "images/treeview-default.gif", "image/gif"},
       {"images/treeview-default-line.gif", "images/treeview-default-line.gif", "image/gif"},
       {"images/treeview-black.gif", "images/treeview-black.gif", "image/gif"},
@@ -96,7 +98,7 @@ public class StaticContentHandler {
     try {
       NameContentTypePair pair = RESOURCE_MAP.get(path);
       if (pair == null) {
-        logger.warning("Resource not found: " + path);
+        log.warning("Resource not found: " + path);
         resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
         resp.getWriter().write("Resource not found.");
         resp.setContentType("text/plain");
