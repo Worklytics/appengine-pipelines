@@ -19,7 +19,6 @@ import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.common.annotations.VisibleForTesting;
-import javax.servlet.ServletConfig;
 
 import java.io.IOException;
 
@@ -28,7 +27,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.Setter;
-import lombok.Value;
 
 
 /**
