@@ -10,6 +10,8 @@ import com.google.cloud.datastore.*;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.Iterator;
 
 /**
@@ -34,8 +36,8 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
         ShardedJobStateImpl.ShardedJobSerializer.fromEntity(readTx, readEntity);
     assertEquals(job.getJobId(), fromEntity.getJobId());
     assertEquals(job.getActiveTaskCount(), fromEntity.getActiveTaskCount());
-    assertEquals(job.getMostRecentUpdateTime(), fromEntity.getMostRecentUpdateTime());
-    assertEquals(job.getStartTime(), fromEntity.getStartTime());
+    assertEquals(job.getMostRecentUpdateTime().truncatedTo(ChronoUnit.MILLIS), fromEntity.getMostRecentUpdateTime().truncatedTo(ChronoUnit.MILLIS));
+    assertEquals(job.getStartTime().truncatedTo(ChronoUnit.MILLIS), fromEntity.getStartTime().truncatedTo(ChronoUnit.MILLIS));
     assertEquals(job.getTotalTaskCount(), fromEntity.getTotalTaskCount());
     assertEquals(job.getSettings().toString(), fromEntity.getSettings().toString());
     assertEquals(job.getStatus(), fromEntity.getStatus());
@@ -50,9 +52,9 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
     assertEquals(10, entity.getLong("taskCount"));
     assertTrue(entity.contains("activeShards"));
     assertTrue(entity.contains("status"));
-    assertTrue(entity.contains("startTimeMillis"));
+    assertTrue(entity.contains("startTime"));
     assertTrue(entity.contains("settings"));
-    assertTrue(entity.contains("mostRecentUpdateTimeMillis"));
+    assertTrue(entity.contains("mostRecentUpdateTime"));
   }
 
   @Test

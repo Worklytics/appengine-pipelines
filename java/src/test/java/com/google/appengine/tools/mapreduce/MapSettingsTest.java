@@ -163,7 +163,8 @@ public class MapSettingsTest {
   public void testMakeShardedJobSettings() {
     Key key = datastore.newKeyFactory().setKind("Kind1").newKey("value1");
     MapSettings settings = new MapSettings.Builder().setWorkerQueueName("good-queue").build();
-    ShardedJobSettings sjSettings = settings.toShardedJobSettings("job1", key);
+    Key shardedJobKey = datastore.newKeyFactory().setKind("Kind2").newKey("job1");
+    ShardedJobSettings sjSettings = settings.toShardedJobSettings(shardedJobKey, key);
     assertEquals("default", sjSettings.getModule());
     assertEquals("1", sjSettings.getVersion());
     assertEquals("1.default.test.localhost", sjSettings.getTaskQueueTarget());
@@ -176,7 +177,7 @@ public class MapSettingsTest {
 
 
     settings = new MapSettings.Builder(settings).setModule("module1").build();
-    sjSettings = settings.toShardedJobSettings("job1", key);
+    sjSettings = settings.toShardedJobSettings(shardedJobKey, key);
     assertEquals("v1.module1.test.localhost", sjSettings.getTaskQueueTarget());
     assertEquals("module1", sjSettings.getModule());
     assertEquals("v1", sjSettings.getVersion());
@@ -191,7 +192,7 @@ public class MapSettingsTest {
     ApiProxy.setEnvironmentForCurrentThread(mockEnv);
     // Test when current module is the same as requested module
     try {
-      sjSettings = settings.toShardedJobSettings("job1", key);
+      sjSettings = settings.toShardedJobSettings(shardedJobKey, key);
       assertEquals("default", sjSettings.getModule());
       assertEquals("2", sjSettings.getVersion());
     } finally {

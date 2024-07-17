@@ -12,6 +12,7 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Sharder;
 import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageMapOutputWriter.MapOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
+import org.apache.commons.codec.digest.DigestUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -52,8 +53,10 @@ public class GoogleCloudStorageMapOutput<K, V> extends Output<KeyValue<K, V>, Fi
   @Override
   public List<? extends OutputWriter<KeyValue<K, V>>> createWriters(int shards) {
     List<OutputWriter<KeyValue<K, V>>> result = new ArrayList<>(shards);
+
+    String mrJobIdHash = DigestUtils.sha1Hex(mrJobId);
     for (int i = 0; i < shards; i++) {
-      String fileNamePattern = String.format(MAP_OUTPUT_DIR_FORMAT, mrJobId, i);
+      String fileNamePattern = String.format(MAP_OUTPUT_DIR_FORMAT, mrJobIdHash, i);
       OutputWriter<KeyValue<K, V>> writer = new GoogleCloudStorageMapOutputWriter<>(
           bucket, fileNamePattern, keyMarshaller, valueMarshaller, sharder, this.options);
       result.add(writer);

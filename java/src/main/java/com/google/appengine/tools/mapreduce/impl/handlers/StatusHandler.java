@@ -181,7 +181,7 @@ final class StatusHandler {
       jobObject.put("name", jobId); // For display
       jobObject.put("mapreduce_id", jobId); // This is the sharedJobId but it needs be be called
                                             // mapreduce_id for python compatibility.
-      jobObject.put("start_timestamp_ms", state.getStartTime());
+      jobObject.put("start_timestamp_ms", state.getStartTime().toEpochMilli());
 
       if (state.getStatus().isActive()) {
         jobObject.put("active", true);
@@ -189,7 +189,7 @@ final class StatusHandler {
       } else {
         jobObject.put("active", false);
         jobObject.put("result_status", String.valueOf(state.getStatus().getStatusCode()));
-        jobObject.put("updated_timestamp_ms", state.getMostRecentUpdateTime());
+        jobObject.put("updated_timestamp_ms", state.getMostRecentUpdateTime().toEpochMilli());
       }
       jobObject.put("shards", state.getTotalTaskCount());
       jobObject.put("active_shards", state.getActiveTaskCount());
@@ -213,7 +213,7 @@ final class StatusHandler {
         JSONObject shardObject = new JSONObject();
         shardObject.put("shard_number", i);
         shardObject.put("shard_description", taskState.getTaskId());
-        shardObject.put("updated_timestamp_ms", taskState.getMostRecentUpdateTime());
+        shardObject.put("updated_timestamp_ms", taskState.getMostRecentUpdateTime().toEpochMilli());
         if (taskState.getStatus().isActive()) {
           shardObject.put("active", true);
         } else {

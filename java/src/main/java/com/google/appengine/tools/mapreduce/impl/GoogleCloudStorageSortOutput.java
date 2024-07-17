@@ -5,6 +5,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.outputs.*;
+import org.apache.commons.codec.digest.DigestUtils;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -50,8 +51,9 @@ public class GoogleCloudStorageSortOutput extends
 
     @Override
     public SlicingOutputWriterImpl createWriter(int number) {
+      String mrJobIdHash = DigestUtils.sha1Hex(mrJobId);
       String formatStringForShard =
-          String.format(MapReduceConstants.SORT_OUTPUT_DIR_FORMAT, mrJobId, shard, number);
+          String.format(MapReduceConstants.SORT_OUTPUT_DIR_FORMAT, mrJobIdHash, shard, number);
       return new SlicingOutputWriterImpl(bucket, formatStringForShard, options);
     }
 

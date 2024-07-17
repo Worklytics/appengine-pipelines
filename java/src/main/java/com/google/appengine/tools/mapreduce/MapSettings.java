@@ -239,7 +239,7 @@ public class MapSettings implements Serializable {
     return settings;
   }
 
-  ShardedJobSettings toShardedJobSettings(String shardedJobId, Key pipelineKey) {
+  ShardedJobSettings toShardedJobSettings(Key shardedJobKey, Key pipelineKey) {
 
     String module = getModule();
     String version = null;
@@ -260,10 +260,10 @@ public class MapSettings implements Serializable {
     }
 
     final ShardedJobSettings.Builder builder = new ShardedJobSettings.Builder()
-        .setControllerPath(baseUrl + CONTROLLER_PATH + "/" + shardedJobId)
-        .setWorkerPath(baseUrl + WORKER_PATH + "/" + shardedJobId)
-        .setMapReduceStatusUrl(baseUrl + "detail?mapreduce_id=" + shardedJobId)
-        .setPipelineStatusUrl(PipelineServlet.makeViewerUrl(pipelineKey, pipelineKey))
+        .setControllerPath(baseUrl + CONTROLLER_PATH + "/" + shardedJobKey.toUrlSafe())
+        .setWorkerPath(baseUrl + WORKER_PATH + "/" + shardedJobKey.toUrlSafe())
+        .setMapReduceStatusUrl(baseUrl + "detail?mapreduce_id=" + shardedJobKey.toUrlSafe())
+        .setPipelineStatusUrl(PipelineServlet.makeViewerUrl(pipelineKey, shardedJobKey))
         .setModule(module)
         .setVersion(version)
         .setQueueName(workerQueueName)

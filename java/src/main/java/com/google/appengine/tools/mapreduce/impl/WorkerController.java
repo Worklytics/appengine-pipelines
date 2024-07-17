@@ -11,6 +11,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.OrphanedObjectException;
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.cloud.datastore.Key;
 import com.google.common.collect.ImmutableList;
 import lombok.Getter;
 import lombok.NonNull;
