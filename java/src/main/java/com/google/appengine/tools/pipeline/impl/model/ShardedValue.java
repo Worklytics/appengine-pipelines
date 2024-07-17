@@ -61,10 +61,6 @@ public class ShardedValue extends PipelineModelObject {
     return DATA_STORE_KIND;
   }
 
-  public long getShardId() {
-    return shardId;
-  }
-
   public byte[] getValue() {
     return value;
   }

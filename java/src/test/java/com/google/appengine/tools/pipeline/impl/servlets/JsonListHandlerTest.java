@@ -14,8 +14,6 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
 import static com.google.appengine.tools.pipeline.TestUtils.assertEqualsIgnoreWhitespace;
 import static com.google.appengine.tools.pipeline.TestUtils.waitForJobToComplete;
 
@@ -29,8 +27,6 @@ import com.google.appengine.tools.pipeline.impl.util.JsonUtils;
 import com.google.cloud.datastore.Datastore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import java.io.PrintWriter;
 import java.io.Serializable;
@@ -143,7 +139,10 @@ public class JsonListHandlerTest extends PipelineTest {
     String bla = waitForJobToComplete(pipelineService, pipelineId3);
     assertEquals("bla", bla);
     jsonListHandler.doGet(request, response);
-    Map<String, Object> results = (Map<String, Object>) JsonUtils.fromJson(output.toString());
+
+    String rawOutput = output.toString();
+
+    Map<String, Object> results = (Map<String, Object>) JsonUtils.fromJson(rawOutput);
     assertEquals(1, results.size());
     List<Map<String, Object>> pipelines = (List<Map<String, Object>>) results.get("pipelines");
     assertEquals(3, pipelines.size());
