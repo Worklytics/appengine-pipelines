@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
-import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
@@ -21,7 +20,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.inject.Provider;
 import java.io.UnsupportedEncodingException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -252,7 +250,7 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(a.getRetryCount(), b.getRetryCount());
     assertEquals(a.getTaskId(), b.getTaskId());
     assertEquals(a.getLockInfo().lockedSince(), b.getLockInfo().lockedSince());
-    assertEquals(a.getMostRecentUpdateMillis(), b.getMostRecentUpdateMillis());
+    assertEquals(a.getMostRecentUpdateTime(), b.getMostRecentUpdateTime());
   }
 
   private SettableFuture<Void> runInNewThread(final TaskStateInfo taskFromQueue)

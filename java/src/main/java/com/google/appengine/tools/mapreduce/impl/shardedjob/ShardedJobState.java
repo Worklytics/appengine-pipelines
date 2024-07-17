@@ -3,6 +3,7 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
 
+import java.time.Instant;
 
 /**
  * Information about execution and progress of a sharded job.
@@ -38,12 +39,12 @@ public interface ShardedJobState {
   /**
    * Returns the time this job was started.
    */
-  long getStartTimeMillis();
+  Instant getStartTime();
 
   /**
    * Returns the time this job's state was last updated.
    */
-  long getMostRecentUpdateTimeMillis();
+  Instant getMostRecentUpdateTime();
 
   /**
    * Returns whether this job is running, finished, etc.

@@ -5,6 +5,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
@@ -13,7 +14,9 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 
+import java.time.Instant;
 import java.util.BitSet;
+import java.util.Date;
 
 /**
  * Implements {@link ShardedJobState}, with additional package-private features.
@@ -30,29 +33,29 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   private final ShardedJobController<T> controller;
   private final ShardedJobSettings settings;
   private final int totalTaskCount;
-  private final long startTimeMillis;
-  private long mostRecentUpdateTimeMillis;
+  private final Instant startTime;
+  private Instant mostRecentUpdateTime;
   private BitSet shardsCompleted;
   private Status status;
 
 
   public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(String jobId,
-      ShardedJobController<T> controller, ShardedJobSettings settings, int totalTaskCount,
-      long startTimeMillis) {
+                                                                          ShardedJobController<T> controller, ShardedJobSettings settings, int totalTaskCount,
+                                                                          Instant startTime) {
     return new ShardedJobStateImpl<>(checkNotNull(jobId, "Null jobId"),
         checkNotNull(controller, "Null controller"), checkNotNull(settings, "Null settings"),
-        totalTaskCount, startTimeMillis, new Status(StatusCode.RUNNING));
+        totalTaskCount, startTime, new Status(StatusCode.RUNNING));
   }
 
   private ShardedJobStateImpl(String jobId, ShardedJobController<T> controller,
-      ShardedJobSettings settings, int totalTaskCount, long startTimeMillis, Status status) {
+                              ShardedJobSettings settings, int totalTaskCount, Instant startTime, Status status) {
     this.jobId = jobId;
     this.controller = controller;
     this.settings = settings;
     this.totalTaskCount = totalTaskCount;
     this.shardsCompleted = new BitSet(totalTaskCount);
-    this.startTimeMillis = startTimeMillis;
-    this.mostRecentUpdateTimeMillis = startTimeMillis;
+    this.startTime = startTime;
+    this.mostRecentUpdateTime = startTime;
     this.status = status;
 
   }
@@ -70,8 +73,8 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     return this;
   }
 
-  ShardedJobStateImpl<T> setMostRecentUpdateTimeMillis(long mostRecentUpdateTimeMillis) {
-    this.mostRecentUpdateTimeMillis = mostRecentUpdateTimeMillis;
+  ShardedJobStateImpl<T> setMostRecentUpdateTime(Instant mostRecentUpdateTime) {
+    this.mostRecentUpdateTime = mostRecentUpdateTime;
     return this;
   }
 
@@ -86,7 +89,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
         + controller + ", "
         + status + ", "
         + shardsCompleted.cardinality() + "/" + totalTaskCount + ", "
-        + mostRecentUpdateTimeMillis
+        + mostRecentUpdateTime
         + ")";
   }
 
@@ -94,10 +97,10 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     static final String ENTITY_KIND = "MR-ShardedJob";
 
     private static final String CONTROLLER_PROPERTY = "controller";
-    private static final String START_TIME_PROPERTY = "startTimeMillis";
+    private static final String START_TIME_PROPERTY = "startTime";
     private static final String SETTINGS_PROPERTY = "settings";
     private static final String TOTAL_TASK_COUNT_PROPERTY = "taskCount";
-    private static final String MOST_RECENT_UPDATE_TIME_PROPERTY = "mostRecentUpdateTimeMillis";
+    private static final String MOST_RECENT_UPDATE_TIME_PROPERTY = "mostRecentUpdateTime";
     private static final String SHARDS_COMPLETED_PROPERTY = "activeShards";
     private static final String STATUS_PROPERTY = "status";
 
@@ -117,10 +120,18 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
       serializeToDatastoreProperty(tx, jobState, SHARDS_COMPLETED_PROPERTY, in.shardsCompleted);
       serializeToDatastoreProperty(tx, jobState, STATUS_PROPERTY, in.getStatus());
       jobState.set(TOTAL_TASK_COUNT_PROPERTY, LongValue.newBuilder(in.getTotalTaskCount()).setExcludeFromIndexes(true).build());
-      jobState.set(START_TIME_PROPERTY, LongValue.newBuilder(in.getStartTimeMillis()).setExcludeFromIndexes(true).build());
+      jobState.set(START_TIME_PROPERTY, timestampBuilder(in.getStartTime()).setExcludeFromIndexes(true).build());
       jobState.set(MOST_RECENT_UPDATE_TIME_PROPERTY,
-        LongValue.newBuilder(in.getMostRecentUpdateTimeMillis()).setExcludeFromIndexes(true).build());
+        timestampBuilder(in.getMostRecentUpdateTime()).setExcludeFromIndexes(true).build());
       return jobState.build();
+    }
+
+    static TimestampValue.Builder timestampBuilder(Instant instant) {
+      return TimestampValue.newBuilder(Timestamp.of(Date.from(instant)));
+    }
+
+    static Instant from(Timestamp timestamp) {
+      return timestamp.toDate().toInstant();
     }
 
     static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(@NonNull Transaction tx, Entity in) {
@@ -134,9 +145,9 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
           SerializationUtil.<ShardedJobController<T>>deserializeFromDatastoreProperty(tx, in, CONTROLLER_PROPERTY, lenient),
           SerializationUtil.<ShardedJobSettings>deserializeFromDatastoreProperty(tx, in, SETTINGS_PROPERTY),
           (int) in.getLong(TOTAL_TASK_COUNT_PROPERTY),
-          in.getLong(START_TIME_PROPERTY),
+          from(in.getTimestamp(START_TIME_PROPERTY)),
           SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY))
-            .setMostRecentUpdateTimeMillis(in.getLong(MOST_RECENT_UPDATE_TIME_PROPERTY))
+            .setMostRecentUpdateTime(from(in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY)))
             .setShardsCompleted((BitSet) SerializationUtil.deserializeFromDatastoreProperty(tx, in, SHARDS_COMPLETED_PROPERTY));
     }
   }

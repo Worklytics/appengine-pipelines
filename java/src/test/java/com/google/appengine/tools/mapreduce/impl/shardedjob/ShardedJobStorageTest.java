@@ -8,6 +8,8 @@ import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 
 import com.google.cloud.datastore.*;
 import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
 import java.util.Iterator;
 
 /**
@@ -32,8 +34,8 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
         ShardedJobStateImpl.ShardedJobSerializer.fromEntity(readTx, readEntity);
     assertEquals(job.getJobId(), fromEntity.getJobId());
     assertEquals(job.getActiveTaskCount(), fromEntity.getActiveTaskCount());
-    assertEquals(job.getMostRecentUpdateTimeMillis(), fromEntity.getMostRecentUpdateTimeMillis());
-    assertEquals(job.getStartTimeMillis(), fromEntity.getStartTimeMillis());
+    assertEquals(job.getMostRecentUpdateTime(), fromEntity.getMostRecentUpdateTime());
+    assertEquals(job.getStartTime(), fromEntity.getStartTime());
     assertEquals(job.getTotalTaskCount(), fromEntity.getTotalTaskCount());
     assertEquals(job.getSettings().toString(), fromEntity.getSettings().toString());
     assertEquals(job.getStatus(), fromEntity.getStatus());
@@ -67,7 +69,7 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
 
   private ShardedJobStateImpl<TestTask> createGenericJobState() {
     return ShardedJobStateImpl.create("jobId", new TestController(getDatastore().getOptions(), 11, getPipelineService(), false),
-        new ShardedJobSettings.Builder().build(), 10, System.currentTimeMillis());
+        new ShardedJobSettings.Builder().build(), 10, Instant.now());
   }
 
   @Test

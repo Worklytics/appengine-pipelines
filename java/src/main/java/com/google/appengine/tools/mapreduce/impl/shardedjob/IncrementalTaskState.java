@@ -5,6 +5,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
@@ -13,6 +14,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import lombok.Getter;
 import lombok.NonNull;
+
+import java.time.Instant;
+import java.util.Date;
 
 /**
  * Information about execution of an {@link IncrementalTask}.
@@ -26,7 +30,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
   private final String taskId;
   private final String jobId;
-  private long mostRecentUpdateMillis;
+  private Instant mostRecentUpdateTime;
   private int sequenceNumber;
   private int retryCount;
   private T task;
@@ -75,23 +79,23 @@ public class IncrementalTaskState<T extends IncrementalTask> {
    * Returns a new running IncrementalTaskState.
    */
   static <T extends IncrementalTask> IncrementalTaskState<T> create(
-      String taskId, String jobId, long createTime, T initialTask) {
+    String taskId, String jobId, Instant createTime, T initialTask) {
     return new IncrementalTaskState<>(taskId, jobId, createTime, new LockInfo(null, null),
         checkNotNull(initialTask), new Status(StatusCode.RUNNING));
   }
 
-  private IncrementalTaskState(String taskId, String jobId, long mostRecentUpdateMillis,
-      LockInfo lockInfo, T task, Status status) {
+  private IncrementalTaskState(String taskId, String jobId, Instant mostRecentUpdateTime,
+                               LockInfo lockInfo, T task, Status status) {
     this.taskId = checkNotNull(taskId, "Null taskId");
     this.jobId = checkNotNull(jobId, "Null jobId");
-    this.mostRecentUpdateMillis = mostRecentUpdateMillis;
+    this.mostRecentUpdateTime = mostRecentUpdateTime;
     this.lockInfo = lockInfo;
     this.task = task;
     this.status = status;
   }
 
-  IncrementalTaskState<T> setMostRecentUpdateMillis(long mostRecentUpdateMillis) {
-    this.mostRecentUpdateMillis = mostRecentUpdateMillis;
+  IncrementalTaskState<T> setMostRecentUpdateTime(Instant mostRecentUpdateTime) {
+    this.mostRecentUpdateTime = mostRecentUpdateTime;
     return this;
   }
 
@@ -124,7 +128,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     return getClass().getSimpleName() + "("
         + taskId + ", "
         + jobId + ", "
-        + mostRecentUpdateMillis + ", "
+        + mostRecentUpdateTime + ", "
         + sequenceNumber + ", "
         + retryCount + ", "
         + task + ", "
@@ -140,7 +144,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     static final String SHARD_INFO_ENTITY_KIND = ENTITY_KIND + "-ShardInfo";
 
     private static final String JOB_ID_PROPERTY = "jobId";
-    private static final String MOST_RECENT_UPDATE_MILLIS_PROPERTY = "mostRecentUpdateMillis";
+    private static final String MOST_RECENT_UPDATE_TIME_PROPERTY = "mostRecentUpdateTime";
     private static final String SEQUENCE_NUMBER_PROPERTY = "sequenceNumber";
     private static final String RETRY_COUNT_PROPERTY = "retryCount";
     private static final String SLICE_START_TIME = "sliceStartTime";
@@ -156,8 +160,8 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       Key key = makeKey(tx.getDatastore(), in.getTaskId());
       Entity.Builder taskState = Entity.newBuilder(key);
       taskState.set(JOB_ID_PROPERTY, in.getJobId());
-      taskState.set(MOST_RECENT_UPDATE_MILLIS_PROPERTY,
-        LongValue.newBuilder(in.getMostRecentUpdateMillis()).setExcludeFromIndexes(true).build());
+      taskState.set(MOST_RECENT_UPDATE_TIME_PROPERTY,
+        TimestampValue.newBuilder(Timestamp.of(Date.from(in.getMostRecentUpdateTime()))).setExcludeFromIndexes(true).build());
 
       if (in.getLockInfo() != null) {
         if (in.getLockInfo().startTime != null) {
@@ -193,7 +197,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
       IncrementalTaskState<T> state = new IncrementalTaskState<>(in.getKey().getName(),
           in.getString(JOB_ID_PROPERTY),
-          in.getLong(MOST_RECENT_UPDATE_MILLIS_PROPERTY),
+          in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY).toDate().toInstant(),
           lockInfo,
           in.contains(NEXT_TASK_PROPERTY) ? SerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,
           SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY));

@@ -42,9 +42,11 @@ import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 
 /**
  * Contains all logic to manage and run sharded jobs; specific to a given backend configuration (injected as backend)
@@ -216,8 +218,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
         if (jobState1 == null) {
           return null;
         }
-        jobState1.setMostRecentUpdateTimeMillis(
-          Math.max(System.currentTimeMillis(), jobState1.getMostRecentUpdateTimeMillis()));
+        jobState1.setMostRecentUpdateTime(
+          Stream.of(jobState1.getMostRecentUpdateTime(), Instant.now()).max(Comparator.naturalOrder()).get());
 
         //arguably, should be a function of deserializing jobState ...
         jobState1.getController().setPipelineService(pipelineService);
@@ -429,7 +431,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         taskState.setStatus(new Status(StatusCode.DONE));
       }
       taskState.clearRetryCount();
-      taskState.setMostRecentUpdateMillis(System.currentTimeMillis());
+      taskState.setMostRecentUpdateTime(Instant.now());
     } catch (ShardFailureException ex) {
       retryState = handleShardFailure(datastore, jobState, taskState, ex);
     } catch (JobFailureException ex) {
@@ -579,7 +581,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   private <T extends IncrementalTask> void createTasks(Datastore datastore, ShardedJobSettings settings, String jobId,
-                           List<? extends T> initialTasks, long startTimeMillis) {
+                                                       List<? extends T> initialTasks, Instant startTime) {
     log.info(jobId + ": Creating " + initialTasks.size() + " tasks");
     int id = 0;
     for (T initialTask : initialTasks) {
@@ -594,7 +596,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
           log.info(jobId + ": Task already exists: " + taskState);
           continue;
         }
-        taskState = IncrementalTaskState.<T>create(taskId, jobId, startTimeMillis, initialTask);
+        taskState = IncrementalTaskState.<T>create(taskId, jobId, startTime, initialTask);
         ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
         tx.put(IncrementalTaskState.Serializer.toEntity(tx, taskState),
             ShardRetryState.Serializer.toEntity(tx, retryState));
@@ -625,7 +627,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   public <T extends IncrementalTask> void startJob(final String jobId, List<? extends T> initialTasks,
                                                    ShardedJobController<T> controller, ShardedJobSettings settings) {
-    long startTime = System.currentTimeMillis();
+    Instant startTime = Instant.now();
     Datastore datastore = getDatastore();
     Preconditions.checkArgument(!Iterables.any(initialTasks, Predicates.isNull()),
         "Task list must not contain null values");
