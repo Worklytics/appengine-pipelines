@@ -40,8 +40,12 @@ import java.util.Map;
  */
 class JsonGenerator {
 
+  //TODO: somewhat coupled to RequestUtils::getJobId; and PipelineOrchestrator interfaces which use String jobIds;
+  // presumed to be Key encoded this way
+  // so solution would be to strenghten the contract of the interfaces to use Key instead of String  (or rather a
+  // JobId class that wraps a Key)
   private static String toString(Key key) {
-    return key.toString();
+    return key.toUrlSafe();
   }
 
   private static final String PIPELINE_ID = "pipelineId";
@@ -108,7 +112,7 @@ class JsonGenerator {
     Map<String, Map<String, Object>> slotMap = new HashMap<>(pipelineObjects.getSlots().size());
     Map<String, Map<String, Object>> jobMap = new HashMap<>(pipelineObjects.getJobs().size());
     Map<String, Object> topLevel = new HashMap<>(4);
-    topLevel.put(ROOT_PIPELINE_ID, pipelineObjects.getRootJob().getKey().getName());
+    topLevel.put(ROOT_PIPELINE_ID, toString(pipelineObjects.getRootJob().getKey()));
     topLevel.put(SLOTS, slotMap);
     topLevel.put(PIPELINES, jobMap);
 
@@ -118,7 +122,7 @@ class JsonGenerator {
       slotMap.put(toString(slot.getKey()), buildMapRepresentation(slot));
     }
     for (JobRecord jobRecord : pipelineObjects.getJobs().values()) {
-      jobMap.put(jobRecord.getKey().getName(), buildMapRepresentation(jobRecord));
+      jobMap.put(toString(jobRecord.getKey()), buildMapRepresentation(jobRecord));
     }
     return topLevel;
   }
@@ -129,7 +133,7 @@ class JsonGenerator {
     Map<String, Object> topLevel = new HashMap<>(3);
     for (JobRecord rootRecord : pipelineRoots.getFirst()) {
       Map<String, Object> mapRepresentation = buildMapRepresentation(rootRecord);
-      mapRepresentation.put(PIPELINE_ID, rootRecord.getKey().toUrlSafe());
+      mapRepresentation.put(PIPELINE_ID, toString(rootRecord.getKey()));
       jobList.add(mapRepresentation);
     }
     topLevel.put(PIPELINES, jobList);
@@ -154,7 +158,7 @@ class JsonGenerator {
     }
     Key sourceJobKey = slot.getSourceJobKey();
     if (null != sourceJobKey) {
-      map.put(SLOT_SOURCE_JOB, sourceJobKey.toUrlSafe());
+      map.put(SLOT_SOURCE_JOB, toString(sourceJobKey));
     }
     return map;
   }
@@ -279,7 +283,7 @@ class JsonGenerator {
     String[] arrayOfIds = new String[listOfKeys.size()];
     int i = 0;
     for (Key key : listOfKeys) {
-      arrayOfIds[i++] = key.toUrlSafe();
+      arrayOfIds[i++] = toString(key);
     }
     return arrayOfIds;
   }
