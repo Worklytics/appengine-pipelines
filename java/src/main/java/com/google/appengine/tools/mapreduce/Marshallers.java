@@ -4,6 +4,9 @@ package com.google.appengine.tools.mapreduce;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.appengine.tools.mapreduce.impl.KeyValueMarshaller;
 import com.google.appengine.tools.mapreduce.impl.KeyValuesMarshaller;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
@@ -227,6 +230,15 @@ public class Marshallers {
     private static final long serialVersionUID = 2674085981901767084L;
     private static final ObjectMapper mapper = new ObjectMapper();
     private final Class<T> type;
+
+    {
+      mapper.registerModule(new Jdk8Module());
+      mapper.registerModule(new JavaTimeModule());
+
+      mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+      mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+      mapper.disable(SerializationFeature.FAIL_ON_SELF_REFERENCES);
+    }
 
     public GenericMarshaller(Class<T> type) {
       this.type = type;
