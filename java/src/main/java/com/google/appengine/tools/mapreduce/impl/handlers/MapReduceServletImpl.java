@@ -49,7 +49,7 @@ public class MapReduceServletImpl {
       .put("jquery.js", new Resource("jquery-1.6.1.min.js", "text/javascript"))
       .put("jquery-json.js", new Resource("jquery.json-2.2.min.js", "text/javascript"))
       .put("jquery-url.js", new Resource("jquery.url.js", "text/javascript"))
-      .put("status.js", new Resource("mapreduce-status.js", "text/javascript"))
+      .put("mapreduce-status.js", new Resource("mapreduce-status.js", "text/javascript"))
       .build();
 
   static final String COMMAND_PATH = "command";
