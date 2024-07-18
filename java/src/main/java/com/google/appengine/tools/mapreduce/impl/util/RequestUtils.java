@@ -33,6 +33,9 @@ public class RequestUtils {
 
     //originally defined per-handler in the gae pipelines project
     public static final String ROOT_PIPELINE_ID = "root_pipeline_id";
+
+    //hard-coded in many places, JS / etc
+    public static final String MAPREDUCE_ID = "mapreduce_id";
   }
 
   public PipelineBackEnd buildBackendFromRequest(HttpServletRequest request) {
@@ -73,5 +76,16 @@ public class RequestUtils {
   public String getRootPipelineId(HttpServletRequest request) throws ServletException {
     return getJobId(request, Params.ROOT_PIPELINE_ID)
       .orElseThrow(() -> new ServletException(Params.ROOT_PIPELINE_ID + " parameter not found."));
+  }
+
+  /**
+   * gets 'map_reduce_id', undo'ing serlvet fws decoding of URL-encoded param value
+   * @param request
+   * @return
+   * @throws ServletException
+   */
+  public String getMapReduceId(HttpServletRequest request) throws ServletException {
+    return getJobId(request, Params.MAPREDUCE_ID)
+      .orElseThrow(() -> new ServletException(Params.MAPREDUCE_ID + " parameter not found."));
   }
 }

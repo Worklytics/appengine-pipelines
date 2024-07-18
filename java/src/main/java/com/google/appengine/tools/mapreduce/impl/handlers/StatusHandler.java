@@ -99,11 +99,11 @@ final class StatusHandler {
       if (command.equals(LIST_JOBS_PATH) && !isPost) {
         retValue = handleListJobs(request);
       } else if (command.equals(CLEANUP_JOB_PATH) && isPost) {
-        retValue = handleCleanupJob(pipelineOrchestrator, request.getParameter("mapreduce_id"));
+        retValue = handleCleanupJob(pipelineOrchestrator, requestUtils.getMapReduceId(request));
       } else if (command.equals(ABORT_JOB_PATH) && isPost) {
-        retValue = handleAbortJob(pipelineOrchestrator, request.getParameter("mapreduce_id"));
+        retValue = handleAbortJob(pipelineOrchestrator, requestUtils.getMapReduceId(request));
       } else if (command.equals(GET_JOB_DETAIL_PATH) && !isPost) {
-        retValue = handleGetJobDetail(pipelineRunner, request.getParameter("mapreduce_id"));
+        retValue = handleGetJobDetail(pipelineRunner, requestUtils.getMapReduceId(request));
       }
     } catch (Exception t) {
       log.log(Level.SEVERE, "Got exception while running command", t);
