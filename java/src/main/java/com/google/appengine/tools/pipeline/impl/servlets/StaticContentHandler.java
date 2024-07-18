@@ -42,9 +42,6 @@ public class StaticContentHandler {
 
   private static final int BUFFER_SIZE = 1024 * 2;
   private static final String UI_DIR = "ui/";
-  // This is where the ui files end up if the library is built internally at Google:
-  private static final String INTERNAL_BUILD_UI_DIR =
-      "/third_party/py/appengine_pipeline/src/pipeline/ui/";
 
   private static final String[][] RESOURCES = {
       {"list", "root_list.html", "text/html"},
@@ -129,13 +126,9 @@ public class StaticContentHandler {
   // Visible for testing
   public static InputStream getResourceAsStream(String fileName) throws FileNotFoundException {
     String localPath = UI_DIR + fileName;
-    String altLocalPath = INTERNAL_BUILD_UI_DIR + fileName;
     InputStream in = StaticContentHandler.class.getResourceAsStream(localPath);
     if (in == null) {
-      in = StaticContentHandler.class.getResourceAsStream(altLocalPath);
-    }
-    if (in == null) {
-      throw new FileNotFoundException(localPath + " <or> " + altLocalPath);
+      throw new FileNotFoundException(localPath);
     }
     return in;
   }

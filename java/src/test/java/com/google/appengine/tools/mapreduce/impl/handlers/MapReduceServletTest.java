@@ -146,7 +146,7 @@ public class MapReduceServletTest{
   public void testGetJobDetailCSRF() throws Exception {
     // Send it as a task queue request but not an ajax request - should be denied.
     HttpServletRequest request = createMockRequest(getDatastore(),
-        MapReduceServletImpl.COMMAND_PATH + "/" + StatusHandler.GET_JOB_DETAIL_PATH, true, false);
+      MapReduceServletImpl.COMMAND_PATH + "/" + StatusHandler.GET_JOB_DETAIL_PATH, true, false);
     expect(request.getMethod()).andReturn("POST").anyTimes();
 
     HttpServletResponse response = createMock(HttpServletResponse.class);
@@ -161,7 +161,6 @@ public class MapReduceServletTest{
     verify(request, response);
   }
 
-  @Disabled // skip for now - 2024-06-24 - need to revisit when deploy to app engine
   @Test
   public void testStaticResources_jQuery() throws Exception {
     HttpServletResponse resp = createMock(HttpServletResponse.class);

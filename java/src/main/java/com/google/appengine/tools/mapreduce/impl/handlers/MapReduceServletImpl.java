@@ -15,6 +15,7 @@ import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
+import com.google.appengine.tools.pipeline.impl.servlets.StaticContentHandler;
 import com.google.common.collect.ImmutableMap;
 import lombok.AllArgsConstructor;
 
@@ -32,9 +33,8 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 //TODO: not actually a servlet
-@Singleton
 @AllArgsConstructor(onConstructor_ = @Inject)
-public final class MapReduceServletImpl {
+public class MapReduceServletImpl {
 
 
   JobRunServiceComponent component;
@@ -209,12 +209,9 @@ public final class MapReduceServletImpl {
     response.setContentType(resource.getContentType());
     response.setHeader("Cache-Control", "public; max-age=300");
     try {
-      InputStream resourceStream = MapReduceServlet.class.getResourceAsStream(
-          "/com/google/appengine/tools/mapreduce/" + resource.getFilename());
-      if (resourceStream == null) {
-        resourceStream = MapReduceServlet.class.getResourceAsStream(
-            "/third_party/java_src/appengine_mapreduce2/static/" + resource.getFilename());
-      }
+      String localPath = "ui/" + resource.getFilename();
+      //InputStream resourceStream =  MapReduceServlet.class.getResourceAsStream(localPath);
+      InputStream resourceStream = StaticContentHandler.class.getResourceAsStream(localPath);
       if (resourceStream == null) {
         throw new RuntimeException("Missing MapReduce static file " + resource.getFilename());
       }
