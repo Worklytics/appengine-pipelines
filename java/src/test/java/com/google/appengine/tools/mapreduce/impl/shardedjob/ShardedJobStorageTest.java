@@ -20,6 +20,9 @@ import java.util.Iterator;
  */
 public class ShardedJobStorageTest extends EndToEndTestCase {
 
+
+  final String JOB_ID = "partition_id+%7B%0A++project_id%3A+%22test-project%22%0A%7D%0Apath+%7B%0A++kind%3A+%22pipeline-job%22%0A++name%3A+%22c6fa877b-81a6-4e17-a8f7-62268036db97%22%0A%7D%0A";
+
   @Test
   public void testRoundTripJob() {
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
@@ -65,12 +68,12 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
     tx.put(entity);
     tx.commit();
 
-    Entity readEntity = getDatastore().get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(getDatastore(), "jobId"));
+    Entity readEntity = getDatastore().get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(getDatastore(), JOB_ID));
     assertEquals(entity, readEntity);
   }
 
   private ShardedJobStateImpl<TestTask> createGenericJobState() {
-    return ShardedJobStateImpl.create("jobId", new TestController(getDatastore().getOptions(), 11, getPipelineService(), false),
+    return ShardedJobStateImpl.create(JOB_ID, new TestController(getDatastore().getOptions(), 11, getPipelineService(), false),
         new ShardedJobSettings.Builder().build(), 10, Instant.now());
   }
 

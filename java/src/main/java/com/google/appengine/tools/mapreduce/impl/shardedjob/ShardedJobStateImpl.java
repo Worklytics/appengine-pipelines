@@ -5,6 +5,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
@@ -105,7 +106,12 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     private static final String STATUS_PROPERTY = "status";
 
     static Key makeKey(Datastore datastore, String jobId) {
-      return datastore.newKeyFactory().setKind(ENTITY_KIND).newKey(jobId);
+      Key pipelineKey = Key.fromUrlSafe(jobId);
+      KeyFactory builder = datastore.newKeyFactory().setKind(ENTITY_KIND)
+        .setDatabaseId(pipelineKey.getDatabaseId())
+        .setProjectId(pipelineKey.getProjectId())
+        .setNamespace(pipelineKey.getNamespace());
+      return builder.newKey(pipelineKey.getName());
     }
 
     static Entity toEntity(@NonNull Transaction tx, ShardedJobStateImpl<?> in) {
@@ -114,7 +120,6 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
 
       //avoid serialization issue; will fill on deserialization
       in.getController().setPipelineService(null);
-
       serializeToDatastoreProperty(tx, jobState, CONTROLLER_PROPERTY, in.getController());
       serializeToDatastoreProperty(tx, jobState, SETTINGS_PROPERTY, in.getSettings());
       serializeToDatastoreProperty(tx, jobState, SHARDS_COMPLETED_PROPERTY, in.shardsCompleted);
@@ -141,7 +146,11 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(
       @NonNull Transaction tx, Entity in, boolean lenient) {
       Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
-      return new ShardedJobStateImpl<>(in.getKey().getName(),
+
+      Key sharedJobStateKey = in.getKey();
+
+      return new ShardedJobStateImpl<>(
+          JobRecord.key(sharedJobStateKey.getProjectId(), sharedJobStateKey.getNamespace(), sharedJobStateKey.getName()).toUrlSafe(),
           SerializationUtil.<ShardedJobController<T>>deserializeFromDatastoreProperty(tx, in, CONTROLLER_PROPERTY, lenient),
           SerializationUtil.<ShardedJobSettings>deserializeFromDatastoreProperty(tx, in, SETTINGS_PROPERTY),
           (int) in.getLong(TOTAL_TASK_COUNT_PROPERTY),
