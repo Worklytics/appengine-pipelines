@@ -14,6 +14,7 @@ import com.google.common.base.Preconditions;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.extern.java.Log;
 
 import java.time.Instant;
 import java.util.BitSet;
@@ -26,6 +27,7 @@ import java.util.Date;
  *
  * @param <T> type of the IncrementalTask
  */
+@Log
 @Getter
 @EqualsAndHashCode
 class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState {
@@ -105,13 +107,19 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     private static final String SHARDS_COMPLETED_PROPERTY = "activeShards";
     private static final String STATUS_PROPERTY = "status";
 
+    // hacky - works with full job id OR just the UUID
     static Key makeKey(Datastore datastore, String jobId) {
-      Key pipelineKey = Key.fromUrlSafe(jobId);
-      KeyFactory builder = datastore.newKeyFactory().setKind(ENTITY_KIND)
-        .setDatabaseId(pipelineKey.getDatabaseId())
-        .setProjectId(pipelineKey.getProjectId())
-        .setNamespace(pipelineKey.getNamespace());
-      return builder.newKey(pipelineKey.getName());
+      try {
+        Key pipelineKey = Key.fromUrlSafe(jobId);
+        KeyFactory builder = datastore.newKeyFactory().setKind(ENTITY_KIND)
+          .setDatabaseId(pipelineKey.getDatabaseId())
+          .setProjectId(pipelineKey.getProjectId())
+          .setNamespace(pipelineKey.getNamespace());
+        return builder.newKey(pipelineKey.getName());
+      } catch (IllegalArgumentException e) {
+        KeyFactory builder = datastore.newKeyFactory().setKind(ENTITY_KIND);
+        return builder.newKey(jobId);
+      }
     }
 
     static Entity toEntity(@NonNull Transaction tx, ShardedJobStateImpl<?> in) {
