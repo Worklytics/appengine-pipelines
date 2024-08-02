@@ -38,8 +38,10 @@ import com.google.common.collect.Iterators;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Value;
 import lombok.extern.java.Log;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import java.time.Instant;
@@ -154,7 +156,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         TreeMap<Integer, Entity> ordered = new TreeMap<>();
         for (Iterator<Entity> it = tx.get(keys.toArray(new Key[0])); it.hasNext(); ) {
           Entity entry = it.next();
-          ordered.put(parseTaskNumberFromTaskId(jobId, entry.getKey().getName()), entry);
+          ordered.put(TaskId.parse(jobId, entry.getKey().toUrlSafe()).getNumber(), entry);
         }
         lastBatch = ordered.values().iterator();
         return computeNext();
@@ -207,7 +209,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   @Override
   public void completeShard(final String jobId, final String taskId) {
     log.info("Polling task states for job " + jobId);
-    final int shardNumber = parseTaskNumberFromTaskId(jobId, taskId);
+    final int shardNumber = TaskId.parse(jobId, taskId).getNumber();
 
     PipelineService pipelineService = pipelineServiceProvider.get();
 
@@ -568,16 +570,54 @@ public class ShardedJobRunner implements ShardedJobHandler {
       }));
   }
 
-  public static String getTaskId(String jobId, int taskNumber) {
-    return jobId + "-task-" + taskNumber;
+  //represents a shared job task (eg, one of N shards of a sharded task)
+  @Value
+  @AllArgsConstructor(staticName = "of")
+  private static class TaskId {
+
+    /**
+     * namespace for the sharded job;
+     */
+    @Nullable
+    String namespace;
+
+    /**
+     * uuid for the sharded job; same as the job itself
+     */
+    @NonNull
+    String uuid;
+
+    /**
+     * which shard this represents, eg, 0-39 for 40 shards
+     */
+    int number;
+
+    @Override
+    public String toString() {
+      return namespace + "-" + uuid + "-task-" + number;
+    }
+
+    static TaskId of(String jobId, int taskNumber) {
+      try {
+        Key jobKey = Key.fromUrlSafe(jobId);
+        return TaskId.of(jobKey.getNamespace(), jobKey.getName(), taskNumber);
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("Invalid jobId: " + jobId, e);
+      }
+    }
+
+    static TaskId parse(String jobId, String taskId) {
+      Key jobKey = Key.fromUrlSafe(jobId);
+      String prefix = jobKey.getNamespace() + "-" + jobKey.getName() + "-task-";
+      if (!taskId.startsWith(prefix)) {
+        throw new IllegalArgumentException("Invalid taskId: " + taskId);
+      }
+      return TaskId.of(jobKey.getNamespace(), jobKey.getName(), Integer.parseInt(taskId.substring(prefix.length())));
+    }
   }
 
-  private static int parseTaskNumberFromTaskId(String jobId, String taskId) {
-    String prefix = jobId + "-task-";
-    if (!taskId.startsWith(prefix)) {
-      throw new IllegalArgumentException("Invalid taskId: " + taskId);
-    }
-    return Integer.parseInt(taskId.substring(prefix.length()));
+  public static String getTaskId(String jobId, int taskNumber) {
+    return TaskId.of(jobId, taskNumber).toString();
   }
 
   private <T extends IncrementalTask> void createTasks(Datastore datastore, ShardedJobSettings settings, String jobId,
