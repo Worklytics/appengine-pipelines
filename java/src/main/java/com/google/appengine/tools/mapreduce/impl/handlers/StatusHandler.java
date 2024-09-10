@@ -104,6 +104,10 @@ final class StatusHandler {
         retValue = handleAbortJob(pipelineOrchestrator, requestUtils.getMapReduceId(request));
       } else if (command.equals(GET_JOB_DETAIL_PATH) && !isPost) {
         retValue = handleGetJobDetail(pipelineRunner, requestUtils.getMapReduceId(request));
+        if (retValue == null) {
+          log.warning("No job found for : " + requestUtils.getMapReduceId(request));
+          response.sendError(HttpServletResponse.SC_NOT_FOUND, "No job found for : " + requestUtils.getMapReduceId(request));
+        }
       }
     } catch (Exception t) {
       log.log(Level.SEVERE, "Got exception while running command", t);
