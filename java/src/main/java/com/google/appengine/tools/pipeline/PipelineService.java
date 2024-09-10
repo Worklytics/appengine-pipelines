@@ -14,7 +14,15 @@
 
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.di.DaggerMultiTenantComponent;
+import com.google.appengine.tools.pipeline.di.TenantComponent;
+import com.google.appengine.tools.pipeline.di.TenantModule;
+import com.google.appengine.tools.pipeline.di.MultiTenantComponent;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.datastore.DatastoreOptions;
+import lombok.SneakyThrows;
 
 /**
  * A service used to start and stop Pipeline jobs and query their status.
@@ -22,6 +30,26 @@ import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 public interface PipelineService {
+
+  /**
+   *
+   * @param options
+   * @return pipeline service for given options
+   */
+  static PipelineService getInstance(AppEngineBackEnd.Options options) {
+    MultiTenantComponent component = DaggerMultiTenantComponent.create();
+    TenantComponent clientComponent = component.clientComponent(new TenantModule(new AppEngineBackEnd(options)));
+    return clientComponent.pipelineService();
+  }
+
+  /**
+   * @return The default PipelineService instance.
+   */
+  @SneakyThrows
+  static PipelineService getInstance() {
+    return getInstance(AppEngineBackEnd.Options.defaults());
+  }
+
 
   PipelineBackEnd.Options getBackendOptions();
 
@@ -36,7 +64,7 @@ public interface PipelineService {
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
    *         {@link #getJobInfo(String)}, {@link #stopPipeline(String)}, and
-   *         {@link #deletePipelineRecords(String, boolean, boolean)}
+   *         {@link #deletePipelineRecords(String, boolean)}
    */
   String startNewPipeline(Job0<?> jobInstance, JobSetting... settings);
 
@@ -52,7 +80,7 @@ public interface PipelineService {
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
    *         {@link #getJobInfo(String)}, {@link #stopPipeline(String)}, and
-   *         {@link #deletePipelineRecords(String, boolean, boolean)}
+   *         {@link #deletePipelineRecords(String, boolean)}
    */
   <T1> String startNewPipeline(Job1<?, T1> jobInstance, T1 arg1, JobSetting... settings);
 
@@ -70,7 +98,7 @@ public interface PipelineService {
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
    *         {@link #getJobInfo(String)}, {@link #stopPipeline(String)}, and
-   *         {@link #deletePipelineRecords(String, boolean, boolean)}
+   *         {@link #deletePipelineRecords(String, boolean)}
    */
   <T1, T2> String startNewPipeline(Job2<?, T1, T2> jobInstance, T1 arg1, T2 arg2,
       JobSetting... settings);
@@ -91,7 +119,7 @@ public interface PipelineService {
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
    *         {@link #getJobInfo(String)}, {@link #stopPipeline(String)}, and
-   *         {@link #deletePipelineRecords(String, boolean, boolean)}
+   *         {@link #deletePipelineRecords(String, boolean)}
    */
   <T1, T2, T3> String startNewPipeline(Job3<?, T1, T2, T3> jobInstance, T1 arg1, T2 arg2, T3 arg3,
       JobSetting... settings);
@@ -114,7 +142,7 @@ public interface PipelineService {
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
    *         {@link #getJobInfo(String)}, {@link #stopPipeline(String)}, and
-   *         {@link #deletePipelineRecords(String, boolean, boolean)}
+   *         {@link #deletePipelineRecords(String, boolean)}
    */
   <T1, T2, T3, T4> String startNewPipeline(Job4<?, T1, T2, T3, T4> jobInstance, T1 arg1, T2 arg2,
       T3 arg3, T4 arg4, JobSetting... settings);
@@ -139,7 +167,7 @@ public interface PipelineService {
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
    *         {@link #getJobInfo(String)}, {@link #stopPipeline(String)}, and
-   *         {@link #deletePipelineRecords(String, boolean, boolean)}
+   *         {@link #deletePipelineRecords(String, boolean)}
    */
   <T1, T2, T3, T4, T5> String startNewPipeline(Job5<?, T1, T2, T3, T4, T5> jobInstance, T1 arg1,
       T2 arg2, T3 arg3, T4 arg4, T5 arg5, JobSetting... settings);
@@ -166,7 +194,7 @@ public interface PipelineService {
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
    *         {@link #getJobInfo(String)}, {@link #stopPipeline(String)}, and
-   *         {@link #deletePipelineRecords(String, boolean, boolean)},
+   *         {@link #deletePipelineRecords(String, boolean)},
    */
   <T1, T2, T3, T4, T5, T6> String startNewPipeline(Job6<?, T1, T2, T3, T4, T5, T6> jobInstance,
       T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, JobSetting... settings);
@@ -187,7 +215,7 @@ public interface PipelineService {
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
    *         {@link #getJobInfo(String)}, {@link #stopPipeline(String)}, and
-   *         {@link #deletePipelineRecords(String, boolean, boolean)}
+   *         {@link #deletePipelineRecords(String, boolean)}
    */
   String startNewPipelineUnchecked(Job<?> jobInstance, Object[] arguments, JobSetting... settings);
 
@@ -232,23 +260,20 @@ public interface PipelineService {
    * Delete all the records associated with a pipeline from the datastore.
    *
    * @param pipelineHandle The handle of the pipeline to be deleted
-   * @param force If this parameter is not {@code true} then this method will
-   *        throw an {@link IllegalStateException} if the specified pipeline is
-   *        has not already completed or been stopped or aborted. Invoking this
-   *        method with {@code force = true} should only be done in unusual
-   *        circumstances. There may still be tasks on the task queue
-   *        corresponding to a non-completed pipeline. These tasks must be
-   *        manually deleted through the App Engine admin console.
-   * @param async If this parameter is {@code true} then instead of performing
-   *        the delete operation synchronously, this method will enqueue a task
-   *        to perform the operation.
+   * @param force          If this parameter is not {@code true} then this method will
+   *                       throw an {@link IllegalStateException} if the specified pipeline is
+   *                       has not already completed or been stopped or aborted. Invoking this
+   *                       method with {@code force = true} should only be done in unusual
+   *                       circumstances. There may still be tasks on the task queue
+   *                       corresponding to a non-completed pipeline. These tasks must be
+   *                       manually deleted through the App Engine admin console.
    * @throws NoSuchObjectException If {@code force = false} and the framework
-   *         cannot find a pipeline with the given identifier. Set {@code force
-   *         = true} in order to clean up a corrupt datastore.
+   *                               cannot find a pipeline with the given identifier. Set {@code force
+   *                               = true} in order to clean up a corrupt datastore.
    * @throws IllegalStateException If {@code force = false} and the specified
-   *         Pipeline is still running
+   *                               Pipeline is still running
    */
-  void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
+  void deletePipelineRecords(String pipelineHandle, boolean force)
       throws NoSuchObjectException, IllegalStateException;
 
   /**

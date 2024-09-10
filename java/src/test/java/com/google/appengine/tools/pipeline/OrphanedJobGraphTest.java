@@ -15,6 +15,7 @@ import com.google.apphosting.api.ApiProxy;
 
 import lombok.AllArgsConstructor;
 
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +32,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
   public void setUp() throws Exception {
     GeneratorJob.runCount.set(0);
     ChildJob.runCount.set(0);
-    SupplyPromisedValueRunnable.orphanedObjectExcetionCount.set(0);
+    SupplyPromisedValueRunnable.orphanedObjectExceptionCount.set(0);
   }
 
   /**
@@ -134,10 +135,10 @@ public class OrphanedJobGraphTest extends PipelineTest {
     if (usePromisedValue) {
       // If we are using promised-value activation then an
       // OrphanedObjectException should have been caught at least twice.
-      int orphanedObjectExcetionCount =
-          SupplyPromisedValueRunnable.orphanedObjectExcetionCount.get();
-      assertTrue(orphanedObjectExcetionCount  >= 2, "Was expecting orphanedObjectExcetionCount to be more than one, but it was "
-        + orphanedObjectExcetionCount);
+      int orphanedObjectExceptionCount =
+          SupplyPromisedValueRunnable.orphanedObjectExceptionCount.get();
+      assertTrue(orphanedObjectExceptionCount  >= 2, "Was expecting orphanedObjectExceptionCount to be more than one, but it was "
+        + orphanedObjectExceptionCount);
     }
 
     // Now delete the whole Pipeline
@@ -176,10 +177,9 @@ public class OrphanedJobGraphTest extends PipelineTest {
       }
       Value<Integer> dummyValue;
       if (usePromise) {
-        PipelineService pipelineService = PipelineServiceFactory.newPipelineService(getPipelineBackendOptions());
         PromisedValue<Integer> promisedValue = newPromise();
         (new Thread(new SupplyPromisedValueRunnable(ApiProxy.getCurrentEnvironment(),
-            promisedValue.getHandle(), pipelineService))).start();
+            promisedValue.getHandle(), getPipelineService()))).start();
         dummyValue = promisedValue;
       } else {
         dummyValue = immediate(0);
@@ -208,18 +208,15 @@ public class OrphanedJobGraphTest extends PipelineTest {
    * {@link PipelineService#submitPromisedValue(String, Object)}.
    *
    */
+  @RequiredArgsConstructor
   private static class SupplyPromisedValueRunnable implements Runnable {
 
-    private PipelineService pipelineService;
-    private String promiseHandle;
-    private ApiProxy.Environment apiProxyEnvironment;
-    public static AtomicInteger orphanedObjectExcetionCount = new AtomicInteger(0);
+    private final ApiProxy.Environment apiProxyEnvironment;
+    private final String promiseHandle;
+    private final PipelineService pipelineService;
 
-    public SupplyPromisedValueRunnable(ApiProxy.Environment environment, String promiseHandle, PipelineService pipelineService) {
-      this.promiseHandle = promiseHandle;
-      this.apiProxyEnvironment = environment;
-      this.pipelineService = pipelineService;
-    }
+    public static AtomicInteger orphanedObjectExceptionCount = new AtomicInteger(0);
+
 
     @Override
     public void run() {
@@ -236,7 +233,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
       } catch (NoSuchObjectException e) {
         throw new RuntimeException(e);
       } catch (OrphanedObjectException f) {
-        orphanedObjectExcetionCount.incrementAndGet();
+        orphanedObjectExceptionCount.incrementAndGet();
       }
     }
   }

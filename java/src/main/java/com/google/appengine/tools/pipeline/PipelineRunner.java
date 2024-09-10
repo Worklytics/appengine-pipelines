@@ -1,21 +1,38 @@
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
+import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.util.Pair;
 
+import java.util.Iterator;
 import java.util.Set;
 
 /**
  * represents component that executes a Pipeline
  *
- * TODO: rename to PipelineLauncher (analogue to Spring Batch JobLauncher)?
- *  - or PipelineRepository? kinda more like that ...
+ * in theory, can be private to Pipelines? (not something people launhcing jobs actually need)
+ *
+ * TODO: rename to PipelineRepository (analogue to Spring Batch PipelineRepository)?
  */
 public interface PipelineRunner {
+
+  /**
+   * Returns the state of the job with the given ID.  Returns null if no such
+   * job exists.
+   */
+  ShardedJobState getJobState(String jobId);
+
+  /**
+   * Returns the tasks associated with this ShardedJob.
+   */
+  Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state);
 
   /**
    * @return options necessary to reconstruct this runner via PipelineRunnerFactory
@@ -97,18 +114,23 @@ public interface PipelineRunner {
    * Delete all data store entities corresponding to the given pipeline.
    *
    * @param pipelineHandle The handle of the pipeline to be deleted
-   * @param force If this parameter is not {@code true} then this method will
-   *        throw an {@link IllegalStateException} if the specified pipeline is
-   *        not in the {@link JobRecord.State#FINALIZED} or {@link JobRecord.State#STOPPED} state.
-   * @param async If this parameter is {@code true} then instead of performing
-   *        the delete operation synchronously, this method will enqueue a task
-   *        to perform the operation.
+   * @param force          If this parameter is not {@code true} then this method will
+   *                       throw an {@link IllegalStateException} if the specified pipeline is
+   *                       not in the {@link JobRecord.State#FINALIZED} or {@link JobRecord.State#STOPPED} state.
    * @throws NoSuchObjectException If there is no Job with the given key.
    * @throws IllegalStateException If {@code force = false} and the specified
-   *         pipeline is not in the {@link JobRecord.State#FINALIZED} or
-   *         {@link JobRecord.State#STOPPED} state.
+   *                               pipeline is not in the {@link JobRecord.State#FINALIZED} or
+   *                               {@link JobRecord.State#STOPPED} state.
    */
-   void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
+   void deletePipelineRecords(String pipelineHandle, boolean force)
     throws NoSuchObjectException, IllegalStateException;
 
+
+  /**
+   * Process an incoming task received from the App Engine task queue.
+   *
+   * @param task The task to be processed.
+   *
+   */
+   void processTask(Task task);
 }

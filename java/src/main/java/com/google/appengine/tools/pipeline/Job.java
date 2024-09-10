@@ -14,6 +14,8 @@
 
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
+import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.FutureValueImpl;
@@ -21,8 +23,10 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.PromisedValueImpl;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
+import com.google.common.base.Preconditions;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 
 import java.io.Serializable;
@@ -133,16 +137,47 @@ public abstract class Job<E> implements Serializable {
   /*
    * See the <a href="http://goto/java_cascade_user_guide">user's guide</a> for more information.
    */
-
   private static final long serialVersionUID = 1L;
 
   //TODO: setter should ONLY be used from futureCall/PipelineManager::startNewPipeline
   @Getter @Setter
   private PipelineBackEnd.Options pipelineBackendOptions;
 
+  // These setters will be invoked by reflection from PipelineManager
+  // NOTE: need to specify param as concrete type not interface, or reflection won't match it.
+  // eg, `PipelineManager` not interface `PipelineRunner`
+
   // only available when running job - better way to hide this?
-  @Getter
-  transient PipelineManager pipelineRunner;
+  @NonNull @Setter(AccessLevel.PRIVATE)
+  transient PipelineManager pipelineManager;
+  // only available when running job - better way to hide this?
+  @NonNull
+  transient PipelineService pipelineService;
+
+  //NOTE: bc invoked via reflection, MUST use concrete type, not interface
+  private void setPipelineService(PipelineServiceImpl pipelineService) {
+    this.pipelineService = pipelineService;
+  }
+
+  // only available when running job - better way to hide this?
+
+  @NonNull @Getter @Setter(AccessLevel.PRIVATE)
+  transient ShardedJobRunner shardedJobRunner;
+
+  public PipelineRunner getPipelineRunner() {
+    Preconditions.checkNotNull(this.pipelineManager, "PipelineRunner not set");
+    return this.pipelineManager;
+  }
+
+  public PipelineOrchestrator getPipelineOrchestrator() {
+    Preconditions.checkNotNull(this.pipelineManager, "PipelineOrchestrator not set");
+    return this.pipelineManager;
+  }
+
+  public PipelineService getPipelineService() {
+    Preconditions.checkNotNull(this.pipelineService, "PipelineService not set");
+    return this.pipelineService;
+  }
 
   // only available when running job - better way to hide this?
   // probably move to some sort of execution context?
@@ -175,13 +210,7 @@ public abstract class Job<E> implements Serializable {
     this.currentRunGUID = guid;
   }
 
-  // This method will be invoked by reflection from PipelineManager
-  // NOTE: need to specify param as concrete type (PipelineManager) not interface (PipelineRunner), or reflection won't
-  // match it
-  @SuppressWarnings("unused")
-  private void setPipelineRunner(PipelineManager pipelineRunner) {
-    this.pipelineRunner = pipelineRunner;
-  }
+
 
   /**
    * This is the non-type-safe version of the {@code futureCall()} family of
@@ -208,7 +237,7 @@ public abstract class Job<E> implements Serializable {
       Object... params) {
     jobInstance.setPipelineBackendOptions(this.getPipelineBackendOptions());
     JobRecord childJobRecord =
-      pipelineRunner.registerNewJobRecord(updateSpec, settings, thisJobRecord, currentRunGUID, jobInstance, params);
+      getPipelineRunner().registerNewJobRecord(updateSpec, settings, thisJobRecord, currentRunGUID, jobInstance, params);
     thisJobRecord.appendChildKey(childJobRecord.getKey());
     return new FutureValueImpl<>(childJobRecord.getOutputSlotInflated());
   }
@@ -404,14 +433,14 @@ public abstract class Job<E> implements Serializable {
   @Deprecated
   public <F> PromisedValue<F> newPromise(Class<F> klass) {
     PromisedValueImpl<F> promisedValue =
-        new PromisedValueImpl<>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID, pipelineRunner.getSerializationStrategy());
+        new PromisedValueImpl<>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID, getPipelineRunner().getSerializationStrategy());
     updateSpec.getNonTransactionalGroup().includeSlot(promisedValue.getSlot());
     return promisedValue;
   }
 
   public <F> PromisedValue<F> newPromise() {
     PromisedValueImpl<F> promisedValue =
-        new PromisedValueImpl<F>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID, pipelineRunner.getSerializationStrategy());
+        new PromisedValueImpl<F>(getPipelineKey(), thisJobRecord.getKey(), currentRunGUID, getPipelineRunner().getSerializationStrategy());
     updateSpec.getNonTransactionalGroup().includeSlot(promisedValue.getSlot());
     return promisedValue;
   }
@@ -574,7 +603,7 @@ public abstract class Job<E> implements Serializable {
   }
 
   /**
-   * Allows a job to set it's  status console URL.
+   * Allows a job to set its  status console URL.
    * The Pipeline UI displays the page at this URL in an iframe.
    *
    * To set this before the job runs use {@link JobSetting.StatusConsoleUrl}

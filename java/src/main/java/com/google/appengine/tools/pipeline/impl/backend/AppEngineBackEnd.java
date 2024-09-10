@@ -23,6 +23,7 @@ import com.github.rholder.retry.*;
 
 import com.google.appengine.tools.pipeline.impl.util.TestUtils;
 import com.google.auth.Credentials;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
@@ -35,7 +36,6 @@ import com.google.appengine.tools.pipeline.impl.model.PipelineModelObject;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.model.ShardedValue;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
-import com.google.appengine.tools.pipeline.impl.tasks.DeletePipelineTask;
 import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
@@ -50,6 +50,8 @@ import com.google.datastore.v1.QueryResultBatch;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import lombok.extern.java.Log;
 
 import java.io.IOException;
 import java.util.*;
@@ -61,12 +63,14 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@Log
 @RequiredArgsConstructor
 public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy {
 
@@ -116,7 +120,15 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
     private DatastoreOptions datastoreOptions;
 
-    //TODO: add any non-default options of Datastore, etc that we need to reconstitute
+    @SneakyThrows
+    public static AppEngineBackEnd.Options defaults() {
+      return Options.builder()
+        .datastoreOptions(DatastoreOptions.getDefaultInstance())
+        .credentials(GoogleCredentials.getApplicationDefault())
+        .projectId(DatastoreOptions.getDefaultProjectId())
+        .build();
+    }
+
   }
 
   @Override
@@ -136,10 +148,14 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private void putAll(DatastoreBatchWriter batchWriter, Collection<? extends PipelineModelObject> objects) {
     objects.stream()
       .map(PipelineModelObject::toEntity)
+      //extra logging for debug
+      //.peek(e -> logger.info("putting entity: " + e.getKey().toString()))
       .forEach(batchWriter::putWithDeferredIdAllocation);
   }
 
 
+
+  // transactional save all
   private void saveAll(Transaction txn, UpdateSpec.Group group) {
     putAll(txn, group.getBarriers());
     putAll(txn, group.getJobs());
@@ -148,14 +164,32 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     putAll(txn, group.getFailureRecords());
   }
 
-  private void saveAll(UpdateSpec.Group group) {
-    Batch batch = datastore.newBatch();
-    putAll(batch, group.getBarriers());
-    putAll(batch, group.getJobs());
-    putAll(batch, group.getSlots());
-    putAll(batch, group.getJobInstanceRecords());
-    putAll(batch, group.getFailureRecords());
-    batch.submit();
+  /**
+   * non-transactional save all
+   * @param group
+   * @throws DatastoreException if any datastore failure
+   * @return generated keys, if any
+   */
+  private List<Key> saveAll(UpdateSpec.Group group) {
+    // collect into batches of 500
+    List<PipelineModelObject> toSave = Streams.concat(group.getBarriers().stream(),
+      group.getJobs().stream(),
+      group.getSlots().stream(),
+      group.getJobInstanceRecords().stream(),
+      group.getFailureRecords().stream()
+    ).toList();
+
+    List<Key> keys = new ArrayList<>(toSave.size());
+    final int MAX_BATCH_SIZE = 500; // limit from Datastore API
+    int batchIndex = 0;
+    do {
+      Batch batch = datastore.newBatch();
+      int batchOffset = batchIndex * MAX_BATCH_SIZE;
+      putAll(batch, toSave.subList(batchOffset, batchOffset + Math.min(MAX_BATCH_SIZE, toSave.size() - batchOffset)));
+      keys.addAll(batch.submit().getGeneratedKeys());
+    } while (++batchIndex * MAX_BATCH_SIZE < toSave.size());
+
+    return keys;
   }
 
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
@@ -174,6 +208,12 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
             throw e;
           }
         }
+        if (entity == null) {
+          //don't believe new datastore lib throws exceptions here anymore
+          throw new RuntimeException(
+            "Fatal Pipeline corruption error. No JobRecord found with key = " + jobKey);
+        }
+
         JobRecord jobRecord = new JobRecord(entity);
         JobRecord.State state = jobRecord.getState();
         boolean stateIsExpected = false;
@@ -203,6 +243,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
           // enqueue fails then the FanoutTaskRecord is orphaned. But
           // the Pipeline is still consistent.
           datastore.put(ftRecord.toEntity());
+          ftRecord.toEntity().getKey().getKind();
           FanoutTask fanoutTask = new FanoutTask(ftRecord.getKey(), queueSettings);
 
           //TODO: should this enqueue be in context of transaction??
@@ -470,7 +511,10 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       public Map<Key, Entity> call() {
         //NOTE: this read is strongly consistent now, bc backed by Firestore in Datastore-mode; this library was
         // designed thinking this read was only event
-        return keys.stream().parallel().map(datastore::get)
+        return keys.stream()
+          .parallel()
+          .map(datastore::get)
+          .filter(Objects::nonNull)
           .collect(Collectors.toMap(Entity::getKey, Function.identity()));
       }
     });
@@ -634,9 +678,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   private void deleteAll(final String kind, final Key rootJobKey) {
     logger.info("Deleting all " + kind + " with rootJobKey=" + rootJobKey);
-
-
-
     tryFiveTimes(new Operation<Void>("delete") {
       @Override
       public Void call() {
@@ -676,26 +717,21 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
    * Delete all datastore entities corresponding to the given pipeline.
    *
    * @param rootJobKey The root job key identifying the pipeline
-   * @param force If this parameter is not {@code true} then this method will
-   *        throw an {@link IllegalStateException} if the specified pipeline is not in the
-   *        {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED} or
-   *        {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED} state.
-   * @param async If this parameter is {@code true} then instead of performing
-   *        the delete operation synchronously, this method will enqueue a task
-   *        to perform the operation.
+   * @param force      If this parameter is not {@code true} then this method will
+   *                   throw an {@link IllegalStateException} if the specified pipeline is not in the
+   *                   {@link JobRecord.State#FINALIZED} or
+   *                   {@link JobRecord.State#STOPPED} state.
    * @throws IllegalStateException If {@code force = false} and the specified
-   *         pipeline is not in the
-   *         {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED} or
-   *         {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED} state.
+   *                               pipeline is not in the
+   *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED} or
+   *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED} state.
    */
   @Override
-  public void deletePipeline(Key rootJobKey, boolean force, boolean async)
+  public void deletePipeline(Key rootJobKey, boolean force)
       throws IllegalStateException {
-    QueueSettings queueSettings = new QueueSettings();
     if (!force) {
       try {
         JobRecord rootJobRecord = queryJob(rootJobKey, JobRecord.InflationType.NONE);
-        queueSettings = rootJobRecord.getQueueSettings();
         switch (rootJobRecord.getState()) {
           case FINALIZED:
           case STOPPED:
@@ -706,13 +742,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       } catch (NoSuchObjectException ex) {
         // Consider missing rootJobRecord as a non-active job and allow further delete
       }
-    }
-    if (async) {
-      // We do all the checks above before bothering to enqueue a task.
-      // They will have to be done again when the task is processed.
-      DeletePipelineTask task = new DeletePipelineTask(rootJobKey, force, queueSettings);
-      taskQueue.enqueue(task);
-      return;
     }
     deleteAll(JobRecord.DATA_STORE_KIND, rootJobKey);
     deleteAll(Slot.DATA_STORE_KIND, rootJobKey);

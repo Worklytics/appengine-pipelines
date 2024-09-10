@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.di.DIContainer;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import dagger.Component;

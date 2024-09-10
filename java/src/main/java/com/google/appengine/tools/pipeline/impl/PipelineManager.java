@@ -15,9 +15,15 @@
 package com.google.appengine.tools.pipeline.impl;
 
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
+import com.google.appengine.tools.mapreduce.*;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.pipeline.*;
+import com.google.appengine.tools.pipeline.di.DaggerMultiTenantComponent;
+import com.google.appengine.tools.pipeline.di.MultiTenantComponent;
+import com.google.appengine.tools.pipeline.di.TenantModule;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -46,15 +52,17 @@ import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
 import lombok.AllArgsConstructor;
+import lombok.NonNull;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
@@ -64,16 +72,26 @@ import java.util.logging.Level;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  *
- * TODO: make this 1) interface, 2) inject the implementation?
- *
+ * TODO: this is implementation; NOT really part of public API of pkg, although we depend on it somewhat.
  */
-
-@AllArgsConstructor
+@AllArgsConstructor(onConstructor_ = @Inject)
 @Log
 public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
-  @Inject
-  PipelineBackEnd backEnd;
+  public static final String DEFAULT_QUEUE_NAME = "default";
+
+  final Provider<PipelineService> pipelineServiceProvider;
+  final ShardedJobRunner shardedJobRunner;
+  final PipelineBackEnd backEnd;
+
+  public static PipelineManager getInstance(AppEngineBackEnd.Options options) {
+    MultiTenantComponent multiTenantComponent =  DaggerMultiTenantComponent.create();
+    return multiTenantComponent.clientComponent(new TenantModule(new AppEngineBackEnd(options))).pipelineManager();
+  }
+
+  public static PipelineManager getInstance() {
+    return getInstance(AppEngineBackEnd.Options.defaults());
+  }
 
   PipelineBackEnd.Options getBackendOptions() {
     return backEnd.getOptions();
@@ -115,6 +133,25 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     // Save the Pipeline model objects and enqueue the tasks that start the Pipeline executing.
     backEnd.save(updateSpec, jobRecord.getQueueSettings());
     return jobRecord.getKey().toUrlSafe();
+  }
+
+  @Override
+  public <T extends IncrementalTask> void startJob(
+    String jobId,
+    List<? extends T> initialTasks,
+    ShardedJobController<T> controller,
+    ShardedJobSettings settings) {
+    shardedJobRunner.startJob(jobId, initialTasks, controller, settings);
+  }
+
+  @Override
+  public void abortJob(String jobId) {
+    shardedJobRunner.abortJob(jobId);
+  }
+
+  @Override
+  public boolean cleanupJob(String jobId) {
+    return shardedJobRunner.cleanupJob(jobId);
   }
 
   @Override
@@ -179,6 +216,17 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
     return jobRecord;
   }
+
+  @Override
+  public ShardedJobState getJobState(String jobId) {
+    return shardedJobRunner.getJobState(jobId);
+  }
+
+  @Override
+  public Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state) {
+    return shardedJobRunner.lookupTasks(state.getJobId(), state.getTotalTaskCount(), true);
+  }
+
 
   /**
    * Given a {@code Value} and a {@code Barrier}, we add one or more slots to
@@ -328,6 +376,24 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     backEnd.save(updateSpec, jobRecord.getQueueSettings());
   }
 
+  @Override
+  public <I, O, R> String start(MapSpecification<I, O, R> specification, MapSettings settings) {
+    if (settings.getWorkerQueueName() == null) {
+      settings = new MapSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
+    }
+    return startNewPipeline(settings.toJobSettings(), new MapJob<>(specification, settings));
+  }
+
+  @Override
+  public <I, K, V, O, R> String start(
+    @NonNull MapReduceSpecification<I, K, V, O, R> specification, @NonNull MapReduceSettings settings) {
+    if (settings.getWorkerQueueName() == null) {
+      settings = new MapReduceSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
+    }
+    return startNewPipeline(settings.toJobSettings(), new MapReduceJob<>(specification, settings));
+  }
+
+
 
   public void cancelJob(String jobHandle) throws NoSuchObjectException {
     checkNonEmpty(jobHandle, "jobHandle");
@@ -345,22 +411,19 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    * Delete all data store entities corresponding to the given pipeline.
    *
    * @param pipelineHandle The handle of the pipeline to be deleted
-   * @param force If this parameter is not {@code true} then this method will
-   *        throw an {@link IllegalStateException} if the specified pipeline is
-   *        not in the {@link State#FINALIZED} or {@link State#STOPPED} state.
-   * @param async If this parameter is {@code true} then instead of performing
-   *        the delete operation synchronously, this method will enqueue a task
-   *        to perform the operation.
+   * @param force          If this parameter is not {@code true} then this method will
+   *                       throw an {@link IllegalStateException} if the specified pipeline is
+   *                       not in the {@link State#FINALIZED} or {@link State#STOPPED} state.
    * @throws NoSuchObjectException If there is no Job with the given key.
    * @throws IllegalStateException If {@code force = false} and the specified
-   *         pipeline is not in the {@link State#FINALIZED} or
-   *         {@link State#STOPPED} state.
+   *                               pipeline is not in the {@link State#FINALIZED} or
+   *                               {@link State#STOPPED} state.
    */
-  public void deletePipelineRecords(String pipelineHandle, boolean force, boolean async)
+  public void deletePipelineRecords(String pipelineHandle, boolean force)
       throws NoSuchObjectException, IllegalStateException {
     checkNonEmpty(pipelineHandle, "pipelineHandle");
-    log.info("pipelineHandle: " + pipelineHandle + ", force: " + force + ", async: " + async);
-    backEnd.deletePipeline(JobRecord.keyFromPipelineHandle(pipelineHandle), force, async);
+    log.info("pipelineHandle: " + pipelineHandle + ", force: " + force);
+    backEnd.deletePipeline(JobRecord.keyFromPipelineHandle(pipelineHandle), force);
   }
 
   /**
@@ -506,8 +569,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
         case DELETE_PIPELINE:
           DeletePipelineTask deletePipelineTask = (DeletePipelineTask) task;
           try {
-            backEnd.deletePipeline(
-                deletePipelineTask.getRootJobKey(), deletePipelineTask.shouldForce(), false);
+            backEnd.deletePipeline(deletePipelineTask.getRootJobKey(), deletePipelineTask.shouldForce());
           } catch (Exception e) {
             log.log(Level.WARNING, "DeletePipeline operation failed.", e);
           }
@@ -794,7 +856,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     }
 
     Job<?> job = jobExecutionRecord.getJobInstanceDeserialized();
-    invokePrivateJobMethod("setPipelineRunner", job, this);
+    invokePrivateJobMethod("setPipelineManager", job, this);
+    invokePrivateJobMethod("setPipelineService", job, (PipelineService) pipelineServiceProvider.get());
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     setJobRecord(job, jobRecord);
     String currentRunGUID = GUIDGenerator.nextGUID();

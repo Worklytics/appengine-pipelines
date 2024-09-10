@@ -77,11 +77,11 @@ public class DIUtil {
 	 * - Module has a static instance of the graph it builds and provided by method of signature
 	 *   public static ObjectGraph getObjectGraph()
 	 *
-	 * @param componentClass module fully qualified name
+	 * @param componentClass component fully qualified name
 	 * @return the object graph for that module
 	 * @throws RuntimeException if the class is not a Dagger Module or doesn't meet the requirements
 	 */
-	public static Object getFromComponentClass(@NonNull Class<?> componentClass) {
+	 static Object getFromComponentClass(@NonNull Class<?> componentClass) {
     synchronized (lock) {
       if (overridden && overriddenComponentCache.containsKey(componentClass)) {
         return overriddenComponentCache.get(componentClass);

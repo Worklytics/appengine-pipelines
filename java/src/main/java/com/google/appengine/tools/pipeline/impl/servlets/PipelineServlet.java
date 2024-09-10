@@ -14,21 +14,19 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import com.google.appengine.tools.pipeline.DaggerDefaultContainer;
-import com.google.appengine.tools.pipeline.PipelineRunner;
-import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
-import lombok.AllArgsConstructor;
-import lombok.SneakyThrows;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 
-import javax.inject.Inject;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import lombok.Setter;
 
 
 /**
@@ -39,11 +37,59 @@ import jakarta.servlet.http.HttpServletResponse;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-@AllArgsConstructor(onConstructor_ = @Inject)
 @SuppressWarnings("serial")
 public class PipelineServlet extends HttpServlet {
 
   public static final String BASE_URL_PROPERTY = "com.google.appengine.tools.pipeline.BASE_URL";
+
+  @Setter(onMethod_ = @VisibleForTesting)
+  JobRunServiceComponent component;
+
+  @Override
+  public void init() throws ServletException {
+    super.init();
+    component = DaggerJobRunServiceComponent.create();
+  }
+
+  @Override
+  public void doPost(HttpServletRequest req, HttpServletResponse resp)
+      throws ServletException, IOException {
+    doGet(req, resp);
+  }
+
+  @Override
+  public void doGet(HttpServletRequest req, HttpServletResponse resp)
+      throws ServletException, IOException {
+
+    Pair<String, RequestType> pair = parseRequestType(req);
+    RequestType requestType = pair.getSecond();
+    String path = pair.getFirst();
+    switch (requestType) {
+      case HANDLE_TASK:
+        component.taskHandler().doPost(req);
+        break;
+      case GET_JSON:
+        component.jsonTreeHandler().doGet(req, resp);
+        break;
+      case GET_JSON_LIST:
+        component.jsonListHandler().doGet(req, resp);
+        break;
+      case GET_JSON_CLASS_FILTER:
+        component.jsonClassFilterHandler().doGet(req, resp);
+        break;
+      case ABORT_JOB:
+        component.abortJobHandler().doGet(req, resp);
+        break;
+      case DELETE_JOB:
+        component.deleteJobHandler().doGet(req, resp);
+        break;
+      case HANDLE_STATIC:
+        StaticContentHandler.doGet(resp, path);
+        break;
+      default:
+        throw new ServletException("Unknown request type: " + requestType);
+    }
+  }
 
   /**
    * Returns the Pipeline's BASE URL.
@@ -93,68 +139,5 @@ public class PipelineServlet extends HttpServlet {
       }
     }
     return Pair.of(path, requestType);
-  }
-
-  private final AbortJobHandler abortJobHandler;
-  private final DeleteJobHandler deleteJobHandler;
-  private final JsonClassFilterHandler jsonClassFilterHandler;
-  private final JsonListHandler jsonListHandler;
-  private final JsonTreeHandler jsonTreeHandler;
-  private final TaskHandler taskHandler;
-  private final PipelineRunner pipelineManager;
-
-  @SneakyThrows
-  @Override
-  public void init() throws ServletException {
-    super.init();
-
-    // TODO: fix this? may have second copy IF user overrides; OK?
-    if (pipelineManager == null) {
-      if (DIUtil.isInjectable(this)) {
-        DIUtil.inject(this);
-      } else {
-        //rely on a default
-        DIUtil.inject(DaggerDefaultContainer.class, this);
-      }
-    }
-  }
-
-  @Override
-  public void doPost(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-    doGet(req, resp);
-  }
-
-  @Override
-  public void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-    Pair<String, RequestType> pair = parseRequestType(req);
-    RequestType requestType = pair.getSecond();
-    String path = pair.getFirst();
-    switch (requestType) {
-      case HANDLE_TASK:
-        taskHandler.doPost(req);
-        break;
-      case GET_JSON:
-        jsonTreeHandler.doGet(req, resp);
-        break;
-      case GET_JSON_LIST:
-        jsonListHandler.doGet(req, resp);
-        break;
-      case GET_JSON_CLASS_FILTER:
-        jsonClassFilterHandler.doGet(req, resp);
-        break;
-      case ABORT_JOB:
-        abortJobHandler.doGet(req, resp);
-        break;
-      case DELETE_JOB:
-        deleteJobHandler.doGet(req, resp);
-        break;
-      case HANDLE_STATIC:
-        StaticContentHandler.doGet(resp, path);
-        break;
-      default:
-        throw new ServletException("Unknown request type: " + requestType);
-    }
   }
 }

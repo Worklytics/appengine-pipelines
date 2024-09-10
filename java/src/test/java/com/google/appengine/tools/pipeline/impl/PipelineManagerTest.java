@@ -2,7 +2,6 @@ package com.google.appengine.tools.pipeline.impl;
 
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
-import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.cloud.datastore.Key;
@@ -67,7 +66,7 @@ class PipelineManagerTest extends PipelineTest {
     Job<String> jobInstance = new NoopJob();
     String pipelineId = pipelineManager.startNewPipeline(settings, jobInstance);
 
-    pipelineManager.deletePipelineRecords(pipelineId, true, false);
+    pipelineManager.deletePipelineRecords(pipelineId, true);
 
     try {
       pipelineManager.getJob(pipelineId);

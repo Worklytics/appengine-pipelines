@@ -9,7 +9,7 @@
     private static final String PIPELINE_ID_PARAM_NAME = "pipelineId";
     private static final String CLEANUP_PIPELINE_ID_PARAM_NAME = "cleanupId";
 
-    private Integer getInteger(String paramName, HttpServletRequest request) {
+    private Integer getInteger(String paramName, javax.servlet.http.HttpServletRequest request) {
         try {
             return Integer.parseInt((String) request.getParameter(paramName));
         } catch (Exception e) {
@@ -41,18 +41,18 @@
     Integer y = getInteger(Y_PARAM_NAME, request);
     String pipelineId = request.getParameter(PIPELINE_ID_PARAM_NAME);
     String cleanupId = request.getParameter(CLEANUP_PIPELINE_ID_PARAM_NAME);
-    PipelineService service = PipelineServiceFactory.newPipelineService();
-    if (null != cleanupId) {
-        service.deletePipelineRecords(cleanupId);
-    }
+//    PipelineService service = PipelineServiceFactory.newPipelineService();
+//    if (null != cleanupId) {
+//        service.deletePipelineRecords(cleanupId);
+//    }
     if (null != x && null != y && x > 0 && y > 0) {
 %>
 <H4>Calculating the GCD of <%=x%> and <%=y%>...</H4>
 <%
-    if (null == pipelineId) {
-        pipelineId = service.startNewPipeline(new GCDJob(), x, y);
-    }
-    JobInfo jobInfo = service.getJobInfo(pipelineId);
+//    if (null == pipelineId) {
+//        pipelineId = service.startNewPipeline(new GCDJob(), x, y);
+//    }
+    JobInfo jobInfo = null; //service.getJobInfo(pipelineId);
     switch (jobInfo.getJobState()) {
         case COMPLETED_SUCCESSFULLY:
 %>

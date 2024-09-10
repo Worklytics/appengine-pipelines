@@ -45,12 +45,12 @@ import lombok.extern.java.Log;
 public class Slot extends PipelineModelObject {
 
   public static final String DATA_STORE_KIND = "pipeline-slot";
+
   private static final String FILLED_PROPERTY = "filled";
   private static final String VALUE_PROPERTY = "value";
   private static final String WAITING_ON_ME_PROPERTY = "waitingOnMe";
   private static final String FILL_TIME_PROPERTY = "fillTime";
   private static final String SOURCE_JOB_KEY_PROPERTY = "sourceJob";
-  private static final String IS_SHARDED_PROPERTY = "isSharded";
 
   // persistent
   private boolean filled;

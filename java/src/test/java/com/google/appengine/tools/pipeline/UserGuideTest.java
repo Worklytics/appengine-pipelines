@@ -20,8 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
+import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
 import com.google.appengine.tools.pipeline.demo.UserGuideExamples.ComplexJob;
 
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -53,6 +55,11 @@ public class UserGuideTest {
     this.pipelineService = pipelineService;
   }
 
+  @BeforeEach
+  public void setUp(PipelineManager pipelineManager) {
+    TestingTaskQueueCallback.pipelineManager = pipelineManager;
+  }
+
   @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
@@ -71,7 +78,7 @@ public class UserGuideTest {
     if (JobInfo.State.COMPLETED_SUCCESSFULLY == state) {
       System.out.println("The output is " + jobInfo.getOutput());
     }
-    int output = (Integer) waitForJobToComplete(pipelineId);
+    int output = waitForJobToComplete(pipelineId);
     assertEquals(((x - y) * (x - z)) - 2, output);
   }
 

@@ -14,7 +14,11 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.appengine.tools.pipeline.PipelineRunner;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
+import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.apphosting.api.ApiProxy;
@@ -23,36 +27,40 @@ import lombok.AllArgsConstructor;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.Properties;
-import java.util.logging.Logger;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import lombok.extern.java.Log;
+
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /**
  * A ServletHelper that handles all requests from the task queue.
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@Singleton
+@Log
 @AllArgsConstructor(onConstructor_ = @Inject)
 public class TaskHandler {
 
-  private static Logger logger = Logger.getLogger(TaskHandler.class.getName());
+  final JobRunServiceComponent component;
+  final RequestUtils requestUtils;
 
   public static final String PATH_COMPONENT = "handleTask";
   public static final String TASK_NAME_REQUEST_HEADER = "X-AppEngine-TaskName";
   public static final String TASK_RETRY_COUNT_HEADER = "X-AppEngine-TaskRetryCount";
   public static final String TASK_QUEUE_NAME_HEADER = "X-AppEngine-QueueName";
 
-  @Inject
-  PipelineManager pipelineManager;
-
   public static String handleTaskUrl() {
     return PipelineServlet.baseUrl() + PATH_COMPONENT;
   }
 
+
   public void doPost(HttpServletRequest req) throws ServletException {
     Task task = reconstructTask(req);
+
     int retryCount;
     try {
       retryCount = req.getIntHeader(TASK_RETRY_COUNT_HEADER);
@@ -60,9 +68,13 @@ public class TaskHandler {
       retryCount = -1;
     }
     try {
-      pipelineManager.processTask(task);
+      StepExecutionComponent stepExecutionComponent =
+        component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+      PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
+
+      pipelineRunner.processTask(task);
     } catch (RuntimeException e) {
-      StringUtils.logRetryMessage(logger, task, retryCount, e);
+      StringUtils.logRetryMessage(log, task, retryCount, e);
       throw new ServletException(e);
     }
   }
