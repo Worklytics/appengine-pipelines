@@ -14,6 +14,7 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.PipelineService;
@@ -98,6 +99,10 @@ public abstract class EndToEndTestCase {
   @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
+  }
+
+  public ShardedJobId shardedJobId(String jobId) {
+      return ShardedJobId.of(getDatastore().getOptions().getProjectId(), getDatastore().getOptions().getNamespace(), jobId);
   }
 
   protected List<QueueStateInfo.TaskStateInfo> getTasks() {

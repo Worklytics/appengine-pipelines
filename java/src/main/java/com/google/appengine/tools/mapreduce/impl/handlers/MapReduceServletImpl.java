@@ -10,6 +10,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -115,16 +117,14 @@ public class MapReduceServletImpl {
         return;
       }
       ShardedJobRunner shardedJobRunner = stepExecutionComponent.shardedJobRunner();
-      shardedJobRunner.completeShard(
-              checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
-              checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"));
+      shardedJobRunner.completeShard(getJobId(request), request.getParameter(TASK_ID_PARAM));
     } else if (handler.startsWith(WORKER_PATH)) {
       if (!checkForTaskQueue(request, response)) {
         return;
       }
       ShardedJobRunner shardedJobRunner = stepExecutionComponent.shardedJobRunner();
       shardedJobRunner.runTask(
-        checkNotNull(request.getParameter(JOB_ID_PARAM), "Null job id"),
+        getJobId(request),
         checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"), Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)));
     } else if (handler.startsWith(COMMAND_PATH)) {
       if (!checkForAjax(request, response)) {
@@ -136,6 +136,13 @@ public class MapReduceServletImpl {
           "Received an unknown MapReduce request handler. See logs for more detail.");
     }
   }
+
+  private ShardedJobId getJobId(HttpServletRequest request) {
+    return requestUtils.getParam(request, JOB_ID_PARAM).map(ShardedJobId::fromEncodedString)
+      .orElseThrow(() -> new IllegalArgumentException("Missing " + JOB_ID_PARAM + " parameter"));
+  }
+
+
 
   /**
    * Checks to ensure that the current request was sent via an AJAX request.

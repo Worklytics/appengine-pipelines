@@ -29,7 +29,7 @@ public class ShardedJob<T extends IncrementalTask> extends Job0<Void> {
 
   private static final long serialVersionUID = 1L;
 
-  @NonNull private final String jobId;
+  @NonNull private final ShardedJobId jobId;
   @NonNull private final List<? extends T> workers;
   @NonNull private final ShardedJobController<T> controller;
   @NonNull private final ShardedJobSettings settings;

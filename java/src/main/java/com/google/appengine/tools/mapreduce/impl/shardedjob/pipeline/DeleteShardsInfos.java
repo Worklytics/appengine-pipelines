@@ -6,6 +6,7 @@ import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardRetryState;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.pipeline.Job0;
@@ -28,7 +29,7 @@ public class DeleteShardsInfos extends Job0<Void> {
   private static final long serialVersionUID = -4342214189527672009L;
 
   private final DatastoreOptions datastoreOptions;
-  private final String jobId;
+  private final ShardedJobId jobId;
   private final int start;
   private final int end;
 

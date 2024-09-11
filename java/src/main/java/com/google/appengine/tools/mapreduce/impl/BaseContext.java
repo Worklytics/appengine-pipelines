@@ -8,6 +8,7 @@ import com.google.appengine.tools.mapreduce.Context;
  */
 public class BaseContext implements Context {
 
+  //q: change this to a ShardedJobId?? why not??
   private final String jobId;
 
   public BaseContext(String jobId) {

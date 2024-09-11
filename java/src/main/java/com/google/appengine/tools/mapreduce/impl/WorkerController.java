@@ -7,6 +7,7 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.WorkerContext;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.OrphanedObjectException;
@@ -31,7 +32,7 @@ public class WorkerController<I, O, R, C extends WorkerContext<O>> extends
   private static final long serialVersionUID = 931651840864967980L;
   private static final Logger log = Logger.getLogger(WorkerController.class.getName());
 
-  @NonNull private final String mrJobId;
+  @NonNull private final ShardedJobId mrJobId;
   @NonNull private final Counters totalCounters;
   @NonNull private final Output<O, R> output;
   @NonNull private final String resultPromiseHandle;
@@ -52,7 +53,7 @@ public class WorkerController<I, O, R, C extends WorkerContext<O>> extends
       outputWriters.add(worker.getOutputWriter());
       counters.add(worker.getContext().getCounters());
     }
-    output.setContext(new BaseContext(mrJobId));
+    output.setContext(new BaseContext(mrJobId.getJobId()));
     R outputResult;
     try {
       outputResult = output.finish(outputWriters.build());

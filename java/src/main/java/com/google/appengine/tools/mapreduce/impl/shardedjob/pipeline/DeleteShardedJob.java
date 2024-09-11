@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.pipeline.Job;
 import com.google.cloud.datastore.DatastoreOptions;
 
@@ -13,7 +14,7 @@ public class DeleteShardedJob extends AbstractShardedJob {
 
   private final DatastoreOptions datastoreOptions;
 
-  public DeleteShardedJob(DatastoreOptions datastoreOptions, String jobId, int taskCount) {
+  public DeleteShardedJob(DatastoreOptions datastoreOptions, ShardedJobId jobId, int taskCount) {
     super(jobId, taskCount);
     this.datastoreOptions = datastoreOptions;
   }

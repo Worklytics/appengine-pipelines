@@ -3,6 +3,7 @@ package com.google.appengine.tools.pipeline;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import lombok.NonNull;
 
@@ -42,7 +43,7 @@ public interface PipelineOrchestrator {
    * @param <T> type of tasks that the job consists of
    */
   <T extends IncrementalTask> void startJob(
-    String jobId,
+    ShardedJobId jobId,
     List<? extends T> initialTasks,
     ShardedJobController<T> controller,
     ShardedJobSettings settings);
@@ -71,12 +72,12 @@ public interface PipelineOrchestrator {
    * Aborts execution of the job with the given ID.  If the job has already
    * finished or does not exist, this is a no-op.
    */
-  void abortJob(String jobId);
+  void abortJob(ShardedJobId jobId);
 
   /**
    * Deletes all data of a completed job with the given ID.
    * Data is being deleted asynchronously.
    * Returns true if job was already deleted or asynchronous task was submitted successfully.
    */
-  boolean cleanupJob(String jobId);
+  boolean cleanupJob(ShardedJobId jobId);
 }

@@ -4,11 +4,7 @@ import static java.util.concurrent.Executors.callable;
 
 import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardRetryState;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
@@ -26,7 +22,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
   private static final long serialVersionUID = 1L;
 
   private final DatastoreOptions datastoreOptions;
-  private final String jobId;
+  private final ShardedJobId jobId;
   private final Status status;
   private final int start;
   private final int end;

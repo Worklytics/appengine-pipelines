@@ -10,6 +10,7 @@ import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.FutureValue;
 import com.google.appengine.tools.pipeline.Job0;
@@ -79,8 +80,8 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
         .setWorkerQueueName(queue)
         .build();
     }
-    String jobId = getJobKey().getName();
-    Context context = new BaseContext(jobId);
+    ShardedJobId jobId = getShardedJobId();
+    Context context = new BaseContext(jobId.getJobId());
     Input<I> input = specification.getInput();
     input.setContext(context);
     List<? extends InputReader<I>> readers;
@@ -116,11 +117,20 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
    * @param ex The cancellation exception
    */
   public Value<MapReduceResult<R>> handleException(CancellationException ex) {
-    String mrJobId = getJobKey().getName();
-    Datastore datastore = DatastoreOptions.getDefaultInstance().toBuilder()
-        .setNamespace(settings.getNamespace()).build().getService();
-    getPipelineOrchestrator().abortJob(mrJobId);
+    getPipelineOrchestrator().abortJob(getShardedJobId());
     return null;
+  }
+
+  /**
+   * @return shardedJobId for this job
+   */
+  private ShardedJobId getShardedJobId() {
+    DatastoreOptions defaultDatastoreOptions = DatastoreOptions.getDefaultInstance();
+
+    return ShardedJobId.of(
+      java.util.Optional.ofNullable(settings.getProjectId()).orElseGet(defaultDatastoreOptions::getProjectId),
+      java.util.Optional.ofNullable(settings.getNamespace()).orElseGet(defaultDatastoreOptions::getNamespace),
+      getJobKey().getName());
   }
 
   public Value<MapReduceResult<R>> handleException(Throwable t) throws Throwable {

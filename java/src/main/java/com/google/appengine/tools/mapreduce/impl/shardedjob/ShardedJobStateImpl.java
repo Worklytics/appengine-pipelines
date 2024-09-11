@@ -32,7 +32,7 @@ import java.util.Date;
 @EqualsAndHashCode
 class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState {
 
-  private final String jobId;
+  private final ShardedJobId shardedJobId;
   private final ShardedJobController<T> controller;
   private final ShardedJobSettings settings;
   private final int totalTaskCount;
@@ -42,17 +42,38 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   private Status status;
 
 
-  public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(String jobId,
-                                                                          ShardedJobController<T> controller, ShardedJobSettings settings, int totalTaskCount,
+  public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(
+                                                                          @NonNull String project,
+                                                                          @NonNull String namespace,
+                                                                          @NonNull String generatedJobId,
+                                                                          @NonNull ShardedJobController<T> controller,
+                                                                          @NonNull ShardedJobSettings settings,
+                                                                          int totalTaskCount,
                                                                           Instant startTime) {
-    return new ShardedJobStateImpl<>(checkNotNull(jobId, "Null jobId"),
-        checkNotNull(controller, "Null controller"), checkNotNull(settings, "Null settings"),
-        totalTaskCount, startTime, new Status(StatusCode.RUNNING));
+
+    ShardedJobId jobId = ShardedJobId.of(project, namespace, generatedJobId);
+    return new ShardedJobStateImpl<>(jobId, controller, settings, totalTaskCount, startTime, new Status(StatusCode.RUNNING));
   }
 
-  private ShardedJobStateImpl(String jobId, ShardedJobController<T> controller,
-                              ShardedJobSettings settings, int totalTaskCount, Instant startTime, Status status) {
-    this.jobId = jobId;
+  public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(
+            @NonNull ShardedJobId shardedJobId,
+            @NonNull ShardedJobController<T> controller,
+            @NonNull ShardedJobSettings settings,
+            int totalTaskCount,
+            @NonNull Instant startTime
+
+      ) {
+    return new ShardedJobStateImpl<>(shardedJobId, controller, settings, totalTaskCount, startTime, new Status(StatusCode.RUNNING));
+  }
+
+
+  private ShardedJobStateImpl(ShardedJobId shardedJobId,
+                              ShardedJobController<T> controller,
+                              ShardedJobSettings settings,
+                              int totalTaskCount,
+                              Instant startTime,
+                              Status status) {
+    this.shardedJobId = shardedJobId;
     this.controller = controller;
     this.settings = settings;
     this.totalTaskCount = totalTaskCount;
@@ -60,7 +81,6 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     this.startTime = startTime;
     this.mostRecentUpdateTime = startTime;
     this.status = status;
-
   }
 
   @Override public int getActiveTaskCount() {
@@ -107,23 +127,16 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     private static final String SHARDS_COMPLETED_PROPERTY = "activeShards";
     private static final String STATUS_PROPERTY = "status";
 
-    // hacky - works with full job id OR just the UUID
-    static Key makeKey(Datastore datastore, String jobId) {
-      try {
-        Key pipelineKey = Key.fromUrlSafe(jobId);
-        KeyFactory builder = datastore.newKeyFactory().setKind(ENTITY_KIND)
-          .setDatabaseId(pipelineKey.getDatabaseId())
-          .setProjectId(pipelineKey.getProjectId())
-          .setNamespace(pipelineKey.getNamespace());
-        return builder.newKey(pipelineKey.getName());
-      } catch (IllegalArgumentException e) {
-        KeyFactory builder = datastore.newKeyFactory().setKind(ENTITY_KIND);
-        return builder.newKey(jobId);
-      }
+    static Key makeKey(Datastore datastore, ShardedJobId jobId) {
+      KeyFactory builder = datastore.newKeyFactory().setKind(ENTITY_KIND)
+        //.setDatabaseId(pipelineKey.getDatabaseId()) //TODO: uncomment this if going to support databaseId
+        .setProjectId(jobId.getProject())
+        .setNamespace(jobId.getNamespace());
+      return builder.newKey(jobId.getJobId());
     }
 
     static Entity toEntity(@NonNull Transaction tx, ShardedJobStateImpl<?> in) {
-      Key key = makeKey(tx.getDatastore(), in.getJobId());
+      Key key = makeKey(tx.getDatastore(), in.getShardedJobId());
       Entity.Builder jobState = Entity.newBuilder(key);
 
       //avoid serialization issue; will fill on deserialization
@@ -157,15 +170,17 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
 
       Key sharedJobStateKey = in.getKey();
 
+      ShardedJobId jobId = ShardedJobId.of(sharedJobStateKey.getProjectId(), sharedJobStateKey.getNamespace(), sharedJobStateKey.getName());
+
       return new ShardedJobStateImpl<>(
-          JobRecord.key(sharedJobStateKey.getProjectId(), sharedJobStateKey.getNamespace(), sharedJobStateKey.getName()).toUrlSafe(),
+          jobId,
           SerializationUtil.<ShardedJobController<T>>deserializeFromDatastoreProperty(tx, in, CONTROLLER_PROPERTY, lenient),
           SerializationUtil.<ShardedJobSettings>deserializeFromDatastoreProperty(tx, in, SETTINGS_PROPERTY),
           (int) in.getLong(TOTAL_TASK_COUNT_PROPERTY),
           from(in.getTimestamp(START_TIME_PROPERTY)),
           SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY))
             .setMostRecentUpdateTime(from(in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY)))
-            .setShardsCompleted((BitSet) SerializationUtil.deserializeFromDatastoreProperty(tx, in, SHARDS_COMPLETED_PROPERTY));
+            .setShardsCompleted(SerializationUtil.deserializeFromDatastoreProperty(tx, in, SHARDS_COMPLETED_PROPERTY));
     }
   }
 }

@@ -59,22 +59,24 @@ public class StatusHandlerTest extends EndToEndTestCase {
 
   @Test
   public void testCleanupJob() throws Exception {
-    assertTrue(getPipelineOrchestrator().cleanupJob("testCleanupJob")); // No such job yet
+    ShardedJobId jobId = shardedJobId("testCleanupJob");
+
+    assertTrue(getPipelineOrchestrator().cleanupJob(jobId)); // No such job yet
     ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     byte[] bytes = new byte[1024 * 1024];
     new Random().nextBytes(bytes);
     TestTask s1 = new TestTask(0, 2, 2, 2, bytes);
     TestTask s2 = new TestTask(1, 2, 2, 1);
-    getPipelineOrchestrator().startJob("testCleanupJob", ImmutableList.of(s1, s2), controller, settings);
-    assertFalse(getPipelineOrchestrator().cleanupJob("testCleanupJob"));
+    getPipelineOrchestrator().startJob(jobId, ImmutableList.of(s1, s2), controller, settings);
+    assertFalse(getPipelineOrchestrator().cleanupJob(jobId));
     executeTasksUntilEmpty();
 
 
     assertEquals(3, TestUtils.countDatastoreEntities(getDatastore()));
 
 
-    assertTrue(getPipelineOrchestrator().cleanupJob("testCleanupJob"));
+    assertTrue(getPipelineOrchestrator().cleanupJob(jobId));
     executeTasksUntilEmpty();
     assertEquals(0, TestUtils.countDatastoreEntities(getDatastore()));
   }
@@ -82,12 +84,15 @@ public class StatusHandlerTest extends EndToEndTestCase {
   // Tests that an job that has just been initialized returns a reasonable job detail.
   @Test
   public void testGetJobDetail_empty() throws Exception {
+
+    ShardedJobId jobId = shardedJobId("testGetJobDetail_empty");
+
     ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
-    getPipelineOrchestrator().startJob("testGetJobDetail_empty", ImmutableList.<TestTask>of(),
+    getPipelineOrchestrator().startJob(jobId, ImmutableList.of(),
       controller, settings);
 
-    JSONObject result = statusHandler.handleGetJobDetail(getPipelineRunner(), "testGetJobDetail_empty");
+    JSONObject result = statusHandler.handleGetJobDetail(getPipelineRunner(), jobId);
     assertEquals("testGetJobDetail_empty", result.getString("mapreduce_id"));
     assertEquals(0, result.getJSONArray("shards").length());
     assertNotNull(result.getJSONObject("mapper_spec"));
@@ -102,13 +107,15 @@ public class StatusHandlerTest extends EndToEndTestCase {
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     TestTask s1 = new TestTask(0, 2, 2, 2);
     TestTask s2 = new TestTask(1, 2, 2, 1);
-    getPipelineOrchestrator().startJob("testGetJobDetail_populated", ImmutableList.of(s1, s2),
+
+    ShardedJobId populatedJobId = shardedJobId("testGetJobDetail_populated");
+    getPipelineOrchestrator().startJob(populatedJobId, ImmutableList.of(s1, s2),
       controller, settings);
-    ShardedJobState state = getPipelineRunner().getJobState("testGetJobDetail_populated");
+    ShardedJobState state = getPipelineRunner().getJobState(populatedJobId);
     assertEquals(2, state.getActiveTaskCount());
     assertEquals(2, state.getTotalTaskCount());
     assertEquals(new Status(Status.StatusCode.RUNNING), state.getStatus());
-    JSONObject jobDetail = statusHandler.handleGetJobDetail(getPipelineRunner(), "testGetJobDetail_populated");
+    JSONObject jobDetail = statusHandler.handleGetJobDetail(getPipelineRunner(), populatedJobId);
     assertNotNull(jobDetail);
     assertEquals("testGetJobDetail_populated", jobDetail.getString("mapreduce_id"));
     assertEquals("testGetJobDetail_populated", jobDetail.getString("name"));
@@ -135,7 +142,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
 
     executeTasksUntilEmpty();
 
-    jobDetail = statusHandler.handleGetJobDetail(getPipelineRunner(), "testGetJobDetail_populated");
+    jobDetail = statusHandler.handleGetJobDetail(getPipelineRunner(), populatedJobId);
     assertNotNull(jobDetail);
     assertEquals("testGetJobDetail_populated", jobDetail.getString("mapreduce_id"));
     assertEquals("testGetJobDetail_populated", jobDetail.getString("name"));

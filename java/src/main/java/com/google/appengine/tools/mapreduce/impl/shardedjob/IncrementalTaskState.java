@@ -14,6 +14,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.util.Date;
@@ -28,13 +29,23 @@ import java.util.Date;
 @Getter
 public class IncrementalTaskState<T extends IncrementalTask> {
 
-  private final String taskId;
-  private final String jobId;
+  private final ShardedJobId jobId;
+
+  private final String taskId; //q: why is this a string?
+
+  @Setter
   private Instant mostRecentUpdateTime;
+
+  @Setter
   private int sequenceNumber;
+
   private int retryCount;
+
+  @Setter
   private T task;
+  @Setter
   private Status status;
+
   private LockInfo lockInfo;
 
   public static class LockInfo {
@@ -79,12 +90,12 @@ public class IncrementalTaskState<T extends IncrementalTask> {
    * Returns a new running IncrementalTaskState.
    */
   static <T extends IncrementalTask> IncrementalTaskState<T> create(
-    String taskId, String jobId, Instant createTime, T initialTask) {
+    String taskId, ShardedJobId jobId, Instant createTime, T initialTask) {
     return new IncrementalTaskState<>(taskId, jobId, createTime, new LockInfo(null, null),
         checkNotNull(initialTask), new Status(StatusCode.RUNNING));
   }
 
-  private IncrementalTaskState(String taskId, String jobId, Instant mostRecentUpdateTime,
+  private IncrementalTaskState(String taskId, ShardedJobId jobId, Instant mostRecentUpdateTime,
                                LockInfo lockInfo, T task, Status status) {
     this.taskId = checkNotNull(taskId, "Null taskId");
     this.jobId = checkNotNull(jobId, "Null jobId");
@@ -94,33 +105,12 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     this.status = status;
   }
 
-  IncrementalTaskState<T> setMostRecentUpdateTime(Instant mostRecentUpdateTime) {
-    this.mostRecentUpdateTime = mostRecentUpdateTime;
-    return this;
-  }
-
-  IncrementalTaskState<T> setSequenceNumber(int nextSequenceNumber) {
-    this.sequenceNumber = nextSequenceNumber;
-    return this;
-  }
-
-
   int incrementAndGetRetryCount() {
     return ++retryCount;
   }
 
   void clearRetryCount() {
     retryCount = 0;
-  }
-
-  IncrementalTaskState<T> setTask(T task) {
-    this.task = task;
-    return this;
-  }
-
-  IncrementalTaskState<T> setStatus(Status status) {
-    this.status = status;
-    return this;
   }
 
   @Override
@@ -159,7 +149,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     public static Entity toEntity(Transaction tx, IncrementalTaskState<?> in) {
       Key key = makeKey(tx.getDatastore(), in.getTaskId());
       Entity.Builder taskState = Entity.newBuilder(key);
-      taskState.set(JOB_ID_PROPERTY, in.getJobId());
+      taskState.set(JOB_ID_PROPERTY, in.getJobId().asEncodedString());
       taskState.set(MOST_RECENT_UPDATE_TIME_PROPERTY,
         TimestampValue.newBuilder(Timestamp.of(Date.from(in.getMostRecentUpdateTime()))).setExcludeFromIndexes(true).build());
 
@@ -196,7 +186,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       }
 
       IncrementalTaskState<T> state = new IncrementalTaskState<>(in.getKey().getName(),
-          in.getString(JOB_ID_PROPERTY),
+          ShardedJobId.fromEncodedString(in.getString(JOB_ID_PROPERTY)),
           in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY).toDate().toInstant(),
           lockInfo,
           in.contains(NEXT_TASK_PROPERTY) ? SerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,
