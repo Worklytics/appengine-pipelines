@@ -34,7 +34,7 @@ public class MapOnlyShardTask<I, O> extends WorkerShardTask<I, O, MapOnlyMapperC
 
   public MapOnlyShardTask(ShardedJobId mrJobId, int shardNumber, int shardCount, InputReader<I> in,
                           MapOnlyMapper<I, O> mapper, OutputWriter<O> out, long millisPerSlice) {
-    super(new IncrementalTaskContext(mrJobId.getJobId(), shardNumber, shardCount, MAPPER_CALLS,
+    super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, MAPPER_CALLS,
         MAPPER_WALLTIME_MILLIS));
     this.in = checkNotNull(in, "Null in");
     this.out = checkNotNull(out, "Null out");

@@ -81,7 +81,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
         .build();
     }
     ShardedJobId jobId = getShardedJobId();
-    Context context = new BaseContext(jobId.getJobId());
+    Context context = new BaseContext(jobId);
     Input<I> input = specification.getInput();
     input.setContext(context);
     List<? extends InputReader<I>> readers;

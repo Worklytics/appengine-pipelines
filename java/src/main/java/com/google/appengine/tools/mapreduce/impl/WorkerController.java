@@ -53,7 +53,7 @@ public class WorkerController<I, O, R, C extends WorkerContext<O>> extends
       outputWriters.add(worker.getOutputWriter());
       counters.add(worker.getContext().getCounters());
     }
-    output.setContext(new BaseContext(mrJobId.getJobId()));
+    output.setContext(new BaseContext(mrJobId));
     R outputResult;
     try {
       outputResult = output.finish(outputWriters.build());

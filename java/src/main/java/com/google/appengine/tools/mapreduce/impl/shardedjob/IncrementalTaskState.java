@@ -33,9 +33,14 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
   private final String taskId; //q: why is this a string?
 
+  private final Integer shardNumber;
+
   @Setter
   private Instant mostRecentUpdateTime;
 
+  /**
+   * Incre
+   */
   @Setter
   private int sequenceNumber;
 
@@ -95,10 +100,15 @@ public class IncrementalTaskState<T extends IncrementalTask> {
         checkNotNull(initialTask), new Status(StatusCode.RUNNING));
   }
 
-  private IncrementalTaskState(String taskId, ShardedJobId jobId, Instant mostRecentUpdateTime,
-                               LockInfo lockInfo, T task, Status status) {
-    this.taskId = checkNotNull(taskId, "Null taskId");
-    this.jobId = checkNotNull(jobId, "Null jobId");
+  private IncrementalTaskState(@NonNull String taskId,
+                               @NonNull ShardedJobId jobId,
+                               Instant mostRecentUpdateTime,
+                               LockInfo lockInfo,
+                               T task,
+                               Status status) {
+    this.taskId = taskId;
+    this.jobId = jobId;
+    this.shardNumber = IncrementalTaskId.parse(jobId, taskId).getNumber();
     this.mostRecentUpdateTime = mostRecentUpdateTime;
     this.lockInfo = lockInfo;
     this.task = task;

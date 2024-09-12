@@ -19,6 +19,7 @@ import com.google.appengine.tools.mapreduce.Reducer;
 import com.google.appengine.tools.mapreduce.ReducerContext;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.InProcessShardedJobRunner;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.outputs.InMemoryOutput;
@@ -26,6 +27,7 @@ import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.common.collect.ImmutableList;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 import lombok.SneakyThrows;
 
@@ -76,7 +78,8 @@ public class InProcessMapReduce<I, K, V, O, R> {
     }
   }
 
-  private final String id;
+  @Getter
+  private final ShardedJobId id;
   private final Input<I> input;
   private final Mapper<I, K, V> mapper;
   private final Marshaller<K> keyMarshaller;
@@ -87,10 +90,10 @@ public class InProcessMapReduce<I, K, V, O, R> {
   private final PipelineService pipelineService;
 
   @SuppressWarnings("unchecked")
-  public InProcessMapReduce(String id,
+  public InProcessMapReduce(@NonNull ShardedJobId id,
                             MapReduceSpecification<I, K, V, O, R> mrSpec,
                             PipelineService pipelineService) {
-    this.id = checkNotNull(id, "Null id");
+    this.id = id;
     input = InProcessUtil.getInput(mrSpec);
     mapper = InProcessUtil.getMapper(mrSpec);
     keyMarshaller = InProcessUtil.getKeyMarshaller(mrSpec);
@@ -114,9 +117,8 @@ public class InProcessMapReduce<I, K, V, O, R> {
         ImmutableList.builder();
     List<? extends OutputWriter<KeyValue<K, V>>> writers = output.createWriters(inputs.size());
     for (int shard = 0; shard < inputs.size(); shard++) {
-      WorkerShardTask<I, KeyValue<K, V>, MapperContext<K, V>> task = new MapShardTask<>(
-          id, shard, inputs.size(), inputs.get(shard), getCopyOfMapper(), writers.get(shard),
-          Long.MAX_VALUE);
+      WorkerShardTask<I, KeyValue<K, V>, MapperContext<K, V>> task =
+        new MapShardTask<>(getId(), shard, inputs.size(), inputs.get(shard), getCopyOfMapper(), writers.get(shard), Long.MAX_VALUE);
       tasks.add(task);
     }
     final Counters counters = new CountersImpl();
@@ -237,13 +239,9 @@ public class InProcessMapReduce<I, K, V, O, R> {
     return new MapReduceResultImpl<>(output.finish(outputs), counters);
   }
 
-  private static String getMapReduceId() {
-    return "in-process-mr-" + Instant.now().toString() + "-" + new Random().nextInt(1000000);
-  }
-
   public static <I, K, V, O, R> MapReduceResult<R> runMapReduce(
     PipelineService pipelineService, MapReduceSpecification<I, K, V, O, R> mrSpec) throws IOException {
-    String mapReduceId = getMapReduceId();
+    ShardedJobId mapReduceId = ShardedJobId.of("in-process", null, "in-process-mr-" + Instant.now().toString() + "-" + new Random().nextInt(1000000));
     InProcessMapReduce<I, K, V, O, R> mapReduce = new InProcessMapReduce<>(mapReduceId, mrSpec, pipelineService);
     log.info(mapReduce + " started");
 

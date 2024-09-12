@@ -38,7 +38,6 @@ import com.google.common.collect.Iterators;
 import lombok.*;
 import lombok.extern.java.Log;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import java.time.Instant;
@@ -153,7 +152,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
         TreeMap<Integer, Entity> ordered = new TreeMap<>();
         for (Iterator<Entity> it = tx.get(keys.toArray(new Key[0])); it.hasNext(); ) {
           Entity entry = it.next();
-          ordered.put(IncrementalTaskId.parse(jobId, entry.getKey().toUrlSafe()).getNumber(), entry);
+          IncrementalTaskState state = IncrementalTaskState.Serializer.fromEntity(tx, entry);
+          ordered.put(state.getShardNumber(), entry);
         }
         lastBatch = ordered.values().iterator();
         return computeNext();
@@ -565,32 +565,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
           }
         }
       }));
-  }
-
-  //represents a shared job task (eg, one of N shards of a sharded task)
-  @Value
-  @AllArgsConstructor(staticName = "of")
-  private static class IncrementalTaskId {
-
-    @NonNull
-    ShardedJobId shardedJobId;
-    /**
-     * which shard this represents, eg, 0-39 for 40 shards
-     */
-    int number;
-
-    @Override
-    public String toString() {
-      return prefix(shardedJobId) + number;
-    }
-
-    static IncrementalTaskId parse(ShardedJobId shardedJobId, String taskId) {
-      return IncrementalTaskId.of(shardedJobId, Integer.parseInt(taskId.substring(prefix(shardedJobId).length())));
-    }
-
-    private static String prefix(ShardedJobId shardedJobId) {
-      return shardedJobId.asEncodedString().replace("/", "-") + "-task-";
-    }
   }
 
   public static String getTaskId(ShardedJobId jobId, int taskNumber) {
