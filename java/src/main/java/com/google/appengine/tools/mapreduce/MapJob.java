@@ -101,7 +101,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
       mapTasks.add(new MapOnlyShardTask<>(jobId, i, readers.size(), readers.get(i),
           specification.getMapper(), writers.get(i), settings.getMillisPerSlice()));
     }
-    ShardedJobSettings shardedJobSettings = settings.toShardedJobSettings(getJobKey(), getPipelineKey());
+    ShardedJobSettings shardedJobSettings = settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
     PromisedValue<ResultAndStatus<R>> resultAndStatus = newPromise();
     WorkerController<I, O, R, MapOnlyMapperContext<O>> workerController = new WorkerController<>(
         jobId, new CountersImpl(), output, resultAndStatus.getHandle());

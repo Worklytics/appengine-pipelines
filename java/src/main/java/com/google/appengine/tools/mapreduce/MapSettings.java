@@ -12,6 +12,7 @@ import com.google.appengine.api.modules.ModulesServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TransientFailureException;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
@@ -239,7 +240,7 @@ public class MapSettings implements Serializable {
     return settings;
   }
 
-  ShardedJobSettings toShardedJobSettings(Key shardedJobKey, Key pipelineKey) {
+  ShardedJobSettings toShardedJobSettings(ShardedJobId shardedJobId, Key pipelineKey) {
 
     String module = getModule();
     String version = null;
@@ -260,10 +261,10 @@ public class MapSettings implements Serializable {
     }
 
     final ShardedJobSettings.Builder builder = new ShardedJobSettings.Builder()
-        .setControllerPath(baseUrl + CONTROLLER_PATH + "/" + shardedJobKey.toUrlSafe())
-        .setWorkerPath(baseUrl + WORKER_PATH + "/" + shardedJobKey.toUrlSafe())
-        .setMapReduceStatusUrl(baseUrl + "detail?mapreduce_id=" + shardedJobKey.toUrlSafe())
-        .setPipelineStatusUrl(PipelineServlet.makeViewerUrl(pipelineKey, shardedJobKey))
+        .setControllerPath(baseUrl + CONTROLLER_PATH + "/" + shardedJobId.asEncodedString())
+        .setWorkerPath(baseUrl + WORKER_PATH + "/" + shardedJobId.asEncodedString())
+        .setMapReduceStatusUrl(baseUrl + "detail?mapreduce_id=" + shardedJobId.asEncodedString())
+        .setPipelineStatusUrl(PipelineServlet.makeViewerUrl(pipelineKey, shardedJobId))
         .setModule(module)
         .setVersion(version)
         .setQueueName(workerQueueName)

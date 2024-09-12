@@ -225,7 +225,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             mrSpec.getMapper(), writers.get(i), settings.getMillisPerSlice()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getMRJobKey(), getPipelineKey());
+          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<I, KeyValue<K, V>, FilesByShard, MapperContext<K, V>> workerController =
@@ -330,7 +330,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             settings.getSortReadTimeMillis()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getMRJobKey(), getPipelineKey());
+          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, ByteBuffer>, KeyValue<ByteBuffer, List<ByteBuffer>>,
@@ -444,7 +444,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             settings.getSortReadTimeMillis()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getJobKey(), getPipelineKey());
+          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, Iterator<ByteBuffer>>,
@@ -537,7 +537,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             mrSpec.getReducer(), writers.get(i), settings.getMillisPerSlice()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getJobKey(), getPipelineKey());
+          settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
       PromisedValue<ResultAndStatus<R>> resultAndStatus = newPromise();
       WorkerController<KeyValue<K, Iterator<V>>, O, R, ReducerContext<O>> workerController =
           new WorkerController<>(getShardedJobId(), mergeResult.getCounters(), output,
