@@ -425,7 +425,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           input.createReaders();
 
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageMergeOutput(settings.getBucketName(), getMRJobId(), tier, outputOptions);
+          new GoogleCloudStorageMergeOutput(settings.getBucketName(), getShardedJobId(), tier, outputOptions);
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =
