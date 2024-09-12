@@ -93,7 +93,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
       controller, settings);
 
     JSONObject result = statusHandler.handleGetJobDetail(getPipelineRunner(), jobId);
-    assertEquals("testGetJobDetail_empty", result.getString("mapreduce_id"));
+    assertEquals("test-project//testGetJobDetail_empty", result.getString("mapreduce_id"));
     assertEquals(0, result.getJSONArray("shards").length());
     assertNotNull(result.getJSONObject("mapper_spec"));
     assertEquals("testGetJobDetail_empty", result.getString("name"));
@@ -117,11 +117,11 @@ public class StatusHandlerTest extends EndToEndTestCase {
     assertEquals(new Status(Status.StatusCode.RUNNING), state.getStatus());
     JSONObject jobDetail = statusHandler.handleGetJobDetail(getPipelineRunner(), populatedJobId);
     assertNotNull(jobDetail);
-    assertEquals("testGetJobDetail_populated", jobDetail.getString("mapreduce_id"));
+    assertEquals("test-project//testGetJobDetail_populated", jobDetail.getString("mapreduce_id"));
     assertEquals("testGetJobDetail_populated", jobDetail.getString("name"));
     assertTrue(jobDetail.getBoolean("active"));
     assertEquals(2, jobDetail.getInt("active_shards"));
-    verify(jobDetail, tuple("mapreduce_id", "testGetJobDetail_populated"),
+    verify(jobDetail, tuple("mapreduce_id", "test-project//testGetJobDetail_populated"),
         tuple("chart_width", 300),
         tuple("shards",
             array(tuple("shard_description", pattern("[^\"]*")), tuple("active", true),
@@ -144,14 +144,14 @@ public class StatusHandlerTest extends EndToEndTestCase {
 
     jobDetail = statusHandler.handleGetJobDetail(getPipelineRunner(), populatedJobId);
     assertNotNull(jobDetail);
-    assertEquals("testGetJobDetail_populated", jobDetail.getString("mapreduce_id"));
+    assertEquals("test-project//testGetJobDetail_populated", jobDetail.getString("mapreduce_id"));
     assertEquals("testGetJobDetail_populated", jobDetail.getString("name"));
     assertFalse(jobDetail.getBoolean("active"));
     assertEquals(0, jobDetail.getInt("active_shards"));
     verify(jobDetail, tuple("chart_width", 300), tuple("chart_url", pattern("[^\"]*")),
         tuple("result_status", pattern("DONE")), tuple("chart_data", 0L, 0L),
         tuple("counters", tuple("TestTaskSum", 6L)),
-        tuple("mapreduce_id", "testGetJobDetail_populated"),
+        tuple("mapreduce_id", "test-project//testGetJobDetail_populated"),
         tuple("shards",
             array(tuple("shard_description", pattern("[^\"]*")),
                 tuple("active", false), tuple("updated_timestamp_ms", pattern("[0-9]*")),

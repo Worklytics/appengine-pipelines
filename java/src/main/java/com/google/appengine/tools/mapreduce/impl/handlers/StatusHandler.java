@@ -184,8 +184,8 @@ final class StatusHandler {
     }
     JSONObject jobObject = new JSONObject();
     try {
-      jobObject.put("name", jobId); // For display
-      jobObject.put("mapreduce_id", jobId); // This is the sharedJobId but it needs be be called
+      jobObject.put("name", jobId.getJobId()); // For display
+      jobObject.put("mapreduce_id", jobId.asEncodedString()); // This is the sharedJobId but it needs be be called
                                             // mapreduce_id for python compatibility.
       jobObject.put("start_timestamp_ms", state.getStartTime().toEpochMilli());
 

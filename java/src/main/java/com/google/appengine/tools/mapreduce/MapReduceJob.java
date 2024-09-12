@@ -113,7 +113,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
      * @return unique id for stage instance, given project + namespace
      */
     default String getStageId() {
-      return getStage().name() + "-" + getMRJobKey().getName();
+      return getStage().name().toLowerCase() + "-" + getMRJobKey().getName();
     }
 
     /**
