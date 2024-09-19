@@ -105,6 +105,9 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
      */
     Key getMapReduceJobKey();
 
+    /**
+     * @return identifier for *this* sharded job
+     */
     default ShardedJobId getShardedJobId() {
       return ShardedJobId.of(getMapReduceJobKey().getProjectId(), getMapReduceJobKey().getNamespace(), getStageId());
     }
@@ -274,7 +277,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     }
 
     /**
-     * Takes in the the result of the map stage. (FilesByShard indexed by sortShard) These files are
+     * Takes in the result of the map stage. (FilesByShard indexed by sortShard) These files are
      * then read, and written out in sorted order. The result is a set of files for each reducer.
      * The format for how the data is written out is defined by {@link GoogleCloudStorageSortOutput}
      */
