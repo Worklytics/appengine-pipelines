@@ -7,6 +7,11 @@ executed in parallel, as `IncrementalTask`s (not an explicit datastore entity; s
 represented as `IncrementalTaskState`)
 
 `IncrementalTaskId`?
+--> replace string `taskId` with `IncrementalTaskId`?
+
+
+`Slots` --> promise handle?
+
 
 
 

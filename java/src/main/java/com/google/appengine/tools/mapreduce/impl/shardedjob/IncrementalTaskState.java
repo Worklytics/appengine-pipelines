@@ -39,7 +39,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
   private Instant mostRecentUpdateTime;
 
   /**
-   * Incre
+   * incremented each (successful) run of task.
    */
   @Setter
   private int sequenceNumber;
@@ -48,6 +48,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
   @Setter
   private T task;
+
   @Setter
   private Status status;
 

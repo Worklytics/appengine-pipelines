@@ -663,7 +663,7 @@ public class EndToEndTest extends EndToEndTestCase {
       assertNull(info.getOutput());
       assertEquals(JobInfo.State.STOPPED_BY_ERROR, info.getJobState());
       assertTrue(info.getException().getMessage()
-          .matches("Stage map-.* was not completed successfuly \\(status=ERROR, message=.*\\)"));
+          .matches("Stage .*//map-.* was not completed successfuly \\(status=ERROR, message=.*\\)"));
     }
 
     // Disallow slice-retry
@@ -685,7 +685,7 @@ public class EndToEndTest extends EndToEndTestCase {
       assertNull(info.getOutput());
       assertEquals(JobInfo.State.STOPPED_BY_ERROR, info.getJobState());
       assertTrue(info.getException().getMessage()
-          .matches("Stage map-.* was not completed successfuly \\(status=ERROR, message=.*\\)"));
+          .matches("Stage .*map-.* was not completed successfuly \\(status=ERROR, message=.*\\)"));
     }
   }
 
@@ -965,16 +965,14 @@ public class EndToEndTest extends EndToEndTestCase {
   public void testNoData() throws Exception {
 
     List<List<Long>> data = Arrays.asList(
-      new ArrayList<Long>(),
-      new ArrayList<Long>()
+      new ArrayList<>(),
+      new ArrayList<>()
     );
-
-    Input<Long> input = new InMemoryInput(data);
 
     runTest(new MapReduceSpecification.Builder<>(
         new InMemoryInput(data),
         new TestMapper(),
-        NoReducer.<String, Long, Void>create(), new NoOutput<Void, Void>())
+        NoReducer.create(), new NoOutput<Void, Void>())
         .setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller())
         .setJobName("Test MR")
@@ -1139,15 +1137,19 @@ public class EndToEndTest extends EndToEndTestCase {
     builder.setMapper(new DummyValueMapper(100));
     builder.setKeyMarshaller(Marshallers.getLongMarshaller());
     builder.setValueMarshaller(Marshallers.getStringMarshaller());
-    builder.setReducer(KeyProjectionReducer.<Long, String>create());
-    builder.setOutput(new InMemoryOutput<Long>());
+    builder.setReducer(KeyProjectionReducer.create());
+    builder.setOutput(new InMemoryOutput<>());
     builder.setNumReducers(1);
+
+    // merges twice (OK?) and never calls reducer???
+    // maybe bc multiple merges, they collide???
+    // possibly the task names collide, so last merge never happens?
+
+
     runWithPipeline(
         new MapReduceSettings.Builder(testSettings).setMaxSortMemory(sortMem).setMergeFanin(2)
           .build(),
-        builder.build(), new Verifier<List<List<Long>>>() {
-          @Override
-          public void verify(MapReduceResult<List<List<Long>>> result) throws Exception {
+        builder.build(), (MapReduceResult<List<List<Long>>> result) -> {
             Counters counters = result.getCounters();
             assertEquals(inputItems, counters.getCounter(CounterNames.MAPPER_CALLS).getValue());
             assertEquals(inputItems, counters.getCounter(CounterNames.REDUCER_CALLS).getValue());
@@ -1157,8 +1159,7 @@ public class EndToEndTest extends EndToEndTestCase {
             List<List<Long>> actualOutput = result.getOutputResult();
             assertEquals(1, actualOutput.size());
             assertEquals(inputItems, actualOutput.get(0).size());
-          }
-        });
+          });
   }
 
   @Test

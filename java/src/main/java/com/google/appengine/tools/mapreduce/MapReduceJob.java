@@ -101,26 +101,19 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     Stage getStage();
 
     /**
-     * @return key of MR job, of which this is one stage
+     * @return key of MapReduceJob instance, of which this is one stage
      */
-    Key getMRJobKey();
+    Key getMapReduceJobKey();
 
     default ShardedJobId getShardedJobId() {
-      return ShardedJobId.of(getMRJobKey().getProjectId(), getMRJobKey().getNamespace(), getStageId());
+      return ShardedJobId.of(getMapReduceJobKey().getProjectId(), getMapReduceJobKey().getNamespace(), getStageId());
     }
 
     /**
      * @return unique id for stage instance, given project + namespace
      */
     default String getStageId() {
-      return getStage().name().toLowerCase() + "-" + getMRJobKey().getName();
-    }
-
-    /**
-     * @return MRJobKey, as a string-encoded ID
-     */
-    default String getMRJobId() {
-      return getMRJobKey().toUrlSafe();
+      return getStage().name().toLowerCase() + "-" + getMapReduceJobKey().getName();
     }
   }
 
@@ -162,17 +155,12 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     @Getter
     private final Stage stage = Stage.MAP;
     @Getter
-    @NonNull private final Key MRJobKey;
+    @NonNull private final Key mapReduceJobKey;
     @NonNull private final MapReduceSpecification<I, K, V, ?, ?> mrSpec;
     @NonNull private final MapReduceSettings settings;
 
-
     @Setter(onMethod = @__(@VisibleForTesting))
     private transient Datastore datastore;
-
-
-
-
 
     protected Datastore getDatastore() {
       if (datastore == null) {
@@ -231,7 +219,6 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       WorkerController<I, KeyValue<K, V>, FilesByShard, MapperContext<K, V>> workerController =
           new WorkerController<>(getShardedJobId(), new CountersImpl(), output, resultAndStatus.getHandle());
 
-      DatastoreOptions datastoreOptions = settings.getDatastoreOptions();
       ShardedJob<?> shardedJob =
           new ShardedJob<>(getShardedJobId(), mapTasks.build(), workerController, shardedJobSettings);
       FutureValue<Void> shardedJobResult = futureCall(shardedJob, settings.toJobSettings());
@@ -265,7 +252,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     @Getter
     private final Stage stage = Stage.SORT;
     @Getter
-    @NonNull private final Key MRJobKey;
+    @NonNull private final Key mapReduceJobKey;
     @NonNull private final MapReduceSpecification<?, ?, ?, ?, ?> mrSpec;
     @NonNull private final MapReduceSettings settings;
 
@@ -367,7 +354,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     @Getter
     private final Stage stage = Stage.MERGE;
     @Getter
-    @NonNull private final Key MRJobKey;
+    @NonNull private final Key mapReduceJobKey;
     @NonNull private final MapReduceSpecification<?, ?, ?, ?, ?> mrSpec;
     @NonNull private final MapReduceSettings settings;
     @NonNull private final Integer tier;
@@ -386,7 +373,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @Override
     public String toString() {
-      return getClass().getSimpleName() + "(" + getShardedJobId().asEncodedString() + ")";
+      return getClass().getSimpleName() + "(" + getShardedJobId().asEncodedString() + ", tier " + tier + ")";
     }
 
     /**
@@ -460,7 +447,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
       futureCall(new MapReduceJob.Cleanup(settings), immediate(priorResult), waitFor(finished));
-      return futureCall(new MergeJob(getMRJobKey(), mrSpec, settings, tier + 1), finished,
+      return futureCall(new MergeJob(getMapReduceJobKey(), mrSpec, settings, tier + 1), finished,
           settings.toJobSettings(maxAttempts(1)));
     }
 
@@ -491,7 +478,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     @Getter
     private final Stage stage = Stage.REDUCE;
     @Getter
-    @NonNull private final Key MRJobKey;
+    @NonNull private final Key mapReduceJobKey;
     @NonNull private final MapReduceSpecification<?, K, V, O, R> mrSpec;
     @NonNull private final MapReduceSettings settings;
 
@@ -604,8 +591,11 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
         new MergeJob(getJobKey(), specification, settings, 1), sortResult, settings.toJobSettings(maxAttempts(1)));
     FutureValue<MapReduceResult<R>> reduceResult = futureCall(
         new ReduceJob<>(getJobKey(), specification, settings), mergeResult, settings.toJobSettings(maxAttempts(1)));
+
+    // so cleanup is totally fire+forget async, right? may fail but this job will still succeed.
     futureCall(new Cleanup(settings), mapResult, waitFor(sortResult));
     futureCall(new Cleanup(settings), mergeResult, waitFor(reduceResult));
+
     return reduceResult;
   }
 

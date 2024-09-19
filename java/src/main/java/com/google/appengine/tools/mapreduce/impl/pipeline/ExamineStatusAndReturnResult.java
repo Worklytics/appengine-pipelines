@@ -29,6 +29,6 @@ public class ExamineStatusAndReturnResult<R> extends Job1<MapReduceResult<R>, Re
     if (status.getStatusCode() == Status.StatusCode.DONE) {
       return immediate(resultAndStatus.getResult());
     }
-    throw new MapReduceJobException(stage.getJobId(), status);
+    throw new MapReduceJobException(stage.asEncodedString(), status);
   }
 }
