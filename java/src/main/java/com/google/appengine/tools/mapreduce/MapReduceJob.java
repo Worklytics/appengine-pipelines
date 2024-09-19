@@ -376,8 +376,14 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       return getClass().getSimpleName() + "(" + getShardedJobId().asEncodedString() + ", tier " + tier + ")";
     }
 
+    @Override //needed bc of recursive call
+    public ShardedJobId getShardedJobId() {
+      return ShardedJobId.of(getMapReduceJobKey().getProjectId(), getMapReduceJobKey().getNamespace(), getStageId() + "-tier" + tier);
+    }
+
+
     /**
-     * Takes in the the result of the sort stage, the files are read and re-written, merging
+     * Takes in the result of the sort stage, the files are read and re-written, merging
      * multiple files into one in the process. In the event that multiple phases are required this
      * method will invoke itself recursively.
      */
@@ -407,7 +413,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
       GoogleCloudStorageMergeInput input =
           new GoogleCloudStorageMergeInput(sortFiles, settings.getMergeFanin(), inputOptions);
-      ((Input<?>) input).setContext(context);
+      input.setContext(context);
       List<? extends InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>>> readers =
           input.createReaders();
 
@@ -446,7 +452,10 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           new ExamineStatusAndReturnResult<>(getShardedJobId()),
           resultAndStatus, settings.toJobSettings(waitFor(shardedJobResult),
               statusConsoleUrl(shardedJobSettings.getMapReduceStatusUrl())));
-      futureCall(new MapReduceJob.Cleanup(settings), immediate(priorResult), waitFor(finished));
+
+      //ignored? seems like it was historically
+      FutureValue<Void> cleanup
+        = futureCall(new Cleanup(settings), immediate(priorResult), waitFor(finished));
       return futureCall(new MergeJob(getMapReduceJobKey(), mrSpec, settings, tier + 1), finished,
           settings.toJobSettings(maxAttempts(1)));
     }

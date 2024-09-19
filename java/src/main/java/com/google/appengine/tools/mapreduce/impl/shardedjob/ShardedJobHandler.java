@@ -11,7 +11,7 @@ public interface ShardedJobHandler {
 
   String JOB_ID_PARAM = "job";
   String TASK_ID_PARAM = "task";
-   String SEQUENCE_NUMBER_PARAM = "seq";
+  String SEQUENCE_NUMBER_PARAM = "seq";
 
   /**
    * Is invoked by the servlet that handles

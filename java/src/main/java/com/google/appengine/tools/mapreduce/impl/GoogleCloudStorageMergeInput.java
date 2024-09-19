@@ -2,8 +2,6 @@
 
 package com.google.appengine.tools.mapreduce.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.Input;
 import com.google.appengine.tools.mapreduce.InputReader;
@@ -57,8 +55,7 @@ public class GoogleCloudStorageMergeInput extends
         ImmutableList.builder();
     for (int shard = 0; shard < filesByShard.getShardCount(); shard++) {
       List<InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>>> readers = new ArrayList<>();
-      for (List<String> group : Lists.partition(filesByShard.getFilesForShard(shard).getFileNames(),
-          mergeFanin)) {
+      for (List<String> group : Lists.partition(filesByShard.getFilesForShard(shard).getFileNames(), mergeFanin)) {
         GoogleCloudStorageFileSet fileSet =
             new GoogleCloudStorageFileSet(filesByShard.getBucket(), group);
         readers.add(createReaderForShard(marshaller, fileSet));

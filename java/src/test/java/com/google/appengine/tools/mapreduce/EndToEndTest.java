@@ -1132,7 +1132,7 @@ public class EndToEndTest extends EndToEndTestCase {
         new MapReduceSpecification.Builder<>();
     builder.setJobName("Test MR");
     final long sortMem = 1000;
-    final long inputItems = 10 * sortMem / 100; // Forces 3 levels of merging
+    final long inputItems = 10 * sortMem / 100; // Forces 3 levels of merging if mergeFanin==2
     builder.setInput(new RandomLongInput(inputItems, 1));
     builder.setMapper(new DummyValueMapper(100));
     builder.setKeyMarshaller(Marshallers.getLongMarshaller());
@@ -1140,11 +1140,6 @@ public class EndToEndTest extends EndToEndTestCase {
     builder.setReducer(KeyProjectionReducer.create());
     builder.setOutput(new InMemoryOutput<>());
     builder.setNumReducers(1);
-
-    // merges twice (OK?) and never calls reducer???
-    // maybe bc multiple merges, they collide???
-    // possibly the task names collide, so last merge never happens?
-
 
     runWithPipeline(
         new MapReduceSettings.Builder(testSettings).setMaxSortMemory(sortMem).setMergeFanin(2)
