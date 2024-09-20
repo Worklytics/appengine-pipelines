@@ -188,12 +188,9 @@ public class IncrementalTaskState<T extends IncrementalTask> {
         lockInfo = new LockInfo(null, null);
       }
 
-      ShardedJobId jobId = ShardedJobId.fromEncodedString(in.getString(JOB_ID_PROPERTY));
-
-
       IncrementalTaskState<T> state = new IncrementalTaskState<>(
-          IncrementalTaskId.parse(jobId, in.getKey().getName()),
-          jobId,
+          IncrementalTaskId.parse(in.getKey().getName()),
+          ShardedJobId.fromEncodedString(in.getString(JOB_ID_PROPERTY)),
           in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY).toDate().toInstant(),
           lockInfo,
           in.contains(NEXT_TASK_PROPERTY) ? SerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,

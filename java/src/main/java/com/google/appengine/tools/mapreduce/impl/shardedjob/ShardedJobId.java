@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
+import com.google.common.base.Preconditions;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.Value;
@@ -39,7 +40,13 @@ public class ShardedJobId implements Serializable {
   String jobId;
 
 
+  //q: url encode this?
   public String asEncodedString() {
+    // NOTE: presumes / never used in namespace or project or job id - correct/
+    Preconditions.checkArgument(!project.contains("/"), "project must not contain /");
+    Preconditions.checkArgument(namespace == null || !namespace.contains("/"), "namespace must not contain /");
+    Preconditions.checkArgument(!jobId.contains("/"), "jobId must not contain /");
+
     return project + "/" + Optional.ofNullable(namespace).orElse("") + "/" + jobId;
   }
 

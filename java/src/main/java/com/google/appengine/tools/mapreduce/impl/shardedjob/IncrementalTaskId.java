@@ -37,19 +37,17 @@ public class IncrementalTaskId {
     return prefix(shardedJobId) + number;
   }
 
-  @Deprecated
-  static IncrementalTaskId parse(ShardedJobId shardedJobId, String taskId) {
-    return IncrementalTaskId.of(shardedJobId, Integer.parseInt(taskId.substring(prefix(shardedJobId).length())));
-  }
+  private final static String NUMBER_SUFFIC_DELIMITER = "-task-";
 
-  public static IncrementalTaskId parse(String taskId) {
-    String numberPart = taskId.substring(taskId.lastIndexOf("-"), taskId.length());
-    String suffix = "-task-" + numberPart;
-    String encodedJobId = taskId.replace(suffix, "").replace("-", "/");
-    return IncrementalTaskId.of(ShardedJobId.fromEncodedString(encodedJobId), Integer.parseInt(numberPart));
+  public static IncrementalTaskId parse(@NonNull String taskId) {
+    String[] parts = taskId.split(NUMBER_SUFFIC_DELIMITER);
+    if (parts.length != 2) {
+      throw new IllegalArgumentException("Invalid taskId: " + taskId);
+    }
+    return IncrementalTaskId.of(ShardedJobId.fromEncodedString(parts[0]), Integer.parseInt(parts[1]));
   }
 
   private static String prefix(ShardedJobId shardedJobId) {
-    return shardedJobId.asEncodedString().replace("/", "-") + "-task-";
+    return shardedJobId.asEncodedString() + NUMBER_SUFFIC_DELIMITER;
   }
 }
