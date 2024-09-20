@@ -58,7 +58,7 @@ class RequestUtilsTest {
       .thenReturn(URLDecoder.decode(ENCODED_MR_EXAMPLE));
 
 
-    assertEquals(ShardedJobId.of("worklytics-dev", "1234", "c6fa877b-81a6-4e17-a8f7-62268036db97"),
+    assertEquals(ShardedJobId.of("test-project", null, "c6fa877b-81a6-4e17-a8f7-62268036db97").asEncodedString(),
       requestUtils.getMapReduceId(request).asEncodedString());
 
   }

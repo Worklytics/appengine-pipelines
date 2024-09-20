@@ -40,7 +40,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
         final List<Entity> toUpdate = new ArrayList<>();
         final List<Key> toDelete = new ArrayList<>();
         for (int i = start; i < end; i++) {
-          String taskId = ShardedJobRunner.getTaskId(jobId, i);
+          IncrementalTaskId taskId = IncrementalTaskId.of(jobId, i);
           toFetch.add(IncrementalTaskState.Serializer.makeKey(datastore, taskId));
           Key retryStateKey = ShardRetryState.Serializer.makeKey(datastore, taskId);
           toDelete.add(retryStateKey);

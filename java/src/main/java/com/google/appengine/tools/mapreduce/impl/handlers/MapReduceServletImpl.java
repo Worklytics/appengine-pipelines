@@ -10,6 +10,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
@@ -117,7 +118,7 @@ public class MapReduceServletImpl {
         return;
       }
       ShardedJobRunner shardedJobRunner = stepExecutionComponent.shardedJobRunner();
-      shardedJobRunner.completeShard(getJobId(request), request.getParameter(TASK_ID_PARAM));
+      shardedJobRunner.completeShard(getJobId(request), IncrementalTaskId.parse(request.getParameter(TASK_ID_PARAM)));
     } else if (handler.startsWith(WORKER_PATH)) {
       if (!checkForTaskQueue(request, response)) {
         return;
@@ -125,7 +126,8 @@ public class MapReduceServletImpl {
       ShardedJobRunner shardedJobRunner = stepExecutionComponent.shardedJobRunner();
       shardedJobRunner.runTask(
         getJobId(request),
-        checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id"), Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)));
+        IncrementalTaskId.parse(checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id")),
+        Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)));
     } else if (handler.startsWith(COMMAND_PATH)) {
       if (!checkForAjax(request, response)) {
         return;

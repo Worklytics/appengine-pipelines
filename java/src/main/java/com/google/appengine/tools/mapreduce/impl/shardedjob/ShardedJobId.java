@@ -6,6 +6,7 @@ import lombok.Value;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.util.Optional;
 
 /**
  * identifies a job that has been sharded (split into parallel tasks)
@@ -39,7 +40,7 @@ public class ShardedJobId implements Serializable {
 
 
   public String asEncodedString() {
-    return project + "/" + namespace + "/" + jobId;
+    return project + "/" + Optional.ofNullable(namespace).orElse("") + "/" + jobId;
   }
 
   public static ShardedJobId fromEncodedString(@NonNull String encoded) {

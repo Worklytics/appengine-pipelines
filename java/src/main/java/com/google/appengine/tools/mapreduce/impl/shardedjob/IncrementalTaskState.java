@@ -15,6 +15,7 @@ import com.google.common.primitives.Ints;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.time.Instant;
 import java.util.Date;
@@ -22,16 +23,19 @@ import java.util.Date;
 /**
  * Information about execution of an {@link IncrementalTask}.
  *
+ * really, shardExecutionState ...
+ *
  * @author ohler@google.com (Christian Ohler)
  *
  * @param <T> type of task
  */
+@ToString
 @Getter
 public class IncrementalTaskState<T extends IncrementalTask> {
 
   private final ShardedJobId jobId;
 
-  private final String taskId; //q: why is this a string?
+  private final IncrementalTaskId taskId;
 
   private final Integer shardNumber;
 
@@ -39,7 +43,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
   private Instant mostRecentUpdateTime;
 
   /**
-   * incremented each (successful) run of task.
+   * incremented each (successful) run of task. eg, count of slices.
    */
   @Setter
   private int sequenceNumber;
@@ -52,6 +56,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
   @Setter
   private Status status;
 
+  @ToString.Exclude
   private LockInfo lockInfo;
 
   public static class LockInfo {
@@ -96,12 +101,12 @@ public class IncrementalTaskState<T extends IncrementalTask> {
    * Returns a new running IncrementalTaskState.
    */
   static <T extends IncrementalTask> IncrementalTaskState<T> create(
-    String taskId, ShardedJobId jobId, Instant createTime, T initialTask) {
+    IncrementalTaskId taskId, ShardedJobId jobId, Instant createTime, T initialTask) {
     return new IncrementalTaskState<>(taskId, jobId, createTime, new LockInfo(null, null),
         checkNotNull(initialTask), new Status(StatusCode.RUNNING));
   }
 
-  private IncrementalTaskState(@NonNull String taskId,
+  private IncrementalTaskState(@NonNull IncrementalTaskId taskId,
                                @NonNull ShardedJobId jobId,
                                Instant mostRecentUpdateTime,
                                LockInfo lockInfo,
@@ -109,7 +114,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
                                Status status) {
     this.taskId = taskId;
     this.jobId = jobId;
-    this.shardNumber = IncrementalTaskId.parse(jobId, taskId).getNumber();
+    this.shardNumber = taskId.getNumber();
     this.mostRecentUpdateTime = mostRecentUpdateTime;
     this.lockInfo = lockInfo;
     this.task = task;
@@ -122,19 +127,6 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
   void clearRetryCount() {
     retryCount = 0;
-  }
-
-  @Override
-  public String toString() {
-    return getClass().getSimpleName() + "("
-        + taskId + ", "
-        + jobId + ", "
-        + mostRecentUpdateTime + ", "
-        + sequenceNumber + ", "
-        + retryCount + ", "
-        + task + ", "
-        + status + ", "
-        + ")";
   }
 
   /**
@@ -153,8 +145,8 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     private static final String NEXT_TASK_PROPERTY = "nextTask";
     private static final String STATUS_PROPERTY = "status";
 
-    public static Key makeKey(Datastore datastore, String taskId) {
-      return datastore.newKeyFactory().setKind(ENTITY_KIND).newKey(taskId);
+    public static Key makeKey(Datastore datastore, IncrementalTaskId taskId) {
+      return datastore.newKeyFactory().setKind(ENTITY_KIND).newKey(taskId.asEncodedString());
     }
 
     public static Entity toEntity(Transaction tx, IncrementalTaskState<?> in) {
@@ -196,8 +188,12 @@ public class IncrementalTaskState<T extends IncrementalTask> {
         lockInfo = new LockInfo(null, null);
       }
 
-      IncrementalTaskState<T> state = new IncrementalTaskState<>(in.getKey().getName(),
-          ShardedJobId.fromEncodedString(in.getString(JOB_ID_PROPERTY)),
+      ShardedJobId jobId = ShardedJobId.fromEncodedString(in.getString(JOB_ID_PROPERTY));
+
+
+      IncrementalTaskState<T> state = new IncrementalTaskState<>(
+          IncrementalTaskId.parse(jobId, in.getKey().getName()),
+          jobId,
           in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY).toDate().toInstant(),
           lockInfo,
           in.contains(NEXT_TASK_PROPERTY) ? SerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,
