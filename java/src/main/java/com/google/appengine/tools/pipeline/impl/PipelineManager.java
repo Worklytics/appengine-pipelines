@@ -137,7 +137,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   @Override
   public <T extends IncrementalTask> void startJob(
-    String jobId,
+    ShardedJobId jobId,
     List<? extends T> initialTasks,
     ShardedJobController<T> controller,
     ShardedJobSettings settings) {
@@ -145,12 +145,12 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public void abortJob(String jobId) {
+  public void abortJob(ShardedJobId jobId) {
     shardedJobRunner.abortJob(jobId);
   }
 
   @Override
-  public boolean cleanupJob(String jobId) {
+  public boolean cleanupJob(ShardedJobId jobId) {
     return shardedJobRunner.cleanupJob(jobId);
   }
 
@@ -218,13 +218,13 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public ShardedJobState getJobState(String jobId) {
+  public ShardedJobState getJobState(ShardedJobId jobId) {
     return shardedJobRunner.getJobState(jobId);
   }
 
   @Override
   public Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state) {
-    return shardedJobRunner.lookupTasks(state.getJobId(), state.getTotalTaskCount(), true);
+    return shardedJobRunner.lookupTasks(state.getShardedJobId(), state.getTotalTaskCount(), true);
   }
 
 

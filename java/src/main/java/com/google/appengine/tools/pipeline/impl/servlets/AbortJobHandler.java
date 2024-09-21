@@ -18,12 +18,10 @@ import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 
-import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 
@@ -34,6 +32,8 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 /**
+ * cancels a job (not ShardedJob)
+ *
  * @author ozarov@google.com (Arie Ozarov)
  */
 @Singleton

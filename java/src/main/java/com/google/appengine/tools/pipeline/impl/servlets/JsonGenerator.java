@@ -40,7 +40,7 @@ import java.util.Map;
  */
 class JsonGenerator {
 
-  //TODO: somewhat coupled to RequestUtils::getJobId; and PipelineOrchestrator interfaces which use String jobIds;
+  //TODO: somewhat coupled to RequestUtils::getShardedJobId; and PipelineOrchestrator interfaces which use String jobIds;
   // presumed to be Key encoded this way
   // so solution would be to strenghten the contract of the interfaces to use Key instead of String  (or rather a
   // JobId class that wraps a Key)

@@ -4,6 +4,7 @@ package com.google.appengine.tools.mapreduce.impl;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.mapreduce.*;
 
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import lombok.AllArgsConstructor;
@@ -30,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  */
 public class GoogleCloudStorageMapOutputTest {
 
-  private static final String JOB = "JOB1";
+  private static final ShardedJobId JOB = ShardedJobId.of("test-project", null, "JOB1");
   private static final Marshaller<Long> KEY_MARSHALLER = Marshallers.getLongMarshaller();
   private static final Marshaller<String> VALUE_MARSHALLER = Marshallers.getStringMarshaller();
   private static final int FILES_PER_COMPOSE = 32;

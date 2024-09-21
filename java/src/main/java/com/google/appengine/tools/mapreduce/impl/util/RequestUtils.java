@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce.impl.util;
 
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -61,7 +62,7 @@ public class RequestUtils {
     return builder.build().getService();
   }
 
-  Optional<String> getParam(HttpServletRequest request, String name) {
+  public Optional<String> getParam(HttpServletRequest request, String name) {
     return Optional.ofNullable(request.getParameter(name));
   }
 
@@ -84,8 +85,8 @@ public class RequestUtils {
    * @return
    * @throws ServletException
    */
-  public String getMapReduceId(HttpServletRequest request) throws ServletException {
-    return getJobId(request, Params.MAPREDUCE_ID)
+  public ShardedJobId getMapReduceId(HttpServletRequest request) throws ServletException {
+    return getParam(request, Params.MAPREDUCE_ID).map(ShardedJobId::fromEncodedString)
       .orElseThrow(() -> new ServletException(Params.MAPREDUCE_ID + " parameter not found."));
   }
 }

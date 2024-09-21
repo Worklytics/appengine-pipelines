@@ -2,6 +2,7 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
@@ -27,7 +28,7 @@ public interface PipelineRunner {
    * Returns the state of the job with the given ID.  Returns null if no such
    * job exists.
    */
-  ShardedJobState getJobState(String jobId);
+  ShardedJobState getJobState(ShardedJobId jobId);
 
   /**
    * Returns the tasks associated with this ShardedJob.

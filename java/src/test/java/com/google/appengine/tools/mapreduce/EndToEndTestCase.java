@@ -13,7 +13,9 @@ import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.PipelineService;
@@ -98,6 +100,10 @@ public abstract class EndToEndTestCase {
   @AfterEach
   public void tearDown() throws Exception {
     helper.tearDown();
+  }
+
+  public ShardedJobId shardedJobId(String jobId) {
+      return ShardedJobId.of(getDatastore().getOptions().getProjectId(), getDatastore().getOptions().getNamespace(), jobId);
   }
 
   protected List<QueueStateInfo.TaskStateInfo> getTasks() {
@@ -218,7 +224,7 @@ public abstract class EndToEndTestCase {
     return result;
   }
 
-  protected String getTaskId(TaskStateInfo taskStateInfo) throws UnsupportedEncodingException {
-    return decodeParameters(taskStateInfo.getBody()).get(ShardedJobHandler.TASK_ID_PARAM);
+  protected IncrementalTaskId getTaskId(TaskStateInfo taskStateInfo) throws UnsupportedEncodingException {
+    return IncrementalTaskId.parse(decodeParameters(taskStateInfo.getBody()).get(ShardedJobHandler.TASK_ID_PARAM));
   }
 }

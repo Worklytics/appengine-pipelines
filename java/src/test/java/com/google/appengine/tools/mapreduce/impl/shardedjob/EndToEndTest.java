@@ -44,7 +44,7 @@ public class EndToEndTest extends EndToEndTestCase {
         new TestTask(4, 5, 10000, 4));
     int expectedResult = 42113;
 
-    String jobId = "job1";
+    ShardedJobId jobId = shardedJobId("job1");
     assertNull(getPipelineRunner().getJobState(jobId));
 
     assertEquals(0, getTasks().size());
@@ -97,7 +97,7 @@ public class EndToEndTest extends EndToEndTestCase {
     byte[] bytes = new byte[1024 * 1024];
     new Random().nextBytes(bytes);
     TestTask task = new TestTask(0, 1, 1, 1, bytes);
-    String jobId = "job1";
+    ShardedJobId jobId = shardedJobId("job1");
     TestController controller = new TestController1( getDatastore().getOptions(), 1, getPipelineService());
     getPipelineOrchestrator().startJob(jobId, ImmutableList.of(task), controller, settings);
     assertEquals(new Status(RUNNING), getPipelineRunner().getJobState(jobId).getStatus());
@@ -114,7 +114,7 @@ public class EndToEndTest extends EndToEndTestCase {
   // the case of errors (incomplete initializations).
   @Test
   public void testNoTasks() throws Exception {
-    String jobId = "job1";
+    ShardedJobId jobId = shardedJobId("job1");
     assertNull(getPipelineRunner().getJobState(jobId));
     TestController controller = new TestController(getDatastore().getOptions(), 0, getPipelineService(), false);
     getPipelineOrchestrator().startJob(jobId, ImmutableList.of(), controller, settings);

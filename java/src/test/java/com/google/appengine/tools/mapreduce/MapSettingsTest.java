@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.JobSetting.OnBackend;
@@ -163,21 +164,21 @@ public class MapSettingsTest {
   public void testMakeShardedJobSettings() {
     Key key = datastore.newKeyFactory().setKind("Kind1").newKey("value1");
     MapSettings settings = new MapSettings.Builder().setWorkerQueueName("good-queue").build();
-    Key shardedJobKey = datastore.newKeyFactory().setKind("Kind2").newKey("job1");
-    ShardedJobSettings sjSettings = settings.toShardedJobSettings(shardedJobKey, key);
+    ShardedJobId shardedJobId = ShardedJobId.of(datastore.getOptions().getProjectId(), datastore.getOptions().getNamespace(),  "job1");
+    ShardedJobSettings sjSettings = settings.toShardedJobSettings(shardedJobId, key);
     assertEquals("default", sjSettings.getModule());
     assertEquals("1", sjSettings.getVersion());
     assertEquals("1.default.test.localhost", sjSettings.getTaskQueueTarget());
     assertEquals(settings.getWorkerQueueName(), sjSettings.getQueueName());
-    assertEquals(getPath(settings, "job1", CONTROLLER_PATH), sjSettings.getControllerPath());
-    assertEquals(getPath(settings, "job1", WORKER_PATH), sjSettings.getWorkerPath());
-    assertEquals(makeViewerUrl(key, key), sjSettings.getPipelineStatusUrl());
+    assertEquals(getPath(settings, shardedJobId.asEncodedString(), CONTROLLER_PATH), sjSettings.getControllerPath());
+    assertEquals(getPath(settings, shardedJobId.asEncodedString(), WORKER_PATH), sjSettings.getWorkerPath());
+    assertEquals(makeViewerUrl(key, shardedJobId), sjSettings.getPipelineStatusUrl());
     assertEquals(settings.getMaxShardRetries(), sjSettings.getMaxShardRetries());
     assertEquals(settings.getMaxSliceRetries(), sjSettings.getMaxSliceRetries());
 
 
     settings = new MapSettings.Builder(settings).setModule("module1").build();
-    sjSettings = settings.toShardedJobSettings(shardedJobKey, key);
+    sjSettings = settings.toShardedJobSettings(shardedJobId, key);
     assertEquals("v1.module1.test.localhost", sjSettings.getTaskQueueTarget());
     assertEquals("module1", sjSettings.getModule());
     assertEquals("v1", sjSettings.getVersion());
@@ -192,7 +193,7 @@ public class MapSettingsTest {
     ApiProxy.setEnvironmentForCurrentThread(mockEnv);
     // Test when current module is the same as requested module
     try {
-      sjSettings = settings.toShardedJobSettings(shardedJobKey, key);
+      sjSettings = settings.toShardedJobSettings(shardedJobId, key);
       assertEquals("default", sjSettings.getModule());
       assertEquals("2", sjSettings.getVersion());
     } finally {
