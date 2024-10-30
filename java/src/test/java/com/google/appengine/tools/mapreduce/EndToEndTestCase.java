@@ -103,7 +103,11 @@ public abstract class EndToEndTestCase {
   }
 
   public ShardedJobId shardedJobId(String jobId) {
-      return ShardedJobId.of(getDatastore().getOptions().getProjectId(), getDatastore().getOptions().getNamespace(), jobId);
+      return ShardedJobId.of(
+        getDatastore().getOptions().getProjectId(),
+        getDatastore().getOptions().getDatabaseId(),
+        getDatastore().getOptions().getNamespace(),
+        jobId);
   }
 
   protected List<QueueStateInfo.TaskStateInfo> getTasks() {

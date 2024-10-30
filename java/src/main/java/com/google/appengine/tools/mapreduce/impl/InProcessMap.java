@@ -119,7 +119,7 @@ public class InProcessMap<I, O, R> {
   public static <I, O, R> MapReduceResult<R> runMap(PipelineService pipelineService,
                                                     MapSpecification<I, O, R> mrSpec)
       throws IOException {
-    ShardedJobId id = ShardedJobId.of("in-process", null, getMapReduceId());
+    ShardedJobId id = ShardedJobId.of("in-process", null, null, getMapReduceId());
     InProcessMap<I,  O, R> mapOnly = new InProcessMap<>(pipelineService, id, mrSpec);
     log.info(mapOnly + " started");
     MapReduceResult<R> result = mapOnly.map();

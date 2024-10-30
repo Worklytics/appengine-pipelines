@@ -39,7 +39,7 @@ public class MergeShardTaskTest {
   @Test
   public void testOutputSegmented() {
     MockOutputWriter writer = new MockOutputWriter();
-    ShardedJobId jobId = ShardedJobId.of("TestJob", null, "TestJob");
+    ShardedJobId jobId = ShardedJobId.of("TestJob", null, null,"TestJob");
     MergeShardTask task =
         new MergeShardTask(jobId, 0, 1, new MockInputReader(), writer, Integer.MAX_VALUE);
     task.callWorker(createData(1));
@@ -62,7 +62,7 @@ public class MergeShardTaskTest {
 
   public void testSerialization() {
 
-    ShardedJobId jobId = ShardedJobId.of("TestJob", null, "TestJob");
+    ShardedJobId jobId = ShardedJobId.of("TestJob", null, null,"TestJob");
     MergeShardTask task =
         new MergeShardTask(jobId, 0, 1, new MockInputReader(), new MockOutputWriter(), 0);
 

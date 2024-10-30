@@ -5,7 +5,6 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
@@ -43,15 +42,16 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
 
 
   public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(
-                                                                          @NonNull String project,
-                                                                          @NonNull String namespace,
-                                                                          @NonNull String generatedJobId,
-                                                                          @NonNull ShardedJobController<T> controller,
-                                                                          @NonNull ShardedJobSettings settings,
-                                                                          int totalTaskCount,
-                                                                          Instant startTime) {
+    @NonNull String project,
+    @NonNull String databaseId,
+    @NonNull String namespace,
+    @NonNull String generatedJobId,
+    @NonNull ShardedJobController<T> controller,
+    @NonNull ShardedJobSettings settings,
+    int totalTaskCount,
+    Instant startTime) {
 
-    ShardedJobId jobId = ShardedJobId.of(project, namespace, generatedJobId);
+    ShardedJobId jobId = ShardedJobId.of(project, databaseId, namespace, generatedJobId);
     return new ShardedJobStateImpl<>(jobId, controller, settings, totalTaskCount, startTime, new Status(StatusCode.RUNNING));
   }
 
@@ -168,9 +168,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
       @NonNull Transaction tx, Entity in, boolean lenient) {
       Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
 
-      Key sharedJobStateKey = in.getKey();
-
-      ShardedJobId jobId = ShardedJobId.of(sharedJobStateKey.getProjectId(), sharedJobStateKey.getNamespace(), sharedJobStateKey.getName());
+      ShardedJobId jobId = ShardedJobId.of(in.getKey());
 
       return new ShardedJobStateImpl<>(
           jobId,

@@ -129,6 +129,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
 
     return ShardedJobId.of(
       java.util.Optional.ofNullable(settings.getProjectId()).orElseGet(defaultDatastoreOptions::getProjectId),
+      java.util.Optional.ofNullable(settings.getDatabaseId()).orElseGet(defaultDatastoreOptions::getDatabaseId),
       java.util.Optional.ofNullable(settings.getNamespace()).orElseGet(defaultDatastoreOptions::getNamespace),
       getJobKey().getName());
   }

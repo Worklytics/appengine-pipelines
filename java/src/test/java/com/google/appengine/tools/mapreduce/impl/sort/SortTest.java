@@ -73,7 +73,7 @@ public class SortTest {
 
     @SuppressWarnings("serial")
     public MapSortContext() {
-      super(new IncrementalTaskContext(ShardedJobId.of("test-project", null, "TestJob"), 1, 1, "calls", "time"),
+      super(new IncrementalTaskContext(ShardedJobId.of("test-project", null, null,"TestJob"), 1, 1, "calls", "time"),
         new OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>() {
 
         @Override

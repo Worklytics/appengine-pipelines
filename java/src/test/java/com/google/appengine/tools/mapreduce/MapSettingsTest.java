@@ -164,7 +164,9 @@ public class MapSettingsTest {
   public void testMakeShardedJobSettings() {
     Key key = datastore.newKeyFactory().setKind("Kind1").newKey("value1");
     MapSettings settings = new MapSettings.Builder().setWorkerQueueName("good-queue").build();
-    ShardedJobId shardedJobId = ShardedJobId.of(datastore.getOptions().getProjectId(), datastore.getOptions().getNamespace(),  "job1");
+    ShardedJobId shardedJobId = ShardedJobId.of(datastore.getOptions().getProjectId(),
+      datastore.getOptions().getDatabaseId(),
+      datastore.getOptions().getNamespace(),  "job1");
     ShardedJobSettings sjSettings = settings.toShardedJobSettings(shardedJobId, key);
     assertEquals("default", sjSettings.getModule());
     assertEquals("1", sjSettings.getVersion());

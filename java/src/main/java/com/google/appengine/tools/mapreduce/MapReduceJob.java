@@ -109,7 +109,9 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
      * @return identifier for *this* sharded job
      */
     default ShardedJobId getShardedJobId() {
-      return ShardedJobId.of(getMapReduceJobKey().getProjectId(), getMapReduceJobKey().getNamespace(), getStageId());
+      return ShardedJobId.of(getMapReduceJobKey().getProjectId(),
+        getMapReduceJobKey().getDatabaseId(),
+        getMapReduceJobKey().getNamespace(), getStageId());
     }
 
     /**
@@ -381,7 +383,9 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     @Override //needed bc of recursive call
     public ShardedJobId getShardedJobId() {
-      return ShardedJobId.of(getMapReduceJobKey().getProjectId(), getMapReduceJobKey().getNamespace(), getStageId() + "-tier" + tier);
+      return ShardedJobId.of(getMapReduceJobKey().getProjectId(),
+        getMapReduceJobKey().getDatabaseId(),
+        getMapReduceJobKey().getNamespace(), getStageId() + "-tier" + tier);
     }
 
 

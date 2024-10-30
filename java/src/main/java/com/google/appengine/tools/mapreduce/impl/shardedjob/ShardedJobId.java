@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
+import com.google.cloud.datastore.Key;
 import com.google.common.base.Preconditions;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
@@ -25,10 +26,14 @@ public class ShardedJobId implements Serializable {
   @NonNull
   String project;
 
-  // q: databaseId? not for now.
+  /**
+   * database within project
+   */
+  @NonNull
+  String databaseId;
 
   /**
-   * namespace within the project. (null for the default namespace)
+   * namespace within the database
    */
   @Nullable
   String namespace;
@@ -44,18 +49,25 @@ public class ShardedJobId implements Serializable {
   public String asEncodedString() {
     // NOTE: presumes / never used in namespace or project or job id - correct/
     Preconditions.checkArgument(!project.contains("/"), "project must not contain /");
+    Preconditions.checkArgument(databaseId == null || !databaseId.contains("/"), "databaseId must not contain /");
     Preconditions.checkArgument(namespace == null || !namespace.contains("/"), "namespace must not contain /");
     Preconditions.checkArgument(!jobId.contains("/"), "jobId must not contain /");
 
-    return project + "/" + Optional.ofNullable(namespace).orElse("") + "/" + jobId;
+    return project + "/" + Optional.ofNullable(databaseId).orElse("") + "/" + Optional.ofNullable(namespace).orElse("") + "/" + jobId;
   }
 
   public static ShardedJobId fromEncodedString(@NonNull String encoded) {
     String[] parts = encoded.split("/");
-    if (parts.length != 3) {
+    if (parts.length != 4) {
       throw new IllegalArgumentException("Invalid encoded string: " + encoded);
     }
-    return new ShardedJobId(parts[0], parts[1], parts[2]);
+    String databaseId = parts[1].isEmpty() ? null : parts[1];
+    String namespace = parts[2].isEmpty() ? null : parts[2];
+    return new ShardedJobId(parts[0], databaseId, namespace, parts[3]);
+  }
+
+  public static ShardedJobId of (Key key) {
+    return new ShardedJobId(key.getProjectId(), key.getDatabaseId(), key.getNamespace(), key.getName());
   }
 
 }
