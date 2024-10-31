@@ -128,10 +128,19 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     private static final String STATUS_PROPERTY = "status";
 
     static Key makeKey(Datastore datastore, ShardedJobId jobId) {
-      KeyFactory builder = datastore.newKeyFactory().setKind(ENTITY_KIND)
-        //.setDatabaseId(pipelineKey.getDatabaseId()) //TODO: uncomment this if going to support databaseId
-        .setProjectId(jobId.getProject())
-        .setNamespace(jobId.getNamespace());
+      KeyFactory builder = datastore.newKeyFactory()
+        .setKind(ENTITY_KIND)
+        .setProjectId(jobId.getProject());
+
+      // null implies default? unset certainly does, so we'll leave that
+      if (jobId.getDatabaseId() != null) {
+        builder.setDatabaseId(jobId.getDatabaseId());
+      }
+
+      // null implies default, but datastore client wants left unset in that case
+      if (jobId.getNamespace() != null) {
+        builder.setNamespace(jobId.getNamespace());
+      }
       return builder.newKey(jobId.getJobId());
     }
 

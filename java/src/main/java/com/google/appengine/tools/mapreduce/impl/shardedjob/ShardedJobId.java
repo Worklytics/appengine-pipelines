@@ -29,7 +29,7 @@ public class ShardedJobId implements Serializable {
   /**
    * database within project
    */
-  @NonNull
+  @Nullable
   String databaseId;
 
   /**
