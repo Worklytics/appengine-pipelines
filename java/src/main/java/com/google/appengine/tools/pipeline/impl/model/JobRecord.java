@@ -649,8 +649,15 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
 
   @VisibleForTesting
   public static Key key(String projectId, String databaseId, String namespace, String localJobHandle) {
-    KeyFactory keyFactory = new KeyFactory(projectId, databaseId, namespace);
+    KeyFactory keyFactory = new KeyFactory(projectId);
     keyFactory.setKind(DATA_STORE_KIND);
+
+    if (databaseId != null && !databaseId.isEmpty()) {
+      keyFactory.setDatabaseId(databaseId);
+    }
+    if (namespace != null && !namespace.isEmpty()) {
+      keyFactory.setNamespace(databaseId);
+    }
     return keyFactory.newKey(localJobHandle);
   }
 

@@ -58,11 +58,11 @@ public class FanoutTaskTest extends PipelineTest {
   public void setUp() throws Exception {
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
-    Key key = JobRecord.key(getProjectId(), null , "", "job1");
+    Key key = JobRecord.key(getProjectId(), null , null, "job1");
     RunJobTask runJobTask = new RunJobTask(key, queueSettings1);
-    key = JobRecord.key(getProjectId(), null, "", "job2");
+    key = JobRecord.key(getProjectId(), null, null, "job2");
     RunJobTask runJobTask2 = new RunJobTask(key, queueSettings2);
-    key = JobRecord.key(getProjectId(), null, "", "job3");
+    key = JobRecord.key(getProjectId(), null, null, "job3");
     FinalizeJobTask finalizeJobTask = new FinalizeJobTask(key, queueSettings1);
     key = Slot.key(getProjectId(), "", "slot1");
     HandleSlotFilledTask hsfTask = new HandleSlotFilledTask(key, queueSettings2);
