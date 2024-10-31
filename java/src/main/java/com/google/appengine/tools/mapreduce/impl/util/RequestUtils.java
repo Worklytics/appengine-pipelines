@@ -1,7 +1,7 @@
 package com.google.appengine.tools.mapreduce.impl.util;
 
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
-import com.google.appengine.tools.pipeline.JobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
+import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -75,8 +75,8 @@ public class RequestUtils {
     return getParam(request, paramName).map(URLEncoder::encode);
   }
 
-  public JobId getRootPipelineId(HttpServletRequest request) throws ServletException {
-    return getJobId(request, Params.ROOT_PIPELINE_ID).map(s -> JobId.fromEncodedString(s))
+  public JobRunId getRootPipelineId(HttpServletRequest request) throws ServletException {
+    return getJobId(request, Params.ROOT_PIPELINE_ID).map(s -> JobRunId.fromEncodedString(s))
       .orElseThrow(() -> new ServletException(Params.ROOT_PIPELINE_ID + " parameter not found."));
   }
 
@@ -86,8 +86,8 @@ public class RequestUtils {
    * @return
    * @throws ServletException
    */
-  public ShardedJobId getMapReduceId(HttpServletRequest request) throws ServletException {
-    return getParam(request, Params.MAPREDUCE_ID).map(ShardedJobId::fromEncodedString)
+  public ShardedJobRunId getMapReduceId(HttpServletRequest request) throws ServletException {
+    return getParam(request, Params.MAPREDUCE_ID).map(ShardedJobRunId::fromEncodedString)
       .orElseThrow(() -> new ServletException(Params.MAPREDUCE_ID + " parameter not found."));
   }
 }

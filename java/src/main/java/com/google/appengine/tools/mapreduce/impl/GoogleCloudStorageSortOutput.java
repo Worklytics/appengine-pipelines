@@ -4,7 +4,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.*;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.outputs.*;
 import lombok.NonNull;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -29,7 +29,7 @@ public class GoogleCloudStorageSortOutput extends
   private static final long serialVersionUID = 3L;
 
   private final String bucket;
-  private final ShardedJobId mrJobId;
+  private final ShardedJobRunId mrJobId;
   private final Sharder sharder;
   private final GoogleCloudStorageFileOutputWriter.Options options;
 
@@ -38,12 +38,12 @@ public class GoogleCloudStorageSortOutput extends
 
     private static final long serialVersionUID = 2L;
 
-    private final ShardedJobId mrJobId;
+    private final ShardedJobRunId mrJobId;
     private final int shard;
     private final String bucket;
     private final GoogleCloudStorageFileOutputWriter.Options options;
 
-    ShardingOutputWriterImpl(ShardedJobId mrJobId, String bucket, int shard, Sharder sharder, GoogleCloudStorageFileOutputWriter.Options options) {
+    ShardingOutputWriterImpl(ShardedJobRunId mrJobId, String bucket, int shard, Sharder sharder, GoogleCloudStorageFileOutputWriter.Options options) {
       super(Marshallers.getByteBufferMarshaller(), sharder);
       this.mrJobId = mrJobId;
       this.bucket = bucket;
@@ -120,7 +120,7 @@ public class GoogleCloudStorageSortOutput extends
   }
 
   public GoogleCloudStorageSortOutput(@NonNull String bucket,
-                                      @NonNull ShardedJobId mrJobId,
+                                      @NonNull ShardedJobRunId mrJobId,
                                       @NonNull Sharder sharder,
                                       GoogleCloudStorageFileOutput.Options options) {
     super();

@@ -19,7 +19,7 @@ import com.google.appengine.tools.mapreduce.Reducer;
 import com.google.appengine.tools.mapreduce.ReducerContext;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.InProcessShardedJobRunner;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.outputs.InMemoryOutput;
@@ -79,7 +79,7 @@ public class InProcessMapReduce<I, K, V, O, R> {
   }
 
   @Getter
-  private final ShardedJobId id;
+  private final ShardedJobRunId id;
   private final Input<I> input;
   private final Mapper<I, K, V> mapper;
   private final Marshaller<K> keyMarshaller;
@@ -90,7 +90,7 @@ public class InProcessMapReduce<I, K, V, O, R> {
   private final PipelineService pipelineService;
 
   @SuppressWarnings("unchecked")
-  public InProcessMapReduce(@NonNull ShardedJobId id,
+  public InProcessMapReduce(@NonNull ShardedJobRunId id,
                             MapReduceSpecification<I, K, V, O, R> mrSpec,
                             PipelineService pipelineService) {
     this.id = id;
@@ -241,7 +241,7 @@ public class InProcessMapReduce<I, K, V, O, R> {
 
   public static <I, K, V, O, R> MapReduceResult<R> runMapReduce(
     PipelineService pipelineService, MapReduceSpecification<I, K, V, O, R> mrSpec) throws IOException {
-    ShardedJobId mapReduceId = ShardedJobId.of("in-process", null,  null,"in-process-mr-" + Instant.now().toString() + "-" + new Random().nextInt(1000000));
+    ShardedJobRunId mapReduceId = ShardedJobRunId.of("in-process", null,  null,"in-process-mr-" + Instant.now().toString() + "-" + new Random().nextInt(1000000));
     InProcessMapReduce<I, K, V, O, R> mapReduce = new InProcessMapReduce<>(mapReduceId, mrSpec, pipelineService);
     log.info(mapReduce + " started");
 

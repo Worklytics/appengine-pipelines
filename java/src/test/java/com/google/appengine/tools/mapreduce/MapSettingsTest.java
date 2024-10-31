@@ -15,10 +15,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.JobSetting;
-import com.google.appengine.tools.pipeline.JobSetting.OnBackend;
 import com.google.appengine.tools.pipeline.JobSetting.OnService;
 import com.google.appengine.tools.pipeline.JobSetting.OnQueue;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
@@ -164,7 +163,7 @@ public class MapSettingsTest {
   public void testMakeShardedJobSettings() {
     Key key = datastore.newKeyFactory().setKind("Kind1").newKey("value1");
     MapSettings settings = new MapSettings.Builder().setWorkerQueueName("good-queue").build();
-    ShardedJobId shardedJobId = ShardedJobId.of(datastore.getOptions().getProjectId(),
+    ShardedJobRunId shardedJobId = ShardedJobRunId.of(datastore.getOptions().getProjectId(),
       datastore.getOptions().getDatabaseId(),
       datastore.getOptions().getNamespace(),  "job1");
     ShardedJobSettings sjSettings = settings.toShardedJobSettings(shardedJobId, key);

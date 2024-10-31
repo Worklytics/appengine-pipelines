@@ -15,7 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.model;
 
 import com.google.appengine.tools.pipeline.Job;
-import com.google.appengine.tools.pipeline.JobId;
+import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.JobInfo;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.JobSetting.BackoffFactor;
@@ -662,7 +662,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   }
 
   @VisibleForTesting
-  public static Key keyFromPipelineHandle(JobId pipelineHandle) {
+  public static Key keyFromPipelineHandle(JobRunId pipelineHandle) {
     return key(pipelineHandle.getProject(), pipelineHandle.getDatabaseId(), pipelineHandle.getNamespace(), pipelineHandle.getJobId());
   }
 }

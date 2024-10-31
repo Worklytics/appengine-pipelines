@@ -20,7 +20,7 @@ import com.google.appengine.tools.mapreduce.impl.pipeline.CleanupPipelineJob;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.mapreduce.impl.sort.MergeContext;
 import com.google.appengine.tools.mapreduce.impl.sort.MergeShardTask;
@@ -108,8 +108,8 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     /**
      * @return identifier for *this* sharded job
      */
-    default ShardedJobId getShardedJobId() {
-      return ShardedJobId.of(getMapReduceJobKey().getProjectId(),
+    default ShardedJobRunId getShardedJobId() {
+      return ShardedJobRunId.of(getMapReduceJobKey().getProjectId(),
         getMapReduceJobKey().getDatabaseId(),
         getMapReduceJobKey().getNamespace(), getStageId());
     }
@@ -382,8 +382,8 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     }
 
     @Override //needed bc of recursive call
-    public ShardedJobId getShardedJobId() {
-      return ShardedJobId.of(getMapReduceJobKey().getProjectId(),
+    public ShardedJobRunId getShardedJobId() {
+      return ShardedJobRunId.of(getMapReduceJobKey().getProjectId(),
         getMapReduceJobKey().getDatabaseId(),
         getMapReduceJobKey().getNamespace(), getStageId() + "-tier" + tier);
     }

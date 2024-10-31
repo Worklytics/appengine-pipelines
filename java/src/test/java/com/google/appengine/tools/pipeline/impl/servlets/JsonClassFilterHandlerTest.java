@@ -121,9 +121,9 @@ public class JsonClassFilterHandlerTest extends PipelineTest {
 
   @Test
   public void testHandlerWithResults() throws Exception {
-    JobId pipelineId1 = pipelineService.startNewPipeline(new Main1Job());
-    JobId pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
-    JobId pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
+    JobRunId pipelineId1 = pipelineService.startNewPipeline(new Main1Job());
+    JobRunId pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
+    JobRunId pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
         new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
 
     String helloWorld = waitForJobToComplete(pipelineService, pipelineId1);

@@ -1,6 +1,6 @@
 package com.google.appengine.tools.mapreduce.impl.util;
 
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.cloud.datastore.Key;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
@@ -58,7 +58,7 @@ class RequestUtilsTest {
       .thenReturn(URLDecoder.decode(ENCODED_MR_EXAMPLE));
 
 
-    assertEquals(ShardedJobId.of("test-project", null,  null,"c6fa877b-81a6-4e17-a8f7-62268036db97").asEncodedString(),
+    assertEquals(ShardedJobRunId.of("test-project", null,  null,"c6fa877b-81a6-4e17-a8f7-62268036db97").asEncodedString(),
       requestUtils.getMapReduceId(request).asEncodedString());
 
   }

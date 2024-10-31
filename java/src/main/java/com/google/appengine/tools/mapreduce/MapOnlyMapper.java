@@ -2,7 +2,7 @@
 
 package com.google.appengine.tools.mapreduce;
 
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 
 /**
  * Map function for Map only jobs.  A map function processes input
@@ -69,7 +69,7 @@ public abstract class MapOnlyMapper<I, O> extends BaseMapper<I, O, MapOnlyMapper
     }
 
     @Override
-    public ShardedJobId getJobId() {
+    public ShardedJobRunId getJobId() {
       return context.getJobId();
     }
 

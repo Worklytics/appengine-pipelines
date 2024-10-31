@@ -11,7 +11,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskId;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Map;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,7 +32,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 //TODO: not actually a servlet
 @AllArgsConstructor(onConstructor_ = @Inject)
@@ -139,8 +137,8 @@ public class MapReduceServletImpl {
     }
   }
 
-  private ShardedJobId getJobId(HttpServletRequest request) {
-    return requestUtils.getParam(request, JOB_ID_PARAM).map(ShardedJobId::fromEncodedString)
+  private ShardedJobRunId getJobId(HttpServletRequest request) {
+    return requestUtils.getParam(request, JOB_ID_PARAM).map(ShardedJobRunId::fromEncodedString)
       .orElseThrow(() -> new IllegalArgumentException("Missing " + JOB_ID_PARAM + " parameter"));
   }
 

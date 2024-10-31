@@ -15,7 +15,7 @@
 package com.google.appengine.tools.pipeline.impl;
 
 import com.google.appengine.tools.pipeline.FutureValue;
-import com.google.appengine.tools.pipeline.JobId;
+import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
 
 /**
@@ -37,13 +37,13 @@ public class FutureValueImpl<E> implements FutureValue<E> {
   }
 
   @Override
-  public JobId getSourceJobHandle() {
-    return JobId.of(slot.getSourceJobKey());
+  public JobRunId getSourceJobHandle() {
+    return JobRunId.of(slot.getSourceJobKey());
   }
 
   @Override
-  public JobId getPipelineHandle() {
-    return JobId.of(slot.getRootJobKey());
+  public JobRunId getPipelineHandle() {
+    return JobRunId.of(slot.getRootJobKey());
   }
 
   @Override

@@ -11,13 +11,14 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * identifies a job that has been sharded (split into parallel tasks)
+ * identifies a particular run of a job in the pipelines framework
+ *  also, a root job, which identifies a run a *pipeline*
  *
  */
 @EqualsAndHashCode(callSuper = false)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-public class JobId implements Serializable {
+public class JobRunId implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
@@ -46,7 +47,7 @@ public class JobId implements Serializable {
   private final String jobId;
 
 
-  protected JobId(String encoded) {
+  protected JobRunId(String encoded) {
     String[] parts = encoded.split("/");
     if (parts.length != 4) {
       throw new IllegalArgumentException("Invalid encoded string: " + encoded);
@@ -68,17 +69,17 @@ public class JobId implements Serializable {
     return project + "/" + Optional.ofNullable(databaseId).orElse("") + "/" + Optional.ofNullable(namespace).orElse("") + "/" + jobId;
   }
 
-  public static JobId fromEncodedString(@NonNull String encoded) {
-    return new JobId(encoded);
+  public static JobRunId fromEncodedString(@NonNull String encoded) {
+    return new JobRunId(encoded);
   }
 
-  public static JobId of (Key key) {
+  public static JobRunId of (Key key) {
     Preconditions.checkArgument(Objects.equals(key.getKind(), JobRecord.DATA_STORE_KIND), "key must be a JobRecord key");
-    return new JobId(key.getProjectId(), key.getDatabaseId(), key.getNamespace(), key.getName());
+    return new JobRunId(key.getProjectId(), key.getDatabaseId(), key.getNamespace(), key.getName());
   }
 
-  public static JobId of(String project, String databaseId, String namespace, String jobId) {
-    return new JobId(project, databaseId, namespace, jobId);
+  public static JobRunId of(String project, String databaseId, String namespace, String jobId) {
+    return new JobRunId(project, databaseId, namespace, jobId);
   }
 
 

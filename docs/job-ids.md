@@ -1,8 +1,8 @@
 
 ## Data Model
 
-`JobId` tuple of `(project, database id, namespace, name)`
-`ShardedJobId` - extends `JobId`; a pipeline job that is split (sharded) so that can be
+`JobRunId` tuple of `(project, database id, namespace, name)`
+`ShardedJobRunId` - extends `JobId`; a pipeline job that is split (sharded) so that can be
 executed in parallel, as `IncrementalTask`s (not an explicit datastore entity; state of each
 represented as `IncrementalTaskState`)
 
@@ -14,6 +14,11 @@ represented as `IncrementalTaskState`)
 
 Promise  handles should become similarly encoded keys, or url-safe-base64 encoded strings.
 
+Note, called `Run`, to be more analogous to  how other frameworks, namely Spring, refer to a job execution.
+
+  - a `Job` is the logic - a java class implementation
+  - a `JobRun` is the actually run of that job.
+  - a `JobRun` may be attempted multiple times (eg, re-tried); we don't explicitly model attempts, but coule
 
 
 

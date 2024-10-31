@@ -14,7 +14,7 @@ import com.google.appengine.tools.mapreduce.Worker;
 import com.google.appengine.tools.mapreduce.impl.IncrementalTaskContext;
 import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.RecoverableException;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 
 import java.io.IOException;
@@ -38,7 +38,7 @@ public class SortShardTask extends WorkerShardTask<KeyValue<ByteBuffer, ByteBuff
   private OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> out;
   private final Integer sortReadTimeMillis;  // Only null as a result of an old version.
 
-  public SortShardTask(ShardedJobId mrJobId, int shardNumber, int shardCount,
+  public SortShardTask(ShardedJobRunId mrJobId, int shardNumber, int shardCount,
                        InputReader<KeyValue<ByteBuffer, ByteBuffer>> in, SortWorker worker,
                        OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> out, int sortReadTimeMillis) {
     super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, SORT_CALLS,

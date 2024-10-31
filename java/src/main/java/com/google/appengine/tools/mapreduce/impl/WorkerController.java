@@ -7,12 +7,11 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.WorkerContext;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.OrphanedObjectException;
 import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.cloud.datastore.Key;
 import com.google.common.collect.ImmutableList;
 import lombok.Getter;
 import lombok.NonNull;
@@ -32,7 +31,7 @@ public class WorkerController<I, O, R, C extends WorkerContext<O>> extends
   private static final long serialVersionUID = 931651840864967980L;
   private static final Logger log = Logger.getLogger(WorkerController.class.getName());
 
-  @NonNull private final ShardedJobId mrJobId;
+  @NonNull private final ShardedJobRunId mrJobId;
   @NonNull private final Counters totalCounters;
   @NonNull private final Output<O, R> output;
   @NonNull private final String resultPromiseHandle;

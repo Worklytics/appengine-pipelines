@@ -13,7 +13,7 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Worker;
 import com.google.appengine.tools.mapreduce.impl.IncrementalTaskContext;
 import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.common.collect.Lists;
 
@@ -37,7 +37,7 @@ public class MergeShardTask extends WorkerShardTask<KeyValue<ByteBuffer, Iterato
   private MergeWorker worker;
   private final Integer sortReadTimeMillis; // Only null as a result of an old version.
 
-  public MergeShardTask(ShardedJobId mrJobId, int shardNumber, int shardCount,
+  public MergeShardTask(ShardedJobRunId mrJobId, int shardNumber, int shardCount,
                         InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>> in,
                         OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> out, int sortReadTimeMillis) {
     super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, MERGE_CALLS,

@@ -22,7 +22,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
   private static final long serialVersionUID = 1L;
 
   private final DatastoreOptions datastoreOptions;
-  private final ShardedJobId jobId;
+  private final ShardedJobRunId jobId;
   private final Status status;
   private final int start;
   private final int end;

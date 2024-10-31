@@ -31,7 +31,7 @@ import java.util.Date;
 @EqualsAndHashCode
 class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState {
 
-  private final ShardedJobId shardedJobId;
+  private final ShardedJobRunId shardedJobId;
   private final ShardedJobController<T> controller;
   private final ShardedJobSettings settings;
   private final int totalTaskCount;
@@ -51,12 +51,12 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     int totalTaskCount,
     Instant startTime) {
 
-    ShardedJobId jobId = ShardedJobId.of(project, databaseId, namespace, generatedJobId);
+    ShardedJobRunId jobId = ShardedJobRunId.of(project, databaseId, namespace, generatedJobId);
     return new ShardedJobStateImpl<>(jobId, controller, settings, totalTaskCount, startTime, new Status(StatusCode.RUNNING));
   }
 
   public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(
-            @NonNull ShardedJobId shardedJobId,
+            @NonNull ShardedJobRunId shardedJobId,
             @NonNull ShardedJobController<T> controller,
             @NonNull ShardedJobSettings settings,
             int totalTaskCount,
@@ -67,7 +67,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   }
 
 
-  private ShardedJobStateImpl(ShardedJobId shardedJobId,
+  private ShardedJobStateImpl(ShardedJobRunId shardedJobId,
                               ShardedJobController<T> controller,
                               ShardedJobSettings settings,
                               int totalTaskCount,
@@ -127,7 +127,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     private static final String SHARDS_COMPLETED_PROPERTY = "activeShards";
     private static final String STATUS_PROPERTY = "status";
 
-    static Key makeKey(Datastore datastore, ShardedJobId jobId) {
+    static Key makeKey(Datastore datastore, ShardedJobRunId jobId) {
       KeyFactory builder = datastore.newKeyFactory()
         .setKind(ENTITY_KIND)
         .setProjectId(jobId.getProject());
@@ -177,7 +177,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
       @NonNull Transaction tx, Entity in, boolean lenient) {
       Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
 
-      ShardedJobId jobId = ShardedJobId.of(in.getKey());
+      ShardedJobRunId jobId = ShardedJobRunId.of(in.getKey());
 
       return new ShardedJobStateImpl<>(
           jobId,

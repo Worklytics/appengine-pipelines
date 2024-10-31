@@ -21,7 +21,7 @@ import java.util.Iterator;
 public class ShardedJobStorageTest extends EndToEndTestCase {
 
 
-  ShardedJobId jobId;
+  ShardedJobRunId jobId;
 
   @BeforeEach
   public void fillJobId() {

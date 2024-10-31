@@ -98,7 +98,7 @@ public class RetryTest {
   }
 
   private void doMaxAttemptsTest(boolean succeedTheLastTime) throws Exception {
-    JobId pipelineId= runJob(1, 4, 10, succeedTheLastTime, false);
+    JobRunId pipelineId= runJob(1, 4, 10, succeedTheLastTime, false);
     // Wait for framework to save Job information
     Thread.sleep(1000L);
     JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);
@@ -108,16 +108,16 @@ public class RetryTest {
     assertEquals(expectedState, jobInfo.getJobState());
   }
 
-  private JobId runJob(int backoffFactor,
-                        int maxAttempts,
-                        int awaitSeconds,
-                        boolean succeedTheLastTime,
-                        boolean expectTimeout) throws Exception {
+  private JobRunId runJob(int backoffFactor,
+                          int maxAttempts,
+                          int awaitSeconds,
+                          boolean succeedTheLastTime,
+                          boolean expectTimeout) throws Exception {
     Stopwatch started = Stopwatch.createStarted();
 
     countdownLatch = new CountDownLatch(maxAttempts);
 
-    JobId pipelineId= pipelineService.startNewPipeline(
+    JobRunId pipelineId= pipelineService.startNewPipeline(
         new InvokesFailureJob(succeedTheLastTime, maxAttempts, backoffFactor));
 
     boolean timedout = !countdownLatch.await(awaitSeconds, TimeUnit.SECONDS);

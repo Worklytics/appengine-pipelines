@@ -61,10 +61,10 @@ public interface PipelineService {
    * @return The pipeline handle. This String uniquely identifies the newly
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
-   *         {@link #getJobInfo(JobId)}, {@link #stopPipeline(JobId)}, and
-   *         {@link #deletePipelineRecords(JobId, boolean)}
+   *         {@link #getJobInfo(JobRunId)}, {@link #stopPipeline(JobRunId)}, and
+   *         {@link #deletePipelineRecords(JobRunId, boolean)}
    */
-  JobId startNewPipeline(Job0<?> jobInstance, JobSetting... settings);
+  JobRunId startNewPipeline(Job0<?> jobInstance, JobSetting... settings);
 
   /**
    * Start a new Pipeline by specifying the root job and its arguments This
@@ -77,10 +77,10 @@ public interface PipelineService {
    * @return The pipeline handle. This String uniquely identifies the newly
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
-   *         {@link #getJobInfo(JobId)}, {@link #stopPipeline(JobId)}, and
-   *         {@link #deletePipelineRecords(JobId, boolean)}
+   *         {@link #getJobInfo(JobRunId)}, {@link #stopPipeline(JobRunId)}, and
+   *         {@link #deletePipelineRecords(JobRunId, boolean)}
    */
-  <T1> JobId startNewPipeline(Job1<?, T1> jobInstance, T1 arg1, JobSetting... settings);
+  <T1> JobRunId startNewPipeline(Job1<?, T1> jobInstance, T1 arg1, JobSetting... settings);
 
   /**
    * Start a new Pipeline by specifying the root job and its arguments This
@@ -95,11 +95,11 @@ public interface PipelineService {
    * @return The pipeline handle. This String uniquely identifies the newly
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
-   *         {@link #getJobInfo(JobId)}, {@link #stopPipeline(JobId)}, and
-   *         {@link #deletePipelineRecords(JobId, boolean)}
+   *         {@link #getJobInfo(JobRunId)}, {@link #stopPipeline(JobRunId)}, and
+   *         {@link #deletePipelineRecords(JobRunId, boolean)}
    */
-  <T1, T2> JobId startNewPipeline(Job2<?, T1, T2> jobInstance, T1 arg1, T2 arg2,
-      JobSetting... settings);
+  <T1, T2> JobRunId startNewPipeline(Job2<?, T1, T2> jobInstance, T1 arg1, T2 arg2,
+                                     JobSetting... settings);
 
   /**
    * Start a new Pipeline by specifying the root job and its arguments This
@@ -116,11 +116,11 @@ public interface PipelineService {
    * @return The pipeline handle. This String uniquely identifies the newly
    *         started Pipeline. It also uniquely identifies the root job of the
    *         Pipeline. The String may be used as an argument to
-   *         {@link #getJobInfo(JobId)}, {@link #stopPipeline(JobId)}, and
-   *         {@link #deletePipelineRecords(JobId, boolean)}
+   *         {@link #getJobInfo(JobRunId)}, {@link #stopPipeline(JobRunId)}, and
+   *         {@link #deletePipelineRecords(JobRunId, boolean)}
    */
-  <T1, T2, T3> JobId startNewPipeline(Job3<?, T1, T2, T3> jobInstance, T1 arg1, T2 arg2, T3 arg3,
-      JobSetting... settings);
+  <T1, T2, T3> JobRunId startNewPipeline(Job3<?, T1, T2, T3> jobInstance, T1 arg1, T2 arg2, T3 arg3,
+                                         JobSetting... settings);
 
   /**
    * Start a new Pipeline by specifying the root job and its arguments This
@@ -139,11 +139,11 @@ public interface PipelineService {
    * @return The pipeline handle. This String uniquely identifies the newly
    * started Pipeline. It also uniquely identifies the root job of the
    * Pipeline. The String may be used as an argument to
-   * {@link #getJobInfo(JobId)}, {@link #stopPipeline(JobId)}, and
-   * {@link #deletePipelineRecords(JobId, boolean)}
+   * {@link #getJobInfo(JobRunId)}, {@link #stopPipeline(JobRunId)}, and
+   * {@link #deletePipelineRecords(JobRunId, boolean)}
    */
-  <T1, T2, T3, T4> JobId startNewPipeline(Job4<?, T1, T2, T3, T4> jobInstance, T1 arg1, T2 arg2,
-                                          T3 arg3, T4 arg4, JobSetting... settings);
+  <T1, T2, T3, T4> JobRunId startNewPipeline(Job4<?, T1, T2, T3, T4> jobInstance, T1 arg1, T2 arg2,
+                                             T3 arg3, T4 arg4, JobSetting... settings);
 
   /**
    * Start a new Pipeline by specifying the root job and its arguments This
@@ -164,11 +164,11 @@ public interface PipelineService {
    * @return The pipeline handle. This String uniquely identifies the newly
    * started Pipeline. It also uniquely identifies the root job of the
    * Pipeline. The String may be used as an argument to
-   * {@link #getJobInfo(JobId)}, {@link #stopPipeline(JobId)}, and
-   * {@link #deletePipelineRecords(JobId, boolean)}
+   * {@link #getJobInfo(JobRunId)}, {@link #stopPipeline(JobRunId)}, and
+   * {@link #deletePipelineRecords(JobRunId, boolean)}
    */
-  <T1, T2, T3, T4, T5> JobId startNewPipeline(Job5<?, T1, T2, T3, T4, T5> jobInstance, T1 arg1,
-                                              T2 arg2, T3 arg3, T4 arg4, T5 arg5, JobSetting... settings);
+  <T1, T2, T3, T4, T5> JobRunId startNewPipeline(Job5<?, T1, T2, T3, T4, T5> jobInstance, T1 arg1,
+                                                 T2 arg2, T3 arg3, T4 arg4, T5 arg5, JobSetting... settings);
 
   /**
    * Start a new Pipeline by specifying the root job and its arguments This
@@ -191,11 +191,11 @@ public interface PipelineService {
    * @return The pipeline handle. This String uniquely identifies the newly
    * started Pipeline. It also uniquely identifies the root job of the
    * Pipeline. The String may be used as an argument to
-   * {@link #getJobInfo(JobId)}, {@link #stopPipeline(JobId)}, and
-   * {@link #deletePipelineRecords(JobId, boolean)},
+   * {@link #getJobInfo(JobRunId)}, {@link #stopPipeline(JobRunId)}, and
+   * {@link #deletePipelineRecords(JobRunId, boolean)},
    */
-  <T1, T2, T3, T4, T5, T6> JobId startNewPipeline(Job6<?, T1, T2, T3, T4, T5, T6> jobInstance,
-                                                  T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, JobSetting... settings);
+  <T1, T2, T3, T4, T5, T6> JobRunId startNewPipeline(Job6<?, T1, T2, T3, T4, T5, T6> jobInstance,
+                                                     T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, JobSetting... settings);
 
   /**
    * Start a new Pipeline by specifying the root job and its arguments This
@@ -212,14 +212,14 @@ public interface PipelineService {
    * @return The pipeline handle. This String uniquely identifies the newly
    * started Pipeline. It also uniquely identifies the root job of the
    * Pipeline. The String may be used as an argument to
-   * {@link #getJobInfo(JobId)}, {@link #stopPipeline(JobId)}, and
-   * {@link #deletePipelineRecords(JobId, boolean)}
+   * {@link #getJobInfo(JobRunId)}, {@link #stopPipeline(JobRunId)}, and
+   * {@link #deletePipelineRecords(JobRunId, boolean)}
    */
-  JobId startNewPipelineUnchecked(Job<?> jobInstance, Object[] arguments, JobSetting... settings);
+  JobRunId startNewPipelineUnchecked(Job<?> jobInstance, Object[] arguments, JobSetting... settings);
 
   /**
    * Stops pipeline execution without giving its code any chance to perform
-   * cleanup. Use {@link #cancelPipeline(JobId)} to request controlled pipeline
+   * cleanup. Use {@link #cancelPipeline(JobRunId)} to request controlled pipeline
    * termination.
    *
    * @param pipelineHandle The unique identifier returned from one of the
@@ -227,7 +227,7 @@ public interface PipelineService {
    * @throws NoSuchObjectException If the framework cannot find a Pipeline with
    *         the given identifier.
    */
-  void stopPipeline(JobId pipelineHandle) throws NoSuchObjectException;
+  void stopPipeline(JobRunId pipelineHandle) throws NoSuchObjectException;
 
   /**
    * Cancel all pipeline jobs. If a cancelled job has
@@ -240,7 +240,7 @@ public interface PipelineService {
    * @throws NoSuchObjectException If the framework cannot find a Pipeline with
    *         the given identifier.
    */
-  void cancelPipeline(JobId pipelineHandle) throws NoSuchObjectException;
+  void cancelPipeline(JobRunId pipelineHandle) throws NoSuchObjectException;
 
   /**
    * Delete all the records associated with a pipeline from the Datastore.
@@ -251,7 +251,7 @@ public interface PipelineService {
    *         the given identifier.
    * @throws IllegalStateException If the specified Pipeline is still running
    */
-  void deletePipelineRecords(JobId pipelineHandle) throws NoSuchObjectException,
+  void deletePipelineRecords(JobRunId pipelineHandle) throws NoSuchObjectException,
       IllegalStateException;
 
   /**
@@ -271,7 +271,7 @@ public interface PipelineService {
    * @throws IllegalStateException If {@code force = false} and the specified
    *                               Pipeline is still running
    */
-  void deletePipelineRecords(JobId pipelineHandle, boolean force)
+  void deletePipelineRecords(JobRunId pipelineHandle, boolean force)
       throws NoSuchObjectException, IllegalStateException;
 
   /**
@@ -287,7 +287,7 @@ public interface PipelineService {
    * @throws NoSuchObjectException If the framework cannot find a job with the
    *         given identifier.
    */
-  JobInfo getJobInfo(JobId jobHandle) throws NoSuchObjectException;
+  JobInfo getJobInfo(JobRunId jobHandle) throws NoSuchObjectException;
 
 
   /**

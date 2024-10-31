@@ -8,9 +8,6 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.TestUtils;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
-import com.google.cloud.datastore.Entity;
-import com.google.cloud.datastore.Query;
-import com.google.cloud.datastore.QueryResults;
 import com.google.common.collect.ImmutableList;
 
 import lombok.Getter;
@@ -59,7 +56,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
 
   @Test
   public void testCleanupJob() throws Exception {
-    ShardedJobId jobId = shardedJobId("testCleanupJob");
+    ShardedJobRunId jobId = shardedJobId("testCleanupJob");
 
     assertTrue(getPipelineOrchestrator().cleanupJob(jobId)); // No such job yet
     ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
@@ -85,7 +82,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
   @Test
   public void testGetJobDetail_empty() throws Exception {
 
-    ShardedJobId jobId = shardedJobId("testGetJobDetail_empty");
+    ShardedJobRunId jobId = shardedJobId("testGetJobDetail_empty");
 
     ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
@@ -108,7 +105,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
     TestTask s1 = new TestTask(0, 2, 2, 2);
     TestTask s2 = new TestTask(1, 2, 2, 1);
 
-    ShardedJobId populatedJobId = shardedJobId("testGetJobDetail_populated");
+    ShardedJobRunId populatedJobId = shardedJobId("testGetJobDetail_populated");
     getPipelineOrchestrator().startJob(populatedJobId, ImmutableList.of(s1, s2),
       controller, settings);
     ShardedJobState state = getPipelineRunner().getJobState(populatedJobId);

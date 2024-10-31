@@ -41,41 +41,41 @@ public class PipelineServiceImpl implements PipelineService {
 
 
   @Override
-  public JobId startNewPipeline(Job0<?> jobInstance, JobSetting... settings) {
+  public JobRunId startNewPipeline(Job0<?> jobInstance, JobSetting... settings) {
     return pipelineManager.startNewPipeline(settings, jobInstance);
   }
 
   @Override
-  public <T1> JobId startNewPipeline(Job1<?, T1> jobInstance, T1 arg1, JobSetting... settings) {
+  public <T1> JobRunId startNewPipeline(Job1<?, T1> jobInstance, T1 arg1, JobSetting... settings) {
     return pipelineManager.startNewPipeline(settings, jobInstance, arg1);
   }
 
   @Override
-  public <T1, T2> JobId startNewPipeline(Job2<?, T1, T2> jobInstance, T1 arg1, T2 arg2,
-      JobSetting... settings) {
+  public <T1, T2> JobRunId startNewPipeline(Job2<?, T1, T2> jobInstance, T1 arg1, T2 arg2,
+                                            JobSetting... settings) {
     return pipelineManager.startNewPipeline(settings, jobInstance, arg1, arg2);
   }
 
   @Override
-  public <T1, T2, T3> JobId startNewPipeline(Job3<?, T1, T2, T3> jobInstance, T1 arg1, T2 arg2,
-      T3 arg3, JobSetting... settings) {
+  public <T1, T2, T3> JobRunId startNewPipeline(Job3<?, T1, T2, T3> jobInstance, T1 arg1, T2 arg2,
+                                                T3 arg3, JobSetting... settings) {
     return pipelineManager.startNewPipeline(settings, jobInstance, arg1, arg2, arg3);
   }
 
   @Override
-  public <T1, T2, T3, T4> JobId startNewPipeline(Job4<?, T1, T2, T3, T4> jobInstance, T1 arg1,
-                                                 T2 arg2, T3 arg3, T4 arg4, JobSetting... settings) {
+  public <T1, T2, T3, T4> JobRunId startNewPipeline(Job4<?, T1, T2, T3, T4> jobInstance, T1 arg1,
+                                                    T2 arg2, T3 arg3, T4 arg4, JobSetting... settings) {
     return pipelineManager.startNewPipeline(settings, jobInstance, arg1, arg2, arg3, arg4);
   }
 
   @Override
-  public <T1, T2, T3, T4, T5> JobId startNewPipeline(Job5<?, T1, T2, T3, T4, T5> jobInstance,
-                                                     T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, JobSetting... settings) {
+  public <T1, T2, T3, T4, T5> JobRunId startNewPipeline(Job5<?, T1, T2, T3, T4, T5> jobInstance,
+                                                        T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, JobSetting... settings) {
     return pipelineManager.startNewPipeline(settings, jobInstance, arg1, arg2, arg3, arg4, arg5);
   }
 
   @Override
-  public <T1, T2, T3, T4, T5, T6> JobId startNewPipeline(
+  public <T1, T2, T3, T4, T5, T6> JobRunId startNewPipeline(
       Job6<?, T1, T2, T3, T4, T5, T6> jobInstance, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5,
       T6 arg6, JobSetting... settings) {
     return pipelineManager.startNewPipeline(settings, jobInstance, arg1, arg2, arg3, arg4, arg5,
@@ -83,35 +83,35 @@ public class PipelineServiceImpl implements PipelineService {
   }
 
   @Override
-  public JobId startNewPipelineUnchecked(Job<?> jobInstance, Object[] arguments,
-                                         JobSetting... settings) {
+  public JobRunId startNewPipelineUnchecked(Job<?> jobInstance, Object[] arguments,
+                                            JobSetting... settings) {
     return pipelineManager.startNewPipeline(settings, jobInstance, arguments);
   }
 
   @Override
-  public void stopPipeline(JobId jobHandle) throws NoSuchObjectException {
+  public void stopPipeline(JobRunId jobHandle) throws NoSuchObjectException {
     pipelineManager.stopJob(jobHandle);
   }
 
   @Override
-  public void cancelPipeline(JobId jobHandle) throws NoSuchObjectException {
+  public void cancelPipeline(JobRunId jobHandle) throws NoSuchObjectException {
     pipelineManager.cancelJob(jobHandle);
   }
 
   @Override
-  public void deletePipelineRecords(JobId pipelineHandle) throws NoSuchObjectException,
+  public void deletePipelineRecords(JobRunId pipelineHandle) throws NoSuchObjectException,
       IllegalStateException {
     deletePipelineRecords(pipelineHandle, false);
   }
 
   @Override
-  public void deletePipelineRecords(JobId pipelineHandle, boolean force)
+  public void deletePipelineRecords(JobRunId pipelineHandle, boolean force)
       throws NoSuchObjectException, IllegalStateException {
     pipelineManager.deletePipelineRecords(pipelineHandle, force);
   }
 
   @Override
-  public JobInfo getJobInfo(JobId jobHandle) throws NoSuchObjectException {
+  public JobInfo getJobInfo(JobRunId jobHandle) throws NoSuchObjectException {
     return pipelineManager.getJob(jobHandle);
   }
 

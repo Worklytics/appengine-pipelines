@@ -2,7 +2,7 @@ package com.google.appengine.tools.mapreduce.impl.pipeline;
 
 import com.google.appengine.tools.mapreduce.MapReduceJobException;
 import com.google.appengine.tools.mapreduce.MapReduceResult;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.pipeline.Job1;
 import com.google.appengine.tools.pipeline.Value;
@@ -21,7 +21,7 @@ public class ExamineStatusAndReturnResult<R> extends Job1<MapReduceResult<R>, Re
 
   private static final long serialVersionUID = -4916783324594785878L;
 
-  private final ShardedJobId stage;
+  private final ShardedJobRunId stage;
 
   @Override
   public Value<MapReduceResult<R>> run(ResultAndStatus<R> resultAndStatus) {

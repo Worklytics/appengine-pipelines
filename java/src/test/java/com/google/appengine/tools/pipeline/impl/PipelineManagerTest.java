@@ -4,7 +4,6 @@ import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.util.Pair;
-import com.google.cloud.datastore.Key;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
@@ -50,7 +49,7 @@ class PipelineManagerTest extends PipelineTest {
   void startNewPipeline(PipelineManager pipelineManager) {
     JobSetting[] settings = new JobSetting[0];
     Job<String> jobInstance = new NoopJob();
-    JobId pipelineId = pipelineManager.startNewPipeline(settings, jobInstance);
+    JobRunId pipelineId = pipelineManager.startNewPipeline(settings, jobInstance);
 
     assertNotNull(pipelineId);
     JobRecord jobRecord = pipelineManager.getJob(pipelineId);
@@ -62,7 +61,7 @@ class PipelineManagerTest extends PipelineTest {
   void deletePipelineRecords(PipelineManager pipelineManager) {
     JobSetting[] settings = new JobSetting[0];
     Job<String> jobInstance = new NoopJob();
-    JobId pipelineId = pipelineManager.startNewPipeline(settings, jobInstance);
+    JobRunId pipelineId = pipelineManager.startNewPipeline(settings, jobInstance);
 
     pipelineManager.deletePipelineRecords(pipelineId, true);
 
@@ -79,8 +78,8 @@ class PipelineManagerTest extends PipelineTest {
   void queryRootPipelines(PipelineManager pipelineManager) {
     JobSetting[] settings = new JobSetting[0];
     Job<String> jobInstance = new NoopJob();
-    JobId pipelineId1 = pipelineManager.startNewPipeline(settings, jobInstance);
-    JobId pipelineId2 = pipelineManager.startNewPipeline(settings, jobInstance);
+    JobRunId pipelineId1 = pipelineManager.startNewPipeline(settings, jobInstance);
+    JobRunId pipelineId2 = pipelineManager.startNewPipeline(settings, jobInstance);
 
     assertNotEquals(pipelineId1, pipelineId2);
 
@@ -89,9 +88,9 @@ class PipelineManagerTest extends PipelineTest {
     List<JobRecord> rootRecords = StreamSupport.stream(page.getFirst().spliterator(), false).collect(Collectors.toList());
 
     assertEquals(2, rootRecords.size());
-    Set<JobId> keySet = rootRecords.stream()
+    Set<JobRunId> keySet = rootRecords.stream()
       .map(JobRecord::getKey)
-      .map(JobId::of)
+      .map(JobRunId::of)
       .collect(Collectors.toSet());
 
 

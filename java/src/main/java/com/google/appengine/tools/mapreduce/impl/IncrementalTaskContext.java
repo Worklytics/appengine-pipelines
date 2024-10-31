@@ -1,7 +1,7 @@
 package com.google.appengine.tools.mapreduce.impl;
 
 import com.google.appengine.tools.mapreduce.Counters;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -17,13 +17,13 @@ public class IncrementalTaskContext implements Serializable {
   private final String workerCallsCounterName;
   private final String workerMillisCounterName;
 
-  private final ShardedJobId jobId;
+  private final ShardedJobRunId jobId;
   private final int shardNumber;
   private final int shardCount;
   private final Counters counters;
   private String lastWorkItem;
 
-  public IncrementalTaskContext(@NonNull ShardedJobId jobId,
+  public IncrementalTaskContext(@NonNull ShardedJobRunId jobId,
                                 int shardNumber,
                                 int shardCount,
                                 @NonNull String workerCallsCounterName,

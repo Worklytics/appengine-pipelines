@@ -2,7 +2,7 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
@@ -28,7 +28,7 @@ public interface PipelineRunner {
    * Returns the state of the job with the given ID.  Returns null if no such
    * job exists.
    */
-  ShardedJobState getJobState(ShardedJobId jobId);
+  ShardedJobState getJobState(ShardedJobRunId jobId);
 
   /**
    * Returns the tasks associated with this ShardedJob.
@@ -100,14 +100,14 @@ public interface PipelineRunner {
    * @throws NoSuchObjectException If a JobRecord with the given handle cannot
    *         be found in the data store.
    */
-   JobRecord getJob(JobId jobHandle) throws NoSuchObjectException;
+   JobRecord getJob(JobRunId jobHandle) throws NoSuchObjectException;
 
   /**
    * Returns all the associated PipelineModelObject for a root pipeline.
    *
    * @throws IllegalArgumentException if root pipeline was not found.
    */
-   PipelineObjects queryFullPipeline(JobId rootJobHandle);
+   PipelineObjects queryFullPipeline(JobRunId rootJobHandle);
 
    Pair<? extends Iterable<JobRecord>, String> queryRootPipelines(String classFilter, String cursor, int limit);
 
@@ -123,7 +123,7 @@ public interface PipelineRunner {
    *                               pipeline is not in the {@link JobRecord.State#FINALIZED} or
    *                               {@link JobRecord.State#STOPPED} state.
    */
-   void deletePipelineRecords(JobId pipelineHandle, boolean force)
+   void deletePipelineRecords(JobRunId pipelineHandle, boolean force)
     throws NoSuchObjectException, IllegalStateException;
 
 

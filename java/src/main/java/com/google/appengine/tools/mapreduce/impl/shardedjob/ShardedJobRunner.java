@@ -106,7 +106,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
 
 
-  private <T extends IncrementalTask> ShardedJobStateImpl<T> lookupJobState(@NonNull Transaction tx, ShardedJobId jobId) {
+  private <T extends IncrementalTask> ShardedJobStateImpl<T> lookupJobState(@NonNull Transaction tx, ShardedJobRunId jobId) {
     return (ShardedJobStateImpl<T>) Optional.ofNullable(tx.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(tx.getDatastore(), jobId)))
       .map(in -> ShardedJobStateImpl.ShardedJobSerializer.fromEntity(tx, in))
       .orElse(null);
@@ -130,7 +130,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   public <T extends IncrementalTask> Iterator<IncrementalTaskState<T>> lookupTasks(
-    @NonNull Transaction tx, final ShardedJobId jobId, final int taskCount, final boolean lenient) {
+          @NonNull Transaction tx, final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
     return new AbstractIterator<>() {
       private int lastCount;
       private Iterator<Entity> lastBatch = Collections.emptyIterator();
@@ -162,7 +162,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   public <T extends IncrementalTask> Iterator<IncrementalTaskState<T>> lookupTasks(
-    final ShardedJobId jobId, final int taskCount, final boolean lenient) {
+          final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
     return lookupTasks(datastore.newTransaction(), jobId, taskCount, lenient);
   }
 
@@ -174,8 +174,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
     jobState.getController().completed(tasks);
   }
 
-  private void scheduleControllerTask(ShardedJobId jobId, IncrementalTaskId taskId,
-      ShardedJobSettings settings) {
+  private void scheduleControllerTask(ShardedJobRunId jobId, IncrementalTaskId taskId,
+                                      ShardedJobSettings settings) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
         .url(settings.getControllerPath())
         .param(JOB_ID_PARAM, jobId.asEncodedString())
@@ -204,7 +204,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   @Override
-  public void completeShard(@NonNull final ShardedJobId jobId, @NonNull final IncrementalTaskId taskId) {
+  public void completeShard(@NonNull final ShardedJobRunId jobId, @NonNull final IncrementalTaskId taskId) {
     log.info("Polling task states for job " + jobId);
     PipelineService pipelineService = pipelineServiceProvider.get();
 
@@ -365,7 +365,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   @Override
-  public void runTask(final ShardedJobId jobId, final IncrementalTaskId taskId, final int sequenceNumber) {
+  public void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber) {
 
     Transaction tx = getDatastore().newTransaction();
     final ShardedJobStateImpl<? extends IncrementalTask> jobState = lookupJobState(tx, jobId);
@@ -412,7 +412,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   private <T extends IncrementalTask> void runAndUpdateTask(Datastore datastore,
-                                                            final ShardedJobId jobId,
+                                                            final ShardedJobRunId jobId,
                                                             final IncrementalTaskId taskId,
                                                             final int sequenceNumber,
                                                             final ShardedJobStateImpl<T> jobState,
@@ -566,7 +566,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   private <T extends IncrementalTask> void createTasks(Datastore datastore,
                                                        ShardedJobSettings settings,
-                                                       ShardedJobId jobId,
+                                                       ShardedJobRunId jobId,
                                                        List<? extends T> initialTasks,
                                                        Instant startTime) {
     log.info(jobId + ": Creating " + initialTasks.size() + " tasks");
@@ -596,7 +596,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   private <T extends IncrementalTask> void writeInitialJobState(Datastore datastore, ShardedJobStateImpl<T> jobState) {
-    ShardedJobId jobId = jobState.getShardedJobId();
+    ShardedJobRunId jobId = jobState.getShardedJobId();
     Transaction tx = datastore.newTransaction();
     try {
       ShardedJobStateImpl<T> existing = lookupJobState(tx, jobId);
@@ -612,7 +612,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  public <T extends IncrementalTask> void startJob(final ShardedJobId jobId, List<? extends T> initialTasks,
+  public <T extends IncrementalTask> void startJob(final ShardedJobRunId jobId, List<? extends T> initialTasks,
                                                    ShardedJobController<T> controller, ShardedJobSettings settings) {
     Instant startTime = Instant.now();
     Datastore datastore = getDatastore();
@@ -637,14 +637,14 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  public ShardedJobState getJobState(ShardedJobId jobId) {
+  public ShardedJobState getJobState(ShardedJobRunId jobId) {
     Datastore datastore = getDatastore();
     return Optional.ofNullable(datastore.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId)))
       .map(in -> ShardedJobStateImpl.ShardedJobSerializer.fromEntity(datastore.newTransaction(), in, true))
       .orElse(null);
   }
 
-  private void changeJobStatus(Datastore datastore, ShardedJobId jobId, Status status) {
+  private void changeJobStatus(Datastore datastore, ShardedJobRunId jobId, Status status) {
     log.info(jobId + ": Changing job status to " + status);
     Transaction tx = datastore.newTransaction();
     try {
@@ -671,12 +671,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  public void abortJob(ShardedJobId jobId) {
+  public void abortJob(ShardedJobRunId jobId) {
     changeJobStatus(datastore, jobId, new Status(ABORTED));
   }
 
 
-  public boolean cleanupJob(ShardedJobId jobId) {
+  public boolean cleanupJob(ShardedJobRunId jobId) {
     Transaction txn = datastore.newTransaction();
     ShardedJobStateImpl<?> jobState = lookupJobState(txn, jobId);
     if (jobState == null) {

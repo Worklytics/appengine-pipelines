@@ -12,7 +12,7 @@ import com.google.appengine.api.modules.ModulesServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TransientFailureException;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
@@ -240,7 +240,7 @@ public class MapSettings implements Serializable {
     return settings;
   }
 
-  ShardedJobSettings toShardedJobSettings(ShardedJobId shardedJobId, Key pipelineKey) {
+  ShardedJobSettings toShardedJobSettings(ShardedJobRunId shardedJobId, Key pipelineKey) {
 
     String module = getModule();
     String version = null;

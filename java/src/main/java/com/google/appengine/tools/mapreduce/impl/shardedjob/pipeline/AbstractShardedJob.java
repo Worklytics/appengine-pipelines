@@ -1,6 +1,6 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.pipeline.FutureValue;
 import com.google.appengine.tools.pipeline.Job;
 import com.google.appengine.tools.pipeline.Job0;
@@ -22,7 +22,7 @@ public abstract class AbstractShardedJob extends Job0<Void> {
   private static final long DELETION_DELAY = 10_000L;
 
   @Getter
-  private final ShardedJobId jobId;
+  private final ShardedJobRunId jobId;
   private final int taskCount;
 
   @Override

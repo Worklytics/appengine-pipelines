@@ -3,7 +3,7 @@ package com.google.appengine.tools.mapreduce.impl;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.*;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.impl.util.SerializableValue;
 import com.google.appengine.tools.mapreduce.outputs.*;
@@ -31,7 +31,7 @@ public class GoogleCloudStorageMergeOutput extends
   @NonNull
   private final String bucket;
   @NonNull
-  private final ShardedJobId mrJobId;
+  private final ShardedJobRunId mrJobId;
   @NonNull
   private final Integer tier;
   private final GoogleCloudStorageFileOutputWriter.Options options;

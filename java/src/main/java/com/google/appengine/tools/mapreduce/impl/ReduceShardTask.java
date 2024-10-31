@@ -13,7 +13,7 @@ import com.google.appengine.tools.mapreduce.Reducer;
 import com.google.appengine.tools.mapreduce.ReducerContext;
 import com.google.appengine.tools.mapreduce.ReducerInput;
 import com.google.appengine.tools.mapreduce.Worker;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 
 import java.io.IOException;
@@ -39,7 +39,7 @@ public class ReduceShardTask<K, V, O>
 
   private transient ReducerContextImpl<O> context;
 
-  public ReduceShardTask(ShardedJobId mrJobId, int shardNumber, int shardCount,
+  public ReduceShardTask(ShardedJobRunId mrJobId, int shardNumber, int shardCount,
                          InputReader<KeyValue<K, Iterator<V>>> in, Reducer<K, V, O> reducer, OutputWriter<O> out,
                          long millisPerSlice) {
     super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, REDUCER_CALLS,

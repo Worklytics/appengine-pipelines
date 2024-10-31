@@ -7,10 +7,9 @@ import com.google.appengine.tools.mapreduce.Counters;
 import com.google.appengine.tools.mapreduce.impl.CountersImpl;
 import com.google.appengine.tools.mapreduce.impl.IncrementalTaskContext;
 import com.google.appengine.tools.mapreduce.impl.IncrementalTaskWithContext;
-import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
@@ -66,7 +65,7 @@ final class StatusHandler {
   public static final String ABORT_JOB_PATH = "abort_job";
   public static final String GET_JOB_DETAIL_PATH = "get_job_detail";
 
-  private JSONObject handleCleanupJob(PipelineOrchestrator pipelineOrchestrator, ShardedJobId jobId) throws JSONException {
+  private JSONObject handleCleanupJob(PipelineOrchestrator pipelineOrchestrator, ShardedJobRunId jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
     if (pipelineOrchestrator.cleanupJob(jobId)) {
       retValue.put("status", "Successfully deleted requested job.");
@@ -76,7 +75,7 @@ final class StatusHandler {
     return retValue;
   }
 
-  private JSONObject handleAbortJob(PipelineOrchestrator pipelineOrchestrator, ShardedJobId jobId) throws JSONException {
+  private JSONObject handleAbortJob(PipelineOrchestrator pipelineOrchestrator, ShardedJobRunId jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
     pipelineOrchestrator.abortJob(jobId);
     retValue.put("status", "Successfully aborted requested job.");
@@ -177,7 +176,7 @@ final class StatusHandler {
    * Handle the get_job_detail AJAX command.
    */
   @VisibleForTesting
-  JSONObject handleGetJobDetail(PipelineRunner pipelineRunner, ShardedJobId jobId) {
+  JSONObject handleGetJobDetail(PipelineRunner pipelineRunner, ShardedJobRunId jobId) {
     ShardedJobState state = pipelineRunner.getJobState(jobId);
     if (state == null) {
       return null;

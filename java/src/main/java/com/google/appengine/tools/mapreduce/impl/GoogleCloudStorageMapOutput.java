@@ -11,7 +11,7 @@ import com.google.appengine.tools.mapreduce.Output;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Sharder;
 import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageMapOutputWriter.MapOutputWriter;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import org.apache.commons.codec.digest.DigestUtils;
 
@@ -33,15 +33,15 @@ import java.util.Map.Entry;
 public class GoogleCloudStorageMapOutput<K, V> extends Output<KeyValue<K, V>, FilesByShard> {
 
   private static final long serialVersionUID = 7496044634366491296L;
-  private final ShardedJobId mrJobId;
+  private final ShardedJobRunId mrJobId;
   private final String bucket;
   private final Marshaller<K> keyMarshaller;
   private final Marshaller<V> valueMarshaller;
   private final Sharder sharder;
   private final GoogleCloudStorageFileOutput.Options options;
 
-  public GoogleCloudStorageMapOutput(String bucket, ShardedJobId mrJobId, Marshaller<K> keyMarshaller,
-      Marshaller<V> valueMarshaller, Sharder sharder, GoogleCloudStorageFileOutput.Options options) {
+  public GoogleCloudStorageMapOutput(String bucket, ShardedJobRunId mrJobId, Marshaller<K> keyMarshaller,
+                                     Marshaller<V> valueMarshaller, Sharder sharder, GoogleCloudStorageFileOutput.Options options) {
     this.bucket = checkNotNull(bucket, "Null bucket");
     this.sharder = checkNotNull(sharder, "Null sharder");
     this.mrJobId = checkNotNull(mrJobId, "Null mrJobId");

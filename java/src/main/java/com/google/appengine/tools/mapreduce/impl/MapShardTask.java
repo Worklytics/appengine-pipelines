@@ -12,7 +12,7 @@ import com.google.appengine.tools.mapreduce.Mapper;
 import com.google.appengine.tools.mapreduce.MapperContext;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Worker;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import lombok.NonNull;
 
@@ -37,7 +37,7 @@ public class MapShardTask<I, K, V> extends WorkerShardTask<I, KeyValue<K, V>, Ma
 
   private transient MapperContextImpl<K, V> context;
 
-  public MapShardTask(@NonNull ShardedJobId mrJobId,
+  public MapShardTask(@NonNull ShardedJobRunId mrJobId,
                       int shardNumber,
                       int shardCount,
                       @NonNull InputReader<I> in,

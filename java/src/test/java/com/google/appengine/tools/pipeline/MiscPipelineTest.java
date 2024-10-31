@@ -86,7 +86,7 @@ public class MiscPipelineTest extends PipelineTest {
 
   @Test
   public void testReturnFutureList() throws Exception {
-    JobId pipelineId = pipelineService.startNewPipeline(new ReturnFutureListJob());
+    JobRunId pipelineId = pipelineService.startNewPipeline(new ReturnFutureListJob());
     List<String> value = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(ImmutableList.of("123", "456"), value);
   }
@@ -113,7 +113,7 @@ public class MiscPipelineTest extends PipelineTest {
 
   @Test
   public void testTransform() throws Exception {
-    JobId pipelineId= pipelineService.startNewPipeline(new TestTransformJob());
+    JobRunId pipelineId= pipelineService.startNewPipeline(new TestTransformJob());
     Long value = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(Long.valueOf(123), value);
   }
@@ -151,7 +151,7 @@ public class MiscPipelineTest extends PipelineTest {
 
   @Test
   public void testWaitForAll() throws Exception {
-    JobId pipelineId= pipelineService.startNewPipeline(new RootJob(false));
+    JobRunId pipelineId= pipelineService.startNewPipeline(new RootJob(false));
     JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
     assertEquals("123", jobInfo.getOutput());
@@ -160,7 +160,7 @@ public class MiscPipelineTest extends PipelineTest {
 
   @Test
   public void testWaitForAllAndDelete() throws Exception {
-    JobId pipelineId= pipelineService.startNewPipeline(new RootJob(true));
+    JobRunId pipelineId= pipelineService.startNewPipeline(new RootJob(true));
 
     JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
@@ -228,11 +228,11 @@ public class MiscPipelineTest extends PipelineTest {
 
   @Test
   public void testWaitForUsedByNewPipeline(DatastoreOptions datastoreOptions) throws Exception {
-    JobId pipelineId= pipelineService.startNewPipeline(new CallerJob(datastoreOptions));
+    JobRunId pipelineId= pipelineService.startNewPipeline(new CallerJob(datastoreOptions));
     JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
-    JobId[] calledPipelines = Arrays.stream(((String) jobInfo.getOutput()).split(","))
-      .map(s -> JobId.fromEncodedString(s)).collect(Collectors.toCollection(ArrayList::new)).toArray(new JobId[0]);
+    JobRunId[] calledPipelines = Arrays.stream(((String) jobInfo.getOutput()).split(","))
+      .map(s -> JobRunId.fromEncodedString(s)).collect(Collectors.toCollection(ArrayList::new)).toArray(new JobRunId[0]);
     jobInfo = waitUntilJobComplete(pipelineService, calledPipelines[0]);
     assertEquals(JobInfo.State.COMPLETED_SUCCESSFULLY, jobInfo.getJobState());
     assertEquals("123", jobInfo.getOutput());
@@ -275,7 +275,7 @@ public class MiscPipelineTest extends PipelineTest {
   @Test
   public void testGetJobDisplayName() throws Exception {
     ConcreteJob job = new ConcreteJob();
-    JobId pipelineId= pipelineService.startNewPipeline(job);
+    JobRunId pipelineId= pipelineService.startNewPipeline(job);
     JobRecord jobRecord = pipelineManager.getJob(pipelineId);
     assertEquals(job.getJobDisplayName(), jobRecord.getRootJobDisplayName());
     JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
@@ -288,7 +288,7 @@ public class MiscPipelineTest extends PipelineTest {
 
   @Test
   public void testJobInheritence() throws Exception {
-    JobId pipelineId= pipelineService.startNewPipeline(new ConcreteJob());
+    JobRunId pipelineId= pipelineService.startNewPipeline(new ConcreteJob());
     JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals("Shalom", jobInfo.getOutput());
   }
@@ -305,7 +305,7 @@ public class MiscPipelineTest extends PipelineTest {
   @Test
  public void testJobFailure() throws Exception {
     //fail after 1 attempt, to speed up this test (although default is 3)
-    JobId pipelineId= pipelineService.startNewPipeline(new FailedJob(), new JobSetting.MaxAttempts(1));
+    JobRunId pipelineId= pipelineService.startNewPipeline(new FailedJob(), new JobSetting.MaxAttempts(1));
     JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     assertEquals(JobInfo.State.STOPPED_BY_ERROR, jobInfo.getJobState());
     assertEquals("koko", jobInfo.getException().getMessage());
@@ -318,7 +318,7 @@ public class MiscPipelineTest extends PipelineTest {
     // which is not the case right now. This this *SHOULD* change after we fix
     // it, as fixing it should cause a dead-lock.
     // see b/12249138
-    JobId pipelineId= pipelineService.startNewPipeline(new ReturnValueParentJob());
+    JobRunId pipelineId= pipelineService.startNewPipeline(new ReturnValueParentJob());
     String value = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("bla", value);
     ReturnValueParentJob.latch1.countDown();
@@ -351,7 +351,7 @@ public class MiscPipelineTest extends PipelineTest {
 
   @Test
   public void testSubmittingPromisedValueMoreThanOnce(DatastoreOptions datastoreOptions) throws Exception {
-    JobId pipelineId= pipelineService.startNewPipeline(new SubmitPromisedParentJob(datastoreOptions));
+    JobRunId pipelineId= pipelineService.startNewPipeline(new SubmitPromisedParentJob(datastoreOptions));
     String value = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("2", value);
   }
@@ -399,7 +399,7 @@ public class MiscPipelineTest extends PipelineTest {
 
   @Test
   public void testCancelPipeline() throws Exception {
-    JobId pipelineId= pipelineService.startNewPipeline(new HandleExceptionParentJob(),
+    JobRunId pipelineId= pipelineService.startNewPipeline(new HandleExceptionParentJob(),
         new JobSetting.BackoffSeconds(1), new JobSetting.BackoffFactor(1),
         new JobSetting.MaxAttempts(2));
     JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);
@@ -546,21 +546,21 @@ public class MiscPipelineTest extends PipelineTest {
   @Test
   public void testImmediateChild() throws Exception {
     // This is also testing inheritance of statusConsoleUrl.
-    JobId pipelineId= pipelineService.startNewPipeline(new Returns5FromChildJob(), largeValue);
+    JobRunId pipelineId= pipelineService.startNewPipeline(new Returns5FromChildJob(), largeValue);
     Integer five = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(5, five.intValue());
   }
 
   @Test
   public void testPromisedValue(DatastoreOptions datastoreOptions) throws Exception {
-    JobId pipelineId= pipelineService.startNewPipeline(new FillPromisedValueJob(datastoreOptions));
+    JobRunId pipelineId= pipelineService.startNewPipeline(new FillPromisedValueJob(datastoreOptions));
     String helloWorld = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("hello world", helloWorld);
   }
 
   @Test
   public void testDelayedValueInSlowJob() throws Exception {
-    JobId pipelineId= pipelineService.startNewPipeline(new UsingDelayedValueInSlowJob());
+    JobRunId pipelineId= pipelineService.startNewPipeline(new UsingDelayedValueInSlowJob());
     String hello = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("I am delayed", hello);
   }

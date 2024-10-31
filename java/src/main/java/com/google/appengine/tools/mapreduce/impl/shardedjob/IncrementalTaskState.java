@@ -33,7 +33,7 @@ import java.util.Date;
 @Getter
 public class IncrementalTaskState<T extends IncrementalTask> {
 
-  private final ShardedJobId jobId;
+  private final ShardedJobRunId jobId;
 
   private final IncrementalTaskId taskId;
 
@@ -101,13 +101,13 @@ public class IncrementalTaskState<T extends IncrementalTask> {
    * Returns a new running IncrementalTaskState.
    */
   static <T extends IncrementalTask> IncrementalTaskState<T> create(
-    IncrementalTaskId taskId, ShardedJobId jobId, Instant createTime, T initialTask) {
+          IncrementalTaskId taskId, ShardedJobRunId jobId, Instant createTime, T initialTask) {
     return new IncrementalTaskState<>(taskId, jobId, createTime, new LockInfo(null, null),
         checkNotNull(initialTask), new Status(StatusCode.RUNNING));
   }
 
   private IncrementalTaskState(@NonNull IncrementalTaskId taskId,
-                               @NonNull ShardedJobId jobId,
+                               @NonNull ShardedJobRunId jobId,
                                Instant mostRecentUpdateTime,
                                LockInfo lockInfo,
                                T task,
@@ -190,7 +190,7 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
       IncrementalTaskState<T> state = new IncrementalTaskState<>(
           IncrementalTaskId.parse(in.getKey().getName()),
-          ShardedJobId.fromEncodedString(in.getString(JOB_ID_PROPERTY)),
+          ShardedJobRunId.fromEncodedString(in.getString(JOB_ID_PROPERTY)),
           in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY).toDate().toInstant(),
           lockInfo,
           in.contains(NEXT_TASK_PROPERTY) ? SerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,

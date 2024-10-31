@@ -88,7 +88,7 @@ public class LockingTest extends EndToEndTestCase {
    */
   @Test
   public void testLateTaskQueueDup() throws Exception {
-    final ShardedJobId jobId = startNewTask(settings);
+    final ShardedJobRunId jobId = startNewTask(settings);
 
     final TaskStateInfo taskFromQueue = grabNextTaskFromQueue(queueName);
 
@@ -123,8 +123,8 @@ public class LockingTest extends EndToEndTestCase {
   }
 
 
-  private ShardedJobId startNewTask(ShardedJobSettings settings) {
-    ShardedJobId jobId = shardedJobId("job1");
+  private ShardedJobRunId startNewTask(ShardedJobSettings settings) {
+    ShardedJobRunId jobId = shardedJobId("job1");
     assertNull(getPipelineRunner().getJobState(jobId));
     StaticBlockingTask task = new StaticBlockingTask(1);
     getPipelineOrchestrator().startJob(jobId, ImmutableList.<TestTask>of(task), new TestController(getDatastore().getOptions(), 1, getPipelineService(), false), settings);
@@ -136,7 +136,7 @@ public class LockingTest extends EndToEndTestCase {
     return jobId;
   }
 
-  private void assertDone(final ShardedJobId jobId) {
+  private void assertDone(final ShardedJobRunId jobId) {
     ShardedJobState state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(DONE), state.getStatus());
     assertEquals(0, state.getActiveTaskCount());
@@ -149,7 +149,7 @@ public class LockingTest extends EndToEndTestCase {
    */
   @Test
   public void testDupResultsInWaiting() throws Exception {
-    final ShardedJobId jobId = startNewTask(settings);
+    final ShardedJobRunId jobId = startNewTask(settings);
 
     final TaskStateInfo taskFromQueue = grabNextTaskFromQueue(queueName);
 
@@ -195,7 +195,7 @@ public class LockingTest extends EndToEndTestCase {
     //duplicate arrives.
     ShardedJobSettings settings =
         new ShardedJobSettings.Builder().setSliceTimeoutMillis(0).build();
-    final ShardedJobId jobId = startNewTask(settings);
+    final ShardedJobRunId jobId = startNewTask(settings);
 
     //Run task
     final TaskStateInfo taskFromQueue = grabNextTaskFromQueue(queueName);

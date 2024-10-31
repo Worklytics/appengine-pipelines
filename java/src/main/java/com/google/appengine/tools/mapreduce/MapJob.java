@@ -10,14 +10,13 @@ import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.pipeline.FutureValue;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.PromisedValue;
 import com.google.appengine.tools.pipeline.Value;
-import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -80,7 +79,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
         .setWorkerQueueName(queue)
         .build();
     }
-    ShardedJobId jobId = getShardedJobId();
+    ShardedJobRunId jobId = getShardedJobId();
     Context context = new BaseContext(jobId);
     Input<I> input = specification.getInput();
     input.setContext(context);
@@ -124,10 +123,10 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
   /**
    * @return shardedJobId for this job
    */
-  private ShardedJobId getShardedJobId() {
+  private ShardedJobRunId getShardedJobId() {
     DatastoreOptions defaultDatastoreOptions = DatastoreOptions.getDefaultInstance();
 
-    return ShardedJobId.of(
+    return ShardedJobRunId.of(
       java.util.Optional.ofNullable(settings.getProjectId()).orElseGet(defaultDatastoreOptions::getProjectId),
       java.util.Optional.ofNullable(settings.getDatabaseId()).orElseGet(defaultDatastoreOptions::getDatabaseId),
       java.util.Optional.ofNullable(settings.getNamespace()).orElseGet(defaultDatastoreOptions::getNamespace),

@@ -25,7 +25,7 @@ package com.google.appengine.tools.pipeline;
  * handle} of a promised value is an opaque identifier that uniquely represents
  * the value slot to the framework. This handle should be passed to the external
  * agent who will use the handle to supply the promised value via the method
- * {@link PipelineService#submitPromisedValue(JobId, Object)}. For example the
+ * {@link PipelineService#submitPromisedValue(JobRunId, Object)}. For example the
  * following code might appear inside of the {@code run()} method of a Job.
  * <blockquote>
  *

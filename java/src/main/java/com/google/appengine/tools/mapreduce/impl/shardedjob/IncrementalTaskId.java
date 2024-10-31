@@ -18,7 +18,7 @@ public class IncrementalTaskId {
    * the sharded job this task belongs to
    */
   @NonNull
-  ShardedJobId shardedJobId;
+  ShardedJobRunId shardedJobId;
 
   /**
    * which shard this represents, eg, 0-39 for 40 shards
@@ -44,10 +44,10 @@ public class IncrementalTaskId {
     if (parts.length != 2) {
       throw new IllegalArgumentException("Invalid taskId: " + taskId);
     }
-    return IncrementalTaskId.of(ShardedJobId.fromEncodedString(parts[0]), Integer.parseInt(parts[1]));
+    return IncrementalTaskId.of(ShardedJobRunId.fromEncodedString(parts[0]), Integer.parseInt(parts[1]));
   }
 
-  private static String prefix(ShardedJobId shardedJobId) {
+  private static String prefix(ShardedJobRunId shardedJobId) {
     return shardedJobId.asEncodedString() + NUMBER_SUFFIC_DELIMITER;
   }
 }

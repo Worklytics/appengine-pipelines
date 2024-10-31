@@ -57,13 +57,13 @@ public class OrphanedJobGraphTest extends PipelineTest {
 
   /**
    * Tests that the method
-   * {@link PipelineService#submitPromisedValue(JobId, Object)} behaves
+   * {@link PipelineService#submitPromisedValue(JobRunId, Object)} behaves
    * properly if the promise handle has been orphaned.
    * <p>
    * This test is similar to {@link #testOrphanedJobGraph()} except that this
    * time the child job graph is supposed to be activated asynchronously vai a
    * promised value. We test that
-   * {@link PipelineService#submitPromisedValue(JobId, Object)} will throw a
+   * {@link PipelineService#submitPromisedValue(JobRunId, Object)} will throw a
    * {@link OrphanedObjectException} when {@code submitPromisedValue()} is
    * invoked on an orphaned promise handle.
    */
@@ -83,7 +83,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
   private void doOrphanedJobGraphTest(boolean usePromisedValue) throws Exception {
 
     // Run GeneratorJob
-    JobId pipelineHandle = pipelineService.startNewPipeline(new GeneratorJob(usePromisedValue));
+    JobRunId pipelineHandle = pipelineService.startNewPipeline(new GeneratorJob(usePromisedValue));
     waitForJobToComplete(pipelineService, pipelineHandle);
 
     // The GeneratorJob run() should have failed twice just before the final
@@ -205,7 +205,7 @@ public class OrphanedJobGraphTest extends PipelineTest {
 
   /**
    * A {@code Runnable} for invoking the method
-   * {@link PipelineService#submitPromisedValue(JobId, Object)}.
+   * {@link PipelineService#submitPromisedValue(JobRunId, Object)}.
    *
    */
   @RequiredArgsConstructor

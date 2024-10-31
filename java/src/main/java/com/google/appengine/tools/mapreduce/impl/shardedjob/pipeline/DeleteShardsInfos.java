@@ -26,7 +26,7 @@ public class DeleteShardsInfos extends Job0<Void> {
   private static final long serialVersionUID = -4342214189527672009L;
 
   private final DatastoreOptions datastoreOptions;
-  private final ShardedJobId jobId;
+  private final ShardedJobRunId jobId;
   private final int start;
   private final int end;
 

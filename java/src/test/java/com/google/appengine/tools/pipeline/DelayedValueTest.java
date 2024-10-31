@@ -60,7 +60,7 @@ public class DelayedValueTest extends PipelineTest {
 
   @Test
   public void testDelayedValue() throws Exception {
-    JobId pipelineId= pipelineService.startNewPipeline(new TestDelayedValueJob());
+    JobRunId pipelineId= pipelineService.startNewPipeline(new TestDelayedValueJob());
     Integer five = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals(EXPECTED_RESULT, five.intValue());
     assertEquals("TestDelayedValueJob.run DelayedJob.run", trace());

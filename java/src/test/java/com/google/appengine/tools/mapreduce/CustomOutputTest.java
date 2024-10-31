@@ -8,7 +8,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.appengine.tools.mapreduce.EndToEndTest.TestMapper;
 import com.google.appengine.tools.mapreduce.inputs.InMemoryInput;
 import com.google.appengine.tools.mapreduce.reducers.ValueProjectionReducer;
-import com.google.appengine.tools.pipeline.JobId;
+import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.JobInfo;
 import com.google.appengine.tools.pipeline.JobInfo.State;
 
@@ -105,11 +105,11 @@ public class CustomOutputTest extends EndToEndTestCase {
       .setDatabaseId(datastore.getOptions().getDatabaseId())
       .setNamespace(datastore.getOptions().getNamespace())
       .build();
-    JobId jobId = pipelineService.startNewPipeline(
+    JobRunId jobRunId = pipelineService.startNewPipeline(
         new MapReduceJob<>(mrSpecBuilder.build(), mrSettings));
-    assertNotNull(jobId);
+    assertNotNull(jobRunId);
     executeTasksUntilEmpty("default");
-    JobInfo info = pipelineService.getJobInfo(jobId);
+    JobInfo info = pipelineService.getJobInfo(jobRunId);
     assertEquals(State.COMPLETED_SUCCESSFULLY, info.getJobState());
     @SuppressWarnings("unchecked")
     MapReduceResult<Boolean> result = (MapReduceResult<Boolean>) info.getOutput();
