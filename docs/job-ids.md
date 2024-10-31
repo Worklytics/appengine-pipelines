@@ -1,8 +1,8 @@
 
 ## Data Model
 
-`JobId`
-`ShardedJobId` - extends `JobId`?? a pipeline job that is split (sharded) so that can be
+`JobId` tuple of `(project, database id, namespace, name)`
+`ShardedJobId` - extends `JobId`; a pipeline job that is split (sharded) so that can be
 executed in parallel, as `IncrementalTask`s (not an explicit datastore entity; state of each
 represented as `IncrementalTaskState`)
 
@@ -11,6 +11,8 @@ represented as `IncrementalTaskState`)
 
 
 `Slots` --> promise handle?
+
+Promise  handles should become similarly encoded keys, or url-safe-base64 encoded strings.
 
 
 
@@ -49,7 +51,20 @@ Aggregate state of sharded job; eg aggregate of `IncrementalTaskState`.
 
 `JobInstanceRecord` v `JobRecord` - what's the distinction??
 
+## Encoding to String
+Needs:
+   - reference in web apps
+   - reference in logs
+   - reference in other entities/systems
+
+Considerations:
+    - avoid coupling to datastore too much
+    - human-readable, to ease debugging and reading logs/tests
+    - avoid special characters that may need escaping, or not play nice with clients
+
+Current approach is `/` as delimiter, and require none of those in string.
+
 ## Design decisions
 
  - don't utilize parent/entity groups for now; each job/subjob at top-level
- - 
+ - for transport, simple serialization with `/` delimiter; possibly base64-url-safe encoding would be better?1

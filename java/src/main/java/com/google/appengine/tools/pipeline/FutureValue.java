@@ -55,7 +55,7 @@ public interface FutureValue<E> extends Value<E> {
    * 
    * @return a String uniquely identifying the source job.
    */
-  public String getSourceJobHandle();
+  public JobId getSourceJobHandle();
 
   /**
    * Returns a String uniquely identifying the Pipeline that this {@code
@@ -66,6 +66,6 @@ public interface FutureValue<E> extends Value<E> {
    * 
    * @return a String uniquely identifying the Pipeline
    */
-  public String getPipelineHandle();
+  public JobId getPipelineHandle();
 
 }
