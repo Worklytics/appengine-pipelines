@@ -16,12 +16,7 @@ package com.google.appengine.tools.pipeline;
 
 
 import com.google.appengine.tools.pipeline.demo.GCDExample;
-import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
-import com.google.auth.Credentials;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
-
-import java.beans.Transient;
 
 /**
  *
@@ -68,7 +63,7 @@ public class AsyncGCDExample {
       return null;
     }
 
-    private void asyncAskUserForTwoIntegers(final String aHandle, final String bHandle) {
+    private void asyncAskUserForTwoIntegers(final SlotId aHandle, final SlotId bHandle) {
       Thread thread = new Thread() {
         @Override
         public void run() {
@@ -109,7 +104,7 @@ public class AsyncGCDExample {
       return userName;
     }
 
-    private void asyncAskUserForName(final String handle) {
+    private void asyncAskUserForName(final SlotId handle) {
       Thread thread = new Thread() {
         @Override
         public void run() {

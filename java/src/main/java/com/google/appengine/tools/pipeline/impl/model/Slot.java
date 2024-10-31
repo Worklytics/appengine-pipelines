@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
+import com.google.appengine.tools.pipeline.SlotId;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
 import com.google.cloud.Timestamp;
@@ -30,6 +31,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 
+import lombok.NonNull;
 import lombok.extern.java.Log;
 
 
@@ -191,6 +193,11 @@ public class Slot extends PipelineModelObject {
     return waitingOnMeInflated;
   }
 
+
+  public SlotId getFullId() {
+    return SlotId.of(this.getKey());
+  }
+
   @Override
   public String toString() {
     return "Slot[" + getKeyName(getKey()) + ", value=" + (serializedVersion != null ? "..." : value)
@@ -198,14 +205,21 @@ public class Slot extends PipelineModelObject {
         + getKeyName(getGeneratorJobKey()) + ", guid=" + getGraphGuid() + "]";
   }
 
-  public static Key key(String projectId, String namespace, String slotName) {
-    KeyFactory keyFactory = new KeyFactory(projectId, namespace);
+  public static Key key(String projectId, String databaseId, String namespace,
+                        @NonNull String slotName) {
+    KeyFactory keyFactory = new KeyFactory(projectId);
+    if (databaseId != null) {
+      keyFactory.setDatabaseId(databaseId);
+    }
+    if (namespace != null) {
+      keyFactory.setNamespace(namespace);
+    }
     keyFactory.setKind(DATA_STORE_KIND);
     return keyFactory.newKey(slotName);
   }
 
   @VisibleForTesting
-  public static Key keyFromHandle(String handle) {
-    return Key.fromUrlSafe(handle);
+  public static Key keyFromHandle(SlotId handle) {
+    return key(handle.getProject(), handle.getDatabaseId(), handle.getNamespace(), handle.getSlotId());
   }
 }

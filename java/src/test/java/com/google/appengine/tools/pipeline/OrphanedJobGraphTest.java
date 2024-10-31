@@ -57,13 +57,13 @@ public class OrphanedJobGraphTest extends PipelineTest {
 
   /**
    * Tests that the method
-   * {@link PipelineService#submitPromisedValue(JobRunId, Object)} behaves
+   * {@link PipelineService#submitPromisedValue(SlotId, Object)} behaves
    * properly if the promise handle has been orphaned.
    * <p>
    * This test is similar to {@link #testOrphanedJobGraph()} except that this
    * time the child job graph is supposed to be activated asynchronously vai a
    * promised value. We test that
-   * {@link PipelineService#submitPromisedValue(JobRunId, Object)} will throw a
+   * {@link PipelineService#submitPromisedValue(SlotId, Object)} will throw a
    * {@link OrphanedObjectException} when {@code submitPromisedValue()} is
    * invoked on an orphaned promise handle.
    */
@@ -205,14 +205,14 @@ public class OrphanedJobGraphTest extends PipelineTest {
 
   /**
    * A {@code Runnable} for invoking the method
-   * {@link PipelineService#submitPromisedValue(JobRunId, Object)}.
+   * {@link PipelineService#submitPromisedValue(SlotId, Object)}.
    *
    */
   @RequiredArgsConstructor
   private static class SupplyPromisedValueRunnable implements Runnable {
 
     private final ApiProxy.Environment apiProxyEnvironment;
-    private final String promiseHandle;
+    private final SlotId promiseHandle;
     private final PipelineService pipelineService;
 
     public static AtomicInteger orphanedObjectExceptionCount = new AtomicInteger(0);

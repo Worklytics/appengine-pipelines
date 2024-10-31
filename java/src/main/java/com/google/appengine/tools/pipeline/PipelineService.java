@@ -321,6 +321,6 @@ public interface PipelineService {
    *         some other thread will be submitting the promised value via that
    *         non-orphaned handle.
    */
-  void submitPromisedValue(String promiseHandle, Object value) throws NoSuchObjectException,
+  void submitPromisedValue(SlotId promiseHandle, Object value) throws NoSuchObjectException,
       OrphanedObjectException;
 }

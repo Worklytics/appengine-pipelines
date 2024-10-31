@@ -116,7 +116,7 @@ public class PipelineServiceImpl implements PipelineService {
   }
 
   @Override
-  public void submitPromisedValue(String promiseHandle, Object value)
+  public void submitPromisedValue(SlotId promiseHandle, Object value)
       throws NoSuchObjectException, OrphanedObjectException {
     pipelineManager.submitPromisedValue(promiseHandle, value);
   }

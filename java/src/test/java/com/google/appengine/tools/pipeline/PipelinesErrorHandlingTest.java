@@ -388,12 +388,12 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
 
   @SuppressWarnings("serial")
   @RequiredArgsConstructor
-  static class ParentOfJobToCancel extends Job1<Integer, String> {
+  static class ParentOfJobToCancel extends Job1<Integer, SlotId> {
 
     final PipelineBackEnd.Options options;
 
     @Override
-    public Value<Integer> run(String unblockTheAngryOneHandle) throws Exception {
+    public Value<Integer> run(SlotId unblockTheAngryOneHandle) throws Exception {
       trace("ParentOfJobToCancel.run");
       // Unblocks a sibling that is going to throw an exception
       getPipelineService().submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
@@ -608,12 +608,12 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
 
   @RequiredArgsConstructor
   @SuppressWarnings("serial")
-  static class JobToGetCancellationInHandleException extends Job1<Integer, String> {
+  static class JobToGetCancellationInHandleException extends Job1<Integer, SlotId> {
 
     final PipelineBackEnd.Options options;
 
     @Override
-    public Value<Integer> run(String unblockTheAngryOneHandle) throws Exception {
+    public Value<Integer> run(SlotId unblockTheAngryOneHandle) throws Exception {
       trace("JobToGetCancellationInHandleException.run");
 
       getPipelineService().submitPromisedValue(unblockTheAngryOneHandle, EXPECTED_RESULT1);
@@ -743,10 +743,10 @@ public class PipelinesErrorHandlingTest extends PipelineTest {
   }
 
   @SuppressWarnings("serial")
-  static class UnblockAndThrowJob extends Job1<Integer, String> {
+  static class UnblockAndThrowJob extends Job1<Integer, SlotId> {
 
     @Override
-    public Value<Integer> run(String unblockHandle) throws Exception {
+    public Value<Integer> run(SlotId unblockHandle) throws Exception {
       trace("UnblockAndThrowJob.run");
       // TODO(user): uncomment once b/12249138 is fixed, which will be a good test to verify
       // that a job should never return a value before all its children completed and first

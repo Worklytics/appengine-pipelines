@@ -386,12 +386,12 @@ public class MiscPipelineTest extends PipelineTest {
 
   @SuppressWarnings("serial")
   @AllArgsConstructor
-  private static class FillPromiseJob extends Job2<Void, String, String> {
+  private static class FillPromiseJob extends Job2<Void, String, SlotId> {
 
     final DatastoreOptions datastoreOptions;
 
     @Override
-    public Value<Void> run(String value, String handle) throws Exception {
+    public Value<Void> run(String value, SlotId handle) throws Exception {
       getPipelineService().submitPromisedValue(handle, value);
       return null;
     }
@@ -595,11 +595,11 @@ public class MiscPipelineTest extends PipelineTest {
 
   @AllArgsConstructor
   @SuppressWarnings("serial")
-  private static class PopulatePromisedValueJob extends Job1<Void, String> {
+  private static class PopulatePromisedValueJob extends Job1<Void, SlotId> {
 
     final DatastoreOptions datastoreOptions;
     @Override
-    public Value<Void> run(String handle) throws NoSuchObjectException, OrphanedObjectException {
+    public Value<Void> run(SlotId handle) throws NoSuchObjectException, OrphanedObjectException {
 
       List<Temp<String>> list = new ArrayList<>();
       list.add(new Temp<>("hello"));

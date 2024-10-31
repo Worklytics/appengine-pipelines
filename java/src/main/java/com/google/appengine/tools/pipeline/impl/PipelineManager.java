@@ -352,13 +352,6 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     return backEnd.getRootPipelinesDisplayName();
   }
 
-  private void checkNonEmpty(String s, String name) {
-    if (null == s || s.trim().length() == 0) {
-      throw new IllegalArgumentException(name + " is empty.");
-    }
-  }
-
-
   @Override
   public JobRecord getJob(@NonNull JobRunId jobHandle) throws NoSuchObjectException {
     log.finest("getJob: " + jobHandle);
@@ -422,16 +415,15 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   /**
-   * just implementation of {@link PipelineService#submitPromisedValue(JobRunId, Object)}, not really sure why it's here
+   * just implementation of {@link PipelineService#submitPromisedValue(SlotId, Object)}, not really sure why it's here
    *
-   * @param promiseHandle
-   * @param value
+   * @param promiseHandle id of slot to fill for promise
+   * @param value to fill slot with
    * @throws NoSuchObjectException
    * @throws OrphanedObjectException
    */
-  void submitPromisedValue(String promiseHandle, Object value)
+  void submitPromisedValue(@NonNull SlotId promiseHandle, Object value)
       throws NoSuchObjectException, OrphanedObjectException {
-    checkNonEmpty(promiseHandle, "promiseHandle");
     Key key = Slot.keyFromHandle(promiseHandle);
     Slot slot = null;
     // It is possible, though unlikely, that we might be asked to accept a

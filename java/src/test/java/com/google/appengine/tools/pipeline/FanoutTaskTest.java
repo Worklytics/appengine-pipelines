@@ -64,7 +64,7 @@ public class FanoutTaskTest extends PipelineTest {
     RunJobTask runJobTask2 = new RunJobTask(key, queueSettings2);
     key = JobRecord.key(getProjectId(), null, null, "job3");
     FinalizeJobTask finalizeJobTask = new FinalizeJobTask(key, queueSettings1);
-    key = Slot.key(getProjectId(), "", "slot1");
+    key = Slot.key(getProjectId(), null, "", "slot1");
     HandleSlotFilledTask hsfTask = new HandleSlotFilledTask(key, queueSettings2);
     listOfTasks = ImmutableList.of(runJobTask, runJobTask2, finalizeJobTask, hsfTask);
     encodedBytes = FanoutTask.encodeTasks(listOfTasks);

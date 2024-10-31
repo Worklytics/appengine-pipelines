@@ -14,6 +14,8 @@
 
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.impl.model.Slot;
+
 /**
  * An abstract representation of a value slot that will be filled in when some
  * asynchronous external agent supplies a value.
@@ -52,5 +54,5 @@ package com.google.appengine.tools.pipeline;
  * @param <E> The type of the value represented by this {@code PromisedValue}
  */
 public interface PromisedValue<E> extends FutureValue<E> {
-  String getHandle();
+  SlotId getHandle();
 }

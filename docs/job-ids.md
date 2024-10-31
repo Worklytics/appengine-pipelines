@@ -6,13 +6,9 @@
 executed in parallel, as `IncrementalTask`s (not an explicit datastore entity; state of each
 represented as `IncrementalTaskState`)
 
-`IncrementalTaskId`?
---> replace string `taskId` with `IncrementalTaskId`?
+`IncrementalTaskId` - identifies a task that's executed incrementally, eg, a slice of a sharded job.
 
-
-`Slots` --> promise handle?
-
-Promise  handles should become similarly encoded keys, or url-safe-base64 encoded strings.
+`Slots` are still identified with strings for now.  Slots, rromise  handles should become similarly encoded keys, or url-safe-base64 encoded strings.
 
 Note, called `Run`, to be more analogous to  how other frameworks, namely Spring, refer to a job execution.
 

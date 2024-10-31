@@ -6,6 +6,7 @@ import com.google.common.base.Preconditions;
 import lombok.*;
 
 import javax.annotation.Nullable;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.Optional;
@@ -20,6 +21,7 @@ import java.util.Optional;
 @Getter
 public class JobRunId implements Serializable {
 
+  @Serial
   private static final long serialVersionUID = 1L;
 
   /**
@@ -41,7 +43,7 @@ public class JobRunId implements Serializable {
   private final  String namespace;
 
   /**
-   * uniquely identifies a job within a project and namespace
+   * uniquely identifies a job, given project, database, and namespace
    */
   @NonNull
   private final String jobId;

@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.pipeline.JobRunId;
+import com.google.appengine.tools.pipeline.SlotId;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
 import com.google.appengine.tools.pipeline.impl.model.JobInstanceRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
@@ -40,14 +41,6 @@ import java.util.Map;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 class JsonGenerator {
-
-  //TODO: somewhat coupled to RequestUtils::getShardedJobId; and PipelineOrchestrator interfaces which use String jobIds;
-  // presumed to be Key encoded this way
-  // so solution would be to strenghten the contract of the interfaces to use Key instead of String  (or rather a
-  // JobId class that wraps a Key)
-  private static String toString(Key key) {
-    return key.toUrlSafe();
-  }
 
   private static final String PIPELINE_ID = "pipelineId";
   private static final String ROOT_PIPELINE_ID = "rootPipelineId";
@@ -120,7 +113,7 @@ class JsonGenerator {
     //somehow, there are conditions in which this is building cyclic object graphs, which newer versions of JSONObject
     // attempt to serialize and end up with stack overflows
     for (Slot slot : pipelineObjects.getSlots().values()) {
-      slotMap.put(toString(slot.getKey()), buildMapRepresentation(slot));
+      slotMap.put(SlotId.of(slot.getKey()).asEncodedString(), buildMapRepresentation(slot));
     }
     for (JobRecord jobRecord : pipelineObjects.getJobs().values()) {
       jobMap.put(JobRunId.of(jobRecord.getKey()).asEncodedString(), buildMapRepresentation(jobRecord));
@@ -159,7 +152,7 @@ class JsonGenerator {
     }
     Key sourceJobKey = slot.getSourceJobKey();
     if (null != sourceJobKey) {
-      map.put(SLOT_SOURCE_JOB, toString(sourceJobKey));
+      map.put(SLOT_SOURCE_JOB, JobRunId.of(sourceJobKey));
     }
     return map;
   }
@@ -219,11 +212,11 @@ class JsonGenerator {
     map.put(JOB_ARGS, argumentListRepresentation);
     map.put(JOB_AFTER_SLOT_KEYS, waitingOnRepresentation);
     Map<String, String> allOutputs = new HashMap<>();
-    String outputSlotId = toString(jobRecord.getOutputSlotKey());
+    SlotId outputSlotId = SlotId.of(jobRecord.getOutputSlotKey());
     // Python Pipeline has the notion of multiple outputs with a distinguished
     // output named "default". We don't have that notion. We have only
     // one output and so we put it in "default".
-    allOutputs.put(DEFAULT_OUTPUT_NAME, outputSlotId);
+    allOutputs.put(DEFAULT_OUTPUT_NAME, outputSlotId.asEncodedString());
     map.put(JOB_OUTPUTS, allOutputs);
     map.put(JOB_QUEUE_NAME,
         Optional.fromNullable(jobRecord.getQueueSettings().getOnQueue()).or(""));
@@ -254,9 +247,9 @@ class JsonGenerator {
       List<SlotDescriptor> slotDescriptors) {
     for (SlotDescriptor slotDescriptor : slotDescriptors) {
       Slot slot = slotDescriptor.slot;
-      String slotId = toString(slot.getKey());
+      SlotId slotId = SlotId.of(slot.getKey());
       if (slotDescriptor.isPhantom()) {
-        waitingOnRepresentation.add(slotId);
+        waitingOnRepresentation.add(slotId.asEncodedString());
       } else {
         argumentListRepresentation.add(buildArgumentRepresentation(slotDescriptor.slot));
       }
@@ -274,7 +267,7 @@ class JsonGenerator {
       }
     } else {
       map.put("type", "slot");
-      map.put("slot_key", toString(slot.getKey()));
+      map.put("slot_key", SlotId.of(slot.getKey()).asEncodedString());
     }
 
     return map;
