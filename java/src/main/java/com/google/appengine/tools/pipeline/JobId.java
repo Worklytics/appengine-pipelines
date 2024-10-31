@@ -1,11 +1,13 @@
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.cloud.datastore.Key;
 import com.google.common.base.Preconditions;
 import lombok.*;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -71,6 +73,7 @@ public class JobId implements Serializable {
   }
 
   public static JobId of (Key key) {
+    Preconditions.checkArgument(Objects.equals(key.getKind(), JobRecord.DATA_STORE_KIND), "key must be a JobRecord key");
     return new JobId(key.getProjectId(), key.getDatabaseId(), key.getNamespace(), key.getName());
   }
 

@@ -240,7 +240,7 @@ public class ShufflerServlet extends HttpServlet {
 
       enqueueCallbackTask(shufflerParams,
           "job=" + jobId + "&status=done&output=" + URLEncoder.encode(manifestFile.getObjectName(), "UTF-8"),
-          "Shuffled-" + jobId);
+          "Shuffled-" + jobId.asEncodedString().replace("/", "-"));
       return immediate(null);
     }
   }

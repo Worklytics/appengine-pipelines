@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
+import com.google.appengine.tools.pipeline.JobId;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
 import com.google.appengine.tools.pipeline.impl.model.JobInstanceRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
@@ -112,7 +113,7 @@ class JsonGenerator {
     Map<String, Map<String, Object>> slotMap = new HashMap<>(pipelineObjects.getSlots().size());
     Map<String, Map<String, Object>> jobMap = new HashMap<>(pipelineObjects.getJobs().size());
     Map<String, Object> topLevel = new HashMap<>(4);
-    topLevel.put(ROOT_PIPELINE_ID, toString(pipelineObjects.getRootJob().getKey()));
+    topLevel.put(ROOT_PIPELINE_ID, JobId.of(pipelineObjects.getRootJob().getKey()).asEncodedString());
     topLevel.put(SLOTS, slotMap);
     topLevel.put(PIPELINES, jobMap);
 
@@ -122,7 +123,7 @@ class JsonGenerator {
       slotMap.put(toString(slot.getKey()), buildMapRepresentation(slot));
     }
     for (JobRecord jobRecord : pipelineObjects.getJobs().values()) {
-      jobMap.put(toString(jobRecord.getKey()), buildMapRepresentation(jobRecord));
+      jobMap.put(JobId.of(jobRecord.getKey()).asEncodedString(), buildMapRepresentation(jobRecord));
     }
     return topLevel;
   }
@@ -133,7 +134,7 @@ class JsonGenerator {
     Map<String, Object> topLevel = new HashMap<>(3);
     for (JobRecord rootRecord : pipelineRoots.getFirst()) {
       Map<String, Object> mapRepresentation = buildMapRepresentation(rootRecord);
-      mapRepresentation.put(PIPELINE_ID, toString(rootRecord.getKey()));
+      mapRepresentation.put(PIPELINE_ID, JobId.of(rootRecord.getKey()).asEncodedString());
       jobList.add(mapRepresentation);
     }
     topLevel.put(PIPELINES, jobList);
@@ -283,7 +284,7 @@ class JsonGenerator {
     String[] arrayOfIds = new String[listOfKeys.size()];
     int i = 0;
     for (Key key : listOfKeys) {
-      arrayOfIds[i++] = toString(key);
+      arrayOfIds[i++] = JobId.of(key).asEncodedString();
     }
     return arrayOfIds;
   }

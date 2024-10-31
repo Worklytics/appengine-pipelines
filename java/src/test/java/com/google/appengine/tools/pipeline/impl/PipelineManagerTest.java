@@ -89,9 +89,9 @@ class PipelineManagerTest extends PipelineTest {
     List<JobRecord> rootRecords = StreamSupport.stream(page.getFirst().spliterator(), false).collect(Collectors.toList());
 
     assertEquals(2, rootRecords.size());
-    Set<String> keySet = rootRecords.stream()
+    Set<JobId> keySet = rootRecords.stream()
       .map(JobRecord::getKey)
-      .map(Key::toUrlSafe)
+      .map(JobId::of)
       .collect(Collectors.toSet());
 
 
