@@ -8,7 +8,7 @@ represented as `IncrementalTaskState`)
 
 `IncrementalTaskId` - identifies a task that's executed incrementally, eg, a slice of a sharded job.
 
-`Slots` are still identified with strings for now.  Slots, rromise  handles should become similarly encoded keys, or url-safe-base64 encoded strings.
+`SlotId` to identifiy slots; eg promises/futures - values to be filled async after job excecution.
 
 Note, called `Run`, to be more analogous to  how other frameworks, namely Spring, refer to a job execution.
 
