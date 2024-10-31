@@ -100,14 +100,14 @@ public interface PipelineRunner {
    * @throws NoSuchObjectException If a JobRecord with the given handle cannot
    *         be found in the data store.
    */
-   JobRecord getJob(String jobHandle) throws NoSuchObjectException;
+   JobRecord getJob(JobId jobHandle) throws NoSuchObjectException;
 
   /**
    * Returns all the associated PipelineModelObject for a root pipeline.
    *
    * @throws IllegalArgumentException if root pipeline was not found.
    */
-   PipelineObjects queryFullPipeline(String rootJobHandle);
+   PipelineObjects queryFullPipeline(JobId rootJobHandle);
 
    Pair<? extends Iterable<JobRecord>, String> queryRootPipelines(String classFilter, String cursor, int limit);
 
@@ -123,7 +123,7 @@ public interface PipelineRunner {
    *                               pipeline is not in the {@link JobRecord.State#FINALIZED} or
    *                               {@link JobRecord.State#STOPPED} state.
    */
-   void deletePipelineRecords(String pipelineHandle, boolean force)
+   void deletePipelineRecords(JobId pipelineHandle, boolean force)
     throws NoSuchObjectException, IllegalStateException;
 
 

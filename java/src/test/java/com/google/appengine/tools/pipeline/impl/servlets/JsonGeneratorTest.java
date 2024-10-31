@@ -42,7 +42,7 @@ public class JsonGeneratorTest extends PipelineTest {
     ConcreteJob job = new ConcreteJob();
 
     //job ids seem to auto-inc in stubbed local data store, so beware ...
-    String pipelineId = pipelineService.startNewPipeline(job);
+    JobId pipelineId = pipelineService.startNewPipeline(job);
     JobRecord jobRecord = pipelineManager.getJob(pipelineId);
     JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     jobRecord = pipelineManager.getJob(pipelineId);

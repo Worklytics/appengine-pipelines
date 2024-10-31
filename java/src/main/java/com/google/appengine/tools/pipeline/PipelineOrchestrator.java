@@ -21,14 +21,14 @@ public interface PipelineOrchestrator {
    * Starts a {@link MapJob} with the given parameters in a new Pipeline.
    * Returns the pipeline id.
    */
-  <I, O, R> String start(MapSpecification<I, O, R> specification,
-                         MapSettings settings);
+  <I, O, R> JobId start(MapSpecification<I, O, R> specification,
+                        MapSettings settings);
 
   /**
    * Starts a {@link MapReduceJob} with the given parameters in a new Pipeline.
    * Returns the pipeline id.
    */
-  <I, K, V, O, R> String start(
+  <I, K, V, O, R> JobId start(
     @NonNull MapReduceSpecification<I, K, V, O, R> specification, @NonNull MapReduceSettings settings);
 
   /**
@@ -56,7 +56,7 @@ public interface PipelineOrchestrator {
    * @throws NoSuchObjectException If a JobRecord with the given handle cannot
    *         be found in the data store.
    */
-  void cancelJob(String jobHandle) throws NoSuchObjectException;
+  void cancelJob(JobId jobHandle) throws NoSuchObjectException;
 
   /**
    * Changes the state of the specified job to STOPPED.
@@ -65,7 +65,7 @@ public interface PipelineOrchestrator {
    * @throws NoSuchObjectException If a JobRecord with the given handle cannot
    *         be found in the data store.
    */
-  void stopJob(String jobHandle) throws NoSuchObjectException;
+  void stopJob(JobId jobHandle) throws NoSuchObjectException;
 
 
   /**

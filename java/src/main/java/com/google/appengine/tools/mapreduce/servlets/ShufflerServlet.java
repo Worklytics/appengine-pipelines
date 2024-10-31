@@ -182,8 +182,8 @@ public class ShufflerServlet extends HttpServlet {
     }
 
     @VisibleForTesting
-    static GcsFilename getManifestFile(Key pipelineKey, ShufflerParams shufflerParams) {
-      String jobId = DigestUtils.sha256Hex(pipelineKey.toUrlSafe());
+    static GcsFilename getManifestFile(JobId pipelineId, ShufflerParams shufflerParams) {
+      String jobId = DigestUtils.sha256Hex(pipelineId.asEncodedString());
       return new GcsFilename(shufflerParams.getGcsBucket(), shufflerParams.getOutputDir() + "/Manifest-" + jobId + ".txt");
     }
 
@@ -220,9 +220,9 @@ public class ShufflerServlet extends HttpServlet {
 
     @Override
     public Value<Void> run(MapReduceResult<GoogleCloudStorageFileSet> result) throws Exception {
-      String jobId = DigestUtils.sha256Hex(getPipelineKey().toUrlSafe());
+      JobId jobId = JobId.of(getPipelineKey());
 
-      GcsFilename manifestFile = ShuffleMapReduce.getManifestFile(getPipelineKey(), shufflerParams);
+      GcsFilename manifestFile = ShuffleMapReduce.getManifestFile(jobId, shufflerParams);
 
       log.info("Shuffle job done: jobId=" + jobId + ", results located in " + manifestFile + "]");
 
@@ -309,14 +309,14 @@ public class ShufflerServlet extends HttpServlet {
 
     PipelineService pipelineService = stepExecutionComponent.pipelineService();
 
-    String pipelineId = pipelineService.startNewPipeline(
+    JobId pipelineId = pipelineService.startNewPipeline(
         new ShuffleMapReduce(shufflerParams),
         new JobSetting.OnQueue(shufflerParams.getShufflerQueue()),
         new JobSetting.DatastoreNamespace(shufflerParams.getNamespace()));
     log.info("Started shuffler: jobId=" + pipelineId + ", params=" + shufflerParams);
 
     resp.setStatus(HttpServletResponse.SC_OK);
-    resp.getWriter().append(pipelineId);
+    resp.getWriter().append(pipelineId.asEncodedString());
   }
 
 }

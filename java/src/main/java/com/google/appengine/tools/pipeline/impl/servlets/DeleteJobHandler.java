@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.appengine.tools.pipeline.JobId;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
@@ -46,7 +47,7 @@ public class DeleteJobHandler {
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException, ServletException {
 
-    String rootJobHandle = requestUtils.getRootPipelineId(req);
+    JobId rootJobHandle = requestUtils.getRootPipelineId(req);
 
     StepExecutionComponent stepExecutionComponent =
       component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));

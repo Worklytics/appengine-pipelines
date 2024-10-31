@@ -40,7 +40,7 @@ public class TestUtils {
   }
 
 
-  public static JobInfo waitUntilJobComplete(PipelineService pipelineService, String pipelineId) throws Exception {
+  public static JobInfo waitUntilJobComplete(PipelineService pipelineService, JobId pipelineId) throws Exception {
     while (true) {
       Thread.sleep(2000);
       JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);
@@ -55,7 +55,7 @@ public class TestUtils {
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> T waitForJobToComplete(PipelineService pipelineService, String pipelineId) throws Exception {
+  public static <T> T waitForJobToComplete(PipelineService pipelineService, JobId pipelineId) throws Exception {
     JobInfo jobInfo = waitUntilJobComplete(pipelineService, pipelineId);
     switch (jobInfo.getJobState()) {
       case COMPLETED_SUCCESSFULLY:

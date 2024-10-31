@@ -128,9 +128,9 @@ public class JsonListHandlerTest extends PipelineTest {
 
   @Test
   public void testHandlerWithResults() throws Exception {
-    String pipelineId1 = pipelineService.startNewPipeline(new Main1Job());
-    String pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
-    String pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
+    JobId pipelineId1 = pipelineService.startNewPipeline(new Main1Job());
+    JobId pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
+    JobId pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
         new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
     String helloWorld = waitForJobToComplete(pipelineService, pipelineId1);
     assertEquals("hello world", helloWorld);

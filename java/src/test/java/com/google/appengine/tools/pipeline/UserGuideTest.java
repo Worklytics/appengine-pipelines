@@ -72,7 +72,7 @@ public class UserGuideTest {
   }
 
   private void doComplexJobTest(int x, int y, int z) throws Exception {
-    String pipelineId = pipelineService.startNewPipeline(new ComplexJob(), x, y, z);
+    JobId pipelineId= pipelineService.startNewPipeline(new ComplexJob(), x, y, z);
     JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);
     JobInfo.State state = jobInfo.getJobState();
     if (JobInfo.State.COMPLETED_SUCCESSFULLY == state) {
@@ -83,7 +83,7 @@ public class UserGuideTest {
   }
 
   @SuppressWarnings("unchecked")
-  private <E> E waitForJobToComplete(String pipelineId) throws Exception {
+  private <E> E waitForJobToComplete(JobId pipelineId) throws Exception {
     while (true) {
       Thread.sleep(2000);
       JobInfo jobInfo = pipelineService.getJobInfo(pipelineId);

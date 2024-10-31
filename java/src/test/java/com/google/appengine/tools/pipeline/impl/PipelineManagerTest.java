@@ -50,12 +50,9 @@ class PipelineManagerTest extends PipelineTest {
   void startNewPipeline(PipelineManager pipelineManager) {
     JobSetting[] settings = new JobSetting[0];
     Job<String> jobInstance = new NoopJob();
-    String pipelineId = pipelineManager.startNewPipeline(settings, jobInstance);
+    JobId pipelineId = pipelineManager.startNewPipeline(settings, jobInstance);
 
-    //returned a pipeline id, and it is a url-safe datastore key
     assertNotNull(pipelineId);
-    Key key = Key.fromUrlSafe(pipelineId);
-    assertNotNull(key);
     JobRecord jobRecord = pipelineManager.getJob(pipelineId);
     assertNotNull(jobRecord);
   }
@@ -65,7 +62,7 @@ class PipelineManagerTest extends PipelineTest {
   void deletePipelineRecords(PipelineManager pipelineManager) {
     JobSetting[] settings = new JobSetting[0];
     Job<String> jobInstance = new NoopJob();
-    String pipelineId = pipelineManager.startNewPipeline(settings, jobInstance);
+    JobId pipelineId = pipelineManager.startNewPipeline(settings, jobInstance);
 
     pipelineManager.deletePipelineRecords(pipelineId, true);
 
@@ -82,8 +79,8 @@ class PipelineManagerTest extends PipelineTest {
   void queryRootPipelines(PipelineManager pipelineManager) {
     JobSetting[] settings = new JobSetting[0];
     Job<String> jobInstance = new NoopJob();
-    String pipelineId1 = pipelineManager.startNewPipeline(settings, jobInstance);
-    String pipelineId2 = pipelineManager.startNewPipeline(settings, jobInstance);
+    JobId pipelineId1 = pipelineManager.startNewPipeline(settings, jobInstance);
+    JobId pipelineId2 = pipelineManager.startNewPipeline(settings, jobInstance);
 
     assertNotEquals(pipelineId1, pipelineId2);
 

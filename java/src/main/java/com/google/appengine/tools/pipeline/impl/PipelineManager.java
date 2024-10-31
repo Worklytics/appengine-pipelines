@@ -23,7 +23,6 @@ import com.google.appengine.tools.pipeline.di.MultiTenantComponent;
 import com.google.appengine.tools.pipeline.di.TenantModule;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
-import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -51,6 +50,8 @@ import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.java.Log;
@@ -113,7 +114,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    * @return The pipelineID of the newly created pipeline, also known as the
    *         rootJobID.
    */
-  public String startNewPipeline(
+  public JobId startNewPipeline(
       JobSetting[] settings, Job<?> jobInstance, Object... params) {
     UpdateSpec updateSpec = new UpdateSpec(null);
     Job<?> rootJobInstance = jobInstance;
@@ -132,7 +133,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     updateSpec.setRootJobKey(jobRecord.getRootJobKey());
     // Save the Pipeline model objects and enqueue the tasks that start the Pipeline executing.
     backEnd.save(updateSpec, jobRecord.getQueueSettings());
-    return jobRecord.getKey().toUrlSafe();
+    return JobId.of(jobRecord.getKey());
   }
 
   @Override
@@ -339,7 +340,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public PipelineObjects queryFullPipeline(String rootJobHandle) {
+  public PipelineObjects queryFullPipeline(JobId rootJobHandle) {
     return backEnd.queryFullPipeline(JobRecord.keyFromPipelineHandle(rootJobHandle));
   }
 
@@ -361,14 +362,12 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
 
   @Override
-  public JobRecord getJob(String jobHandle) throws NoSuchObjectException {
-    checkNonEmpty(jobHandle, "jobHandle");
+  public JobRecord getJob(@NonNull JobId jobHandle) throws NoSuchObjectException {
     log.finest("getJob: " + jobHandle);
     return backEnd.queryJob(JobRecord.keyFromPipelineHandle(jobHandle), InflationType.FOR_OUTPUT);
   }
 
-  public void stopJob(String jobHandle) throws NoSuchObjectException {
-    checkNonEmpty(jobHandle, "jobHandle");
+  public void stopJob(@NonNull JobId jobHandle) throws NoSuchObjectException {
     JobRecord jobRecord = backEnd.queryJob(JobRecord.keyFromPipelineHandle(jobHandle), InflationType.NONE);
     jobRecord.setState(State.STOPPED);
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
@@ -377,7 +376,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public <I, O, R> String start(MapSpecification<I, O, R> specification, MapSettings settings) {
+  public <I, O, R> JobId start(MapSpecification<I, O, R> specification, MapSettings settings) {
     if (settings.getWorkerQueueName() == null) {
       settings = new MapSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
     }
@@ -385,8 +384,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public <I, K, V, O, R> String start(
-    @NonNull MapReduceSpecification<I, K, V, O, R> specification, @NonNull MapReduceSettings settings) {
+  public <I, K, V, O, R> JobId start(@NonNull MapReduceSpecification<I, K, V, O, R> specification,
+                                     @NonNull MapReduceSettings settings) {
     if (settings.getWorkerQueueName() == null) {
       settings = new MapReduceSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
     }
@@ -395,8 +394,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
 
 
-  public void cancelJob(String jobHandle) throws NoSuchObjectException {
-    checkNonEmpty(jobHandle, "jobHandle");
+  public void cancelJob(@NonNull JobId jobHandle) throws NoSuchObjectException {
     Key key = JobRecord.keyFromPipelineHandle(jobHandle);
     JobRecord jobRecord = backEnd.queryJob(key, InflationType.NONE);
     CancelJobTask cancelJobTask = new CancelJobTask(key, jobRecord.getQueueSettings());
@@ -419,15 +417,14 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    *                               pipeline is not in the {@link State#FINALIZED} or
    *                               {@link State#STOPPED} state.
    */
-  public void deletePipelineRecords(String pipelineHandle, boolean force)
+  public void deletePipelineRecords(@NonNull JobId pipelineHandle, boolean force)
       throws NoSuchObjectException, IllegalStateException {
-    checkNonEmpty(pipelineHandle, "pipelineHandle");
     log.info("pipelineHandle: " + pipelineHandle + ", force: " + force);
     backEnd.deletePipeline(JobRecord.keyFromPipelineHandle(pipelineHandle), force);
   }
 
   /**
-   * just implementation of {@link PipelineService#submitPromisedValue(String, Object)}, not really sure why it's here
+   * just implementation of {@link PipelineService#submitPromisedValue(JobId, Object)}, not really sure why it's here
    *
    * @param promiseHandle
    * @param value
