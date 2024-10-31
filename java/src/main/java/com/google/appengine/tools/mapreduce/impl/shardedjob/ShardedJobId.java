@@ -1,72 +1,39 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
+import com.google.appengine.tools.pipeline.JobId;
 import com.google.cloud.datastore.Key;
-import com.google.common.base.Preconditions;
-import lombok.AllArgsConstructor;
-import lombok.NonNull;
-import lombok.Value;
+import lombok.*;
 
-import javax.annotation.Nullable;
-import java.io.Serializable;
-import java.util.Optional;
+import java.io.Serial;
 
 /**
  * identifies a job that has been sharded (split into parallel tasks)
  *
  */
-@AllArgsConstructor(staticName = "of")
-@Value
-public class ShardedJobId implements Serializable {
+@EqualsAndHashCode(callSuper = true)
+@ToString
+public class ShardedJobId extends JobId {
 
+  @Serial
   private static final long serialVersionUID = 1L;
 
-  /**
-   * project in which job is executing
-   */
-  @NonNull
-  String project;
+  private ShardedJobId(String project, String databaseId, String namespace, String jobId) {
+    super(project, databaseId, namespace, jobId);
+  }
 
-  /**
-   * database within project
-   */
-  @Nullable
-  String databaseId;
+  protected ShardedJobId(String encoded) {
+    super(encoded);
+  }
 
-  /**
-   * namespace within the database
-   */
-  @Nullable
-  String namespace;
-
-  /**
-   * uniquely identifies a job within a project and namespace
-   */
-  @NonNull
-  String jobId;
-
-
-  //q: url encode this?
-  public String asEncodedString() {
-    // NOTE: presumes / never used in namespace or project or job id - correct/
-    Preconditions.checkArgument(!project.contains("/"), "project must not contain /");
-    Preconditions.checkArgument(databaseId == null || !databaseId.contains("/"), "databaseId must not contain /");
-    Preconditions.checkArgument(namespace == null || !namespace.contains("/"), "namespace must not contain /");
-    Preconditions.checkArgument(!jobId.contains("/"), "jobId must not contain /");
-
-    return project + "/" + Optional.ofNullable(databaseId).orElse("") + "/" + Optional.ofNullable(namespace).orElse("") + "/" + jobId;
+  public static ShardedJobId of(String project, String databaseId, String namespace, String jobId) {
+    return new ShardedJobId(project, databaseId, namespace, jobId);
   }
 
   public static ShardedJobId fromEncodedString(@NonNull String encoded) {
-    String[] parts = encoded.split("/");
-    if (parts.length != 4) {
-      throw new IllegalArgumentException("Invalid encoded string: " + encoded);
-    }
-    String databaseId = parts[1].isEmpty() ? null : parts[1];
-    String namespace = parts[2].isEmpty() ? null : parts[2];
-    return new ShardedJobId(parts[0], databaseId, namespace, parts[3]);
+    return new ShardedJobId(encoded);
   }
 
-  public static ShardedJobId of (Key key) {
+  public static ShardedJobId of(Key key) {
     return new ShardedJobId(key.getProjectId(), key.getDatabaseId(), key.getNamespace(), key.getName());
   }
 

@@ -12,7 +12,7 @@ class IncrementalTaskIdTest {
     IncrementalTaskId id = IncrementalTaskId.of(ShardedJobId.of("test-project", "db", "ns", "123124"), 0);
 
 
-    assertEquals("test-project/ns/123124-task-0", id.asEncodedString());
+    assertEquals("test-project/db/ns/123124-task-0", id.asEncodedString());
     assertEquals(id, IncrementalTaskId.parse(id.asEncodedString()));
 
   }
