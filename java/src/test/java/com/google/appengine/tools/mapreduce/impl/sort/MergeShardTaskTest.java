@@ -3,6 +3,7 @@ package com.google.appengine.tools.mapreduce.impl.sort;
 import com.google.appengine.tools.mapreduce.InputReader;
 import com.google.appengine.tools.mapreduce.KeyValue;
 import com.google.appengine.tools.mapreduce.OutputWriter;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import org.junit.jupiter.api.Test;
@@ -38,8 +39,9 @@ public class MergeShardTaskTest {
   @Test
   public void testOutputSegmented() {
     MockOutputWriter writer = new MockOutputWriter();
+    ShardedJobRunId jobId = ShardedJobRunId.of("TestJob", null, null,"TestJob");
     MergeShardTask task =
-        new MergeShardTask("TestJob", 0, 1, new MockInputReader(), writer, Integer.MAX_VALUE);
+        new MergeShardTask(jobId, 0, 1, new MockInputReader(), writer, Integer.MAX_VALUE);
     task.callWorker(createData(1));
     assertEquals(1, writer.written.size());
     task.callWorker(createData(3));
@@ -59,8 +61,10 @@ public class MergeShardTaskTest {
   @Test
 
   public void testSerialization() {
+
+    ShardedJobRunId jobId = ShardedJobRunId.of("TestJob", null, null,"TestJob");
     MergeShardTask task =
-        new MergeShardTask("TestJob", 0, 1, new MockInputReader(), new MockOutputWriter(), 0);
+        new MergeShardTask(jobId, 0, 1, new MockInputReader(), new MockOutputWriter(), 0);
 
     task.callWorker(createData(1));
     assertEquals(1, ((MockOutputWriter) task.getOutputWriter()).written.size());

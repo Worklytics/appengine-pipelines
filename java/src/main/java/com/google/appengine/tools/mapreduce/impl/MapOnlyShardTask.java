@@ -11,6 +11,7 @@ import com.google.appengine.tools.mapreduce.MapOnlyMapper;
 import com.google.appengine.tools.mapreduce.MapOnlyMapperContext;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Worker;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 
 import java.io.IOException;
@@ -31,8 +32,8 @@ public class MapOnlyShardTask<I, O> extends WorkerShardTask<I, O, MapOnlyMapperC
 
   private transient MapOnlyMapperContextImpl<O> context;
 
-  public MapOnlyShardTask(String mrJobId, int shardNumber, int shardCount, InputReader<I> in,
-      MapOnlyMapper<I, O> mapper, OutputWriter<O> out, long millisPerSlice) {
+  public MapOnlyShardTask(ShardedJobRunId mrJobId, int shardNumber, int shardCount, InputReader<I> in,
+                          MapOnlyMapper<I, O> mapper, OutputWriter<O> out, long millisPerSlice) {
     super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, MAPPER_CALLS,
         MAPPER_WALLTIME_MILLIS));
     this.in = checkNotNull(in, "Null in");

@@ -14,6 +14,8 @@
 
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.pipeline.impl.model.Slot;
+
 /**
  * An abstract representation of a value slot that will be filled in when some
  * asynchronous external agent supplies a value.
@@ -25,7 +27,7 @@ package com.google.appengine.tools.pipeline;
  * handle} of a promised value is an opaque identifier that uniquely represents
  * the value slot to the framework. This handle should be passed to the external
  * agent who will use the handle to supply the promised value via the method
- * {@link PipelineService#submitPromisedValue(String, Object)}. For example the
+ * {@link PipelineService#submitPromisedValue(JobRunId, Object)}. For example the
  * following code might appear inside of the {@code run()} method of a Job.
  * <blockquote>
  *
@@ -52,5 +54,5 @@ package com.google.appengine.tools.pipeline;
  * @param <E> The type of the value represented by this {@code PromisedValue}
  */
 public interface PromisedValue<E> extends FutureValue<E> {
-  String getHandle();
+  SlotId getHandle();
 }

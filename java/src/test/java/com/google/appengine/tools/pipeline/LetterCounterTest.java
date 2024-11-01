@@ -97,7 +97,7 @@ public class LetterCounterTest extends PipelineTest {
   }
 
   private void doLetterCounterTest(String text) throws Exception {
-    String pipelineId = pipelineService.startNewPipeline(new LetterCounter(), text);
+    JobRunId pipelineId= pipelineService.startNewPipeline(new LetterCounter(), text);
     SortedMap<Character, Integer> counts = waitForJobToComplete(pipelineService, pipelineId);
     SortedMap<Character, Integer> expectedCounts = LetterCountExample.countLetters(text);
     SortedMap<Character, Integer> expectedCountsLettersOnly = new TreeMap<>();

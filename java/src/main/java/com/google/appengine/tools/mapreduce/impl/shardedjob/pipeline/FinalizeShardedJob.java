@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.appengine.tools.pipeline.Job;
 import com.google.cloud.datastore.DatastoreOptions;
@@ -13,7 +14,7 @@ public class FinalizeShardedJob extends AbstractShardedJob {
   private final Status status;
   private final DatastoreOptions datastoreOptions;
 
-  public FinalizeShardedJob(DatastoreOptions datastoreOptions, String jobId, int taskCount, Status status) {
+  public FinalizeShardedJob(DatastoreOptions datastoreOptions, ShardedJobRunId jobId, int taskCount, Status status) {
     super(jobId, taskCount);
     this.status = status;
     this.datastoreOptions = datastoreOptions;

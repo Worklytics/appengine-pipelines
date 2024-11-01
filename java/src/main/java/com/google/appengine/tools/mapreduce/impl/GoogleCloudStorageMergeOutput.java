@@ -3,6 +3,7 @@ package com.google.appengine.tools.mapreduce.impl;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.*;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.impl.util.SerializableValue;
 import com.google.appengine.tools.mapreduce.outputs.*;
@@ -25,12 +26,12 @@ import java.util.List;
 public class GoogleCloudStorageMergeOutput extends
     Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> {
 
-  private static final long serialVersionUID = 2L;
+  private static final long serialVersionUID = 3L;
 
   @NonNull
   private final String bucket;
   @NonNull
-  private final String mrJobId;
+  private final ShardedJobRunId mrJobId;
   @NonNull
   private final Integer tier;
   private final GoogleCloudStorageFileOutputWriter.Options options;
@@ -104,7 +105,7 @@ public class GoogleCloudStorageMergeOutput extends
         new ImmutableList.Builder<>();
     for (int i = 0; i < shards; i++) {
       result.add(new OrderSlicingOutputWriter(bucket,
-          String.format(MapReduceConstants.MERGE_OUTPUT_DIR_FORMAT, mrJobId, tier, i), options));
+          String.format(MapReduceConstants.MERGE_OUTPUT_DIR_FORMAT, mrJobId.asEncodedString().replace("/", "-"), tier, i), options));
     }
     return result.build();
   }

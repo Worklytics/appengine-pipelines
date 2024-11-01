@@ -1,21 +1,20 @@
 package com.google.appengine.tools.mapreduce.impl;
 
 import com.google.appengine.tools.mapreduce.Context;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+import java.io.Serializable;
 
 
 /**
  * Base class for all Context implementations.
  */
-public class BaseContext implements Context {
+@Getter
+@AllArgsConstructor
+public class BaseContext implements Context, Serializable {
 
-  private final String jobId;
-
-  public BaseContext(String jobId) {
-    this.jobId = jobId;
-  }
-
-  @Override
-  public String getJobId() {
-    return jobId;
-  }
+  //q: change this to a ShardedJobId?? why not??
+  private final ShardedJobRunId jobId;
 }

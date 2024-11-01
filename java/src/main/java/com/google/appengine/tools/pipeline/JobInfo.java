@@ -17,7 +17,7 @@ package com.google.appengine.tools.pipeline;
 /**
  * A record about a job that has been registered with the framework. A {@code
  * JobInfo} is obtained via the method
- * {@link PipelineService#getJobInfo(String)}.
+ * {@link PipelineService#getJobInfo(JobRunId)}.
  * 
  * @author rudominer@google.com (Mitch Rudominer)
  */
@@ -36,7 +36,7 @@ public interface JobInfo {
      */
     COMPLETED_SUCCESSFULLY, 
     /**
-     * Job was stopped through {@link PipelineService#stopPipeline(String)}.
+     * Job was stopped through {@link PipelineService#stopPipeline(JobRunId)}.
      */
     STOPPED_BY_REQUEST, 
     /**
@@ -49,7 +49,7 @@ public interface JobInfo {
     WAITING_TO_RETRY,
     /**
      * Job was cancelled either through
-     * {@link PipelineService#cancelPipeline(String)} or due to unhandled
+     * {@link PipelineService#cancelPipeline(JobRunId)} or due to unhandled
      * failure in a sibling job.
      */
     CANCELED_BY_REQUEST

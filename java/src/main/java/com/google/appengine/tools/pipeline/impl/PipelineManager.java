@@ -23,7 +23,6 @@ import com.google.appengine.tools.pipeline.di.MultiTenantComponent;
 import com.google.appengine.tools.pipeline.di.TenantModule;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
-import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -113,7 +112,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    * @return The pipelineID of the newly created pipeline, also known as the
    *         rootJobID.
    */
-  public String startNewPipeline(
+  public JobRunId startNewPipeline(
       JobSetting[] settings, Job<?> jobInstance, Object... params) {
     UpdateSpec updateSpec = new UpdateSpec(null);
     Job<?> rootJobInstance = jobInstance;
@@ -132,12 +131,12 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     updateSpec.setRootJobKey(jobRecord.getRootJobKey());
     // Save the Pipeline model objects and enqueue the tasks that start the Pipeline executing.
     backEnd.save(updateSpec, jobRecord.getQueueSettings());
-    return jobRecord.getKey().toUrlSafe();
+    return JobRunId.of(jobRecord.getKey());
   }
 
   @Override
   public <T extends IncrementalTask> void startJob(
-    String jobId,
+    ShardedJobRunId jobId,
     List<? extends T> initialTasks,
     ShardedJobController<T> controller,
     ShardedJobSettings settings) {
@@ -145,12 +144,12 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public void abortJob(String jobId) {
+  public void abortJob(ShardedJobRunId jobId) {
     shardedJobRunner.abortJob(jobId);
   }
 
   @Override
-  public boolean cleanupJob(String jobId) {
+  public boolean cleanupJob(ShardedJobRunId jobId) {
     return shardedJobRunner.cleanupJob(jobId);
   }
 
@@ -218,13 +217,13 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public ShardedJobState getJobState(String jobId) {
+  public ShardedJobState getJobState(ShardedJobRunId jobId) {
     return shardedJobRunner.getJobState(jobId);
   }
 
   @Override
   public Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state) {
-    return shardedJobRunner.lookupTasks(state.getJobId(), state.getTotalTaskCount(), true);
+    return shardedJobRunner.lookupTasks(state.getShardedJobId(), state.getTotalTaskCount(), true);
   }
 
 
@@ -339,7 +338,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public PipelineObjects queryFullPipeline(String rootJobHandle) {
+  public PipelineObjects queryFullPipeline(JobRunId rootJobHandle) {
     return backEnd.queryFullPipeline(JobRecord.keyFromPipelineHandle(rootJobHandle));
   }
 
@@ -353,22 +352,13 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     return backEnd.getRootPipelinesDisplayName();
   }
 
-  private void checkNonEmpty(String s, String name) {
-    if (null == s || s.trim().length() == 0) {
-      throw new IllegalArgumentException(name + " is empty.");
-    }
-  }
-
-
   @Override
-  public JobRecord getJob(String jobHandle) throws NoSuchObjectException {
-    checkNonEmpty(jobHandle, "jobHandle");
+  public JobRecord getJob(@NonNull JobRunId jobHandle) throws NoSuchObjectException {
     log.finest("getJob: " + jobHandle);
     return backEnd.queryJob(JobRecord.keyFromPipelineHandle(jobHandle), InflationType.FOR_OUTPUT);
   }
 
-  public void stopJob(String jobHandle) throws NoSuchObjectException {
-    checkNonEmpty(jobHandle, "jobHandle");
+  public void stopJob(@NonNull JobRunId jobHandle) throws NoSuchObjectException {
     JobRecord jobRecord = backEnd.queryJob(JobRecord.keyFromPipelineHandle(jobHandle), InflationType.NONE);
     jobRecord.setState(State.STOPPED);
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
@@ -377,7 +367,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public <I, O, R> String start(MapSpecification<I, O, R> specification, MapSettings settings) {
+  public <I, O, R> JobRunId start(MapSpecification<I, O, R> specification, MapSettings settings) {
     if (settings.getWorkerQueueName() == null) {
       settings = new MapSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
     }
@@ -385,8 +375,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public <I, K, V, O, R> String start(
-    @NonNull MapReduceSpecification<I, K, V, O, R> specification, @NonNull MapReduceSettings settings) {
+  public <I, K, V, O, R> JobRunId start(@NonNull MapReduceSpecification<I, K, V, O, R> specification,
+                                        @NonNull MapReduceSettings settings) {
     if (settings.getWorkerQueueName() == null) {
       settings = new MapReduceSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
     }
@@ -395,8 +385,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
 
 
-  public void cancelJob(String jobHandle) throws NoSuchObjectException {
-    checkNonEmpty(jobHandle, "jobHandle");
+  public void cancelJob(@NonNull JobRunId jobHandle) throws NoSuchObjectException {
     Key key = JobRecord.keyFromPipelineHandle(jobHandle);
     JobRecord jobRecord = backEnd.queryJob(key, InflationType.NONE);
     CancelJobTask cancelJobTask = new CancelJobTask(key, jobRecord.getQueueSettings());
@@ -419,24 +408,22 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    *                               pipeline is not in the {@link State#FINALIZED} or
    *                               {@link State#STOPPED} state.
    */
-  public void deletePipelineRecords(String pipelineHandle, boolean force)
+  public void deletePipelineRecords(@NonNull JobRunId pipelineHandle, boolean force)
       throws NoSuchObjectException, IllegalStateException {
-    checkNonEmpty(pipelineHandle, "pipelineHandle");
     log.info("pipelineHandle: " + pipelineHandle + ", force: " + force);
     backEnd.deletePipeline(JobRecord.keyFromPipelineHandle(pipelineHandle), force);
   }
 
   /**
-   * just implementation of {@link PipelineService#submitPromisedValue(String, Object)}, not really sure why it's here
+   * just implementation of {@link PipelineService#submitPromisedValue(SlotId, Object)}, not really sure why it's here
    *
-   * @param promiseHandle
-   * @param value
+   * @param promiseHandle id of slot to fill for promise
+   * @param value to fill slot with
    * @throws NoSuchObjectException
    * @throws OrphanedObjectException
    */
-  void submitPromisedValue(String promiseHandle, Object value)
+  void submitPromisedValue(@NonNull SlotId promiseHandle, Object value)
       throws NoSuchObjectException, OrphanedObjectException {
-    checkNonEmpty(promiseHandle, "promiseHandle");
     Key key = Slot.keyFromHandle(promiseHandle);
     Slot slot = null;
     // It is possible, though unlikely, that we might be asked to accept a

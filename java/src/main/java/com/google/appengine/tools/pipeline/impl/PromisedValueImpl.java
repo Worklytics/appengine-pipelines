@@ -14,7 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl;
 
-import com.google.appengine.api.datastore.KeyFactory;
+import com.google.appengine.tools.pipeline.SlotId;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.PromisedValue;
@@ -35,8 +35,8 @@ public class PromisedValueImpl<E> extends FutureValueImpl<E> implements Promised
   }
 
   @Override
-  public String getHandle() {
-    return slot.getKey().toUrlSafe();
+  public SlotId getHandle() {
+    return slot.getFullId();
   }
 
 }

@@ -128,9 +128,9 @@ public class JsonListHandlerTest extends PipelineTest {
 
   @Test
   public void testHandlerWithResults() throws Exception {
-    String pipelineId1 = pipelineService.startNewPipeline(new Main1Job());
-    String pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
-    String pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
+    JobRunId pipelineId1 = pipelineService.startNewPipeline(new Main1Job());
+    JobRunId pipelineId2 = pipelineService.startNewPipeline(new Main2Job(false));
+    JobRunId pipelineId3 = pipelineService.startNewPipeline(new Main2Job(true),
         new JobSetting.BackoffSeconds(0), new JobSetting.MaxAttempts(2));
     String helloWorld = waitForJobToComplete(pipelineService, pipelineId1);
     assertEquals("hello world", helloWorld);
@@ -151,8 +151,8 @@ public class JsonListHandlerTest extends PipelineTest {
       pipelineIdToClass.put(
           (String) pipeline.get("pipelineId"), (String) pipeline.get("classPath"));
     }
-    assertEquals(Main1Job.class.getName(), pipelineIdToClass.get(pipelineId1));
-    assertEquals(Main2Job.class.getName(), pipelineIdToClass.get(pipelineId2));
-    assertEquals(Main2Job.class.getName(), pipelineIdToClass.get(pipelineId3));
+    assertEquals(Main1Job.class.getName(), pipelineIdToClass.get(pipelineId1.asEncodedString()));
+    assertEquals(Main2Job.class.getName(), pipelineIdToClass.get(pipelineId2.asEncodedString()));
+    assertEquals(Main2Job.class.getName(), pipelineIdToClass.get(pipelineId3.asEncodedString()));
   }
 }

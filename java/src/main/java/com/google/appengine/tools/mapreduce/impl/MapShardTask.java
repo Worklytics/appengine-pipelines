@@ -12,7 +12,9 @@ import com.google.appengine.tools.mapreduce.Mapper;
 import com.google.appengine.tools.mapreduce.MapperContext;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Worker;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
+import lombok.NonNull;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -35,13 +37,18 @@ public class MapShardTask<I, K, V> extends WorkerShardTask<I, KeyValue<K, V>, Ma
 
   private transient MapperContextImpl<K, V> context;
 
-  public MapShardTask(String mrJobId, int shardNumber, int shardCount, InputReader<I> in,
-      Mapper<I, K, V> mapper, OutputWriter<KeyValue<K, V>> out, long millisPerSlice) {
+  public MapShardTask(@NonNull ShardedJobRunId mrJobId,
+                      int shardNumber,
+                      int shardCount,
+                      @NonNull InputReader<I> in,
+                      @NonNull Mapper<I, K, V> mapper,
+                      @NonNull OutputWriter<KeyValue<K, V>> out,
+                      long millisPerSlice) {
     super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, MAPPER_CALLS,
         MAPPER_WALLTIME_MILLIS));
-    this.in = checkNotNull(in, "Null in");
-    this.out = checkNotNull(out, "Null out");
-    this.mapper = checkNotNull(mapper, "Null mapper");
+    this.in = in;
+    this.out = out;
+    this.mapper = mapper;
     this.millisPerSlice = millisPerSlice;
     fillContext();
   }

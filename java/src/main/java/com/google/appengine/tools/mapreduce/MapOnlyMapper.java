@@ -2,6 +2,8 @@
 
 package com.google.appengine.tools.mapreduce;
 
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
+
 /**
  * Map function for Map only jobs.  A map function processes input
  * values one at a time and generates zero or more output values.
@@ -67,7 +69,7 @@ public abstract class MapOnlyMapper<I, O> extends BaseMapper<I, O, MapOnlyMapper
     }
 
     @Override
-    public String getJobId() {
+    public ShardedJobRunId getJobId() {
       return context.getJobId();
     }
 

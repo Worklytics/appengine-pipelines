@@ -3,6 +3,7 @@ package com.google.appengine.tools.pipeline;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import lombok.NonNull;
 
@@ -20,14 +21,14 @@ public interface PipelineOrchestrator {
    * Starts a {@link MapJob} with the given parameters in a new Pipeline.
    * Returns the pipeline id.
    */
-  <I, O, R> String start(MapSpecification<I, O, R> specification,
-                         MapSettings settings);
+  <I, O, R> JobRunId start(MapSpecification<I, O, R> specification,
+                           MapSettings settings);
 
   /**
    * Starts a {@link MapReduceJob} with the given parameters in a new Pipeline.
    * Returns the pipeline id.
    */
-  <I, K, V, O, R> String start(
+  <I, K, V, O, R> JobRunId start(
     @NonNull MapReduceSpecification<I, K, V, O, R> specification, @NonNull MapReduceSettings settings);
 
   /**
@@ -42,7 +43,7 @@ public interface PipelineOrchestrator {
    * @param <T> type of tasks that the job consists of
    */
   <T extends IncrementalTask> void startJob(
-    String jobId,
+    ShardedJobRunId jobId,
     List<? extends T> initialTasks,
     ShardedJobController<T> controller,
     ShardedJobSettings settings);
@@ -55,7 +56,7 @@ public interface PipelineOrchestrator {
    * @throws NoSuchObjectException If a JobRecord with the given handle cannot
    *         be found in the data store.
    */
-  void cancelJob(String jobHandle) throws NoSuchObjectException;
+  void cancelJob(JobRunId jobHandle) throws NoSuchObjectException;
 
   /**
    * Changes the state of the specified job to STOPPED.
@@ -64,19 +65,19 @@ public interface PipelineOrchestrator {
    * @throws NoSuchObjectException If a JobRecord with the given handle cannot
    *         be found in the data store.
    */
-  void stopJob(String jobHandle) throws NoSuchObjectException;
+  void stopJob(JobRunId jobHandle) throws NoSuchObjectException;
 
 
   /**
    * Aborts execution of the job with the given ID.  If the job has already
    * finished or does not exist, this is a no-op.
    */
-  void abortJob(String jobId);
+  void abortJob(ShardedJobRunId jobId);
 
   /**
    * Deletes all data of a completed job with the given ID.
    * Data is being deleted asynchronously.
    * Returns true if job was already deleted or asynchronous task was submitted successfully.
    */
-  boolean cleanupJob(String jobId);
+  boolean cleanupJob(ShardedJobRunId jobId);
 }

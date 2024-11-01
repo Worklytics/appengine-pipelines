@@ -35,13 +35,9 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Value;
+import lombok.*;
 import lombok.extern.java.Log;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import java.time.Instant;
@@ -110,14 +106,14 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
 
 
-  private <T extends IncrementalTask> ShardedJobStateImpl<T> lookupJobState(@NonNull Transaction tx, String jobId) {
+  private <T extends IncrementalTask> ShardedJobStateImpl<T> lookupJobState(@NonNull Transaction tx, ShardedJobRunId jobId) {
     return (ShardedJobStateImpl<T>) Optional.ofNullable(tx.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(tx.getDatastore(), jobId)))
       .map(in -> ShardedJobStateImpl.ShardedJobSerializer.fromEntity(tx, in))
       .orElse(null);
   }
 
   @VisibleForTesting
-  <T extends IncrementalTask> IncrementalTaskState<T> lookupTaskState(@NonNull Transaction tx, String taskId) {
+  <T extends IncrementalTask> IncrementalTaskState<T> lookupTaskState(@NonNull Transaction tx, IncrementalTaskId taskId) {
     return (IncrementalTaskState<T>) Optional.ofNullable(tx.get(IncrementalTaskState.Serializer.makeKey(tx.getDatastore(), taskId)))
       .map(in -> IncrementalTaskState.Serializer.fromEntity(tx, in))
       .orElse(null);
@@ -127,14 +123,14 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
 
   @VisibleForTesting
-  <T extends IncrementalTask> ShardRetryState<T> lookupShardRetryState(@NonNull Transaction tx, String taskId) {
+  <T extends IncrementalTask> ShardRetryState<T> lookupShardRetryState(@NonNull Transaction tx, IncrementalTaskId taskId) {
     return (ShardRetryState<T>) Optional.ofNullable(tx.get(ShardRetryState.Serializer.makeKey(tx.getDatastore(), taskId)))
       .map(in -> ShardRetryState.Serializer.fromEntity(tx, in))
       .orElse(null);
   }
 
   public <T extends IncrementalTask> Iterator<IncrementalTaskState<T>> lookupTasks(
-    @NonNull Transaction tx, final String jobId, final int taskCount, final boolean lenient) {
+          @NonNull Transaction tx, final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
     return new AbstractIterator<>() {
       private int lastCount;
       private Iterator<Entity> lastBatch = Collections.emptyIterator();
@@ -150,13 +146,14 @@ public class ShardedJobRunner implements ShardedJobHandler {
         int toRead = Math.min(20, taskCount - lastCount);
         List<Key> keys = new ArrayList<>(toRead);
         for (int i = 0; i < toRead; i++, lastCount++) {
-          Key key = IncrementalTaskState.Serializer.makeKey(tx.getDatastore(), getTaskId(jobId, lastCount));
+          Key key = IncrementalTaskState.Serializer.makeKey(tx.getDatastore(), IncrementalTaskId.of(jobId, lastCount));
           keys.add(key);
         }
         TreeMap<Integer, Entity> ordered = new TreeMap<>();
         for (Iterator<Entity> it = tx.get(keys.toArray(new Key[0])); it.hasNext(); ) {
           Entity entry = it.next();
-          ordered.put(TaskId.parse(jobId, entry.getKey().toUrlSafe()).getNumber(), entry);
+          IncrementalTaskState state = IncrementalTaskState.Serializer.fromEntity(tx, entry);
+          ordered.put(state.getShardNumber(), entry);
         }
         lastBatch = ordered.values().iterator();
         return computeNext();
@@ -165,24 +162,24 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   public <T extends IncrementalTask> Iterator<IncrementalTaskState<T>> lookupTasks(
-    final String jobId, final int taskCount, final boolean lenient) {
+          final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
     return lookupTasks(datastore.newTransaction(), jobId, taskCount, lenient);
   }
 
   private <T extends IncrementalTask> void callCompleted(Transaction tx, ShardedJobStateImpl<T> jobState) {
     Iterator<IncrementalTaskState<T>> taskStates =
-        lookupTasks(tx, jobState.getJobId(), jobState.getTotalTaskCount(), false);
+        lookupTasks(tx, jobState.getShardedJobId(), jobState.getTotalTaskCount(), false);
     Iterator<T> tasks = Iterators.transform(taskStates, IncrementalTaskState::getTask);
     jobState.getController().setPipelineService(pipelineServiceProvider.get());
     jobState.getController().completed(tasks);
   }
 
-  private void scheduleControllerTask(String jobId, String taskId,
-      ShardedJobSettings settings) {
+  private void scheduleControllerTask(ShardedJobRunId jobId, IncrementalTaskId taskId,
+                                      ShardedJobSettings settings) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
         .url(settings.getControllerPath())
-        .param(JOB_ID_PARAM, jobId)
-        .param(TASK_ID_PARAM, taskId);
+        .param(JOB_ID_PARAM, jobId.asEncodedString())
+        .param(TASK_ID_PARAM, taskId.toString());
     taskOptions.header("Host", settings.getTaskQueueTarget());
 
     //Q: how can we transactionally add to queue with new library??
@@ -194,8 +191,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
       IncrementalTaskState<T> state, Long eta) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
         .url(settings.getWorkerPath())
-        .param(TASK_ID_PARAM, state.getTaskId())
-        .param(JOB_ID_PARAM, state.getJobId())
+        .param(TASK_ID_PARAM, state.getTaskId().toString())
+        .param(JOB_ID_PARAM, state.getJobId().asEncodedString())
         .param(SEQUENCE_NUMBER_PARAM, String.valueOf(state.getSequenceNumber()));
     taskOptions.header("Host", settings.getTaskQueueTarget());
     if (eta != null) {
@@ -207,10 +204,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   @Override
-  public void completeShard(final String jobId, final String taskId) {
+  public void completeShard(@NonNull final ShardedJobRunId jobId, @NonNull final IncrementalTaskId taskId) {
     log.info("Polling task states for job " + jobId);
-    final int shardNumber = TaskId.parse(jobId, taskId).getNumber();
-
     PipelineService pipelineService = pipelineServiceProvider.get();
 
     ShardedJobStateImpl<?> jobState = RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(8)), () -> {
@@ -226,7 +221,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         //arguably, should be a function of deserializing jobState ...
         jobState1.getController().setPipelineService(pipelineService);
 
-        jobState1.markShardCompleted(shardNumber);
+        jobState1.markShardCompleted(taskId.getNumber());
 
         if (jobState1.getActiveTaskCount() == 0 && jobState1.getStatus().isActive()) {
           jobState1.setStatus(new Status(DONE));
@@ -264,7 +259,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  private <T extends IncrementalTask> IncrementalTaskState<T> getAndValidateTaskState(Transaction tx, String taskId,
+  private <T extends IncrementalTask> IncrementalTaskState<T> getAndValidateTaskState(Transaction tx, IncrementalTaskId taskId,
       int sequenceNumber, ShardedJobStateImpl<T> jobState) {
     IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
     if (taskState == null) {
@@ -300,7 +295,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   /**
    * Handle a locked slice case.
    */
-  private <T extends IncrementalTask> void handleLockHeld(Datastore datastore, String taskId, ShardedJobStateImpl<T> jobState,
+  private <T extends IncrementalTask> void handleLockHeld(Datastore datastore, IncrementalTaskId taskId, ShardedJobStateImpl<T> jobState,
                               IncrementalTaskState<T> taskState) {
     long currentTime = System.currentTimeMillis();
     int sliceTimeoutMillis = jobState.getSettings().getSliceTimeoutMillis();
@@ -370,7 +365,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   @Override
-  public void runTask(final String jobId, final String taskId, final int sequenceNumber) {
+  public void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber) {
 
     Transaction tx = getDatastore().newTransaction();
     final ShardedJobStateImpl<? extends IncrementalTask> jobState = lookupJobState(tx, jobId);
@@ -381,7 +376,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   private <T extends IncrementalTask> void  runTask(Datastore datastore,
                                                    Transaction tx,
                                                    ShardedJobStateImpl<T>  jobState,
-                                                   String taskId,
+                                                   IncrementalTaskId taskId,
                                                    int sequenceNumber) {
     if (jobState == null) {
       log.info(taskId + ": Job is gone, ignoring runTask call.");
@@ -399,7 +394,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         if (lockShard(tx, taskState)) {
           // committing here, which forces acquisition of lock ...
           tx.commit(); // will throw if can't commit, which similar
-          runAndUpdateTask(datastore, jobState.getJobId(), taskId, sequenceNumber, jobState, taskState);
+          runAndUpdateTask(datastore, jobState.getShardedJobId(), taskId, sequenceNumber, jobState, taskState);
         }
         //previously this was inside the lock ... I think outside should be OK, and prefer to commit() txn where started
       } catch (ConcurrentModificationException ex) {
@@ -417,8 +412,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   private <T extends IncrementalTask> void runAndUpdateTask(Datastore datastore,
-                                                            final String jobId,
-                                                            final String taskId,
+                                                            final ShardedJobRunId jobId,
+                                                            final IncrementalTaskId taskId,
                                                             final int sequenceNumber,
                                                             final ShardedJobStateImpl<T> jobState,
                                                             IncrementalTaskState<T> taskState) {
@@ -526,12 +521,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
         public void run() {
           Transaction tx = getDatastore().newTransaction();
           try {
-            String taskId = taskState.getTaskId();
-            IncrementalTaskState<T> existing = lookupTaskState(tx, taskId);
+            IncrementalTaskState<T> existing = lookupTaskState(tx, taskState.getTaskId());
             if (existing == null) {
-              log.info(taskId + ": Ignoring an update, as task disappeared while processing");
+              log.info(taskState.getTaskId() + ": Ignoring an update, as task disappeared while processing");
             } else if (existing.getSequenceNumber() != taskState.getSequenceNumber() - 1) {
-              log.warning(taskId + ": Ignoring an update, a concurrent execution changed it to: "
+              log.warning(taskState.getTaskId() + ": Ignoring an update, a concurrent execution changed it to: "
                   + existing);
             } else {
               if (existing.getRetryCount() < taskState.getRetryCount()) {
@@ -563,72 +557,25 @@ public class ShardedJobRunner implements ShardedJobHandler {
           if (taskState.getStatus().isActive()) {
             scheduleWorkerTask(jobState.getSettings(), taskState, null);
           } else {
-            scheduleControllerTask(jobState.getJobId(), taskState.getTaskId(),
+            scheduleControllerTask(jobState.getShardedJobId(), taskState.getTaskId(),
                 jobState.getSettings());
           }
         }
       }));
   }
 
-  //represents a shared job task (eg, one of N shards of a sharded task)
-  @Value
-  @AllArgsConstructor(staticName = "of")
-  private static class TaskId {
-
-    /**
-     * namespace for the sharded job;
-     */
-    @Nullable
-    String namespace;
-
-    /**
-     * uuid for the sharded job; same as the job itself
-     */
-    @NonNull
-    String uuid;
-
-    /**
-     * which shard this represents, eg, 0-39 for 40 shards
-     */
-    int number;
-
-    @Override
-    public String toString() {
-      return namespace + "-" + uuid + "-task-" + number;
-    }
-
-    static TaskId of(String jobId, int taskNumber) {
-      try {
-        Key jobKey = Key.fromUrlSafe(jobId);
-        return TaskId.of(jobKey.getNamespace(), jobKey.getName(), taskNumber);
-      } catch (IllegalArgumentException e) {
-        throw new IllegalArgumentException("Invalid jobId: " + jobId, e);
-      }
-    }
-
-    static TaskId parse(String jobId, String taskId) {
-      Key jobKey = Key.fromUrlSafe(jobId);
-      String prefix = jobKey.getNamespace() + "-" + jobKey.getName() + "-task-";
-      if (!taskId.startsWith(prefix)) {
-        throw new IllegalArgumentException("Invalid taskId: " + taskId);
-      }
-      return TaskId.of(jobKey.getNamespace(), jobKey.getName(), Integer.parseInt(taskId.substring(prefix.length())));
-    }
-  }
-
-  public static String getTaskId(String jobId, int taskNumber) {
-    return TaskId.of(jobId, taskNumber).toString();
-  }
-
-  private <T extends IncrementalTask> void createTasks(Datastore datastore, ShardedJobSettings settings, String jobId,
-                                                       List<? extends T> initialTasks, Instant startTime) {
+  private <T extends IncrementalTask> void createTasks(Datastore datastore,
+                                                       ShardedJobSettings settings,
+                                                       ShardedJobRunId jobId,
+                                                       List<? extends T> initialTasks,
+                                                       Instant startTime) {
     log.info(jobId + ": Creating " + initialTasks.size() + " tasks");
-    int id = 0;
+    int taskNumber = 0;
     for (T initialTask : initialTasks) {
       // TODO(user): shardId (as known to WorkerShardTask) and taskId happen to be the same
       // number, just because they are created in the same order and happen to use their ordinal.
       // We should have way to inject the "shard-id" to the task.
-      String taskId = getTaskId(jobId, id++);
+      IncrementalTaskId taskId = IncrementalTaskId.of(jobId, taskNumber++);
       Transaction tx = datastore.newTransaction();
       try {
         IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
@@ -636,7 +583,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
           log.info(jobId + ": Task already exists: " + taskState);
           continue;
         }
-        taskState = IncrementalTaskState.<T>create(taskId, jobId, startTime, initialTask);
+        taskState = IncrementalTaskState.create(taskId, jobId, startTime, initialTask);
         ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
         tx.put(IncrementalTaskState.Serializer.toEntity(tx, taskState),
             ShardRetryState.Serializer.toEntity(tx, retryState));
@@ -649,7 +596,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   private <T extends IncrementalTask> void writeInitialJobState(Datastore datastore, ShardedJobStateImpl<T> jobState) {
-    String jobId = jobState.getJobId();
+    ShardedJobRunId jobId = jobState.getShardedJobId();
     Transaction tx = datastore.newTransaction();
     try {
       ShardedJobStateImpl<T> existing = lookupJobState(tx, jobId);
@@ -665,12 +612,13 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  public <T extends IncrementalTask> void startJob(final String jobId, List<? extends T> initialTasks,
+  public <T extends IncrementalTask> void startJob(final ShardedJobRunId jobId, List<? extends T> initialTasks,
                                                    ShardedJobController<T> controller, ShardedJobSettings settings) {
     Instant startTime = Instant.now();
     Datastore datastore = getDatastore();
     Preconditions.checkArgument(!Iterables.any(initialTasks, Predicates.isNull()),
         "Task list must not contain null values");
+
     ShardedJobStateImpl<T> jobState =
         ShardedJobStateImpl.create(jobId, controller, settings, initialTasks.size(), startTime);
     if (initialTasks.isEmpty()) {
@@ -689,14 +637,14 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  public ShardedJobState getJobState(String jobId) {
+  public ShardedJobState getJobState(ShardedJobRunId jobId) {
     Datastore datastore = getDatastore();
     return Optional.ofNullable(datastore.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId)))
       .map(in -> ShardedJobStateImpl.ShardedJobSerializer.fromEntity(datastore.newTransaction(), in, true))
       .orElse(null);
   }
 
-  private void changeJobStatus(Datastore datastore, String jobId, Status status) {
+  private void changeJobStatus(Datastore datastore, ShardedJobRunId jobId, Status status) {
     log.info(jobId + ": Changing job status to " + status);
     Transaction tx = datastore.newTransaction();
     try {
@@ -723,12 +671,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  public void abortJob(String jobId) {
+  public void abortJob(ShardedJobRunId jobId) {
     changeJobStatus(datastore, jobId, new Status(ABORTED));
   }
 
 
-  public boolean cleanupJob(String jobId) {
+  public boolean cleanupJob(ShardedJobRunId jobId) {
     Transaction txn = datastore.newTransaction();
     ShardedJobStateImpl<?> jobState = lookupJobState(txn, jobId);
     if (jobState == null) {

@@ -36,8 +36,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 
 import java.util.List;
 
@@ -60,13 +58,13 @@ public class FanoutTaskTest extends PipelineTest {
   public void setUp() throws Exception {
     helper.setUp();
     System.setProperty(USE_SIMPLE_GUIDS_FOR_DEBUGGING, "true");
-    Key key = JobRecord.key(getProjectId(), "", "job1");
+    Key key = JobRecord.key(getProjectId(), null , null, "job1");
     RunJobTask runJobTask = new RunJobTask(key, queueSettings1);
-    key = JobRecord.key(getProjectId(), "","job2");
+    key = JobRecord.key(getProjectId(), null, null, "job2");
     RunJobTask runJobTask2 = new RunJobTask(key, queueSettings2);
-    key = JobRecord.key(getProjectId(), "","job3");
+    key = JobRecord.key(getProjectId(), null, null, "job3");
     FinalizeJobTask finalizeJobTask = new FinalizeJobTask(key, queueSettings1);
-    key = Slot.key(getProjectId(), "", "slot1");
+    key = Slot.key(getProjectId(), null, "", "slot1");
     HandleSlotFilledTask hsfTask = new HandleSlotFilledTask(key, queueSettings2);
     listOfTasks = ImmutableList.of(runJobTask, runJobTask2, finalizeJobTask, hsfTask);
     encodedBytes = FanoutTask.encodeTasks(listOfTasks);

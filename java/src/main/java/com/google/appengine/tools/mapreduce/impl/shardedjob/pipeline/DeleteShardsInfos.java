@@ -4,9 +4,7 @@ import static java.util.concurrent.Executors.callable;
 
 import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardRetryState;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
@@ -28,7 +26,7 @@ public class DeleteShardsInfos extends Job0<Void> {
   private static final long serialVersionUID = -4342214189527672009L;
 
   private final DatastoreOptions datastoreOptions;
-  private final String jobId;
+  private final ShardedJobRunId jobId;
   private final int start;
   private final int end;
 
@@ -47,7 +45,7 @@ public class DeleteShardsInfos extends Job0<Void> {
 
     Transaction tx = datastore.newTransaction();
     for (int i = start; i < end; i++) {
-      String taskId = ShardedJobRunner.getTaskId(jobId, i);
+      IncrementalTaskId taskId = IncrementalTaskId.of(jobId, i);
       addParentKeyToList(tx, toDelete, IncrementalTaskState.Serializer.makeKey(datastore, taskId));
       addParentKeyToList(tx, toDelete, ShardRetryState.Serializer.makeKey(datastore, taskId));
     }

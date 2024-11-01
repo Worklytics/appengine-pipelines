@@ -50,22 +50,22 @@ public interface FutureValue<E> extends Value<E> {
   /**
    * Returns a String uniquely identifying the Job whose output will fill the
    * value slot represented by this {@code FutureValue}. This String may be
-   * passed to {@link PipelineService#getJobInfo(String)} in order to query the
+   * passed to {@link PipelineService#getJobInfo(JobRunId)} in order to query the
    * state of the Job.
    * 
    * @return a String uniquely identifying the source job.
    */
-  public String getSourceJobHandle();
+  public JobRunId getSourceJobHandle();
 
   /**
    * Returns a String uniquely identifying the Pipeline that this {@code
    * FutureValue} belongs to. This is the same as the handle of the root job of
    * the Pipeline. This String may be passed to
-   * {@link PipelineService#getJobInfo(String)} in order to query the state of
+   * {@link PipelineService#getJobInfo(JobRunId)} in order to query the state of
    * the root Job.
    * 
    * @return a String uniquely identifying the Pipeline
    */
-  public String getPipelineHandle();
+  public JobRunId getPipelineHandle();
 
 }

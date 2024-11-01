@@ -9,19 +9,19 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
  */
 public interface ShardedJobHandler {
 
-  public static final String JOB_ID_PARAM = "job";
-  public static final String TASK_ID_PARAM = "task";
-  public static final String SEQUENCE_NUMBER_PARAM = "seq";
+  String JOB_ID_PARAM = "job";
+  String TASK_ID_PARAM = "task";
+  String SEQUENCE_NUMBER_PARAM = "seq";
 
   /**
    * Is invoked by the servlet that handles
    * {@link ShardedJobSettings#getControllerPath} when a shard has completed.
    */
-  void completeShard(final String jobId, final String taskId);
+  void completeShard(final ShardedJobRunId jobId, final IncrementalTaskId taskId);
 
   /**
    * Is invoked by the servlet that handles
    * {@link ShardedJobSettings#getWorkerPath} to run a task.
    */
-  void runTask(final String jobId, final String taskId, final int sequenceNumber);
+  void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber);
 }

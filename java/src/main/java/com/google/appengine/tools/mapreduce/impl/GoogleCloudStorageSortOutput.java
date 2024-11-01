@@ -4,7 +4,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.*;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.outputs.*;
+import lombok.NonNull;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import java.nio.ByteBuffer;
@@ -24,10 +26,10 @@ import java.util.Map.Entry;
 public class GoogleCloudStorageSortOutput extends
     Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> {
 
-  private static final long serialVersionUID = 2L;
+  private static final long serialVersionUID = 3L;
 
   private final String bucket;
-  private final String mrJobId;
+  private final ShardedJobRunId mrJobId;
   private final Sharder sharder;
   private final GoogleCloudStorageFileOutputWriter.Options options;
 
@@ -36,12 +38,12 @@ public class GoogleCloudStorageSortOutput extends
 
     private static final long serialVersionUID = 2L;
 
-    private final String mrJobId;
+    private final ShardedJobRunId mrJobId;
     private final int shard;
     private final String bucket;
     private final GoogleCloudStorageFileOutputWriter.Options options;
 
-    ShardingOutputWriterImpl(String mrJobId, String bucket, int shard, Sharder sharder, GoogleCloudStorageFileOutputWriter.Options options) {
+    ShardingOutputWriterImpl(ShardedJobRunId mrJobId, String bucket, int shard, Sharder sharder, GoogleCloudStorageFileOutputWriter.Options options) {
       super(Marshallers.getByteBufferMarshaller(), sharder);
       this.mrJobId = mrJobId;
       this.bucket = bucket;
@@ -51,7 +53,7 @@ public class GoogleCloudStorageSortOutput extends
 
     @Override
     public SlicingOutputWriterImpl createWriter(int number) {
-      String mrJobIdHash = DigestUtils.sha1Hex(mrJobId);
+      String mrJobIdHash = DigestUtils.sha1Hex(mrJobId.asEncodedString());
       String formatStringForShard =
           String.format(MapReduceConstants.SORT_OUTPUT_DIR_FORMAT, mrJobIdHash, shard, number);
       return new SlicingOutputWriterImpl(bucket, formatStringForShard, options);
@@ -117,11 +119,14 @@ public class GoogleCloudStorageSortOutput extends
     }
   }
 
-  public GoogleCloudStorageSortOutput(String bucket, String mrJobId, Sharder sharder, GoogleCloudStorageFileOutput.Options options) {
+  public GoogleCloudStorageSortOutput(@NonNull String bucket,
+                                      @NonNull ShardedJobRunId mrJobId,
+                                      @NonNull Sharder sharder,
+                                      GoogleCloudStorageFileOutput.Options options) {
     super();
-    this.bucket = checkNotNull(bucket, "Null bucket");
-    this.mrJobId = checkNotNull(mrJobId, "Null mrJobId");
-    this.sharder = checkNotNull(sharder, "Null sharder");
+    this.bucket = bucket;
+    this.mrJobId = mrJobId;
+    this.sharder = sharder;
     this.options = options;
   }
 

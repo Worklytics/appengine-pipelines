@@ -425,7 +425,7 @@ public abstract class Job<E> implements Serializable {
    *        asynchronously provided value.
    * @return A {@code PromisedValue} that represents an empty value slot that
    *         will be filled at a later time when the external agent invokes
-   *         {@link PipelineService#submitPromisedValue(String, Object)}. This
+   *         {@link PipelineService#submitPromisedValue(JobRunId, Object)}. This
    *         may be passed in to further invocations of {@code futureCall()} in
    *         order to specify a data dependency.
    * @deprecate Use #newPromise() instead.

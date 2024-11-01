@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.appengine.tools.mapreduce.KeyValue;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.IncrementalTaskContext;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
@@ -72,7 +73,7 @@ public class SortTest {
 
     @SuppressWarnings("serial")
     public MapSortContext() {
-      super(new IncrementalTaskContext("TestJob", 1, 1, "calls", "time"),
+      super(new IncrementalTaskContext(ShardedJobRunId.of("test-project", null, null,"TestJob"), 1, 1, "calls", "time"),
         new OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>() {
 
         @Override

@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.model;
 
 import com.google.appengine.tools.pipeline.Job;
+import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.JobInfo;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.JobSetting.BackoffFactor;
@@ -647,14 +648,21 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   }
 
   @VisibleForTesting
-  public static Key key(String projectId, String namespace, String localJobHandle) {
-    KeyFactory keyFactory = new KeyFactory(projectId, namespace);
+  public static Key key(String projectId, String databaseId, String namespace, String localJobHandle) {
+    KeyFactory keyFactory = new KeyFactory(projectId);
     keyFactory.setKind(DATA_STORE_KIND);
+
+    if (databaseId != null && !databaseId.isEmpty()) {
+      keyFactory.setDatabaseId(databaseId);
+    }
+    if (namespace != null && !namespace.isEmpty()) {
+      keyFactory.setNamespace(databaseId);
+    }
     return keyFactory.newKey(localJobHandle);
   }
 
   @VisibleForTesting
-  public static Key keyFromPipelineHandle(String pipelineHandle) {
-    return Key.fromUrlSafe(pipelineHandle);
+  public static Key keyFromPipelineHandle(JobRunId pipelineHandle) {
+    return key(pipelineHandle.getProject(), pipelineHandle.getDatabaseId(), pipelineHandle.getNamespace(), pipelineHandle.getJobId());
   }
 }

@@ -9,6 +9,7 @@ import com.google.appengine.tools.mapreduce.impl.IncrementalTaskContext;
 import com.google.appengine.tools.mapreduce.impl.IncrementalTaskWithContext;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
@@ -64,7 +65,7 @@ final class StatusHandler {
   public static final String ABORT_JOB_PATH = "abort_job";
   public static final String GET_JOB_DETAIL_PATH = "get_job_detail";
 
-  private JSONObject handleCleanupJob(PipelineOrchestrator pipelineOrchestrator, String jobId) throws JSONException {
+  private JSONObject handleCleanupJob(PipelineOrchestrator pipelineOrchestrator, ShardedJobRunId jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
     if (pipelineOrchestrator.cleanupJob(jobId)) {
       retValue.put("status", "Successfully deleted requested job.");
@@ -74,7 +75,7 @@ final class StatusHandler {
     return retValue;
   }
 
-  private JSONObject handleAbortJob(PipelineOrchestrator pipelineOrchestrator, String jobId) throws JSONException {
+  private JSONObject handleAbortJob(PipelineOrchestrator pipelineOrchestrator, ShardedJobRunId jobId) throws JSONException {
     JSONObject retValue = new JSONObject();
     pipelineOrchestrator.abortJob(jobId);
     retValue.put("status", "Successfully aborted requested job.");
@@ -175,15 +176,15 @@ final class StatusHandler {
    * Handle the get_job_detail AJAX command.
    */
   @VisibleForTesting
-  JSONObject handleGetJobDetail(PipelineRunner pipelineRunner, String jobId) {
+  JSONObject handleGetJobDetail(PipelineRunner pipelineRunner, ShardedJobRunId jobId) {
     ShardedJobState state = pipelineRunner.getJobState(jobId);
     if (state == null) {
       return null;
     }
     JSONObject jobObject = new JSONObject();
     try {
-      jobObject.put("name", jobId); // For display
-      jobObject.put("mapreduce_id", jobId); // This is the sharedJobId but it needs be be called
+      jobObject.put("name", jobId.getJobId()); // For display
+      jobObject.put("mapreduce_id", jobId.asEncodedString()); // This is the sharedJobId but it needs be be called
                                             // mapreduce_id for python compatibility.
       jobObject.put("start_timestamp_ms", state.getStartTime().toEpochMilli());
 

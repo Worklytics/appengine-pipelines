@@ -18,8 +18,9 @@ public class TestTask implements IncrementalTaskWithContext {
   private int slicesRemaining;
 
   public TestTask(int shardId, int shardCount, int valueToYield, int numSlices, byte... payload) {
+    ShardedJobRunId jobId = ShardedJobRunId.of("test-project", null, null,"TestMR");
     this.context =
-        new IncrementalTaskContext("TestMR", shardId, shardCount, "testCalls", "testCallsMillis");
+        new IncrementalTaskContext(jobId, shardId, shardCount, "testCalls", "testCallsMillis");
     this.valueToYield = valueToYield;
     slicesRemaining = numSlices;
     this.initialPayload = payload;

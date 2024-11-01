@@ -2,13 +2,7 @@
 
 package com.google.appengine.tools.pipeline.demo;
 
-import com.google.appengine.tools.pipeline.FutureValue;
-import com.google.appengine.tools.pipeline.Job0;
-import com.google.appengine.tools.pipeline.Job1;
-import com.google.appengine.tools.pipeline.Job2;
-import com.google.appengine.tools.pipeline.Job3;
-import com.google.appengine.tools.pipeline.PromisedValue;
-import com.google.appengine.tools.pipeline.Value;
+import com.google.appengine.tools.pipeline.*;
 
 /**
  * This class contains the example Pipelines from the User Guide
@@ -92,7 +86,7 @@ public class UserGuideExamples {
 
     @SuppressWarnings("unused")
     public static void getIntFromUser(
-        String prompt, String userEmail, String promiseHandle) {
+        String prompt, String userEmail, SlotId promiseHandle) {
       // 1. Send the user an e-mail containing the prompt.
       // 2. Ask user to submit one more integer on some web page.
       // 3. promiseHandle is a query string argument

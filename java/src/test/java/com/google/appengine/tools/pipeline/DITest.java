@@ -83,7 +83,7 @@ public class DITest extends PipelineTest {
   @SneakyThrows
   @Test
   public void testJobWithDependency(PipelineService pipelineService) {
-    String pipelineId = pipelineService.startNewPipeline(new JobWithDependency());
+    JobRunId pipelineId= pipelineService.startNewPipeline(new JobWithDependency());
     String value = waitForJobToComplete(pipelineService, pipelineId);
     assertEquals("v0.1-test", value);
   }

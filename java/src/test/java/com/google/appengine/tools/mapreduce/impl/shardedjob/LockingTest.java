@@ -88,7 +88,7 @@ public class LockingTest extends EndToEndTestCase {
    */
   @Test
   public void testLateTaskQueueDup() throws Exception {
-    final String jobId = startNewTask(settings);
+    final ShardedJobRunId jobId = startNewTask(settings);
 
     final TaskStateInfo taskFromQueue = grabNextTaskFromQueue(queueName);
 
@@ -104,7 +104,7 @@ public class LockingTest extends EndToEndTestCase {
 
     IncrementalTaskState<IncrementalTask> taskState = lookupTaskState(taskFromQueue);
     //Duplicate task again (after status change).
-    executeTask(jobId, taskFromQueue); //Should do nothing.
+    executeTask(jobId.getJobId(), taskFromQueue); //Should do nothing.
     assertAreEqual(taskState, lookupTaskState(taskFromQueue));
     assertEquals(1, StaticBlockingTask.timesRun.get());
 
@@ -117,14 +117,14 @@ public class LockingTest extends EndToEndTestCase {
 
     //Duplicate task again.
     StaticBlockingTask.resetStatus();
-    executeTask(jobId, taskFromQueue); //Should do nothing.
+    executeTask(jobId.getJobId(), taskFromQueue); //Should do nothing.
     assertEquals(0, StaticBlockingTask.timesRun.get());
     assertDone(jobId);
   }
 
 
-  private String startNewTask(ShardedJobSettings settings) {
-    String jobId = "job1";
+  private ShardedJobRunId startNewTask(ShardedJobSettings settings) {
+    ShardedJobRunId jobId = shardedJobId("job1");
     assertNull(getPipelineRunner().getJobState(jobId));
     StaticBlockingTask task = new StaticBlockingTask(1);
     getPipelineOrchestrator().startJob(jobId, ImmutableList.<TestTask>of(task), new TestController(getDatastore().getOptions(), 1, getPipelineService(), false), settings);
@@ -136,7 +136,7 @@ public class LockingTest extends EndToEndTestCase {
     return jobId;
   }
 
-  private void assertDone(final String jobId) {
+  private void assertDone(final ShardedJobRunId jobId) {
     ShardedJobState state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(DONE), state.getStatus());
     assertEquals(0, state.getActiveTaskCount());
@@ -149,7 +149,7 @@ public class LockingTest extends EndToEndTestCase {
    */
   @Test
   public void testDupResultsInWaiting() throws Exception {
-    final String jobId = startNewTask(settings);
+    final ShardedJobRunId jobId = startNewTask(settings);
 
     final TaskStateInfo taskFromQueue = grabNextTaskFromQueue(queueName);
 
@@ -163,7 +163,7 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals( 0, getTasks(queueName).size(), "Something was left in the queue");
 
     //Duplicate task (first task is still running)
-    executeTask(jobId, taskFromQueue); //Should not block because will not execute run.
+    executeTask(jobId.getJobId(), taskFromQueue); //Should not block because will not execute run.
     TaskStateInfo delayedRetry = grabNextTaskFromQueue(queueName);
     assertTrue(delayedRetry.getEtaDelta() > 0);
 
@@ -180,7 +180,7 @@ public class LockingTest extends EndToEndTestCase {
 
     //Duplicate task again.
     StaticBlockingTask.resetStatus();
-    executeTask(jobId, delayedRetry); //Should do nothing.
+    executeTask(jobId.getJobId(), delayedRetry); //Should do nothing.
     assertEquals(0, StaticBlockingTask.timesRun.get());
     assertDone(jobId);
   }
@@ -195,7 +195,7 @@ public class LockingTest extends EndToEndTestCase {
     //duplicate arrives.
     ShardedJobSettings settings =
         new ShardedJobSettings.Builder().setSliceTimeoutMillis(0).build();
-    final String jobId = startNewTask(settings);
+    final ShardedJobRunId jobId = startNewTask(settings);
 
     //Run task
     final TaskStateInfo taskFromQueue = grabNextTaskFromQueue(queueName);
@@ -210,7 +210,7 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(0, getShardRetryCount(getDatastore().newTransaction(), taskFromQueue));
 
     //Duplicate task
-    executeTask(jobId, taskFromQueue); //Should not block because will not execute run.
+    executeTask(jobId.getJobId(), taskFromQueue); //Should not block because will not execute run.
     assertEquals(1, getShardRetryCount(getDatastore().newTransaction(), taskFromQueue));
     state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());

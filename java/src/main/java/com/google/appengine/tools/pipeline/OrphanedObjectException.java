@@ -14,11 +14,11 @@ package com.google.appengine.tools.pipeline;
 public class OrphanedObjectException extends Exception {
   private static final long serialVersionUID = 149320669328554627L;
 
-  public OrphanedObjectException(String key) {
-    super(key);
+  public OrphanedObjectException(SlotId key) {
+    super(key.toString());
   }
 
-  public OrphanedObjectException(String key, Throwable cause) {
-    super(key, cause);
+  public OrphanedObjectException(SlotId key, Throwable cause) {
+    super(key.toString(), cause);
   }
 }

@@ -1,51 +1,39 @@
 package com.google.appengine.tools.mapreduce.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.appengine.tools.mapreduce.Counters;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
+import lombok.Getter;
+import lombok.NonNull;
 
 import java.io.Serializable;
 
 /**
  * Context used by incremental tasks.
  */
+@Getter
 public class IncrementalTaskContext implements Serializable {
 
-  private static final long serialVersionUID = -3696404958641945634L;
+  private static final long serialVersionUID = 1L;
   private final String workerCallsCounterName;
   private final String workerMillisCounterName;
-  private final String jobId;
+
+  private final ShardedJobRunId jobId;
   private final int shardNumber;
   private final int shardCount;
   private final Counters counters;
   private String lastWorkItem;
 
-  public IncrementalTaskContext(String jobId, int shardNumber, int shardCount,
-      String workerCallsCounterName, String workerMillisCounterName) {
-    this.jobId = checkNotNull(jobId, "Null jobId");
+  public IncrementalTaskContext(@NonNull ShardedJobRunId jobId,
+                                int shardNumber,
+                                int shardCount,
+                                @NonNull String workerCallsCounterName,
+                                @NonNull String workerMillisCounterName) {
+    this.jobId = jobId;
     this.shardNumber = shardNumber;
     this.shardCount = shardCount;
-    this.workerCallsCounterName =
-        checkNotNull(workerCallsCounterName, "Null workerCallsCounterName");
-    this.workerMillisCounterName =
-        checkNotNull(workerMillisCounterName, "Null workerMillisCounterName");
+    this.workerCallsCounterName = workerCallsCounterName;
+    this.workerMillisCounterName = workerMillisCounterName;
     this.counters = new CountersImpl();
-  }
-
-  public Counters getCounters() {
-    return counters;
-  }
-
-  public String getJobId() {
-    return jobId;
-  }
-
-  public int getShardNumber() {
-    return shardNumber;
-  }
-
-  public int getShardCount() {
-    return shardCount;
   }
 
   public long getWorkerCallCount() {

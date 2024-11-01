@@ -5,7 +5,6 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
@@ -32,7 +31,7 @@ import java.util.Date;
 @EqualsAndHashCode
 class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState {
 
-  private final String jobId;
+  private final ShardedJobRunId shardedJobId;
   private final ShardedJobController<T> controller;
   private final ShardedJobSettings settings;
   private final int totalTaskCount;
@@ -42,17 +41,39 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   private Status status;
 
 
-  public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(String jobId,
-                                                                          ShardedJobController<T> controller, ShardedJobSettings settings, int totalTaskCount,
-                                                                          Instant startTime) {
-    return new ShardedJobStateImpl<>(checkNotNull(jobId, "Null jobId"),
-        checkNotNull(controller, "Null controller"), checkNotNull(settings, "Null settings"),
-        totalTaskCount, startTime, new Status(StatusCode.RUNNING));
+  public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(
+    @NonNull String project,
+    @NonNull String databaseId,
+    @NonNull String namespace,
+    @NonNull String generatedJobId,
+    @NonNull ShardedJobController<T> controller,
+    @NonNull ShardedJobSettings settings,
+    int totalTaskCount,
+    Instant startTime) {
+
+    ShardedJobRunId jobId = ShardedJobRunId.of(project, databaseId, namespace, generatedJobId);
+    return new ShardedJobStateImpl<>(jobId, controller, settings, totalTaskCount, startTime, new Status(StatusCode.RUNNING));
   }
 
-  private ShardedJobStateImpl(String jobId, ShardedJobController<T> controller,
-                              ShardedJobSettings settings, int totalTaskCount, Instant startTime, Status status) {
-    this.jobId = jobId;
+  public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(
+            @NonNull ShardedJobRunId shardedJobId,
+            @NonNull ShardedJobController<T> controller,
+            @NonNull ShardedJobSettings settings,
+            int totalTaskCount,
+            @NonNull Instant startTime
+
+      ) {
+    return new ShardedJobStateImpl<>(shardedJobId, controller, settings, totalTaskCount, startTime, new Status(StatusCode.RUNNING));
+  }
+
+
+  private ShardedJobStateImpl(ShardedJobRunId shardedJobId,
+                              ShardedJobController<T> controller,
+                              ShardedJobSettings settings,
+                              int totalTaskCount,
+                              Instant startTime,
+                              Status status) {
+    this.shardedJobId = shardedJobId;
     this.controller = controller;
     this.settings = settings;
     this.totalTaskCount = totalTaskCount;
@@ -60,7 +81,6 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     this.startTime = startTime;
     this.mostRecentUpdateTime = startTime;
     this.status = status;
-
   }
 
   @Override public int getActiveTaskCount() {
@@ -107,23 +127,25 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     private static final String SHARDS_COMPLETED_PROPERTY = "activeShards";
     private static final String STATUS_PROPERTY = "status";
 
-    // hacky - works with full job id OR just the UUID
-    static Key makeKey(Datastore datastore, String jobId) {
-      try {
-        Key pipelineKey = Key.fromUrlSafe(jobId);
-        KeyFactory builder = datastore.newKeyFactory().setKind(ENTITY_KIND)
-          .setDatabaseId(pipelineKey.getDatabaseId())
-          .setProjectId(pipelineKey.getProjectId())
-          .setNamespace(pipelineKey.getNamespace());
-        return builder.newKey(pipelineKey.getName());
-      } catch (IllegalArgumentException e) {
-        KeyFactory builder = datastore.newKeyFactory().setKind(ENTITY_KIND);
-        return builder.newKey(jobId);
+    static Key makeKey(Datastore datastore, ShardedJobRunId jobId) {
+      KeyFactory builder = datastore.newKeyFactory()
+        .setKind(ENTITY_KIND)
+        .setProjectId(jobId.getProject());
+
+      // null implies default? unset certainly does, so we'll leave that
+      if (jobId.getDatabaseId() != null) {
+        builder.setDatabaseId(jobId.getDatabaseId());
       }
+
+      // null implies default, but datastore client wants left unset in that case
+      if (jobId.getNamespace() != null) {
+        builder.setNamespace(jobId.getNamespace());
+      }
+      return builder.newKey(jobId.getJobId());
     }
 
     static Entity toEntity(@NonNull Transaction tx, ShardedJobStateImpl<?> in) {
-      Key key = makeKey(tx.getDatastore(), in.getJobId());
+      Key key = makeKey(tx.getDatastore(), in.getShardedJobId());
       Entity.Builder jobState = Entity.newBuilder(key);
 
       //avoid serialization issue; will fill on deserialization
@@ -155,17 +177,17 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
       @NonNull Transaction tx, Entity in, boolean lenient) {
       Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
 
-      Key sharedJobStateKey = in.getKey();
+      ShardedJobRunId jobId = ShardedJobRunId.of(in.getKey());
 
       return new ShardedJobStateImpl<>(
-          JobRecord.key(sharedJobStateKey.getProjectId(), sharedJobStateKey.getNamespace(), sharedJobStateKey.getName()).toUrlSafe(),
+          jobId,
           SerializationUtil.<ShardedJobController<T>>deserializeFromDatastoreProperty(tx, in, CONTROLLER_PROPERTY, lenient),
           SerializationUtil.<ShardedJobSettings>deserializeFromDatastoreProperty(tx, in, SETTINGS_PROPERTY),
           (int) in.getLong(TOTAL_TASK_COUNT_PROPERTY),
           from(in.getTimestamp(START_TIME_PROPERTY)),
           SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY))
             .setMostRecentUpdateTime(from(in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY)))
-            .setShardsCompleted((BitSet) SerializationUtil.deserializeFromDatastoreProperty(tx, in, SHARDS_COMPLETED_PROPERTY));
+            .setShardsCompleted(SerializationUtil.deserializeFromDatastoreProperty(tx, in, SHARDS_COMPLETED_PROPERTY));
     }
   }
 }

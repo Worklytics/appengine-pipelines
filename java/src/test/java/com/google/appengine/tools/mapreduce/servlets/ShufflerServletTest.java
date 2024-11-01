@@ -35,21 +35,19 @@ import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 import com.google.appengine.tools.mapreduce.servlets.ShufflerServlet.ShuffleMapReduce;
+import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.apphosting.api.ApiProxy;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.Key;
-import com.google.cloud.storage.BlobId;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.TreeMultimap;
 
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -195,14 +193,11 @@ public class ShufflerServletTest {
     ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
-    String pipelineId = pipelineService.startNewPipeline(mr);
-
-    Key pipelineKey = Key.fromUrlSafe(pipelineId);
-
+    JobRunId pipelineId= pipelineService.startNewPipeline(mr);
 
     assertTrue(WAIT_ON.tryAcquire(100, TimeUnit.SECONDS));
 
-    List<KeyValue<ByteBuffer, List<ByteBuffer>>> output = validateOrdered(shufflerParams, pipelineKey);
+    List<KeyValue<ByteBuffer, List<ByteBuffer>>> output = validateOrdered(shufflerParams, pipelineId);
     assertExpectedOutput(input, output);
   }
 
@@ -236,10 +231,10 @@ public class ShufflerServletTest {
     assertTrue(expected.isEmpty());
   }
 
-  List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams, Key pipelineKey) throws IOException {
+  List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams, JobRunId pipelineId) throws IOException {
     List<KeyValue<ByteBuffer, List<ByteBuffer>>> result = new ArrayList<>();
 
-    GcsFilename manifest = ShuffleMapReduce.getManifestFile(pipelineKey, shufflerParams);
+    GcsFilename manifest = ShuffleMapReduce.getManifestFile(pipelineId, shufflerParams);
 
     List<GcsFilename> outputFiles;
     try (ReadChannel readChannel = storageIntegrationTestHelper.getStorage().get(manifest.asBlobId()).reader()) {

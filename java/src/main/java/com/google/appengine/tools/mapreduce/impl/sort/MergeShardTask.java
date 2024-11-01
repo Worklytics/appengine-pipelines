@@ -13,6 +13,7 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Worker;
 import com.google.appengine.tools.mapreduce.impl.IncrementalTaskContext;
 import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 import com.google.common.collect.Lists;
 
@@ -36,9 +37,9 @@ public class MergeShardTask extends WorkerShardTask<KeyValue<ByteBuffer, Iterato
   private MergeWorker worker;
   private final Integer sortReadTimeMillis; // Only null as a result of an old version.
 
-  public MergeShardTask(String mrJobId, int shardNumber, int shardCount,
-      InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>> in,
-      OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> out, int sortReadTimeMillis) {
+  public MergeShardTask(ShardedJobRunId mrJobId, int shardNumber, int shardCount,
+                        InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>> in,
+                        OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> out, int sortReadTimeMillis) {
     super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, MERGE_CALLS,
         MERGE_WALLTIME_MILLIS));
     this.sortReadTimeMillis = sortReadTimeMillis;
@@ -55,7 +56,7 @@ public class MergeShardTask extends WorkerShardTask<KeyValue<ByteBuffer, Iterato
     private static final long serialVersionUID = -8898621644158681288L;
 
     public void emit(KeyValue<ByteBuffer, Iterator<ByteBuffer>> input) {
-      List<ByteBuffer> values = Lists.<ByteBuffer>newArrayList(input.getValue());
+      List<ByteBuffer> values = Lists.newArrayList(input.getValue());
       getContext().emit(new KeyValue<>(input.getKey(), values));
     }
   }

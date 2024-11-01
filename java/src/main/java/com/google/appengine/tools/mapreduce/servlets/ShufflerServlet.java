@@ -43,7 +43,6 @@ import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.apphosting.api.ApiProxy.ArgumentException;
 import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
 import com.google.cloud.WriteChannel;
-import com.google.cloud.datastore.Key;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
@@ -182,8 +181,8 @@ public class ShufflerServlet extends HttpServlet {
     }
 
     @VisibleForTesting
-    static GcsFilename getManifestFile(Key pipelineKey, ShufflerParams shufflerParams) {
-      String jobId = DigestUtils.sha256Hex(pipelineKey.toUrlSafe());
+    static GcsFilename getManifestFile(JobRunId pipelineId, ShufflerParams shufflerParams) {
+      String jobId = DigestUtils.sha256Hex(pipelineId.asEncodedString());
       return new GcsFilename(shufflerParams.getGcsBucket(), shufflerParams.getOutputDir() + "/Manifest-" + jobId + ".txt");
     }
 
@@ -220,11 +219,11 @@ public class ShufflerServlet extends HttpServlet {
 
     @Override
     public Value<Void> run(MapReduceResult<GoogleCloudStorageFileSet> result) throws Exception {
-      String jobId = DigestUtils.sha256Hex(getPipelineKey().toUrlSafe());
+      JobRunId jobRunId = JobRunId.of(getPipelineKey());
 
-      GcsFilename manifestFile = ShuffleMapReduce.getManifestFile(getPipelineKey(), shufflerParams);
+      GcsFilename manifestFile = ShuffleMapReduce.getManifestFile(jobRunId, shufflerParams);
 
-      log.info("Shuffle job done: jobId=" + jobId + ", results located in " + manifestFile + "]");
+      log.info("Shuffle job done: jobId=" + jobRunId + ", results located in " + manifestFile + "]");
 
       Storage client = GcpCredentialOptions.getStorageClient(this.shufflerParams);
 
@@ -239,8 +238,8 @@ public class ShufflerServlet extends HttpServlet {
       output.close();
 
       enqueueCallbackTask(shufflerParams,
-          "job=" + jobId + "&status=done&output=" + URLEncoder.encode(manifestFile.getObjectName(), "UTF-8"),
-          "Shuffled-" + jobId);
+          "job=" + jobRunId + "&status=done&output=" + URLEncoder.encode(manifestFile.getObjectName(), "UTF-8"),
+          "Shuffled-" + jobRunId.asEncodedString().replace("/", "-"));
       return immediate(null);
     }
   }
@@ -309,14 +308,14 @@ public class ShufflerServlet extends HttpServlet {
 
     PipelineService pipelineService = stepExecutionComponent.pipelineService();
 
-    String pipelineId = pipelineService.startNewPipeline(
+    JobRunId pipelineId = pipelineService.startNewPipeline(
         new ShuffleMapReduce(shufflerParams),
         new JobSetting.OnQueue(shufflerParams.getShufflerQueue()),
         new JobSetting.DatastoreNamespace(shufflerParams.getNamespace()));
     log.info("Started shuffler: jobId=" + pipelineId + ", params=" + shufflerParams);
 
     resp.setStatus(HttpServletResponse.SC_OK);
-    resp.getWriter().append(pipelineId);
+    resp.getWriter().append(pipelineId.asEncodedString());
   }
 
 }
