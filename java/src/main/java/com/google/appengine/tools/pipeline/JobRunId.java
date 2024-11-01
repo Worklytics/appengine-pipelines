@@ -21,6 +21,8 @@ import java.util.Optional;
 @Getter
 public class JobRunId implements Serializable {
 
+  public static final String DELIMITER = ":";
+
   @Serial
   private static final long serialVersionUID = 1L;
 
@@ -50,7 +52,7 @@ public class JobRunId implements Serializable {
 
 
   protected JobRunId(String encoded) {
-    String[] parts = encoded.split("/");
+    String[] parts = encoded.split(DELIMITER);
     if (parts.length != 4) {
       throw new IllegalArgumentException("Invalid encoded string: " + encoded);
     }
@@ -63,12 +65,12 @@ public class JobRunId implements Serializable {
   //q: url encode this?
   public String asEncodedString() {
     // NOTE: presumes / never used in namespace or project or job id - correct/
-    Preconditions.checkArgument(!project.contains("/"), "project must not contain /");
-    Preconditions.checkArgument(databaseId == null || !databaseId.contains("/"), "databaseId must not contain /");
-    Preconditions.checkArgument(namespace == null || !namespace.contains("/"), "namespace must not contain /");
-    Preconditions.checkArgument(!jobId.contains("/"), "jobId must not contain /");
+    Preconditions.checkArgument(!project.contains(DELIMITER), "project must not contain " + DELIMITER);
+    Preconditions.checkArgument(databaseId == null || !databaseId.contains(DELIMITER), "databaseId must not contain " + DELIMITER);
+    Preconditions.checkArgument(namespace == null || !namespace.contains(DELIMITER), "namespace must not contain " + DELIMITER);
+    Preconditions.checkArgument(!jobId.contains(DELIMITER), "jobId must not contain " + DELIMITER);
 
-    return project + "/" + Optional.ofNullable(databaseId).orElse("") + "/" + Optional.ofNullable(namespace).orElse("") + "/" + jobId;
+    return project +DELIMITER + Optional.ofNullable(databaseId).orElse("") + DELIMITER + Optional.ofNullable(namespace).orElse("") + DELIMITER + jobId;
   }
 
   public static JobRunId fromEncodedString(@NonNull String encoded) {

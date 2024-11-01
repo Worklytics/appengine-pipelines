@@ -18,6 +18,8 @@ import java.util.Optional;
 @Getter
 public class SlotId implements Serializable {
 
+  public static final String DELIMITER = ":";
+
   @Serial
   private static final long serialVersionUID = 1L;
 
@@ -46,13 +48,14 @@ public class SlotId implements Serializable {
   private final String slotId;
 
   public String asEncodedString() {
-    // NOTE: presumes / never used in namespace or project or job id - correct/
-    Preconditions.checkArgument(!project.contains("/"), "project must not contain /");
-    Preconditions.checkArgument(databaseId == null || !databaseId.contains("/"), "databaseId must not contain /");
-    Preconditions.checkArgument(namespace == null || !namespace.contains("/"), "namespace must not contain /");
-    Preconditions.checkArgument(!slotId.contains("/"), "jobId must not contain /");
+    // NOTE: presumes DELIMITER never used in project, database, namespace, or job id strings
+    Preconditions.checkArgument(!project.contains(DELIMITER), "project must not contain " + DELIMITER);
+    Preconditions.checkArgument(databaseId == null || !databaseId.contains(DELIMITER), "databaseId must not contain " + DELIMITER);
+    Preconditions.checkArgument(namespace == null || !namespace.contains(DELIMITER), "namespace must not contain " + DELIMITER);
+    Preconditions.checkArgument(!slotId.contains(DELIMITER), "slotId must not contain " + DELIMITER);
 
-    return project + "/" + Optional.ofNullable(databaseId).orElse("") + "/" + Optional.ofNullable(namespace).orElse("") + "/" + slotId;
+
+    return project +DELIMITER + Optional.ofNullable(databaseId).orElse("") + DELIMITER + Optional.ofNullable(namespace).orElse("") + DELIMITER + slotId;
   }
 
   public static SlotId fromEncodedString(@NonNull String encoded) {
@@ -65,7 +68,7 @@ public class SlotId implements Serializable {
   }
 
   protected SlotId(String encoded) {
-    String[] parts = encoded.split("/");
+    String[] parts = encoded.split(DELIMITER);
     if (parts.length != 4) {
       throw new IllegalArgumentException("Invalid encoded string: " + encoded);
     }

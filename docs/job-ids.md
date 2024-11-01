@@ -63,9 +63,10 @@ Considerations:
     - human-readable, to ease debugging and reading logs/tests
     - avoid special characters that may need escaping, or not play nice with clients
 
-Current approach is `/` as delimiter, and require none of those in string.
+Current approach is `:` as delimiter, and require none of those in string. `/` was being encoded in some contexts, 
+and confusing JS libs.
 
 ## Design decisions
 
  - don't utilize parent/entity groups for now; each job/subjob at top-level
- - for transport, simple serialization with `/` delimiter; possibly base64-url-safe encoding would be better?1
+ - for transport, simple serialization with `:` delimiter; possibly base64-url-safe encoding would be better?1
