@@ -2,7 +2,9 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.KeyFactory;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import lombok.*;
 
 import javax.annotation.Nullable;
@@ -17,7 +19,6 @@ import java.util.Optional;
  *
  */
 @EqualsAndHashCode(callSuper = false)
-@AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class JobRunId implements Serializable {
 
@@ -49,6 +50,14 @@ public class JobRunId implements Serializable {
    */
   @NonNull
   private final String jobId;
+
+  protected JobRunId(@NonNull String project, String databaseId, String namespace, @NonNull String jobId) {
+    this.project = project;
+    //so generated EqualsAndHashCode properly equates null, empty cases for databaseId/namespace
+    this.databaseId = Strings.emptyToNull(databaseId);
+    this.namespace = Strings.emptyToNull(namespace);
+    this.jobId = jobId;
+  }
 
 
   protected JobRunId(String encoded) {
@@ -85,7 +94,6 @@ public class JobRunId implements Serializable {
   public static JobRunId of(String project, String databaseId, String namespace, String jobId) {
     return new JobRunId(project, databaseId, namespace, jobId);
   }
-
 
   @Override
   public String toString() {

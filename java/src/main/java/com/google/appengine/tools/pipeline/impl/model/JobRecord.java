@@ -656,7 +656,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
       keyFactory.setDatabaseId(databaseId);
     }
     if (namespace != null && !namespace.isEmpty()) {
-      keyFactory.setNamespace(databaseId);
+      keyFactory.setNamespace(namespace);
     }
     return keyFactory.newKey(localJobHandle);
   }

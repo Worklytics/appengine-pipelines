@@ -67,12 +67,8 @@ public class RequestUtils {
     return Optional.ofNullable(request.getParameter(name));
   }
 
-  // instead of URL-safe encoded keys, should be base64-encode them to avoid this issue???
-
-  // deals with fact that HttpServletRequest *decodes* url params, so even if pipeline id was originally url-encoded,
-  // we need to ensure it remains so
   public Optional<String> getJobId(HttpServletRequest request, String paramName) {
-    return getParam(request, paramName).map(URLEncoder::encode);
+    return getParam(request, paramName);
   }
 
   public JobRunId getRootPipelineId(HttpServletRequest request) throws ServletException {
