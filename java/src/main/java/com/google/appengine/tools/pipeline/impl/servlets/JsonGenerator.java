@@ -152,7 +152,7 @@ class JsonGenerator {
     }
     Key sourceJobKey = slot.getSourceJobKey();
     if (null != sourceJobKey) {
-      map.put(SLOT_SOURCE_JOB, JobRunId.of(sourceJobKey));
+      map.put(SLOT_SOURCE_JOB, JobRunId.of(sourceJobKey).asEncodedString());
     }
     return map;
   }
