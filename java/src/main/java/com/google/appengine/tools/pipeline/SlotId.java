@@ -3,6 +3,7 @@ package com.google.appengine.tools.pipeline;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.cloud.datastore.Key;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import lombok.*;
 
 import javax.annotation.Nullable;
@@ -14,7 +15,6 @@ import java.util.Optional;
  * Identifies a {@link com.google.appengine.tools.pipeline.impl.model.Slot}, created by a pipeline job run, to be filled with a value.
  */
 @EqualsAndHashCode(callSuper = false)
-@AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class SlotId implements Serializable {
 
@@ -46,6 +46,15 @@ public class SlotId implements Serializable {
    */
   @NonNull
   private final String slotId;
+
+  protected SlotId(@NonNull String project, String databaseId, String namespace, @NonNull String slotId) {
+    this.project = project;
+
+    //so generated EqualsAndHashCode properly equates null, empty cases for databaseId/namespace
+    this.databaseId = Strings.emptyToNull(databaseId);
+    this.namespace = Strings.emptyToNull(namespace);
+    this.slotId = slotId;
+  }
 
   public String asEncodedString() {
     // NOTE: presumes DELIMITER never used in project, database, namespace, or job id strings
