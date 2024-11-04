@@ -11,7 +11,10 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 
 import java.io.ByteArrayInputStream;
+import java.time.Duration;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -79,10 +82,14 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
       .build().getService();
     if (bucket == null) {
       bucket = RemoteStorageHelper.generateBucketName();
-      storage.create(BucketInfo.of(bucket));
+
+      //avoid test data being retained forever, even if bucket deletion post-test fails
+      storage.create(BucketInfo.newBuilder(bucket)
+        .setLifecycleRules(defaultTestDataLifecycle())
+        .setSoftDeletePolicy(null) // no soft-deletion
+        .build());
 
       //delete bucket at shutdown
-
       Runtime.getRuntime().addShutdownHook(new Thread(() -> {
         try {
           RemoteStorageHelper.forceDelete(storage, bucket, 5, TimeUnit.SECONDS);
@@ -91,6 +98,12 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
         }
       }));
     }
+  }
+
+  List<BucketInfo.LifecycleRule> defaultTestDataLifecycle() {
+    return Collections.singletonList(new BucketInfo.LifecycleRule(
+      BucketInfo.LifecycleRule.LifecycleAction.newDeleteAction(),
+      BucketInfo.LifecycleRule.LifecycleCondition.newBuilder().setAge(30).build()));
   }
 
   @Deprecated //attach delete to global runtime shutdown
