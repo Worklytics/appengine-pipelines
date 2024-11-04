@@ -21,6 +21,7 @@ import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereF
 
 import com.github.rholder.retry.*;
 
+import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.impl.util.TestUtils;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -63,8 +64,6 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 /**
  * @author rudominer@google.com (Mitch Rudominer)
@@ -716,22 +715,25 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   /**
    * Delete all datastore entities corresponding to the given pipeline.
    *
-   * @param rootJobKey The root job key identifying the pipeline
-   * @param force      If this parameter is not {@code true} then this method will
-   *                   throw an {@link IllegalStateException} if the specified pipeline is not in the
-   *                   {@link JobRecord.State#FINALIZED} or
-   *                   {@link JobRecord.State#STOPPED} state.
+   * @param pipelineRunId The root job key identifying the pipeline
+   * @param force         If this parameter is not {@code true} then this method will
+   *                      throw an {@link IllegalStateException} if the specified pipeline is not in the
+   *                      {@link JobRecord.State#FINALIZED} or
+   *                      {@link JobRecord.State#STOPPED} state.
    * @throws IllegalStateException If {@code force = false} and the specified
    *                               pipeline is not in the
    *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED} or
    *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED} state.
    */
   @Override
-  public void deletePipeline(Key rootJobKey, boolean force)
+  public void deletePipeline(JobRunId pipelineRunId, boolean force)
       throws IllegalStateException {
+
+    Key pipelineKey = JobRecord.keyFromPipelineHandle(pipelineRunId);
+
     if (!force) {
       try {
-        JobRecord rootJobRecord = queryJob(rootJobKey, JobRecord.InflationType.NONE);
+        JobRecord rootJobRecord = queryJob(pipelineKey, JobRecord.InflationType.NONE);
         switch (rootJobRecord.getState()) {
           case FINALIZED:
           case STOPPED:
@@ -743,11 +745,12 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         // Consider missing rootJobRecord as a non-active job and allow further delete
       }
     }
-    deleteAll(JobRecord.DATA_STORE_KIND, rootJobKey);
-    deleteAll(Slot.DATA_STORE_KIND, rootJobKey);
-    deleteAll(ShardedValue.DATA_STORE_KIND, rootJobKey);
-    deleteAll(Barrier.DATA_STORE_KIND, rootJobKey);
-    deleteAll(JobInstanceRecord.DATA_STORE_KIND, rootJobKey);
-    deleteAll(FanoutTaskRecord.DATA_STORE_KIND, rootJobKey);
+
+    deleteAll(JobRecord.DATA_STORE_KIND, pipelineKey);
+    deleteAll(Slot.DATA_STORE_KIND, pipelineKey);
+    deleteAll(ShardedValue.DATA_STORE_KIND, pipelineKey);
+    deleteAll(Barrier.DATA_STORE_KIND, pipelineKey);
+    deleteAll(JobInstanceRecord.DATA_STORE_KIND, pipelineKey);
+    deleteAll(FanoutTaskRecord.DATA_STORE_KIND, pipelineKey);
   }
 }

@@ -583,12 +583,21 @@ public abstract class Job<E> implements Serializable {
   }
 
   /**
-   * Returns the Key uniquely identifying this job
+   *  Returns the JobRunId uniquely identifying the Pipeline run that this job is executed within.
    *
-   * @return the Key uniquely identifying this job
+   * @return the JobRunId uniquely identifying the Pipeline that this jobis executed within.
    */
-  public Key getJobKey() {
-    return thisJobRecord.getKey();
+  public JobRunId getPipelineRunId() {
+    return thisJobRecord.getPipelineRunId();
+  }
+
+  /**
+   * Returns the JobRunId uniquely identifying this job
+   *
+   * @return the JobRunId uniquely identifying this job
+   */
+  public JobRunId getJobRunId() {
+    return thisJobRecord.getJobRunId();
   }
 
   /**
@@ -601,6 +610,8 @@ public abstract class Job<E> implements Serializable {
   public Key getPipelineKey() {
     return thisJobRecord.getRootJobKey();
   }
+
+
 
   /**
    * Allows a job to set its  status console URL.

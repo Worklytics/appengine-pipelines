@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
@@ -23,11 +24,9 @@ import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.util.Pair;
-import com.google.auth.Credentials;
 import com.google.cloud.datastore.Key;
 
 import java.io.Serializable;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -133,14 +132,14 @@ public interface PipelineBackEnd {
   /**
    * Delete all datastore entities corresponding to the given pipeline.
    *
-   * @param rootJobKey The root job key identifying the pipeline
-   * @param force      If this parameter is not {@code true} then this method will
-   *                   throw an {@link IllegalStateException} if the specified pipeline is
-   *                   not in the
-   *                   {@link JobRecord.State#FINALIZED}
-   *                   or
-   *                   {@link JobRecord.State#STOPPED}
-   *                   state.
+   * @param pipelineRunId The root job key identifying the pipeline
+   * @param force         If this parameter is not {@code true} then this method will
+   *                      throw an {@link IllegalStateException} if the specified pipeline is
+   *                      not in the
+   *                      {@link JobRecord.State#FINALIZED}
+   *                      or
+   *                      {@link JobRecord.State#STOPPED}
+   *                      state.
    * @throws IllegalStateException If {@code force = false} and the specified
    *                               pipeline is not in the
    *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED}
@@ -148,7 +147,7 @@ public interface PipelineBackEnd {
    *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED}
    *                               state.
    */
-  void deletePipeline(Key rootJobKey, boolean force)
+  void deletePipeline(JobRunId pipelineRunId, boolean force)
       throws IllegalStateException;
 
   /**

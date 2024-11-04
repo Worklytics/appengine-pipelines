@@ -100,7 +100,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
       mapTasks.add(new MapOnlyShardTask<>(jobId, i, readers.size(), readers.get(i),
           specification.getMapper(), writers.get(i), settings.getMillisPerSlice()));
     }
-    ShardedJobSettings shardedJobSettings = settings.toShardedJobSettings(getShardedJobId(), getPipelineKey());
+    ShardedJobSettings shardedJobSettings = settings.toShardedJobSettings(getShardedJobId(), getPipelineRunId());
     PromisedValue<ResultAndStatus<R>> resultAndStatus = newPromise();
     WorkerController<I, O, R, MapOnlyMapperContext<O>> workerController = new WorkerController<>(
         jobId, new CountersImpl(), output, resultAndStatus.getHandle());
@@ -130,7 +130,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
       java.util.Optional.ofNullable(settings.getProjectId()).orElseGet(defaultDatastoreOptions::getProjectId),
       java.util.Optional.ofNullable(settings.getDatabaseId()).orElseGet(defaultDatastoreOptions::getDatabaseId),
       java.util.Optional.ofNullable(settings.getNamespace()).orElseGet(defaultDatastoreOptions::getNamespace),
-      getJobKey().getName());
+      getJobRunId().getJobId());
   }
 
   public Value<MapReduceResult<R>> handleException(Throwable t) throws Throwable {

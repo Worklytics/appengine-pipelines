@@ -20,7 +20,6 @@ import static com.google.appengine.tools.pipeline.Job.waitFor;
 import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
-import com.google.cloud.datastore.Key;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import lombok.NonNull;
@@ -125,7 +124,7 @@ public class Jobs {
    * @param <T>
    */
   public static <T> Value<T> waitForAllAndDeleteWithDelay(Job<?> caller, Long delayMillis, Value<T> value, Value<?>... values) {
-    return caller.futureCall(new DeletePipelineJob<>(caller.getPipelineKey(), delayMillis), value, createWaitForSettingArray(values));
+    return caller.futureCall(new DeletePipelineJob<>(caller.getPipelineRunId(), delayMillis), value, createWaitForSettingArray(values));
   }
 
   @Deprecated // not supported
@@ -149,12 +148,12 @@ public class Jobs {
   @Log
   private static class DeletePipelineJob<T> extends Job1<T, T> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     /**
      * key of the root job of the pipeline to delete
      */
-    @NonNull private final Key rootPipelineKey;
+    @NonNull private final JobRunId pipelineRunId;
 
     /**
      * delay before deletion attempt, in milliseconds; historically, this was always 10s
@@ -178,11 +177,11 @@ public class Jobs {
           AppEngineBackEnd backend = new AppEngineBackEnd(options.as(AppEngineBackEnd.Options.class));
 
           try {
-            log.info("Deleting pipeline: " + rootPipelineKey);
-            backend.deletePipeline(rootPipelineKey, false);
-            log.info("Deleted pipeline: " + rootPipelineKey);
+            log.info("Deleting pipeline: " + pipelineRunId);
+            backend.deletePipeline(pipelineRunId, false);
+            log.info("Deleted pipeline: " + pipelineRunId);
           } catch (IllegalStateException e) {
-            log.info("Failed to delete pipeline: " + rootPipelineKey);
+            log.info("Failed to delete pipeline: " + pipelineRunId);
             // only dep on javax servlet
             // how can we access request context otherwise
             HttpServletRequest request = DeferredTaskContext.getCurrentRequest();
@@ -195,10 +194,10 @@ public class Jobs {
               }
             }
             try {
-              backend.deletePipeline(rootPipelineKey, true);
-              log.info("Force deleted pipeline: " + rootPipelineKey);
+              backend.deletePipeline(pipelineRunId, true);
+              log.info("Force deleted pipeline: " + pipelineRunId);
             } catch (Exception ex) {
-              log.log(Level.WARNING, "Failed to force delete pipeline: " + rootPipelineKey, ex);
+              log.log(Level.WARNING, "Failed to force delete pipeline: " + pipelineRunId, ex);
             }
           }
         }
