@@ -661,7 +661,7 @@ public class EndToEndTest extends EndToEndTestCase {
       assertNull(info.getOutput());
       assertEquals(JobInfo.State.STOPPED_BY_ERROR, info.getJobState());
       assertTrue(info.getException().getMessage()
-          .matches("Stage .*//map-.* was not completed successfuly \\(status=ERROR, message=.*\\)"));
+          .matches("Stage .*:::map-.* was not completed successfuly \\(status=ERROR, message=.*\\)"));
     }
 
     // Disallow slice-retry
