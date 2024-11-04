@@ -55,6 +55,12 @@ public interface JobInfo {
     CANCELED_BY_REQUEST
   }
 
+  JobRunId getPipelineRunId();
+
+  JobRunId getJobRunId();
+
+
+
   /**
    * Get the job's {@link State}.
    */
