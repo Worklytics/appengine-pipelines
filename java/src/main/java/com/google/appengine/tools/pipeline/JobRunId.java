@@ -2,7 +2,6 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.KeyFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.*;
