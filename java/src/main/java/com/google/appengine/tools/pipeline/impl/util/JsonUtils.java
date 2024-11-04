@@ -43,6 +43,7 @@ public class JsonUtils {
     objectToJsonMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     objectToJsonMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
     objectToJsonMapper.disable(SerializationFeature.FAIL_ON_SELF_REFERENCES);
+
     //set explicit view for object mapper, so anything annotated with an explicit @JsonView won't be shown by default
     objectToJsonMapper.setConfig(objectToJsonMapper.getSerializationConfig().withView(Object.class));
   }

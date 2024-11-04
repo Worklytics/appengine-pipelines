@@ -58,6 +58,10 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   @VisibleForTesting
   public static AppEngineEnvironment environment = new AppEngineStandardGen2();
 
+  public JobRunId getPipelineRunId() {
+    return JobRunId.of(getRootJobKey());
+  }
+
 
   /**
    * The state of the job.
@@ -168,6 +172,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
    */
   @Getter
   private final String namespace;
+
+
 
   @Getter
   private final Key jobInstanceKey;
@@ -290,6 +296,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
   }
 
 
+  public JobRunId getJobRunId() {
+    return JobRunId.of(getKey());
+  }
   /**
    * Constructs and returns a Data Store Entity that represents this model
    * object

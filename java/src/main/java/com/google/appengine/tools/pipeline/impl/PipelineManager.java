@@ -686,7 +686,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     jobRecord.getQueueSettings().merge(task.getQueueSettings());
     Key rootJobKey = jobRecord.getRootJobKey();
     log.info("Running pipeline job " + jobKey.getName() + "; UI at "
-        + PipelineServlet.makeViewerUrl(rootJobKey, jobKey));
+        + PipelineServlet.makeViewerUrl(jobRecord.getPipelineRunId(), jobRecord.getJobRunId()));
     JobRecord rootJobRecord;
     if (rootJobKey.equals(jobKey)) {
       rootJobRecord = jobRecord;
@@ -1004,7 +1004,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     jobRecord.getQueueSettings().merge(handleChildExceptionTask.getQueueSettings());
     Key rootJobKey = jobRecord.getRootJobKey();
     log.info("Running pipeline job " + jobKey.getName() + " exception handler; UI at "
-        + PipelineServlet.makeViewerUrl(rootJobKey, jobKey));
+        + PipelineServlet.makeViewerUrl(jobRecord.getPipelineRunId(), jobRecord.getJobRunId()));
     JobRecord rootJobRecord;
     if (rootJobKey.equals(jobKey)) {
       rootJobRecord = jobRecord;

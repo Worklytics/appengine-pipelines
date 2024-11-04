@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
+import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.cloud.datastore.Key;
@@ -104,8 +105,8 @@ public class PipelineServlet extends HttpServlet {
     return baseURL;
   }
 
-  public static String makeViewerUrl(Key rootJobKey, Key jobKey) {
-    return baseUrl() + "status.html?root=" + rootJobKey.toUrlSafe() + "#pipeline-" + jobKey.toUrlSafe();
+  public static String makeViewerUrl(JobRunId rootJobRunId, JobRunId jobRunId) {
+    return baseUrl() + "status.html?root=" + rootJobRunId.asEncodedString() + "#pipeline-" + jobRunId.asEncodedString();
   }
 
   public static String makeViewerUrl(Key rootJobKey, ShardedJobRunId shardedJobId) {

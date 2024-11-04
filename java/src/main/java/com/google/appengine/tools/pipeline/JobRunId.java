@@ -2,7 +2,6 @@ package com.google.appengine.tools.pipeline;
 
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.KeyFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.*;
@@ -22,6 +21,10 @@ import java.util.Optional;
 @Getter
 public class JobRunId implements Serializable {
 
+  // avoid '_' and '-', as these are legal in Cloud Datastore Database IDs and namespaces
+  // and avoid '/' as problematic to use id as url path param
+  //  ':' complicates using id as DOM id for some frameworks (Vue.JS)?
+  // best alternative would be `~`??
   public static final String DELIMITER = ":";
 
   @Serial

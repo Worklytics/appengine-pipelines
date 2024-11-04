@@ -18,7 +18,7 @@ import java.util.Optional;
 @Getter
 public class SlotId implements Serializable {
 
-  public static final String DELIMITER = ":";
+  public static final String DELIMITER = JobRunId.DELIMITER;
 
   @Serial
   private static final long serialVersionUID = 1L;
