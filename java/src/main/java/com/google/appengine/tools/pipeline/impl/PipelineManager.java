@@ -411,7 +411,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   public void deletePipelineRecords(@NonNull JobRunId pipelineHandle, boolean force)
       throws NoSuchObjectException, IllegalStateException {
     log.info("pipelineHandle: " + pipelineHandle + ", force: " + force);
-    backEnd.deletePipeline(JobRecord.keyFromPipelineHandle(pipelineHandle), force);
+    backEnd.deletePipeline(pipelineHandle, force);
   }
 
   /**
@@ -556,7 +556,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
         case DELETE_PIPELINE:
           DeletePipelineTask deletePipelineTask = (DeletePipelineTask) task;
           try {
-            backEnd.deletePipeline(deletePipelineTask.getRootJobKey(), deletePipelineTask.shouldForce());
+            backEnd.deletePipeline(JobRunId.of(deletePipelineTask.getRootJobKey()), deletePipelineTask.shouldForce());
           } catch (Exception e) {
             log.log(Level.WARNING, "DeletePipeline operation failed.", e);
           }

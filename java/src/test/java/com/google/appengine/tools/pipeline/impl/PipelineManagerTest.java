@@ -37,8 +37,8 @@ class PipelineManagerTest extends PipelineTest {
     //valid state of Job restored with all values we expect
     assertNotNull(restored);
     assertNotNull(restored.getPipelineRunner());
-    assertNotNull(restored.getPipelineKey());
-    assertNotNull(restored.getJobKey());
+    assertNotNull(restored.getPipelineRunId());
+    assertNotNull(restored.getJobRunId());
     assertNotNull(restored.getCurrentRunGUID());
     assertNotNull(restored.getThisJobRecord());
     assertNotNull(restored.getUpdateSpec());

@@ -163,7 +163,7 @@ public class ShufflerServlet extends HttpServlet {
 
     private MarshallingOutput<KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>,
         GoogleCloudStorageFileSet> createOutput() {
-      String jobId = getJobKey().toUrlSafe();
+      String jobId = getJobRunId().asEncodedString();
 
       GoogleCloudStorageFileOutput.Options gcsOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
         .withServiceAccountKey(shufflerParams.getServiceAccountKey());
@@ -197,9 +197,9 @@ public class ShufflerServlet extends HttpServlet {
      * Logs the error and notifies the requester.
      */
     public Value<Void> handleException(Throwable t) {
-      String jobId = getPipelineKey().getName();
-      log.log(Level.SEVERE, "Shuffle job failed: jobId=" + jobId, t);
-      enqueueCallbackTask(shufflerParams, "job=" + jobId + "&status=failed", "Shuffled-" + jobId);
+
+      log.log(Level.SEVERE, "Shuffle job failed: jobId=" + getJobRunId().asEncodedString(), t);
+      enqueueCallbackTask(shufflerParams, "job=" + getJobRunId().asEncodedString() + "&status=failed", "Shuffled-" + getJobRunId().getJobId().replace(JobRunId.DELIMITER, "_"));
       return immediate(null);
     }
   }
@@ -219,11 +219,10 @@ public class ShufflerServlet extends HttpServlet {
 
     @Override
     public Value<Void> run(MapReduceResult<GoogleCloudStorageFileSet> result) throws Exception {
-      JobRunId jobRunId = JobRunId.of(getPipelineKey());
 
-      GcsFilename manifestFile = ShuffleMapReduce.getManifestFile(jobRunId, shufflerParams);
+      GcsFilename manifestFile = ShuffleMapReduce.getManifestFile(this.getJobRunId() , shufflerParams);
 
-      log.info("Shuffle job done: jobId=" + jobRunId + ", results located in " + manifestFile + "]");
+      log.info("Shuffle job done: jobId=" + this.getJobRunId() + ", results located in " + manifestFile + "]");
 
       Storage client = GcpCredentialOptions.getStorageClient(this.shufflerParams);
 
@@ -238,8 +237,8 @@ public class ShufflerServlet extends HttpServlet {
       output.close();
 
       enqueueCallbackTask(shufflerParams,
-          "job=" + jobRunId + "&status=done&output=" + URLEncoder.encode(manifestFile.getObjectName(), "UTF-8"),
-          "Shuffled-" + jobRunId.asEncodedString().replace("/", "-"));
+          "job=" + this.getJobRunId()  + "&status=done&output=" + URLEncoder.encode(manifestFile.getObjectName(), "UTF-8"),
+          "Shuffled-" + this.getJobRunId() .asEncodedString().replace(JobRunId.DELIMITER, "-"));
       return immediate(null);
     }
   }

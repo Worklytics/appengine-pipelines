@@ -105,13 +105,13 @@ public class PipelineServlet extends HttpServlet {
     return baseURL;
   }
 
-  public static String makeViewerUrl(JobRunId rootJobRunId, JobRunId jobRunId) {
-    return baseUrl() + "status.html?root=" + rootJobRunId.asEncodedString() + "#pipeline-" + jobRunId.asEncodedString();
+  public static String makeViewerUrl(JobRunId pipelineRunId, JobRunId jobRunId) {
+    return baseUrl() + "status.html?root=" + pipelineRunId.asEncodedString() + "#pipeline-" + jobRunId.asEncodedString();
   }
 
-  public static String makeViewerUrl(Key rootJobKey, ShardedJobRunId shardedJobId) {
+  public static String makeViewerUrl(JobRunId pipelineRunId, ShardedJobRunId shardedJobId) {
     //TODO: revisit this;
-    return baseUrl() + "status.html?root=" + rootJobKey.toUrlSafe() + "#pipeline-" + shardedJobId.asEncodedString();
+    return baseUrl() + "status.html?root=" + pipelineRunId.asEncodedString() + "#pipeline-" + shardedJobId.asEncodedString();
   }
 
   private enum RequestType {
