@@ -27,6 +27,7 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.*;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
@@ -191,13 +192,23 @@ public class ShufflerServletTest {
   @Test
   public void testDataIsOrdered() throws InterruptedException, IOException {
     ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
+
+    // for test purposes, give a manifest file name that's unique, yet known outside of the shuffle stage of the map reduce job
+    // (in usual case, derived from the shuffle stage's job id, which isn't known outside)
+
+    shufflerParams.setManifestFileNameOverride(UUID.randomUUID().toString());
+
+
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
+
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
-    JobRunId pipelineId= pipelineService.startNewPipeline(mr);
+    JobRunId mrJobId = pipelineService.startNewPipeline(mr);
 
     assertTrue(WAIT_ON.tryAcquire(100, TimeUnit.SECONDS));
 
-    List<KeyValue<ByteBuffer, List<ByteBuffer>>> output = validateOrdered(shufflerParams, pipelineId);
+    pipelineService.getJobInfo(mrJobId);
+
+    List<KeyValue<ByteBuffer, List<ByteBuffer>>> output = validateOrdered(shufflerParams);
     assertExpectedOutput(input, output);
   }
 
@@ -231,10 +242,10 @@ public class ShufflerServletTest {
     assertTrue(expected.isEmpty());
   }
 
-  List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams, JobRunId pipelineId) throws IOException {
+  List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams) throws IOException {
     List<KeyValue<ByteBuffer, List<ByteBuffer>>> result = new ArrayList<>();
 
-    GcsFilename manifest = ShuffleMapReduce.getManifestFile(pipelineId, shufflerParams);
+    GcsFilename manifest = ShuffleMapReduce.getManifestFile(null, shufflerParams);
 
     List<GcsFilename> outputFiles;
     try (ReadChannel readChannel = storageIntegrationTestHelper.getStorage().get(manifest.asBlobId()).reader()) {
