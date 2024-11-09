@@ -26,6 +26,7 @@ import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
@@ -58,6 +59,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -65,6 +67,9 @@ import java.util.logging.Logger;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 
 /**
@@ -107,6 +112,7 @@ public class ShufflerServlet extends HttpServlet {
     requestUtils = component.requestUtils();
   }
 
+  @RequiredArgsConstructor
   @VisibleForTesting
   static final class ShuffleMapReduce extends Job0<Void> {
 
@@ -116,22 +122,17 @@ public class ShufflerServlet extends HttpServlet {
 
     private final ShufflerParams shufflerParams;
 
-
-
-    public ShuffleMapReduce(ShufflerParams shufflerParams) {
-      this.shufflerParams = shufflerParams;
-    }
-
     @Override
     public Value<Void> run() throws Exception {
       MapReduceJob<KeyValue<ByteBuffer, ByteBuffer>, ByteBuffer, ByteBuffer,
-          KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>, GoogleCloudStorageFileSet> job =
+          KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>, GoogleCloudStorageFileSet> shuffleStageJob =
           new MapReduceJob<>(createSpec(), createSettings());
 
-      FutureValue<MapReduceResult<GoogleCloudStorageFileSet>> result = futureCall(job);
+      FutureValue<MapReduceResult<GoogleCloudStorageFileSet>> result = futureCall(shuffleStageJob);
 
-      // Take action once the Map Reduce job is complete.
-      return futureCall(new Complete(shufflerParams), result, maxAttempts(10));
+
+      // Take action once the shuffle stage is complete.
+      return futureCall(new Complete(shufflerParams, this.getJobRunId()), result, maxAttempts(10));
     }
 
     private MapReduceSettings createSettings() {
@@ -180,10 +181,19 @@ public class ShufflerServlet extends HttpServlet {
       return shufflerParams.getOutputDir() + "/sortedData-" + safeJobId + "/shard-%04d";
     }
 
+    /**
+     * reference to manifest file for shuffle-phase of a mapReduceJob
+     *
+     * @param shuffleStageJobId identifies the shuffle stage this manifest file is for
+     * @param shufflerParams shuffler parameters
+     * @return
+     */
     @VisibleForTesting
-    static GcsFilename getManifestFile(JobRunId pipelineId, ShufflerParams shufflerParams) {
-      String jobId = DigestUtils.sha256Hex(pipelineId.asEncodedString());
-      return new GcsFilename(shufflerParams.getGcsBucket(), shufflerParams.getOutputDir() + "/Manifest-" + jobId + ".txt");
+    static GcsFilename getManifestFile(JobRunId shuffleMapReduceJobId,
+                                       ShufflerParams shufflerParams) {
+      String fileName = Optional.ofNullable(shufflerParams.getManifestFileNameOverride())
+        .orElseGet(() -> DigestUtils.sha256Hex(shuffleMapReduceJobId.asEncodedString()));
+      return new GcsFilename(shufflerParams.getGcsBucket(), shufflerParams.getOutputDir() + "/Manifest-" + fileName + ".txt");
     }
 
     private UnmarshallingInput<KeyValue<ByteBuffer, ByteBuffer>> createInput() {
@@ -208,19 +218,17 @@ public class ShufflerServlet extends HttpServlet {
    * Save the output filenames in GCS with one filename per line. Then invokes
    * {@link #enqueueCallbackTask}
    */
+  @RequiredArgsConstructor
   private static final class Complete extends
       Job1<Void, MapReduceResult<GoogleCloudStorageFileSet>> {
     private static final long serialVersionUID = 2L;
     private final ShufflerParams shufflerParams;
-
-    private Complete(ShufflerParams shufflerParams) {
-      this.shufflerParams = shufflerParams;
-    }
+    private final JobRunId shuffleMapReduceJobId;
 
     @Override
     public Value<Void> run(MapReduceResult<GoogleCloudStorageFileSet> result) throws Exception {
 
-      GcsFilename manifestFile = ShuffleMapReduce.getManifestFile(this.getJobRunId() , shufflerParams);
+      GcsFilename manifestFile = ShuffleMapReduce.getManifestFile(this.shuffleMapReduceJobId , shufflerParams);
 
       log.info("Shuffle job done: jobId=" + this.getJobRunId() + ", results located in " + manifestFile + "]");
 
@@ -237,7 +245,7 @@ public class ShufflerServlet extends HttpServlet {
       output.close();
 
       enqueueCallbackTask(shufflerParams,
-          "job=" + this.getJobRunId()  + "&status=done&output=" + URLEncoder.encode(manifestFile.getObjectName(), "UTF-8"),
+          "job=" + this.getJobRunId().asEncodedString() + "&status=done&output=" + URLEncoder.encode(manifestFile.getObjectName(), "UTF-8"),
           "Shuffled-" + this.getJobRunId() .asEncodedString().replace(JobRunId.DELIMITER, "-"));
       return immediate(null);
     }

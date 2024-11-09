@@ -31,7 +31,7 @@ import java.util.Optional;
 @Data
 class ShufflerParams implements Serializable, GcpCredentialOptions {
 
-  private static final long serialVersionUID = 2L;
+  private static final long serialVersionUID = 3L;
 
   private String shufflerQueue;
   private String gcsBucket;
@@ -39,6 +39,15 @@ class ShufflerParams implements Serializable, GcpCredentialOptions {
   private String[] inputFileNames;
   private String outputDir;
   private String serviceAccountKey;
+
+  /**
+   * if provided, this value will be used as the manifest file name instead of generated manifest file name from job id
+   * NOTE: will cause conflicts/overwrites if multiple jobs are writing to the same bucket/directory, with same manifestFileNameOverride value
+   *
+   * use case for this is testing, where we want to inspect manifest file contents
+   * @see {@link ShufflerServletTest}
+   */
+  private String manifestFileNameOverride;
 
   private int outputShards;
   private String callbackQueue;
