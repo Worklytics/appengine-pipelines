@@ -3,6 +3,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.cloud.datastore.Key;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.io.Serial;
 
@@ -10,6 +11,7 @@ import java.io.Serial;
  * identifies a job that has been sharded (split into parallel tasks)
  *
  */
+@SuperBuilder
 @EqualsAndHashCode(callSuper = true)
 @ToString
 public class ShardedJobRunId extends JobRunId {

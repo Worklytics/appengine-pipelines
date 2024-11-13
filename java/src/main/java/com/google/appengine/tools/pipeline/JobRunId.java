@@ -5,6 +5,7 @@ import com.google.cloud.datastore.Key;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import javax.annotation.Nullable;
 import java.io.Serial;
@@ -17,6 +18,7 @@ import java.util.Optional;
  *  also, a root job, which identifies a run a *pipeline*
  *
  */
+@SuperBuilder
 @EqualsAndHashCode(callSuper = false)
 @Getter
 public class JobRunId implements Serializable {
