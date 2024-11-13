@@ -146,8 +146,7 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
       return client;
     }
 
-    @Override
-    public void cleanup() {
+    void cleanupBlobs() {
       for (String name : toDelete) {
         try {
           getClient().delete(BlobId.of(bucket, name));
@@ -159,10 +158,15 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
     }
 
     @Override
+    public void cleanup() {
+      this.cleanupBlobs();
+    }
+
+    @Override
     public void beginShard() {
       toDelete.addAll(sliceParts);
       toDelete.addAll(compositeParts);
-      cleanup();
+      this.cleanupBlobs();
       sliceParts.clear();
       compositeParts.clear();
       fileCount = 0;
@@ -172,7 +176,9 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
 
     @Override
     public void beginSlice() throws IOException {
-      cleanup();
+
+      this.cleanupBlobs();
+
       if (sliceParts.size() >= maxFilesPerCompose) {
         String tempFile = generateTempFileName();
         compose(sliceParts, tempFile);
