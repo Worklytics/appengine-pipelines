@@ -21,7 +21,7 @@
     <appengine.target.version>[2.0.4, 2.0.23)</appengine.target.version>
     <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
     <dagger.version>2.51.1</dagger.version>
-    <lombok.version>1.18.32</lombok.version>
+    <lombok.version>1.18.34</lombok.version>
   </properties>
 
   <distributionManagement>
