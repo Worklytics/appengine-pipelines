@@ -63,20 +63,12 @@ public abstract class OutputWriter<O> implements Serializable, ShardContextAware
   public void endSlice() throws IOException {}
 
   /**
-   * @deprecated Override beginShard instead.
-   * @throws IOException in the event of failure
-   */
-  @Deprecated
-  public void open() throws IOException {}
-
-  /**
    * Will be called once before any calls to write. Prepares the writer for processing, after
    * possibly having gone through serialization and deserialization.
    *
    * @throws IOException in the event of failure
    */
   public void beginShard() throws IOException {
-    open();
   }
 
   /**
@@ -88,17 +80,9 @@ public abstract class OutputWriter<O> implements Serializable, ShardContextAware
   }
 
   /**
-   * @deprecated Override endShard instead.
-   * @throws IOException in the event of failure
-   */
-  @Deprecated
-  public void close() throws IOException {}
-
-  /**
    * Called when no more output will be written to this writer.
    */
   public void endShard() throws IOException {
-    close();
   }
 
   public boolean allowSliceRetry() {
