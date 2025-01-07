@@ -281,13 +281,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
         return taskState;
       }
       handleLockHeld(tx.getDatastore(), taskId, jobState, taskState);
+    } else if (taskState.getSequenceNumber() > sequenceNumber) {
+      log.info(taskId + ": Task sequence number " + sequenceNumber + " already completed: "
+        + taskState);
     } else {
-      if (taskState.getSequenceNumber() > sequenceNumber) {
-        log.info(taskId + ": Task sequence number " + sequenceNumber + " already completed: "
-            + taskState);
-      } else {
-        log.severe(taskId + ": Task state is from the past: " + taskState);
-      }
+      //q : throw here??
+      log.severe(taskId + " sequenceNumber=" + sequenceNumber + " : Task state is from the past: " + taskState);
     }
     return null;
   }
@@ -386,6 +385,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       IncrementalTaskState<T> taskState =
         getAndValidateTaskState(tx, taskId, sequenceNumber, jobState);
       if (taskState == null) {
+        // some sort of error code happened
         return;
       }
       IncrementalTask task = taskState.getTask();
