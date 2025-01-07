@@ -11,10 +11,7 @@ import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
 import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.Entity;
-import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.Transaction;
+import com.google.cloud.datastore.*;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.taskqueue.TransactionalTaskException;
@@ -84,8 +81,14 @@ public class ShardedJobRunner implements ShardedJobHandler {
   public static RetryerBuilder getRetryerBuilder() {
     return RetryerBuilder.newBuilder()
       .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
+      .retryIfException(e -> {
+        if (e instanceof DatastoreException) {
+          return ((DatastoreException) e).isRetryable();
+        }
+        return false;
+      })
       .retryIfExceptionOfType(ApiProxyException.class)
-      .retryIfExceptionOfType(ConcurrentModificationException.class)
+      .retryIfExceptionOfType(ConcurrentModificationException.class) // don't think this is thrown by new datastore lib
       //.retryIfExceptionOfType(DatastoreFailureException.class)
       //.retryIfExceptionOfType(CommittedButStillApplyingException.class)
      // .retryIfExceptionOfType(DatastoreTimeoutException.class)
