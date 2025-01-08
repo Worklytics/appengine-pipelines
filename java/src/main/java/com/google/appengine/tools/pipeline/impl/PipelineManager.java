@@ -60,7 +60,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -222,7 +221,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
-  public Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state) {
+  public List<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state) {
     return shardedJobRunner.lookupTasks(state.getShardedJobId(), state.getTotalTaskCount(), true);
   }
 

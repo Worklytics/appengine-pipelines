@@ -164,13 +164,14 @@ public class ShardedJobRunner implements ShardedJobHandler {
     };
   }
 
-  public <T extends IncrementalTask> Iterator<IncrementalTaskState<T>> lookupTasks(
+  public <T extends IncrementalTask> List<IncrementalTaskState<T>> lookupTasks(
     final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
     Transaction tx = datastore.newTransaction();
     try {
-      Iterator<IncrementalTaskState<T>> task = lookupTasks(tx, jobId, taskCount, lenient);
+      List<IncrementalTaskState<T>> taskStates = new ArrayList<>();
+      Iterators.addAll(taskStates, lookupTasks(tx, jobId, taskCount, lenient));
       tx.commit();
-      return task;
+      return taskStates;
     } finally {
       //should be read-only, so no need to rollback
       rollbackIfActive(tx);
