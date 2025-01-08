@@ -139,7 +139,7 @@ public class SerializationUtil {
         }
         bytes = bout.toByteArray();
       }
-      return (T) deserialize(bytes);
+      return deserialize(bytes);
     } catch (RuntimeException | IOException ex) {
       log.warning("Deserialization of " + entity.getKey() + "#" + property + " failed: "
               + ex.getMessage() + ", returning null instead.");
@@ -171,7 +171,6 @@ public class SerializationUtil {
     }
 
     return keys;
-
   }
 
   public static void serializeToDatastoreProperty(

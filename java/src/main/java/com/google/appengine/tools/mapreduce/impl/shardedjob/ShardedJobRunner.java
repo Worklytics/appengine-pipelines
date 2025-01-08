@@ -209,8 +209,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
     if (eta != null) {
       taskOptions.etaMillis(eta);
     }
-    //Q: how can we transactionally add to queue with new library??
     //QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
+    //Q: how can we transactionally add to queue with new library??
     QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
   }
 
@@ -219,6 +219,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     log.info("Polling task states for job " + jobId);
     PipelineService pipelineService = pipelineServiceProvider.get();
 
+    //below seems to FAIL bc of transaction connection - why!?!?
     ShardedJobStateImpl<?> jobState = RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(8)), () -> {
       Transaction tx = getDatastore().newTransaction();
       try {
