@@ -212,13 +212,14 @@ final class StatusHandler {
       Counters totalCounters = new CountersImpl();
       int i = 0;
       long[] workerCallCounts = new long[state.getTotalTaskCount()];
-      Iterator<IncrementalTaskState<IncrementalTask>> tasks = pipelineRunner.lookupTasks(state);
-      while (tasks.hasNext()) {
-        IncrementalTaskState<?> taskState = tasks.next();
+      List<IncrementalTaskState<IncrementalTask>> tasks = pipelineRunner.lookupTasks(state);
+
+      for (IncrementalTaskState<?> taskState : tasks) {
         JSONObject shardObject = new JSONObject();
         shardObject.put("shard_number", i);
         shardObject.put("shard_description", taskState.getTaskId());
         shardObject.put("updated_timestamp_ms", taskState.getMostRecentUpdateTime().toEpochMilli());
+
         if (taskState.getStatus().isActive()) {
           shardObject.put("active", true);
         } else {
@@ -235,6 +236,7 @@ final class StatusHandler {
         shardArray.put(shardObject);
         i++;
       }
+
       jobObject.put("counters", toJson(totalCounters));
       jobObject.put("shards", shardArray);
       jobObject.put("chart_width", getChartWidth(state.getTotalTaskCount()));
