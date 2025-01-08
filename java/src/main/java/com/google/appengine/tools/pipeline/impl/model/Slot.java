@@ -24,18 +24,17 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.NotSerializableException;
 import java.time.Instant;
+import java.util.*;
 import java.util.logging.Level;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 
+import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 import lombok.extern.java.Log;
 
-
-
+import javax.annotation.Nullable;
 
 
 /**
@@ -55,21 +54,36 @@ public class Slot extends PipelineModelObject {
   private static final String SOURCE_JOB_KEY_PROPERTY = "sourceJob";
 
   // persistent
+  @Getter
   private boolean filled;
+
+  /**
+   * time slot was filled; `null` otherwise
+   */
+  @Getter
+  @Nullable
   private Instant fillTime;
   private Object value;
+  @Setter
+  @Getter
   private Key sourceJobKey;
-  private final List<Key> waitingOnMeKeys;
+  @Getter
+  private final Set<Key> waitingOnMeKeys;
 
   // transient
+  /**
+   * If this slot has not yet been inflated this method returns null
+   */
+  @Getter
   private List<Barrier> waitingOnMeInflated;
   //either a Blob or List<Key> ... given that we know implementation details of serialization
   private Object serializedVersion; //TODO: 'guaranteed' to be type serializable by datastore; what does this mean??
+
   private SerializationStrategy serializationStrategy;
 
   public Slot(Key rootJobKey, Key generatorJobKey, String graphGUID, SerializationStrategy serializationStrategy) {
     super(rootJobKey, generatorJobKey, graphGUID);
-    this.waitingOnMeKeys = new LinkedList<>();
+    this.waitingOnMeKeys = new HashSet<>();
     this.serializationStrategy = serializationStrategy;
   }
 
@@ -83,7 +97,7 @@ public class Slot extends PipelineModelObject {
     filled = entity.getBoolean(FILLED_PROPERTY);
     fillTime = EntityUtils.getInstant(entity, FILL_TIME_PROPERTY);
     sourceJobKey = EntityUtils.getKey(entity, SOURCE_JOB_KEY_PROPERTY);
-    waitingOnMeKeys = getListProperty(WAITING_ON_ME_PROPERTY, entity);
+    waitingOnMeKeys = new HashSet<>(getListProperty(WAITING_ON_ME_PROPERTY, entity));
     this.serializationStrategy = serializationStrategy;
 
     Object valueBlob = EntityUtils.getLargeValue(entity, VALUE_PROPERTY);
@@ -148,10 +162,6 @@ public class Slot extends PipelineModelObject {
     waitingOnMeInflated.add(waiter);
   }
 
-  public boolean isFilled() {
-    return filled;
-  }
-
   public Object getValue() {
     if (serializedVersion != null) {
       value = deserializeValue(serializedVersion);
@@ -160,20 +170,6 @@ public class Slot extends PipelineModelObject {
     return value;
   }
 
-  /**
-   * Will return {@code null} if this slot is not filled.
-   */
-  public Instant getFillTime() {
-    return fillTime;
-  }
-
-  public Key getSourceJobKey() {
-    return sourceJobKey;
-  }
-
-  public void setSourceJobKey(Key key) {
-    sourceJobKey = key;
-  }
 
   public void fill(Object value) {
     filled = true;
@@ -181,18 +177,6 @@ public class Slot extends PipelineModelObject {
     serializedVersion = null;
     fillTime = Instant.now();
   }
-
-  public List<Key> getWaitingOnMeKeys() {
-    return waitingOnMeKeys;
-  }
-
-  /**
-   * If this slot has not yet been inflated this method returns null;
-   */
-  public List<Barrier> getWaitingOnMeInflated() {
-    return waitingOnMeInflated;
-  }
-
 
   public SlotId getFullId() {
     return SlotId.of(this.getKey());
@@ -205,7 +189,9 @@ public class Slot extends PipelineModelObject {
         + getKeyName(getGeneratorJobKey()) + ", guid=" + getGraphGuid() + "]";
   }
 
-  public static Key key(String projectId, String databaseId, String namespace,
+  public static Key key(String projectId,
+                        String databaseId,
+                        String namespace,
                         @NonNull String slotName) {
     KeyFactory keyFactory = new KeyFactory(projectId);
     if (databaseId != null) {
