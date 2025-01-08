@@ -12,7 +12,7 @@ import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.util.Pair;
 
-import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -33,7 +33,7 @@ public interface PipelineRunner {
   /**
    * Returns the tasks associated with this ShardedJob.
    */
-  Iterator<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state);
+  List<IncrementalTaskState<IncrementalTask>> lookupTasks(ShardedJobState state);
 
   /**
    * @return options necessary to reconstruct this runner via PipelineRunnerFactory
