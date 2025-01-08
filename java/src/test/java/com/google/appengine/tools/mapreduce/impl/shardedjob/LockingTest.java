@@ -145,7 +145,7 @@ public class LockingTest extends EndToEndTestCase {
   }
 
   /**
-   * Tests a duplicate task from task queue while the execution of that task in in progress.
+   * Tests a duplicate task from task queue while the execution of that task is in progress.
    */
   @Test
   public void testDupResultsInWaiting() throws Exception {

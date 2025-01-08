@@ -132,8 +132,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .orElse(null);
   }
 
+  static final int TASK_LOOKUP_BATCH_SIZE = 20;
+
   public <T extends IncrementalTask> Iterator<IncrementalTaskState<T>> lookupTasks(
     @NonNull Transaction tx, final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
+
+    // does it in batches of 20, so prob not as slow as it seems ...
     return new AbstractIterator<>() {
       private int lastCount;
       private Iterator<Entity> lastBatch = Collections.emptyIterator();
@@ -146,7 +150,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         } else if (lastCount >= taskCount) {
           return endOfData();
         }
-        int toRead = Math.min(20, taskCount - lastCount);
+        int toRead = Math.min(TASK_LOOKUP_BATCH_SIZE, taskCount - lastCount);
         List<Key> keys = new ArrayList<>(toRead);
         for (int i = 0; i < toRead; i++, lastCount++) {
           Key key = IncrementalTaskState.Serializer.makeKey(tx.getDatastore(), IncrementalTaskId.of(jobId, lastCount));
