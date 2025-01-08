@@ -104,7 +104,7 @@ public class EndToEndTest extends EndToEndTestCase {
     executeTasksUntilEmpty();
     ShardedJobState state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(DONE), state.getStatus());
-    IncrementalTaskState<IncrementalTask> it = Iterators.getOnlyElement(getPipelineRunner().lookupTasks(state));
+    IncrementalTaskState<IncrementalTask> it = getPipelineRunner().lookupTasks(state).get(0);
     assertNull(((TestTask) it.getTask()).getPayload());
 
     assertEquals(2, TestUtils.countDatastoreEntities(getDatastore()));
