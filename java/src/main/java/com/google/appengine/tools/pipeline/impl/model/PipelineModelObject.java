@@ -19,6 +19,9 @@ import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import lombok.NonNull;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -166,7 +169,26 @@ public abstract class PipelineModelObject {
 
 
   public static Key generateKey(@NonNull String projectId, String namespace, @NonNull String dataStoreKind) {
-    String name = GUIDGenerator.nextGUID();
+
+    //ISO date + time (to second) as a suffix, to aid human readability/traceability; any place we log job id, we know when it was triggered
+
+    // q: why not swap it to a prefix?
+    // pro:
+    //   - even easier to read
+    //  - free index by time
+    // con:
+    //  - index will be hot
+
+    // TODO: swap this once have per-tenant database/namespace, which should limit the index overheat issue
+    String name =
+      GUIDGenerator.nextGUID().replace("-", "") //avoid collision
+      + "_" +
+    Instant.now().truncatedTo(ChronoUnit.SECONDS).toString()
+        .replace(":", "")
+        .replace("T", "_")
+        .replace("Z", "")
+        .replace("-", "");
+
     KeyFactory keyFactory = new KeyFactory(projectId);
     if (namespace != null ) { //null implies default
       keyFactory.setNamespace(namespace);
