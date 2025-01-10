@@ -20,7 +20,8 @@ public interface ShardedJobHandler {
   void completeShard(final ShardedJobRunId jobId, final IncrementalTaskId taskId);
 
   /**
-   * Is invoked by the servlet that handles
+   * Is invoked by the servlet that handles the work. this actually calls run() method of the incremental task, doing something
+   * that is potentially long-running
    * {@link ShardedJobSettings#getWorkerPath} to run a task.
    */
   void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber);
