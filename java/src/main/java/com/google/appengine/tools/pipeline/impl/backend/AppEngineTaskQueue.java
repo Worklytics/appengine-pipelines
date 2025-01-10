@@ -105,7 +105,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
 
       // seen in logs : "Negative countdown is not allowed"
-      if (taskOptions.getCountdownMillis() != null && taskOptions.getCountdownMillis() <= 0) {
+      if (taskOptions.getCountdownMillis() != null && taskOptions.getCountdownMillis() < 0) {
         logger.warning("Task countdownMillis is  " + taskOptions.getCountdownMillis() + ". Setting to 0 to avoid error.");
         taskOptions.countdownMillis(0);
       }
