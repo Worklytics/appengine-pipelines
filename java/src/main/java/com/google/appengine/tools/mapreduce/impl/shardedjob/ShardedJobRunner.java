@@ -53,6 +53,8 @@ import java.util.stream.Stream;
 @Log
 public class ShardedJobRunner implements ShardedJobHandler {
 
+  static final int TASK_LOOKUP_BATCH_SIZE = 20;
+
   @Getter
   final Provider<PipelineService> pipelineServiceProvider;
   @Getter
@@ -109,6 +111,21 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
 
 
+  public <T extends IncrementalTask> List<IncrementalTaskState<T>> lookupTasks(
+    final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
+    Transaction tx = datastore.newTransaction();
+    try {
+      List<IncrementalTaskState<T>> taskStates = new ArrayList<>();
+      Iterators.addAll(taskStates, lookupTasks(tx, jobId, taskCount, lenient));
+      tx.commit();
+      return taskStates;
+    } finally {
+      //should be read-only, so no need to rollback
+      rollbackIfActive(tx);
+    }
+  }
+
+
   private <T extends IncrementalTask> ShardedJobStateImpl<T> lookupJobState(@NonNull Transaction tx, ShardedJobRunId jobId) {
     return (ShardedJobStateImpl<T>) Optional.ofNullable(tx.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(tx.getDatastore(), jobId)))
       .map(in -> ShardedJobStateImpl.ShardedJobSerializer.fromEntity(tx, in))
@@ -132,9 +149,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .orElse(null);
   }
 
-  static final int TASK_LOOKUP_BATCH_SIZE = 20;
-
-  public <T extends IncrementalTask> Iterator<IncrementalTaskState<T>> lookupTasks(
+  private <T extends IncrementalTask> Iterator<IncrementalTaskState<T>> lookupTasks(
     @NonNull Transaction tx, final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
 
     // does it in batches of 20, so prob not as slow as it seems ...
@@ -168,19 +183,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
     };
   }
 
-  public <T extends IncrementalTask> List<IncrementalTaskState<T>> lookupTasks(
-    final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
-    Transaction tx = datastore.newTransaction();
-    try {
-      List<IncrementalTaskState<T>> taskStates = new ArrayList<>();
-      Iterators.addAll(taskStates, lookupTasks(tx, jobId, taskCount, lenient));
-      tx.commit();
-      return taskStates;
-    } finally {
-      //should be read-only, so no need to rollback
-      rollbackIfActive(tx);
-    }
-  }
 
   private <T extends IncrementalTask> void callCompleted(Transaction tx, ShardedJobStateImpl<T> jobState) {
     Iterator<IncrementalTaskState<T>> taskStates =
@@ -331,19 +333,16 @@ public class ShardedJobRunner implements ShardedJobHandler {
     } else {
       ShardRetryState<T> retryState;
       if (wasRequestCompleted) {
+        //request was completed, but lock was not released ??
         retryState = handleSliceFailure(tx, jobState, taskState, new RuntimeException(
           "Resuming after abandon lock for " + taskId + " on slice: "
             + taskState.getSequenceNumber()), true);
       } else {
         retryState = handleSliceFailure(tx, jobState, taskState, new RuntimeException(
           "Resuming after abandon lock for " + taskId + " on slice: "
-            + taskState.getSequenceNumber()), true);
-//        retryState = handleShardFailure(jobState, taskState, new RuntimeException(
-//          "Lock for " + taskId + " expired on slice: " + taskState.getSequenceNumber()));
+            + taskState.getSequenceNumber() + "; lock held by request that never completed"), true);
       }
-
       updateTask(tx, jobState, taskState, retryState, false);
-
     }
   }
 
@@ -387,92 +386,103 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   @Override
   public void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber) {
-    Transaction tx = getDatastore().newTransaction();
-    try {
-      final ShardedJobStateImpl<? extends IncrementalTask> jobState = lookupJobState(tx, jobId);
-      runTask(tx, jobState, taskId, sequenceNumber);
-      tx.commit();
-    } finally {
-      rollbackIfActive(tx);
-    }
-  }
+    //acquire lock (allows this process to START potentially long-running work of task itself)
+    Transaction lockAcquisition = getDatastore().newTransaction();
+    final ShardedJobStateImpl<? extends IncrementalTask> jobState = lookupJobState(lockAcquisition, jobId);
 
-  //basically, to bind T
-  private <T extends IncrementalTask> void  runTask(Transaction tx,
-                                                    ShardedJobStateImpl<T>  jobState,
-                                                    IncrementalTaskId taskId,
-                                                    int sequenceNumber) {
     if (jobState == null) {
       log.info(taskId + ": Job is gone, ignoring runTask call.");
       return;
     }
-    IncrementalTaskState<T> taskState =
-      getAndValidateTaskState(tx, taskId, sequenceNumber, jobState);
+
+    //taskState represents attempt of executing a slice of a shard of a sharded job
+    IncrementalTaskState taskState =
+      getAndValidateTaskState(lockAcquisition, taskId, sequenceNumber, jobState);
     if (taskState == null) {
       // some sort of error code happened
+
+      // seems like getAndValidationTaskState has potential side-effects, which need to be committed
+      lockAcquisition.commit();
       return;
     }
-    IncrementalTask task = taskState.getTask();
-    task.prepare();
+
     try {
-      if (lockShard(tx, taskState)) {
+      if (lockShard(lockAcquisition, taskState)) {
         // committing here, which forces acquisition of lock ...
-        //tx.commit(); // will throw if can't commit, which similar
-        runAndUpdateTask(tx,  jobState.getShardedJobId(), taskId, sequenceNumber, jobState, taskState);
+        lockAcquisition.commit();
+
+        // actual task execution
+        runAndUpdateTask(jobState.getShardedJobId(), taskId, sequenceNumber, jobState, taskState);
+      } else {
+        log.warning("Failed to acquire the lock, Will reschedule task for: " + taskState.getJobId()
+          + " on slice " + taskState.getSequenceNumber());
+        long eta = System.currentTimeMillis() + new Random().nextInt(5000) + 5000;
+        scheduleWorkerTask(jobState.getSettings(), taskState, eta);
       }
-      //previously this was inside the lock ... I think outside should be OK, and prefer to commit() txn where started
     } catch (ConcurrentModificationException ex) {
-      // TODO: would be nice to have a test for this...
-      log.warning("Failed to acquire the lock, Will reschedule task for: " + taskState.getJobId()
-        + " on slice " + taskState.getSequenceNumber());
-      long eta = System.currentTimeMillis() + new Random().nextInt(5000) + 5000;
-      scheduleWorkerTask(jobState.getSettings(), taskState, eta);
+      // don't believe this is possible with new datastore lib
+      throw new IllegalStateException("Concurrent modification exception should not happen here", ex);
     } finally {
-      task.cleanup();
+      rollbackIfActive(lockAcquisition);
     }
   }
 
-  private <T extends IncrementalTask> void runAndUpdateTask(Transaction tx,
-                                                            final ShardedJobRunId jobId,
+  //actual incremental task execution ( run() method )
+  private <T extends IncrementalTask> void runAndUpdateTask(
+    final ShardedJobRunId jobId,
                                                             final IncrementalTaskId taskId,
                                                             final int sequenceNumber,
                                                             final ShardedJobStateImpl<T> jobState,
                                                             IncrementalTaskState<T> taskState) {
     ShardRetryState<T> retryState = null;
+    Transaction postRunUpdate = null;  //txn limited to 60s, so can't open this before run() call
     try {
       String statusUrl = jobState.getSettings().getPipelineStatusUrl();
       log.info("Running task " + taskId + " (job " + jobId + "), sequence number " + sequenceNumber
         + (statusUrl != null ? " Progress can be monitored at: " + statusUrl : ""));
       T task = taskState.getTask();
-      task.run();
+      try {
+        task.prepare();
+        task.run();
+      } finally {
+        task.cleanup();
+      }
       if (task.isDone()) {
         taskState.setStatus(new Status(StatusCode.DONE));
       }
-      taskState.clearRetryCount();
+      //taskState.clearRetryCount();
       taskState.setMostRecentUpdateTime(Instant.now());
-    } catch (ShardFailureException ex) {
-      retryState = handleShardFailure(tx, jobState, taskState, ex);
+      postRunUpdate = getDatastore().newTransaction();
+    } catch (ShardFailureException ex ) {
+      postRunUpdate = getDatastore().newTransaction();
+      retryState = handleShardFailure(postRunUpdate, jobState, taskState, ex);
     } catch (JobFailureException ex) {
+      postRunUpdate = getDatastore().newTransaction();
       log.log(Level.WARNING,
         "Shard " + taskState.getTaskId() + " triggered job failure", ex);
-      handleJobFailure(tx, taskState, ex);
+      handleJobFailure(postRunUpdate, taskState, ex);
     } catch (RuntimeException ex) {
-      retryState = handleSliceFailure(tx, jobState, taskState, ex, false);
+      postRunUpdate = getDatastore().newTransaction();
+      retryState = handleSliceFailure(postRunUpdate, jobState, taskState, ex, false);
     } catch (Throwable ex) {
+      postRunUpdate = getDatastore().newTransaction();
       log.log(Level.WARNING, "Slice encountered an Error.");
-      retryState = handleShardFailure(tx, jobState, taskState, new RuntimeException("Error", ex));
-    }
-
-    try {
-      updateTask(tx, jobState, taskState, retryState, true);
-    } catch (Throwable ex) {
-      log.severe("Failed to write end of slice for task: " + taskState.getTask());
-      // TODO(user): consider what to do here when this fail (though options are limited)
-      throw ex;
+      retryState = handleShardFailure(postRunUpdate, jobState, taskState, new RuntimeException("Error", ex));
+    } finally {
+      try {
+        updateTask(postRunUpdate, jobState, taskState, retryState, true);
+        postRunUpdate.commit();
+      } catch (Throwable ex) {
+        log.severe("Failed to write end of slice for task: " + taskState.getTask());
+        // TODO(user): consider what to do here when this fail (though options are limited)
+        throw ex;
+      }
+      rollbackIfActive(postRunUpdate);
     }
   }
 
-  private <T extends IncrementalTask> ShardRetryState<T> handleSliceFailure(Transaction tx, ShardedJobStateImpl<T> jobState,
+  private <T extends IncrementalTask> ShardRetryState<T> handleSliceFailure(
+    Transaction tx, ShardedJobStateImpl<T> jobState,
                                                                             IncrementalTaskState<T> taskState, RuntimeException ex, boolean failedDueToAbandonedLock) {
     if (ex instanceof RecoverableException || taskState.getTask().allowSliceRetry(failedDueToAbandonedLock)) {
       int attempts = taskState.incrementAndGetRetryCount();
@@ -488,9 +498,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  private <T extends IncrementalTask> ShardRetryState<T> handleShardFailure(Transaction tx,
+  private <T extends IncrementalTask> ShardRetryState<T> handleShardFailure(
+    Transaction tx,
                                                                             ShardedJobStateImpl<T> jobState,
-                                                                            IncrementalTaskState<T> taskState, Exception ex) {
+                                                                            IncrementalTaskState<T> taskState,
+      Exception ex) {
 
     ShardRetryState<T> retryState = lookupShardRetryState(tx, taskState.getTaskId());
 
@@ -498,6 +510,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
       log.log(Level.SEVERE, "Shard exceeded its max attempts, setting job state to ERROR.", ex);
       handleJobFailure(tx, taskState, ex);
     } else {
+      // resets the slice of the shard; eg slice retry count --> 0, task back to initial task for shard
+
       log.log(Level.INFO,
         "Shard attempt #" + retryState.getRetryCount() + " failed. Going to retry.", ex);
       taskState.setTask(retryState.getInitialTask());
@@ -518,12 +532,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
    * multiple times, in whole or in part.
    *
    * @param jobState        state of job under which task executing
-   * @param taskState       to udate
+   * @param taskState       to update
    * @param shardRetryState retry state of the shard
    * @param aggressiveRetry how aggressively to retry update
    */
   private <T extends IncrementalTask> void updateTask(
-    Transaction tx,
+    final Transaction tx,
     final ShardedJobStateImpl<T> jobState,
     final IncrementalTaskState<T> taskState, /* Nullable */
     final ShardRetryState<T> shardRetryState,
@@ -535,47 +549,47 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
     @SuppressWarnings("rawtypes")
     RetryerBuilder exceptionHandler = aggressiveRetry ? getRetryerBuilderAggressive() : getRetryerBuilder();
-    RetryExecutor.call(exceptionHandler.withStopStrategy(StopStrategies.stopAfterAttempt(8)),
-      callable(new Runnable() {
-        @Override
-        public void run() {
-          IncrementalTaskState<T> existing = lookupTaskState(tx, taskState.getTaskId());
-          if (existing == null) {
-            log.info(taskState.getTaskId() + ": Ignoring an update, as task disappeared while processing");
-          } else if (existing.getSequenceNumber() != taskState.getSequenceNumber() - 1) {
-            log.warning(taskState.getTaskId() + ": Ignoring an update, a concurrent execution changed it to: "
-              + existing);
-          } else {
-            if (existing.getRetryCount() < taskState.getRetryCount()) {
-              // Slice retry, we need to reset state
-              taskState.setTask(existing.getTask());
+      RetryExecutor.call(exceptionHandler.withStopStrategy(StopStrategies.stopAfterAttempt(8)),
+        callable(new Runnable() {
+          @Override
+          public void run() {
+            IncrementalTaskState<T> existing = lookupTaskState(tx, taskState.getTaskId());
+            if (existing == null) {
+              log.info(taskState.getTaskId() + ": Ignoring an update, as task disappeared while processing");
+            } else if (existing.getSequenceNumber() != taskState.getSequenceNumber() - 1) {
+              log.warning(taskState.getTaskId() + ": Ignoring an update, a concurrent execution changed it to: "
+                + existing);
+            } else {
+              if (existing.getRetryCount() < taskState.getRetryCount()) {
+                // Slice retry, we need to reset state
+                taskState.setTask(existing.getTask());
+              }
+              writeTaskState(taskState, shardRetryState, tx);
+              scheduleTask(jobState, taskState, tx);
             }
-            writeTaskState(taskState, shardRetryState, tx);
-            scheduleTask(jobState, taskState, tx);
           }
-        }
 
-        private void writeTaskState(IncrementalTaskState<T> taskState,
-                                    ShardRetryState<T> shardRetryState, Transaction tx) {
-          Entity taskStateEntity = IncrementalTaskState.Serializer.toEntity(tx, taskState);
-          if (shardRetryState == null) {
-            tx.put(taskStateEntity);
-          } else {
-            Entity retryStateEntity = ShardRetryState.Serializer.toEntity(tx, shardRetryState);
-            tx.put(taskStateEntity, retryStateEntity);
+          private void writeTaskState(IncrementalTaskState<T> taskState,
+                                      ShardRetryState<T> shardRetryState, Transaction tx) {
+            Entity taskStateEntity = IncrementalTaskState.Serializer.toEntity(tx, taskState);
+            if (shardRetryState == null) {
+              tx.put(taskStateEntity);
+            } else {
+              Entity retryStateEntity = ShardRetryState.Serializer.toEntity(tx, shardRetryState);
+              tx.put(taskStateEntity, retryStateEntity);
+            }
           }
-        }
 
-        private void scheduleTask(ShardedJobStateImpl<T> jobState,
-                                  IncrementalTaskState<T> taskState, Transaction tx) {
-          if (taskState.getStatus().isActive()) {
-            scheduleWorkerTask(jobState.getSettings(), taskState, null);
-          } else {
-            scheduleControllerTask(jobState.getShardedJobId(), taskState.getTaskId(),
-              jobState.getSettings());
+          private void scheduleTask(ShardedJobStateImpl<T> jobState,
+                                    IncrementalTaskState<T> taskState, Transaction tx) {
+            if (taskState.getStatus().isActive()) {
+              scheduleWorkerTask(jobState.getSettings(), taskState, null);
+            } else {
+              scheduleControllerTask(jobState.getShardedJobId(), taskState.getTaskId(),
+                jobState.getSettings());
+            }
           }
-        }
-      }));
+        }));
   }
 
   private <T extends IncrementalTask> void createTasks(Datastore datastore,
