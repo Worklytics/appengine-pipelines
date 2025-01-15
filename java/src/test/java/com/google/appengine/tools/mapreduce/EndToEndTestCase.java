@@ -19,8 +19,10 @@ import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.TestUtils;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
+import com.google.appengine.tools.test.CloudStorageExtensions;
 import com.google.appengine.tools.test.PipelineSetupExtensions;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.storage.Storage;
 import com.google.common.base.CharMatcher;
 
 import lombok.Getter;
@@ -41,6 +43,7 @@ import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+@CloudStorageExtensions
 @PipelineSetupExtensions
 public abstract class EndToEndTestCase {
 
@@ -61,19 +64,18 @@ public abstract class EndToEndTestCase {
   @Getter @Setter(onMethod_ = @BeforeEach)
   PipelineOrchestrator pipelineOrchestrator;
 
+  @Getter @Setter(onMethod_ = @BeforeEach)
+  Storage storage;
+
+  @Getter
+  String bucket;
+
   // will this magically have right context?
   private PipelineServlet pipelineServlet = new PipelineServlet();
   private MapReduceServlet mrServlet = new MapReduceServlet();
 
-  @Getter
-  private CloudStorageIntegrationTestHelper storageTestHelper;
-
   @BeforeEach
   public void setUp() throws Exception {
-    // Creating files is not allowed in some test execution environments, so don't.
-    storageTestHelper = new CloudStorageIntegrationTestHelper();
-    storageTestHelper.setUp();
-
     pipelineServlet.init();
     mrServlet.init();
   }

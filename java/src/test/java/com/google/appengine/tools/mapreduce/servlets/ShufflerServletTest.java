@@ -39,10 +39,13 @@ import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
+import com.google.appengine.tools.test.CloudStorageExtension;
+import com.google.appengine.tools.test.CloudStorageExtensions;
 import com.google.appengine.tools.test.PipelineSetupExtensions;
 import com.google.apphosting.api.ApiProxy;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.storage.Storage;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.TreeMultimap;
 
@@ -70,6 +73,7 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * Tests for {@link ShufflerServlet}
  */
+@CloudStorageExtensions
 @PipelineSetupExtensions
 public class ShufflerServletTest {
 
@@ -131,11 +135,11 @@ public class ShufflerServletTest {
     }
   }
 
-  @Getter
-  CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
   @Setter(onMethod_ = @BeforeEach)
   PipelineService pipelineService;
+  @Setter(onMethod_ = @BeforeEach)
+  Storage storage;
 
   @BeforeEach
   public void setUp(JobRunServiceComponent component,
@@ -145,8 +149,6 @@ public class ShufflerServletTest {
     // Creating files is not allowed in some test execution environments, so don't.
     proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
     WAIT_ON.drainPermits();
-    storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
-    storageIntegrationTestHelper.setUp();
 
     TaskRunner.extraParamValues = Map.of(RequestUtils.Params.DATASTORE_HOST,
       datastore.getOptions().getHost());
@@ -188,10 +190,12 @@ public class ShufflerServletTest {
         .size();
   }
 
+  String bucket;
+
   @SneakyThrows
   @Test
   public void testDataIsOrdered() throws InterruptedException, IOException {
-    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
+    ShufflerParams shufflerParams = createParams(CloudStorageExtension.getBase64EncodedServiceAccountKey(), bucket, 3, 2);
 
     // for test purposes, give a manifest file name that's unique, yet known outside of the shuffle stage of the map reduce job
     // (in usual case, derived from the shuffle stage's job id, which isn't known outside)
@@ -214,7 +218,7 @@ public class ShufflerServletTest {
 
   @Test
   public void testJson() throws IOException {
-    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
+    ShufflerParams shufflerParams = createParams(CloudStorageExtension.getBase64EncodedServiceAccountKey(), bucket, 3, 2);
     Marshaller<ShufflerParams> marshaller =
         Marshallers.getGenericJsonMarshaller(ShufflerParams.class);
     ByteBuffer bytes = marshaller.toBytes(shufflerParams);
@@ -248,7 +252,7 @@ public class ShufflerServletTest {
     GcsFilename manifest = ShuffleMapReduce.getManifestFile(null, shufflerParams);
 
     List<GcsFilename> outputFiles;
-    try (ReadChannel readChannel = storageIntegrationTestHelper.getStorage().get(manifest.asBlobId()).reader()) {
+    try (ReadChannel readChannel = storage.get(manifest.asBlobId()).reader()) {
       byte[] manifestBytes = new byte[4000];
       int read = readChannel.read(ByteBuffer.wrap(manifestBytes));
       String manifestContent = new String(manifestBytes, 0, read, "UTF-8");
@@ -285,7 +289,7 @@ public class ShufflerServletTest {
   }
   GoogleCloudStorageFileOutput.Options outputOptions() {
     return GoogleCloudStorageFileOutput.BaseOptions.defaults()
-      .withServiceAccountKey(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey());
+      .withServiceAccountKey(CloudStorageExtension.getBase64EncodedServiceAccountKey());
   }
 
   private TreeMultimap<ByteBuffer, ByteBuffer> writeInputFiles(ShufflerParams shufflerParams,

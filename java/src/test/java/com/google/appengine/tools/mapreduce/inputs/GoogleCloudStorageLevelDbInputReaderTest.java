@@ -2,8 +2,9 @@ package com.google.appengine.tools.mapreduce.inputs;
 
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
-import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GcsFilename;
+import com.google.appengine.tools.test.CloudStorageExtension;
+import com.google.appengine.tools.test.CloudStorageExtensions;
 import com.google.appengine.tools.test.PipelineSetupExtensions;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
@@ -13,6 +14,8 @@ import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageLevelDbOut
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 
 
+import com.google.cloud.storage.Storage;
+import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,37 +38,38 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Tests for {@link GoogleCloudStorageLevelDbInput}
  */
+@CloudStorageExtensions
 @PipelineSetupExtensions
 public class GoogleCloudStorageLevelDbInputReaderTest {
 
   private static final int BLOCK_SIZE = LevelDbConstants.BLOCK_SIZE;
-  GcsFilename filename;
 
-  private CloudStorageIntegrationTestHelper storageHelper;
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
       new LocalTaskQueueTestConfig());
 
 
+  @Setter(onMethod_ = @BeforeEach)
+  Storage storage;
+
+  String bucket;
+  GcsFilename filename;
 
   @BeforeEach
   public void setUp() throws Exception {
     helper.setUp();
-    storageHelper = new CloudStorageIntegrationTestHelper();
-    storageHelper.setUp();
-    filename = new GcsFilename(storageHelper.getBucket(), "GoogleCloudStorageLevelDbInputReaderTest");
+    filename = new GcsFilename(bucket, "GoogleCloudStorageLevelDbInputReaderTest");
   }
 
   @AfterEach
   public void tearDown() throws Exception {
-    storageHelper.getStorage().delete(filename.asBlobId());
+    storage.delete(filename.asBlobId());
     helper.tearDown();
-    storageHelper.tearDown();
   }
 
   GoogleCloudStorageLineInput.Options inputOptions() {
     return GoogleCloudStorageLineInput.BaseOptions.builder()
-      .serviceAccountKey(storageHelper.getBase64EncodedServiceAccountKey())
+      .serviceAccountKey(CloudStorageExtension.getBase64EncodedServiceAccountKey())
       .bufferSize(BLOCK_SIZE * 2)
     .build();
   }
@@ -110,7 +114,7 @@ public class GoogleCloudStorageLevelDbInputReaderTest {
   public void writeData(GcsFilename filename, ByteBufferGenerator gen) throws IOException {
     LevelDbOutputWriter writer = new GoogleCloudStorageLevelDbOutputWriter(
         new GoogleCloudStorageFileOutputWriter(filename, "application/leveldb", GoogleCloudStorageFileOutput.BaseOptions.defaults()
-          .withServiceAccountKey(storageHelper.getBase64EncodedServiceAccountKey())));
+          .withServiceAccountKey(CloudStorageExtension.getBase64EncodedServiceAccountKey())));
     writer.beginShard();
     writer.beginSlice();
     while (gen.hasNext()) {

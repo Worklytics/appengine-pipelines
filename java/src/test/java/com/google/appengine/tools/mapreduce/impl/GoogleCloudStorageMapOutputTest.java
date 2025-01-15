@@ -7,7 +7,11 @@ import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
+import com.google.appengine.tools.test.CloudStorageExtension;
+import com.google.appengine.tools.test.CloudStorageExtensions;
+import com.google.cloud.storage.Storage;
 import lombok.AllArgsConstructor;
+import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  * Test class for {@link GoogleCloudStorageMapOutput}.
  *
  */
+@CloudStorageExtensions
 public class GoogleCloudStorageMapOutputTest {
 
   private static final ShardedJobRunId JOB = ShardedJobRunId.of("test-project", null, null,"JOB1");
@@ -41,20 +46,21 @@ public class GoogleCloudStorageMapOutputTest {
   private static final Random RND = new SecureRandom();
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper();
-  private final CloudStorageIntegrationTestHelper cloudStorageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
 
   @BeforeEach
   public void setUp() {
     helper.setUp();
     System.setProperty(COMPONENTS_PER_COMPOSE_PROPERTY, String.valueOf(COMPONENTS_PER_COMPOSE));
-    cloudStorageIntegrationTestHelper.setUp();
   }
+
+  @Setter(onMethod_ = @BeforeEach)
+  Storage storage;
+  String bucket;
 
   @AfterEach
   public void tearDown() {
     helper.tearDown();
     System.clearProperty(COMPONENTS_PER_COMPOSE_PROPERTY);
-    cloudStorageIntegrationTestHelper.tearDown();
   }
 
   @Test
@@ -110,13 +116,13 @@ public class GoogleCloudStorageMapOutputTest {
 
   private void writeAndVerifyContent(SliceData... sliceData) throws IOException  {
     GoogleCloudStorageFileOutput.BaseOptions outputOptions = GoogleCloudStorageFileOutput.BaseOptions.builder()
-      .serviceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey())
-      .projectId(cloudStorageIntegrationTestHelper.getProjectId()).build();
+      .serviceAccountKey(CloudStorageExtension.getBase64EncodedServiceAccountKey())
+      .projectId(CloudStorageExtension.getProjectId()).build();
     GoogleCloudStorageLineInput.BaseOptions inputOptions = GoogleCloudStorageLineInput.BaseOptions.builder()
-      .serviceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey())
+      .serviceAccountKey(CloudStorageExtension.getBase64EncodedServiceAccountKey())
       .build();
 
-    GoogleCloudStorageMapOutput<Long, String> output = new GoogleCloudStorageMapOutput<>(cloudStorageIntegrationTestHelper.getBucket(),
+    GoogleCloudStorageMapOutput<Long, String> output = new GoogleCloudStorageMapOutput<>(this.bucket,
         JOB, KEY_MARSHALLER, VALUE_MARSHALLER, new Sharder() {
           private static final long serialVersionUID = 1L;
 

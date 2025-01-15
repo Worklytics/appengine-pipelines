@@ -12,6 +12,7 @@ import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.JobInfo;
 import com.google.appengine.tools.pipeline.JobInfo.State;
 
+import com.google.appengine.tools.test.CloudStorageExtension;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -98,8 +99,8 @@ public class CustomOutputTest extends EndToEndTestCase {
         .setOutput(new CustomOutput())
         .setNumReducers(17);
     MapReduceSettings mrSettings = new MapReduceSettings.Builder()
-      .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
-      .setBucketName(getStorageTestHelper().getBucket())
+      .setServiceAccountKey(CloudStorageExtension.getBase64EncodedServiceAccountKey())
+      .setBucketName(getBucket())
       .setDatastoreHost(datastore.getOptions().getHost())
       .setProjectId(datastore.getOptions().getProjectId())
       .setDatabaseId(datastore.getOptions().getDatabaseId())
