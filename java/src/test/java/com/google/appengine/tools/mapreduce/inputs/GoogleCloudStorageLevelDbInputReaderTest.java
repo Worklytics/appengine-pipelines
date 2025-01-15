@@ -1,11 +1,10 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GcsFilename;
-import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
+import com.google.appengine.tools.test.PipelineSetupExtensions;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;

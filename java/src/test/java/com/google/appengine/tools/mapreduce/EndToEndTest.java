@@ -75,7 +75,6 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private static final Logger log = Logger.getLogger(EndToEndTest.class.getName());
 
-
   GoogleCloudStorageFileOutput.Options cloudStorageFileOutputOptions;
   MapReduceSettings testSettings;
 

@@ -40,10 +40,6 @@ public class GoogleCloudStorageFileOutputTest {
   @Getter
   CloudStorageIntegrationTestHelper storageIntegrationTestHelper;
 
-  @BeforeClass
-  public static void setupStorage() {
-
-  }
   @BeforeEach
   protected void setUp() throws Exception {
     storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();

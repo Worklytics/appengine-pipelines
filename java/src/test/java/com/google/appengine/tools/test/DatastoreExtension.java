@@ -1,4 +1,4 @@
-package com.google.appengine.tools.mapreduce;
+package com.google.appengine.tools.test;
 
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
@@ -7,7 +7,6 @@ import lombok.extern.java.Log;
 import org.junit.jupiter.api.extension.*;
 
 import java.net.ConnectException;
-import java.time.Duration;
 import java.util.logging.Level;
 
 /**
@@ -76,20 +75,13 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
     @Override
     public boolean supportsParameter(ParameterContext parameterContext,
                                      ExtensionContext extensionContext) throws ParameterResolutionException {
-      return parameterContext.getParameter().getType() == Datastore.class
-        || parameterContext.getParameter().getType() == DatastoreOptions.class;
+      return parameterContext.getParameter().getType() == Datastore.class;
     }
 
     @Override
     public Object resolveParameter(ParameterContext parameterContext,
                                    ExtensionContext extensionContext) throws ParameterResolutionException {
-      if (parameterContext.getParameter().getType() == Datastore.class) {
-        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_CONTEXT_KEY);
-      } else if (parameterContext.getParameter().getType() == DatastoreOptions.class) {
-        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_OPTIONS_CONTEXT_KEY);
-      } else {
-        throw new ParameterResolutionException("Unsupported parameter type: " + parameterContext.getParameter().getType());
-      }
+      return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_CONTEXT_KEY);
     }
   }
 

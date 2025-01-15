@@ -10,9 +10,6 @@ import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.HeaderWrapper;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
-import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
-import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
-import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
@@ -22,12 +19,12 @@ import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.TestUtils;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
+import com.google.appengine.tools.test.PipelineSetupExtensions;
 import com.google.cloud.datastore.Datastore;
 import com.google.common.base.CharMatcher;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.io.ByteArrayInputStream;
@@ -49,18 +46,8 @@ public abstract class EndToEndTestCase {
 
   private static final Logger logger = Logger.getLogger(EndToEndTestCase.class.getName());
 
-  private final LocalServiceTestHelper helper =
-      new LocalServiceTestHelper(
-          new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(true),
-          // don't think we use memcache
-          //new LocalMemcacheServiceTestConfig(),
-          new LocalModulesServiceTestConfig());
+  @Setter(onMethod_ = @BeforeEach)
   private LocalTaskQueue taskQueue;
-
-  /** Implement in sub-classes to set system environment properties for tests. */
-  protected Map<String, String> getEnvAttributes() throws Exception {
-    return null;
-  }
 
   @Getter @Setter(onMethod_ = @BeforeEach)
   Datastore datastore;
@@ -83,12 +70,6 @@ public abstract class EndToEndTestCase {
 
   @BeforeEach
   public void setUp() throws Exception {
-    helper.setUp();
-    Map<String, String> envAttributes = getEnvAttributes();
-    if (envAttributes != null) {
-      LocalServiceTestHelper.getApiProxyLocal().appendProperties(envAttributes);
-    }
-    taskQueue = LocalTaskQueueTestConfig.getLocalTaskQueue();
     // Creating files is not allowed in some test execution environments, so don't.
     storageTestHelper = new CloudStorageIntegrationTestHelper();
     storageTestHelper.setUp();
@@ -97,10 +78,6 @@ public abstract class EndToEndTestCase {
     mrServlet.init();
   }
 
-  @AfterEach
-  public void tearDown() throws Exception {
-    helper.tearDown();
-  }
 
   public ShardedJobRunId shardedJobId(String jobId) {
       return ShardedJobRunId.of(

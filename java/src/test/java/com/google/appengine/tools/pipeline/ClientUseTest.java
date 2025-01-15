@@ -1,10 +1,9 @@
 package com.google.appengine.tools.pipeline;
 
-import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
+import com.google.appengine.tools.test.PipelineSetupExtensions;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 @PipelineSetupExtensions
 public class ClientUseTest {

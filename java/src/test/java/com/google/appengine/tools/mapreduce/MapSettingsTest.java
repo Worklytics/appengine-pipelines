@@ -22,11 +22,11 @@ import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.JobSetting.OnService;
 import com.google.appengine.tools.pipeline.JobSetting.OnQueue;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
+import com.google.appengine.tools.test.PipelineSetupExtensions;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 
 import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.Key;
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

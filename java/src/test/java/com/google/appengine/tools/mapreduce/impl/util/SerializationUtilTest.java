@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
-import com.google.appengine.tools.mapreduce.DatastoreExtension;
+import com.google.appengine.tools.test.DatastoreExtension;
 
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Entity;
@@ -23,7 +23,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Random;
 
 /**
@@ -31,7 +30,6 @@ import java.util.Random;
  */
 @ExtendWith({
   DatastoreExtension.class,
-  //AppEngineEnvironmentExtension.class,
   DatastoreExtension.ParameterResolver.class,
 })
 public class SerializationUtilTest {

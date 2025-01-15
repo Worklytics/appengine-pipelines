@@ -27,7 +27,6 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.*;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
@@ -40,6 +39,7 @@ import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
+import com.google.appengine.tools.test.PipelineSetupExtensions;
 import com.google.apphosting.api.ApiProxy;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.datastore.Datastore;

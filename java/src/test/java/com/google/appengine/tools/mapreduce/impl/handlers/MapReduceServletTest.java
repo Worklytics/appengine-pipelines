@@ -29,7 +29,7 @@ import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 
-import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
+import com.google.appengine.tools.test.PipelineSetupExtensions;
 import com.google.appengine.tools.pipeline.TestUtils;
 import com.google.appengine.tools.pipeline.TestingTaskQueueCallback;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
