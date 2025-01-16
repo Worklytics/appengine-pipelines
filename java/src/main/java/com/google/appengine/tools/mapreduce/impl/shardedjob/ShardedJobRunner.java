@@ -450,7 +450,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
       if (task.isDone()) {
         taskState.setStatus(new Status(StatusCode.DONE));
       }
-      //taskState.clearRetryCount();
+
+      // 2025-01 not clear on why clearing retry counts after successful run; why do
+      // we want to obscure that has been retried??
+      // but this is how FW historically worked, so leaving it
+      taskState.clearRetryCount();
+
       taskState.setMostRecentUpdateTime(Instant.now());
       postRunUpdate = getDatastore().newTransaction();
     } catch (ShardFailureException ex ) {
