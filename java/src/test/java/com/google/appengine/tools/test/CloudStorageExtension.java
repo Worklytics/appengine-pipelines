@@ -1,3 +1,7 @@
+/**
+ * Copyright 2025 Worklytics, Co.  Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 package com.google.appengine.tools.test;
 
 
@@ -8,7 +12,6 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.testing.RemoteStorageHelper;
 import lombok.SneakyThrows;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.*;
 
 import java.io.ByteArrayInputStream;
@@ -22,9 +25,13 @@ import java.util.logging.Logger;
 
 /**
  * as of Apr 2020, no gcs emulator https://cloud.google.com/sdk/gcloud/reference/beta/emulators
+ *  so this extension creates a temp bucket in target project
   *
   * @see "https://googleapis.dev/java/google-cloud-storage/1.106.0/com/google/cloud/storage/testing/RemoteStorageHelper.html"
   *
+ * Auth in one of two ways:
+ * 1) machine has default credentials; then will use eitther default project, or one set in env var named CI_PROJECT
+ * 2) provide a service account credentisl
   * eg,
   *   1. create SA in target project; give it "Storage Admin" role
  *   2. cat ~/Downloads/worklytics-ci-111242f427df.json | base64
@@ -33,6 +40,9 @@ import java.util.logging.Logger;
   *    - in GitHub, set it as via repo --> Settings --> Secrets so it can be utilized in workflows
   */
 public class CloudStorageExtension implements BeforeAllCallback, BeforeEachCallback {
+
+  public static final String CI_PROJECT_ENV_VAR = "CI_PROJECT";
+  public static final String DEFAULT_PROJECT_ID = "worklytics-ci";
 
   public static final String KEY_ENV_VAR = "CI_SERVICE_ACCOUNT_KEY";
 
@@ -54,7 +64,12 @@ public class CloudStorageExtension implements BeforeAllCallback, BeforeEachCallb
   }
 
   public static String getProjectId() {
-    return getServiceAccountCredentials().map(ServiceAccountCredentials::getProjectId).orElse("worklytics-ci");
+    return getServiceAccountCredentials().map(ServiceAccountCredentials::getProjectId)
+      .orElseGet(CloudStorageExtension::fallbackProiectId);
+  }
+
+  static private String fallbackProiectId() {
+    return Optional.ofNullable(System.getenv(CI_PROJECT_ENV_VAR)).orElse(DEFAULT_PROJECT_ID);
   }
 
   @Override
@@ -69,7 +84,7 @@ public class CloudStorageExtension implements BeforeAllCallback, BeforeEachCallb
       //TODO: more elegant solution? weirdness seems to happen if mix projects; credentials' project
       // isn't exposed to java code via any public interface; yet bucket is created in the project
       // to which the credentials default project is set
-      projectId = "worklytics-ci";
+      projectId = fallbackProiectId();
       //throw new IllegalStateException("Must set environment variable " + KEY_ENV_VAR + " as base64 encoded service account key to use for storage integration tests");
     } else {
       credentials = getServiceAccountCredentials().get();

@@ -45,6 +45,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,6 +79,9 @@ public class EndToEndTest extends EndToEndTestCase {
 
   GoogleCloudStorageFileOutput.Options cloudStorageFileOutputOptions;
   MapReduceSettings testSettings;
+
+  @Getter
+  String bucket;
 
   @BeforeEach
   public void setUp() throws Exception {

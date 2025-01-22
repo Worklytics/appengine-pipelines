@@ -67,8 +67,6 @@ public abstract class EndToEndTestCase {
   @Getter @Setter(onMethod_ = @BeforeEach)
   Storage storage;
 
-  @Getter
-  String bucket;
 
   // will this magically have right context?
   private PipelineServlet pipelineServlet = new PipelineServlet();

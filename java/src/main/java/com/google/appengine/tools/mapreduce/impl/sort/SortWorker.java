@@ -21,7 +21,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
 /**
  * Sorts a set of keyValues by a lexicographical comparison of the bytes of the key. On beginSlice a
@@ -132,7 +131,7 @@ public class SortWorker extends Worker<SortContext> {
   }
 
   /**
-   * Re arranges the pointers so that they are ordered according to the order of the corresponding
+   * Re-arranges the pointers so that they are ordered according to the order of the corresponding
    * keys.
    */
   private void sortData() {

@@ -13,6 +13,7 @@ import com.google.appengine.tools.pipeline.JobInfo;
 import com.google.appengine.tools.pipeline.JobInfo.State;
 
 import com.google.appengine.tools.test.CloudStorageExtension;
+import lombok.Getter;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -24,6 +25,9 @@ import java.util.List;
  * Tests that custom output classes work.
  */
 public class CustomOutputTest extends EndToEndTestCase {
+
+  @Getter
+  String bucket;
 
   @SuppressWarnings("serial")
   static class CustomWriter extends OutputWriter<Long> {
@@ -99,6 +103,7 @@ public class CustomOutputTest extends EndToEndTestCase {
         .setOutput(new CustomOutput())
         .setNumReducers(17);
     MapReduceSettings mrSettings = new MapReduceSettings.Builder()
+      .setProjectId(CloudStorageExtension.getProjectId())
       .setServiceAccountKey(CloudStorageExtension.getBase64EncodedServiceAccountKey())
       .setBucketName(getBucket())
       .setDatastoreHost(datastore.getOptions().getHost())
