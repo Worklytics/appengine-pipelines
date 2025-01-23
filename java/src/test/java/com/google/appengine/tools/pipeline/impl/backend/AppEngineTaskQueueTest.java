@@ -1,6 +1,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.tools.pipeline.DatastoreExtension;
+import com.google.appengine.tools.test.DatastoreExtension;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.api.taskqueue.TaskHandle;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;

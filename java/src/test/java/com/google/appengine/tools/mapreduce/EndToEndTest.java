@@ -37,6 +37,7 @@ import com.google.appengine.tools.mapreduce.reducers.NoReducer;
 import com.google.appengine.tools.mapreduce.reducers.ValueProjectionReducer;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.JobInfo;
+import com.google.appengine.tools.test.CloudStorageExtension;
 import com.google.cloud.ReadChannel;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
@@ -44,6 +45,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,19 +77,21 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private static final Logger log = Logger.getLogger(EndToEndTest.class.getName());
 
-
   GoogleCloudStorageFileOutput.Options cloudStorageFileOutputOptions;
   MapReduceSettings testSettings;
+
+  @Getter
+  String bucket;
 
   @BeforeEach
   public void setUp() throws Exception {
     super.setUp();
     cloudStorageFileOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
-      .withServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
-      .withProjectId(getStorageTestHelper().getProjectId()); //prob not really needed ..
+      .withServiceAccountKey(CloudStorageExtension.getBase64EncodedServiceAccountKey())
+      .withProjectId(CloudStorageExtension.getProjectId()); //prob not really needed ..
     testSettings = new MapReduceSettings.Builder()
-      .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
-      .setBucketName(getStorageTestHelper().getBucket())
+      .setServiceAccountKey(CloudStorageExtension.getBase64EncodedServiceAccountKey())
+      .setBucketName(bucket)
       .build();
   }
 
@@ -191,7 +195,7 @@ public class EndToEndTest extends EndToEndTestCase {
     String fileNamePattern = "MapOnlySegmentingTestShard-%04d/file-%04d";
 
     SizeSegmentedGoogleCloudStorageFileOutput output =
-        new SizeSegmentedGoogleCloudStorageFileOutput(getStorageTestHelper().getBucket(), 30, fileNamePattern, mimeType, cloudStorageFileOutputOptions);
+        new SizeSegmentedGoogleCloudStorageFileOutput(getBucket(), 30, fileNamePattern, mimeType, cloudStorageFileOutputOptions);
     MarshallingOutput<String, GoogleCloudStorageFileSet> op =
         new MarshallingOutput<>(output, Marshallers.getStringMarshaller());
 
@@ -691,7 +695,7 @@ public class EndToEndTest extends EndToEndTestCase {
     final RandomLongInput input = new RandomLongInput(10, 1);
     input.setSeed(0L);
     runTest(new MapReduceSpecification.Builder<>(input, new Mod37Mapper(), ValueProjectionReducer
-        .<String, Long>create(), new StringOutput<>(",", new GoogleCloudStorageFileOutput(getStorageTestHelper().getBucket(), "Foo-%02d", "text/plain", cloudStorageFileOutputOptions)))
+        .<String, Long>create(), new StringOutput<>(",", new GoogleCloudStorageFileOutput(bucket, "Foo-%02d", "text/plain", cloudStorageFileOutputOptions)))
         .setKeyMarshaller(Marshallers.getStringMarshaller())
         .setValueMarshaller(Marshallers.getLongMarshaller()).setJobName("TestPassThroughToString")
         .build(), new Verifier<GoogleCloudStorageFileSet>() {
@@ -700,7 +704,7 @@ public class EndToEndTest extends EndToEndTestCase {
         assertEquals(1, result.getOutputResult().getNumFiles());
         assertEquals(10, result.getCounters().getCounter(CounterNames.MAPPER_CALLS).getValue());
         GcsFilename file = result.getOutputResult().getFile(0);
-        ReadChannel channel = getStorageTestHelper().getStorage().reader(file.asBlobId());
+        ReadChannel channel = storage.reader(file.asBlobId());
         BufferedReader reader =
             new BufferedReader(Channels.newReader(channel, US_ASCII.newDecoder(), -1));
         String line = reader.readLine();
@@ -737,7 +741,7 @@ public class EndToEndTest extends EndToEndTestCase {
     builder.setKeyMarshaller(Marshallers.getByteBufferMarshaller());
     builder.setValueMarshaller(Marshallers.getByteBufferMarshaller());
     builder.setReducer(ValueProjectionReducer.<ByteBuffer, ByteBuffer>create());
-    builder.setOutput(new GoogleCloudStorageFileOutput(getStorageTestHelper().getBucket(), "fileNamePattern-%04d",
+    builder.setOutput(new GoogleCloudStorageFileOutput(bucket, "fileNamePattern-%04d",
         "application/octet-stream", (GoogleCloudStorageFileOutput.Options) cloudStorageFileOutputOptions.withSupportSliceRetries(sliceRetry)));
     builder.setNumReducers(2);
     runTest(builder.build(), new Verifier<GoogleCloudStorageFileSet>() {
@@ -748,8 +752,8 @@ public class EndToEndTest extends EndToEndTestCase {
         ArrayList<Long> results = new ArrayList<>();
         ByteBuffer holder = ByteBuffer.allocate(8);
         for (GcsFilename file : result.getOutputResult().getFiles()) {
-          assertEquals("application/octet-stream", getStorageTestHelper().getStorage().get(file.asBlobId()).getContentType());
-          try (ReadChannel reader = getStorageTestHelper().getStorage().reader(file.asBlobId())) {
+          assertEquals("application/octet-stream", storage.get(file.asBlobId()).getContentType());
+          try (ReadChannel reader = storage.reader(file.asBlobId())) {
             int read = reader.read(holder);
             while (read != -1) {
               holder.rewind();
@@ -1240,7 +1244,7 @@ public class EndToEndTest extends EndToEndTestCase {
     final int SHARD_COUNT = 3;
 
     runTest(new MapReduceSpecification.Builder<>(new ConsecutiveLongInput(0, SHARD_COUNT, SHARD_COUNT),
-        new SideOutputMapper(getStorageTestHelper().getBucket(), cloudStorageFileOutputOptions), KeyProjectionReducer.<GcsFilename, Void>create(),
+        new SideOutputMapper(bucket, cloudStorageFileOutputOptions), KeyProjectionReducer.<GcsFilename, Void>create(),
         new InMemoryOutput<>())
         .setKeyMarshaller(Marshallers.getSerializationMarshaller())
         .setValueMarshaller(Marshallers.getVoidMarshaller())
@@ -1260,7 +1264,7 @@ public class EndToEndTest extends EndToEndTestCase {
               assertEquals(SHARD_COUNT, files.size());
               for (GcsFilename file : files) {
                 ByteBuffer buf = ByteBuffer.allocate(8);
-                try (ReadChannel ch = getStorageTestHelper().getStorage().reader(file.asBlobId())) {
+                try (ReadChannel ch = storage.reader(file.asBlobId())) {
                   assertEquals(8, ch.read(buf));
                   assertEquals(-1, ch.read(ByteBuffer.allocate(1)));
                 }
