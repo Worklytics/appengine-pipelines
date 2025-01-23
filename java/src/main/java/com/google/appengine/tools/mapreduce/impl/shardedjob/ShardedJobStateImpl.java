@@ -182,7 +182,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
       return new ShardedJobStateImpl<>(
           jobId,
           SerializationUtil.<ShardedJobController<T>>deserializeFromDatastoreProperty(tx, in, CONTROLLER_PROPERTY, lenient),
-          SerializationUtil.<ShardedJobSettings>deserializeFromDatastoreProperty(tx, in, SETTINGS_PROPERTY),
+          SerializationUtil.deserializeFromDatastoreProperty(tx, in, SETTINGS_PROPERTY),
           (int) in.getLong(TOTAL_TASK_COUNT_PROPERTY),
           from(in.getTimestamp(START_TIME_PROPERTY)),
           SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY))

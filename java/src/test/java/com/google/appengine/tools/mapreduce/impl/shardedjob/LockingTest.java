@@ -145,7 +145,7 @@ public class LockingTest extends EndToEndTestCase {
   }
 
   /**
-   * Tests a duplicate task from task queue while the execution of that task in in progress.
+   * Tests a duplicate task from task queue while the execution of that task is in progress.
    */
   @Test
   public void testDupResultsInWaiting() throws Exception {
@@ -185,7 +185,6 @@ public class LockingTest extends EndToEndTestCase {
     assertDone(jobId);
   }
 
-  // times out??
   /**
    * Tests lock expiration
    */
@@ -194,7 +193,8 @@ public class LockingTest extends EndToEndTestCase {
     //Setting the timeout to 0 insures that the shard will have timed out by the time the
     //duplicate arrives.
     ShardedJobSettings settings =
-        new ShardedJobSettings.Builder().setSliceTimeoutMillis(0).build();
+        new ShardedJobSettings.Builder()
+          .setSliceTimeoutMillis(0).build();
     final ShardedJobRunId jobId = startNewTask(settings);
 
     //Run task

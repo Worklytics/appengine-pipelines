@@ -30,6 +30,8 @@ import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.apphosting.api.ApiProxy;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -100,6 +102,19 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
       logger.finest("Enqueueing: " + task);
       String queueName = task.getQueueSettings().getOnQueue();
       TaskOptions taskOptions = toTaskOptions(task);
+
+
+      // seen in logs : "Negative countdown is not allowed"
+      if (taskOptions.getCountdownMillis() != null && taskOptions.getCountdownMillis() < 0) {
+        logger.warning("Task countdownMillis is  " + taskOptions.getCountdownMillis() + ". Setting to 0 to avoid error.");
+        taskOptions.countdownMillis(0);
+      }
+      Instant now = Instant.now();
+      if (taskOptions.getEtaMillis() != null && taskOptions.getEtaMillis() <= now.toEpochMilli()) {
+        logger.warning("Task etaMillis is  " + (now.toEpochMilli() - taskOptions.getEtaMillis()) + " before now. Setting to now + 30s to avoid error.");
+        taskOptions.etaMillis(now.toEpochMilli() + Duration.ofSeconds(30) .toMillis());
+      }
+
       List<TaskOptions> taskOptionsList = queueNameToTaskOptions.get(queueName);
       if (taskOptionsList == null) {
         taskOptionsList = new ArrayList<>();

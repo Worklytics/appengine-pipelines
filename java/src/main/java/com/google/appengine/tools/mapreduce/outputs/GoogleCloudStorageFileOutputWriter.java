@@ -70,6 +70,10 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
 
   @Override
   public void cleanup() {
+    cleanupBlobs();
+  }
+
+  void cleanupBlobs() {
     for (BlobId id : toDelete) {
       try {
         getClient().delete(id);
@@ -108,7 +112,8 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
 
   @Override
   public void beginSlice() throws IOException {
-    cleanup();
+    this.cleanupBlobs(); //why cleaning up at beginning of slice? but this has been in MR codebase for 10+ years
+
     if (options.getSupportSliceRetries()) {
       if (sliceBlobId != null) {
         //append latest version of previous slice's file to shard's file

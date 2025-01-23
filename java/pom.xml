@@ -21,7 +21,7 @@
     <appengine.target.version>[2.0.4, 2.0.23)</appengine.target.version>
     <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
     <dagger.version>2.51.1</dagger.version>
-    <lombok.version>1.18.32</lombok.version>
+    <lombok.version>1.18.34</lombok.version>
   </properties>
 
   <distributionManagement>
@@ -110,7 +110,7 @@
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
-        <version>5.10.1</version>
+        <version>5.11.3</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -220,7 +220,6 @@
       <groupId>com.google.dagger</groupId>
       <artifactId>dagger</artifactId>
       <version>${dagger.version}</version>
-      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.google.dagger</groupId>
