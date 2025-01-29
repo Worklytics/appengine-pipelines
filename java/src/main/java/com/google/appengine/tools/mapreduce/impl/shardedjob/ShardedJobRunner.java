@@ -2,46 +2,44 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.ABORTED;
-import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.DONE;
-import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.ERROR;
-import static java.util.concurrent.Executors.callable;
-
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
-import com.github.rholder.retry.WaitStrategies;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.cloud.datastore.*;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.taskqueue.TransactionalTaskException;
 import com.google.appengine.api.taskqueue.TransientFailureException;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
+import com.google.appengine.tools.mapreduce.WaitStrategiesUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.DeleteShardedJob;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.FinalizeShardedJob;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.apphosting.api.ApiProxy.ApiProxyException;
 import com.google.apphosting.api.ApiProxy.ArgumentException;
 import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
 import com.google.apphosting.api.ApiProxy.ResponseTooLargeException;
 import com.google.apphosting.api.DeadlineExceededException;
+import com.google.cloud.datastore.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
-
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NonNull;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Stream;
+
+import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.*;
+import static java.util.concurrent.Executors.callable;
 
 /**
  * Contains all logic to manage and run sharded jobs; specific to a given backend configuration (injected as backend)
@@ -82,7 +80,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
   // NOTE: no StopStrategy set, must be set by the caller prior to build
   public static RetryerBuilder getRetryerBuilder() {
     return RetryerBuilder.newBuilder()
-      .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
+
+      .withWaitStrategy(WaitStrategiesUtils.defaultWaitStrategy())
       .retryIfException(e -> {
         if (e instanceof DatastoreException) {
           return ((DatastoreException) e).isRetryable();
@@ -101,7 +100,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   // NOTE: no StopStrategy set, must be set by the caller prior to build
   public static RetryerBuilder getRetryerBuilderAggressive() {
     return RetryerBuilder.newBuilder()
-      .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
+      .withWaitStrategy(WaitStrategiesUtils.defaultWaitStrategy())
       .retryIfException(e ->
         !(e instanceof RequestTooLargeException
           || e instanceof ResponseTooLargeException

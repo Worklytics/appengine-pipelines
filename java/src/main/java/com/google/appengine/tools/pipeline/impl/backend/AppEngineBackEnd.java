@@ -14,37 +14,19 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import static com.google.appengine.tools.pipeline.impl.model.JobRecord.IS_ROOT_JOB_PROPERTY;
-import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_DISPLAY_NAME;
-import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
-import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
-
 import com.github.rholder.retry.*;
-
 import com.google.appengine.tools.pipeline.JobRunId;
-import com.google.appengine.tools.pipeline.impl.util.TestUtils;
-import com.google.auth.Credentials;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
-import com.google.appengine.tools.pipeline.impl.model.Barrier;
-import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
-import com.google.appengine.tools.pipeline.impl.model.FanoutTaskRecord;
-import com.google.appengine.tools.pipeline.impl.model.JobInstanceRecord;
-import com.google.appengine.tools.pipeline.impl.model.JobRecord;
-import com.google.appengine.tools.pipeline.impl.model.PipelineModelObject;
-import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
-import com.google.appengine.tools.pipeline.impl.model.ShardedValue;
-import com.google.appengine.tools.pipeline.impl.model.Slot;
+import com.google.appengine.tools.pipeline.impl.model.*;
 import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
+import com.google.appengine.tools.pipeline.impl.util.TestUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
-
-import com.google.cloud.datastore.Blob;
-import com.google.cloud.datastore.Entity;
-import com.google.cloud.datastore.Key;
+import com.google.auth.Credentials;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.datastore.*;
 import com.google.common.base.Strings;
 import com.google.common.collect.Streams;
 import com.google.datastore.v1.QueryResultBatch;
@@ -65,6 +47,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static com.google.appengine.tools.pipeline.impl.model.JobRecord.IS_ROOT_JOB_PROPERTY;
+import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_DISPLAY_NAME;
+import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
+import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
+
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  *
@@ -80,7 +67,10 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   private <E> Retryer<E> withDefaults(RetryerBuilder<E> builder) {
       return builder
-              .withWaitStrategy(WaitStrategies.exponentialWait(RETRY_BACKOFF_MULTIPLIER, RETRY_MAX_BACKOFF_MS, TimeUnit.MILLISECONDS))
+              .withWaitStrategy(
+                // wait at least 1s between retries + exponential backoff
+                WaitStrategies.join(WaitStrategies.fixedWait(1_000, TimeUnit.MILLISECONDS),
+                  WaitStrategies.exponentialWait(RETRY_BACKOFF_MULTIPLIER, RETRY_MAX_BACKOFF_MS, TimeUnit.MILLISECONDS)))
               // TODO: possibly we should inspect error code in more detail? see https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
               .retryIfException(e -> e instanceof DatastoreException && (((DatastoreException) e).isRetryable()))
               .retryIfExceptionOfType(IOException.class) //q: can this happen?
