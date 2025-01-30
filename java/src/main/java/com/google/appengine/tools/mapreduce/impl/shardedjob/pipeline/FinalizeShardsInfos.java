@@ -4,6 +4,7 @@ import static java.util.concurrent.Executors.callable;
 
 import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
+import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.pipeline.Job0;
@@ -32,7 +33,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
     Datastore datastore = datastoreOptions.getService();
 
     RetryExecutor.call(
-      ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.neverStop()),
+      ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(RetryUtils.SYMBOLIC_FOREVER)),
       callable(() -> {
         Transaction tx = datastore.newTransaction();
 

@@ -223,7 +223,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     PipelineService pipelineService = pipelineServiceProvider.get();
 
     //below seems to FAIL bc of transaction connection - why!?!?
-    ShardedJobStateImpl<?> jobState = RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(8)), () -> {
+    ShardedJobStateImpl<?> jobState = RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(RetryUtils.SYMBOLIC_FOREVER)), () -> {
       Transaction tx = getDatastore().newTransaction();
       try {
         ShardedJobStateImpl<?> jobState1 = lookupJobState(tx, jobId);
@@ -551,7 +551,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     @SuppressWarnings("rawtypes")
     RetryerBuilder exceptionHandler = aggressiveRetry ? getRetryerBuilderAggressive() : getRetryerBuilder();
       // original code retries forever here?
-      RetryExecutor.call(exceptionHandler.withStopStrategy(StopStrategies.neverStop()),
+      RetryExecutor.call(exceptionHandler.withStopStrategy(StopStrategies.stopAfterAttempt(RetryUtils.SYMBOLIC_FOREVER)),
         callable(new Runnable() {
           @Override
           public void run() {
@@ -735,7 +735,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
     final Key jobKey = ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId);
 
-    RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.neverStop()), callable(() -> datastore.delete(jobKey)));
+    RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(RetryUtils.SYMBOLIC_FOREVER)), callable(() -> datastore.delete(jobKey)));
     return true;
   }
 }

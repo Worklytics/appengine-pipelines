@@ -12,6 +12,8 @@ import java.util.logging.Logger;
 
 public class RetryUtils {
 
+  public static final int SYMBOLIC_FOREVER = 200;
+
   public static WaitStrategy defaultWaitStrategy() {
     return WaitStrategies.join(
       WaitStrategies.exponentialWait(1_000,30_000, TimeUnit.MILLISECONDS)
