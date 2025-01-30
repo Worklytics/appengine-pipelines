@@ -80,7 +80,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
   // NOTE: no StopStrategy set, must be set by the caller prior to build
   public static RetryerBuilder getRetryerBuilder() {
     return RetryerBuilder.newBuilder()
-
       .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .retryIfException(e -> {
         if (e instanceof DatastoreException) {
@@ -90,9 +89,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
       })
       .retryIfExceptionOfType(ApiProxyException.class)
       .retryIfExceptionOfType(ConcurrentModificationException.class) // don't think this is thrown by new datastore lib
-      //.retryIfExceptionOfType(DatastoreFailureException.class)
-      //.retryIfExceptionOfType(CommittedButStillApplyingException.class)
-      // .retryIfExceptionOfType(DatastoreTimeoutException.class)
       .retryIfExceptionOfType(TransientFailureException.class)
       .retryIfExceptionOfType(TransactionalTaskException.class)
       .withRetryListener(RetryUtils.logRetry(log, ShardedJobRunner.class.getName()));
@@ -100,8 +96,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   // NOTE: no StopStrategy set, must be set by the caller prior to build
   public static RetryerBuilder getRetryerBuilderAggressive() {
-    return RetryerBuilder.newBuilder()
-      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
+    return getRetryerBuilder()
       .retryIfException(e ->
         !(e instanceof RequestTooLargeException
           || e instanceof ResponseTooLargeException
