@@ -2,10 +2,8 @@
 
 package com.google.appengine.tools.mapreduce;
 
-import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings.DEFAULT_SLICE_TIMEOUT_MILLIS;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import com.github.rholder.retry.*;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.api.modules.ModulesException;
 import com.google.appengine.api.modules.ModulesService;
 import com.google.appengine.api.modules.ModulesServiceFactory;
@@ -27,7 +25,9 @@ import lombok.ToString;
 import java.io.Serializable;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+
+import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings.DEFAULT_SLICE_TIMEOUT_MILLIS;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Settings that affect how a Map job is executed.  May affect performance and
@@ -44,14 +44,14 @@ public class MapSettings implements Serializable {
 
   private static RetryerBuilder getQueueRetryerBuilder() {
     return RetryerBuilder.newBuilder()
-      .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
+      .withWaitStrategy(WaitStrategiesUtils.defaultWaitStrategy())
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
       .retryIfExceptionOfType(TransientFailureException.class);
   }
 
   private static RetryerBuilder getModulesRetryerBuilder() {
     return RetryerBuilder.newBuilder()
-      .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
+      .withWaitStrategy(WaitStrategiesUtils.defaultWaitStrategy())
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
       .retryIfExceptionOfType(ModulesException.class);
   }
