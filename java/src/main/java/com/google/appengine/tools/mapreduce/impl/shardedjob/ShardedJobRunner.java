@@ -374,25 +374,26 @@ public class ShardedJobRunner implements ShardedJobHandler {
   public void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber) {
     //acquire lock (allows this process to START potentially long-running work of task itself)
     Transaction lockAcquisition = getDatastore().newTransaction();
-    final ShardedJobStateImpl<? extends IncrementalTask> jobState = lookupJobState(lockAcquisition, jobId);
-
-    if (jobState == null) {
-      log.info(taskId + ": Job is gone, ignoring runTask call.");
-      return;
-    }
-
-    //taskState represents attempt of executing a slice of a shard of a sharded job
-    IncrementalTaskState taskState =
-      getAndValidateTaskState(lockAcquisition, taskId, sequenceNumber, jobState);
-    if (taskState == null) {
-      // some sort of error code happened
-
-      // seems like getAndValidationTaskState has potential side-effects, which need to be committed
-      lockAcquisition.commit();
-      return;
-    }
 
     try {
+      final ShardedJobStateImpl<? extends IncrementalTask> jobState = lookupJobState(lockAcquisition, jobId);
+
+      if (jobState == null) {
+        log.info(taskId + ": Job is gone, ignoring runTask call.");
+        return;
+      }
+
+      //taskState represents attempt of executing a slice of a shard of a sharded job
+      IncrementalTaskState taskState =
+        getAndValidateTaskState(lockAcquisition, taskId, sequenceNumber, jobState);
+      if (taskState == null) {
+        // some sort of error code happened
+
+        // seems like getAndValidationTaskState has potential side-effects, which need to be committed
+        lockAcquisition.commit();
+        return;
+      }
+
       if (lockShard(lockAcquisition, taskState)) {
         // committing here, which forces acquisition of lock ...
         lockAcquisition.commit();
