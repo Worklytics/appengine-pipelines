@@ -112,16 +112,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   public <T extends IncrementalTask> List<IncrementalTaskState<T>> lookupTasks(
     final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
-    Transaction tx = datastore.newTransaction();
-    try {
-      List<IncrementalTaskState<T>> taskStates = new ArrayList<>();
-      Iterators.addAll(taskStates, lookupTasks(tx, jobId, taskCount, lenient));
-      tx.commit();
-      return taskStates;
-    } finally {
-      //should be read-only, so no need to rollback
-      rollbackIfActive(tx);
-    }
+    List<IncrementalTaskState<T>> taskStates = new ArrayList<>();
+    Iterators.addAll(taskStates, lookupTasks(datastore, jobId, taskCount, lenient));
+    return taskStates;
   }
 
 
@@ -149,7 +142,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   private <T extends IncrementalTask> Iterator<IncrementalTaskState<T>> lookupTasks(
-    @NonNull Transaction tx, final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
+    @NonNull Datastore datastore, final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
 
     // does it in batches of 20, so prob not as slow as it seems ...
     return new AbstractIterator<>() {
@@ -160,20 +153,20 @@ public class ShardedJobRunner implements ShardedJobHandler {
       protected IncrementalTaskState<T> computeNext() {
         if (lastBatch.hasNext()) {
           Entity entity = lastBatch.next();
-          return IncrementalTaskState.Serializer.fromEntity(tx, entity, lenient);
+          return IncrementalTaskState.Serializer.fromEntity(datastore, entity, lenient);
         } else if (lastCount >= taskCount) {
           return endOfData();
         }
         int toRead = Math.min(TASK_LOOKUP_BATCH_SIZE, taskCount - lastCount);
         List<Key> keys = new ArrayList<>(toRead);
         for (int i = 0; i < toRead; i++, lastCount++) {
-          Key key = IncrementalTaskState.Serializer.makeKey(tx.getDatastore(), IncrementalTaskId.of(jobId, lastCount));
+          Key key = IncrementalTaskState.Serializer.makeKey(datastore, IncrementalTaskId.of(jobId, lastCount));
           keys.add(key);
         }
         TreeMap<Integer, Entity> ordered = new TreeMap<>();
-        for (Iterator<Entity> it = tx.get(keys.toArray(new Key[0])); it.hasNext(); ) {
+        for (Iterator<Entity> it = datastore.get(keys.toArray(new Key[0])); it.hasNext(); ) {
           Entity entry = it.next();
-          IncrementalTaskState state = IncrementalTaskState.Serializer.fromEntity(tx, entry);
+          IncrementalTaskState state = IncrementalTaskState.Serializer.fromEntity(datastore, entry, false);
           ordered.put(state.getShardNumber(), entry);
         }
         lastBatch = ordered.values().iterator();
@@ -183,9 +176,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
 
-  private <T extends IncrementalTask> void callCompleted(Transaction tx, ShardedJobStateImpl<T> jobState) {
+  private <T extends IncrementalTask> void callCompleted(Datastore datastore, ShardedJobStateImpl<T> jobState) {
     Iterator<IncrementalTaskState<T>> taskStates =
-      lookupTasks(tx, jobState.getShardedJobId(), jobState.getTotalTaskCount(), false);
+      lookupTasks(datastore, jobState.getShardedJobId(), jobState.getTotalTaskCount(), false);
     Iterator<T> tasks = Iterators.transform(taskStates, IncrementalTaskState::getTask);
     jobState.getController().setPipelineService(pipelineServiceProvider.get());
     jobState.getController().completed(tasks);
@@ -264,13 +257,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         // TODO(user): consider trying failed if completed failed after N attempts
 
         //q: should this be same txn as above??
-        Transaction tx = datastore.newTransaction();
-        try {
-          callCompleted(tx, jobState);
-          tx.commit();
-        } finally {
-          rollbackIfActive(tx);
-        }
+        callCompleted(datastore, jobState);
       } else {
         log.info("Calling failed for " + jobId + ", status=" + jobState.getStatus());
         jobState.getController().failed(jobState.getStatus());
