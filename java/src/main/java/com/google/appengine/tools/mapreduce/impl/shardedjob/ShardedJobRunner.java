@@ -4,12 +4,13 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
+import com.github.rholder.retry.WaitStrategies;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.taskqueue.TransactionalTaskException;
 import com.google.appengine.api.taskqueue.TransientFailureException;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
-import com.google.appengine.tools.mapreduce.WaitStrategiesUtils;
+import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.DeleteShardedJob;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.FinalizeShardedJob;
@@ -35,6 +36,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Stream;
 
@@ -80,8 +82,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   // NOTE: no StopStrategy set, must be set by the caller prior to build
   public static RetryerBuilder getRetryerBuilder() {
     return RetryerBuilder.newBuilder()
-
-      .withWaitStrategy(WaitStrategiesUtils.defaultWaitStrategy())
+      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .retryIfException(e -> {
         if (e instanceof DatastoreException) {
           return ((DatastoreException) e).isRetryable();
@@ -90,25 +91,21 @@ public class ShardedJobRunner implements ShardedJobHandler {
       })
       .retryIfExceptionOfType(ApiProxyException.class)
       .retryIfExceptionOfType(ConcurrentModificationException.class) // don't think this is thrown by new datastore lib
-      //.retryIfExceptionOfType(DatastoreFailureException.class)
-      //.retryIfExceptionOfType(CommittedButStillApplyingException.class)
-      // .retryIfExceptionOfType(DatastoreTimeoutException.class)
       .retryIfExceptionOfType(TransientFailureException.class)
-      .retryIfExceptionOfType(TransactionalTaskException.class);
+      .retryIfExceptionOfType(TransactionalTaskException.class)
+      .withRetryListener(RetryUtils.logRetry(log, ShardedJobRunner.class.getName()));
   }
 
   // NOTE: no StopStrategy set, must be set by the caller prior to build
   public static RetryerBuilder getRetryerBuilderAggressive() {
-    return RetryerBuilder.newBuilder()
-      .withWaitStrategy(WaitStrategiesUtils.defaultWaitStrategy())
+    return getRetryerBuilder()
       .retryIfException(e ->
         !(e instanceof RequestTooLargeException
           || e instanceof ResponseTooLargeException
           || e instanceof ArgumentException
-          || e instanceof DeadlineExceededException));
+          || e instanceof DeadlineExceededException))
+      .withRetryListener(RetryUtils.logRetry(log, ShardedJobRunner.class.getName()));
   }
-
-
 
   public <T extends IncrementalTask> List<IncrementalTaskState<T>> lookupTasks(
     final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
@@ -219,7 +216,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     PipelineService pipelineService = pipelineServiceProvider.get();
 
     //below seems to FAIL bc of transaction connection - why!?!?
-    ShardedJobStateImpl<?> jobState = RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(8)), () -> {
+    ShardedJobStateImpl<?> jobState = RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(RetryUtils.SYMBOLIC_FOREVER)), () -> {
       Transaction tx = getDatastore().newTransaction();
       try {
         ShardedJobStateImpl<?> jobState1 = lookupJobState(tx, jobId);
@@ -541,7 +538,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
     @SuppressWarnings("rawtypes")
     RetryerBuilder exceptionHandler = aggressiveRetry ? getRetryerBuilderAggressive() : getRetryerBuilder();
-      RetryExecutor.call(exceptionHandler.withStopStrategy(StopStrategies.stopAfterAttempt(8)),
+      // original code retries forever here?
+      RetryExecutor.call(exceptionHandler.withStopStrategy(StopStrategies.stopAfterAttempt(RetryUtils.SYMBOLIC_FOREVER)),
         callable(new Runnable() {
           @Override
           public void run() {
@@ -725,7 +723,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
     final Key jobKey = ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId);
 
-    RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(8)), callable(() -> datastore.delete(jobKey)));
+    RetryExecutor.call(getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(RetryUtils.SYMBOLIC_FOREVER)), callable(() -> datastore.delete(jobKey)));
     return true;
   }
 }

@@ -94,8 +94,9 @@ public class ShufflerServlet extends HttpServlet {
           || e instanceof RequestTooLargeException
           || e instanceof ArgumentException)
       )
-      .withWaitStrategy(WaitStrategiesUtils.defaultWaitStrategy())
-      .withStopStrategy(StopStrategies.stopAfterAttempt(10));
+      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
+      .withStopStrategy(StopStrategies.stopAfterAttempt(10))
+      .withRetryListener(RetryUtils.logRetry(log, ShufflerServlet.class.getName()));
   }
 
 

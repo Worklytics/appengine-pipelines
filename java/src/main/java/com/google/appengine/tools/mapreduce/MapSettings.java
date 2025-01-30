@@ -21,6 +21,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
+import lombok.extern.java.Log;
 
 import java.io.Serializable;
 import java.util.Optional;
@@ -38,22 +39,25 @@ import static com.google.common.base.Preconditions.checkNotNull;
 @Getter
 @ToString
 @RequiredArgsConstructor
+@Log
 public class MapSettings implements Serializable {
 
   private static final long serialVersionUID = 51425056338041064L;
 
   private static RetryerBuilder getQueueRetryerBuilder() {
     return RetryerBuilder.newBuilder()
-      .withWaitStrategy(WaitStrategiesUtils.defaultWaitStrategy())
+      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
-      .retryIfExceptionOfType(TransientFailureException.class);
+      .retryIfExceptionOfType(TransientFailureException.class)
+      .withRetryListener(RetryUtils.logRetry(log, MapSettings.class.getName()));
   }
 
   private static RetryerBuilder getModulesRetryerBuilder() {
     return RetryerBuilder.newBuilder()
-      .withWaitStrategy(WaitStrategiesUtils.defaultWaitStrategy())
+      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
-      .retryIfExceptionOfType(ModulesException.class);
+      .retryIfExceptionOfType(ModulesException.class)
+      .withRetryListener(RetryUtils.logRetry(log, MapSettings.class.getName()));
   }
 
   public static final String DEFAULT_BASE_URL = "/mapreduce/";
