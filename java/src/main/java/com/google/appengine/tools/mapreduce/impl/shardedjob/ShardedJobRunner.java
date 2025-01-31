@@ -83,6 +83,16 @@ public class ShardedJobRunner implements ShardedJobHandler {
   public static RetryerBuilder getRetryerBuilder() {
     return RetryerBuilder.newBuilder()
       .withWaitStrategy(RetryUtils.defaultWaitStrategy())
+      .retryIfException( e -> {
+        if (e instanceof RuntimeException) {
+          // contains a DatastoreException in the cause
+          Throwable cause = e.getCause();
+          if (cause instanceof DatastoreException) {
+            return ((DatastoreException) cause).isRetryable() || cause.getMessage().contains("Please retry the transaction");
+          }
+        }
+        return false;
+      })
       .retryIfException(e -> {
         if (e instanceof DatastoreException) {
           return ((DatastoreException) e).isRetryable() || e.getMessage().contains("Please retry the transaction");
