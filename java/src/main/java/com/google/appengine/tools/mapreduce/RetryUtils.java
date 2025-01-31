@@ -24,10 +24,12 @@ public class RetryUtils {
     return new RetryListener() {
       @Override
       public <V> void onRetry(Attempt<V> attempt) {
-        if (attempt.hasException()) {
-          log.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()), attempt.getExceptionCause());
-        } else {
-          log.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d. No exception?".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()));
+        if (attempt.getAttemptNumber() > 1 || attempt.hasException()) {
+          if (attempt.hasException()) {
+            log.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()), attempt.getExceptionCause());
+          } else {
+            log.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d. No exception?".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()));
+          }
         }
       }
     };
