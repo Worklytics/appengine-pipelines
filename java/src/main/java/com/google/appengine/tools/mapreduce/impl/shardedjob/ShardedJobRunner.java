@@ -78,23 +78,25 @@ public class ShardedJobRunner implements ShardedJobHandler {
   // Each task also checks the job state entity to detect if the job has been
   // aborted or deleted, and terminates if so.
 
-  public static final RetryerBuilder RETRYER_UNDEFINED_STOP = RetryerBuilder.newBuilder()
-    .withWaitStrategy(RetryUtils.defaultWaitStrategy())
-    .retryIfException(RetryUtils.handleDatastoreExceptionRetry())
-    .retryIfExceptionOfType(ApiProxyException.class)
-    .retryIfExceptionOfType(ConcurrentModificationException.class) // don't think this is thrown by new datastore lib
-    .retryIfExceptionOfType(TransientFailureException.class)
-    .retryIfExceptionOfType(TransactionalTaskException.class)
-    .withRetryListener(RetryUtils.logRetry(log, ShardedJobRunner.class.getName()));;
+  private static RetryerBuilder baseRetryerBuilder() {
+    return RetryerBuilder.newBuilder()
+      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
+      .retryIfException(RetryUtils.handleDatastoreExceptionRetry())
+      .retryIfExceptionOfType(ApiProxyException.class)
+      .retryIfExceptionOfType(ConcurrentModificationException.class) // don't think this is thrown by new datastore lib
+      .retryIfExceptionOfType(TransientFailureException.class)
+      .retryIfExceptionOfType(TransactionalTaskException.class)
+      .withRetryListener(RetryUtils.logRetry(log, ShardedJobRunner.class.getName()));
+  }
 
-    public static final RetryerBuilder AGGRESSIVE_RETRYER_UNDEFINED_STOP = RETRYER_UNDEFINED_STOP.retryIfException(e ->
-    !(e instanceof RequestTooLargeException
+  public static final RetryerBuilder FOREVER_RETRYER = baseRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(SYMBOLIC_FOREVER));
+
+  public static final RetryerBuilder FOREVER_AGGRESSIVE_RETRYER = baseRetryerBuilder()
+    .retryIfException(e ->!(e instanceof RequestTooLargeException
       || e instanceof ResponseTooLargeException
       || e instanceof ArgumentException
-      || e instanceof DeadlineExceededException));
-
-  public static final RetryerBuilder FOREVER_RETRYER = RETRYER_UNDEFINED_STOP.withStopStrategy(StopStrategies.stopAfterAttempt(SYMBOLIC_FOREVER));
-  public static final RetryerBuilder FOREVER_AGGRESSIVE_RETRYER = AGGRESSIVE_RETRYER_UNDEFINED_STOP.withStopStrategy(StopStrategies.stopAfterAttempt(SYMBOLIC_FOREVER));
+      || e instanceof DeadlineExceededException))
+    .withStopStrategy(StopStrategies.stopAfterAttempt(SYMBOLIC_FOREVER));
 
 
   public <T extends IncrementalTask> List<IncrementalTaskState<T>> lookupTasks(
