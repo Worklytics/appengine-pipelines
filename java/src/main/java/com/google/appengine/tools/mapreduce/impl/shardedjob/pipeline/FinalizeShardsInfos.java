@@ -33,7 +33,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
     Datastore datastore = datastoreOptions.getService();
 
     RetryExecutor.call(
-      ShardedJobRunner.getRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(RetryUtils.SYMBOLIC_FOREVER)),
+      ShardedJobRunner.FOREVER_RETRYER,
       callable(() -> {
         Transaction tx = datastore.newTransaction();
 
