@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.github.rholder.retry.*;
+import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
@@ -27,7 +28,10 @@ import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.*;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 import com.google.datastore.v1.QueryResultBatch;
 import lombok.Builder;
@@ -64,26 +68,39 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   public static final int RETRY_BACKOFF_MULTIPLIER = 300;
   public static final int RETRY_MAX_BACKOFF_MS = 5000;
 
+  // TODO: RetryUtils is in mapreduce package, so duplicated to not mix on purpose
+  // TODO: consider moving to a shared package
+  // TODO: possibly we should inspect error code in more detail? see https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
+  @SuppressWarnings("DuplicatedCode")
+  public static Predicate<Throwable> handleDatastoreExceptionRetry() {
+    return t -> {
+      Iterator<DatastoreException> datastoreExceptionIterator = Iterables.filter(Throwables.getCausalChain(t), DatastoreException.class).iterator();
+      if (datastoreExceptionIterator.hasNext()) {
+        DatastoreException de = datastoreExceptionIterator.next();
+        return de.isRetryable() ||
+          (de.getMessage() != null && de.getMessage().toLowerCase().contains("retry the transaction"));
+      }
+      return false;
+    };
+  }
+
   private <E> Retryer<E> withDefaults(RetryerBuilder<E> builder) {
       return builder
               .withWaitStrategy(
                   WaitStrategies.exponentialWait(RETRY_BACKOFF_MULTIPLIER, RETRY_MAX_BACKOFF_MS, TimeUnit.MILLISECONDS))
-              // TODO: possibly we should inspect error code in more detail? see https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
-              .retryIfException(e -> e instanceof DatastoreException && (((DatastoreException) e).isRetryable()))
+              .retryIfException(handleDatastoreExceptionRetry())
               .retryIfExceptionOfType(IOException.class) //q: can this happen?
-              .withStopStrategy((Attempt failedAttempt) ->
-                      failedAttempt.getAttemptNumber() >= MAX_RETRY_ATTEMPTS
-                       //
-                      //|| (failedAttempt.hasException() && (failedAttempt.getExceptionCause() instanceOf SomePersistentIOException)
-              )
+              .withStopStrategy(StopStrategies.stopAfterAttempt(MAX_RETRY_ATTEMPTS))
               .withRetryListener(new RetryListener() {
                 @Override
                 public <V> void onRetry(Attempt<V> attempt) {
-                  String className = AppEngineBackEnd.class.getName();
-                  if (attempt.hasException()) {
-                    logger.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()), attempt.getExceptionCause());
-                  } else {
-                    logger.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d. No exception?".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()));
+                  if (attempt.getAttemptNumber() > 1 || attempt.hasException()) {
+                    String className = AppEngineBackEnd.class.getName();
+                    if (attempt.hasException()) {
+                      log.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()), attempt.getExceptionCause());
+                    } else {
+                      log.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d. No exception?".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()));
+                    }
                   }
                 }
               }

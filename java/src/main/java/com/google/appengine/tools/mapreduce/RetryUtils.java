@@ -4,7 +4,12 @@ import com.github.rholder.retry.Attempt;
 import com.github.rholder.retry.RetryListener;
 import com.github.rholder.retry.WaitStrategies;
 import com.github.rholder.retry.WaitStrategy;
+import com.google.cloud.datastore.DatastoreException;
+import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 
+import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -35,5 +40,15 @@ public class RetryUtils {
     };
   }
 
-
+  public static Predicate<Throwable> handleDatastoreExceptionRetry() {
+    return t -> {
+      Iterator<DatastoreException> datastoreExceptionIterator = Iterables.filter(Throwables.getCausalChain(t), DatastoreException.class).iterator();
+      if (datastoreExceptionIterator.hasNext()) {
+        DatastoreException de = datastoreExceptionIterator.next();
+        return de.isRetryable() ||
+          (de.getMessage() != null && de.getMessage().toLowerCase().contains("retry the transaction"));
+      }
+      return false;
+    };
+  }
 }
