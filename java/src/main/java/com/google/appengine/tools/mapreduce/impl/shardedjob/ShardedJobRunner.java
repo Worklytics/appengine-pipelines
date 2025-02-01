@@ -33,6 +33,7 @@ import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.logging.Level;
@@ -53,6 +54,9 @@ import static java.util.concurrent.Executors.callable;
 public class ShardedJobRunner implements ShardedJobHandler {
 
   static final int TASK_LOOKUP_BATCH_SIZE = 20;
+
+  static final long CONTROLLER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
+  static final long WORKER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
 
   @Getter
   final Provider<PipelineService> pipelineServiceProvider;
@@ -85,7 +89,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .retryIfExceptionOfType(ApiProxyException.class)
       // don't think this is thrown by new datastore lib
       // thrown by us if the task state is from the past
-      .retryIfExceptionOfType(ConcurrentModificationException.class)
+      .retryIfExceptionOfType(IllegalStateException.class)
       .retryIfExceptionOfType(TransientFailureException.class)
       .retryIfExceptionOfType(TransactionalTaskException.class)
       .withRetryListener(RetryUtils.logRetry(log, ShardedJobRunner.class.getName()));
@@ -183,21 +187,23 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .param(TASK_ID_PARAM, taskId.toString());
     taskOptions.header("Host", settings.getTaskQueueTarget());
 
+    taskOptions.etaMillis(System.currentTimeMillis() + CONTROLLER_TASK_DELAY);
+
     //Q: how can we transactionally add to queue with new library??
     //QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
     QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
   }
 
   private <T extends IncrementalTask> void scheduleWorkerTask(ShardedJobSettings settings,
-                                                              IncrementalTaskState<T> state, Long eta) {
+                                                              IncrementalTaskState<T> state, Long etaMIllis) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
       .url(settings.getWorkerPath())
       .param(TASK_ID_PARAM, state.getTaskId().toString())
       .param(JOB_ID_PARAM, state.getJobId().asEncodedString())
       .param(SEQUENCE_NUMBER_PARAM, String.valueOf(state.getSequenceNumber()));
     taskOptions.header("Host", settings.getTaskQueueTarget());
-    if (eta != null) {
-      taskOptions.etaMillis(eta);
+    if (etaMIllis != null) {
+      taskOptions.etaMillis(etaMIllis);
     }
     //QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
     //Q: how can we transactionally add to queue with new library??
@@ -285,9 +291,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
         + taskState);
     } else {
       log.severe(taskId + " sequenceNumber=" + sequenceNumber + " : Task state is from the past: " + taskState);
-      // presumably we are reading an old state, maybe being updated concurrently?
-      // we should not proceed with this state, throw an ConcurrentModificationException to force retry
-      throw new ConcurrentModificationException("Task state is from the past: " + taskState);
+      // presumably we are reading an old state
+      // task to execute sequenceNumber was enqueued, but state in datastore does not yet reflect it
+      // this can happen now because we no longer have transactions across Cloud Tasks + Datastore
+      // we should not proceed with this state, throw an IllegalStateException to force retry
+      throw new IllegalStateException("Task state is from the past: " + taskState);
     }
     return null;
   }
@@ -604,7 +612,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
           private void scheduleTask(ShardedJobStateImpl<T> jobState,
                                     IncrementalTaskState<T> taskState, Transaction tx) {
             if (taskState.getStatus().isActive()) {
-              scheduleWorkerTask(jobState.getSettings(), taskState, null);
+              // this used to be transactional, but no longer is with new libraries; so enqueue with a little delay, in hope
+              // that the transaction will be committed by the time the task is executed
+              scheduleWorkerTask(jobState.getSettings(), taskState, WORKER_TASK_DELAY);
             } else {
               scheduleControllerTask(jobState.getShardedJobId(), taskState.getTaskId(),
                 jobState.getSettings());
@@ -636,8 +646,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
         ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
         tx.put(IncrementalTaskState.Serializer.toEntity(tx, taskState),
           ShardRetryState.Serializer.toEntity(tx, retryState));
-        scheduleWorkerTask(settings, taskState, null);
         tx.commit();
+        scheduleWorkerTask(settings, taskState, null);
       } finally {
         rollbackIfActive(tx);
       }
