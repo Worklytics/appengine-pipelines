@@ -28,16 +28,15 @@ import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.*;
+import com.google.cloud.tasks.v2.CloudTasksClient;
+import com.google.cloud.tasks.v2.CloudTasksSettings;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 import com.google.datastore.v1.QueryResultBatch;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
+import lombok.*;
 import lombok.extern.java.Log;
 
 import java.io.IOException;
@@ -116,11 +115,24 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   // actually, 1,048,572 bytes
   private static final int MAX_BLOB_BYTE_SIZE = 1_000_000;
 
-  private final Datastore datastore;
-  private final AppEngineTaskQueue taskQueue;
+  @NonNull
+  private Datastore datastore;
+  @NonNull
+  private  AppEngineTaskQueue taskQueue;
+  @NonNull
+  private CloudTasksClient cloudTasksClient;
 
   public AppEngineBackEnd(AppEngineBackEnd.Options options) {
-    this(options.getDatastoreOptions().getService(), new AppEngineTaskQueue());
+    this.datastore = options.getDatastoreOptions().getService();
+    this.taskQueue = new AppEngineTaskQueue();
+
+    try {
+      this.cloudTasksClient = CloudTasksClient.create(CloudTasksSettings.newBuilder()
+        .setCredentialsProvider(() -> options.getCredentials())
+        .build());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
 
