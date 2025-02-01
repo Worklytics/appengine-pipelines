@@ -22,8 +22,9 @@ public class RetryUtils {
 
   public static WaitStrategy defaultWaitStrategy() {
     return WaitStrategies.join(
-      WaitStrategies.randomWait(200,TimeUnit.MILLISECONDS),
-      WaitStrategies.exponentialWait(1_000,10_000, TimeUnit.MILLISECONDS)
+      WaitStrategies.randomWait(200, TimeUnit.MILLISECONDS),
+      // before we had 30s max, seems too high
+      WaitStrategies.exponentialWait(1_000, 10_000, TimeUnit.MILLISECONDS)
     );
   }
 
