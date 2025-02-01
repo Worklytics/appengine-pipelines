@@ -41,6 +41,7 @@ import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -97,9 +98,9 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
                   if (attempt.getAttemptNumber() > 1 || attempt.hasException()) {
                     String className = AppEngineBackEnd.class.getName();
                     if (attempt.hasException()) {
-                      log.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()), attempt.getExceptionCause());
+                      log.log(Level.WARNING, "%s, Attempt #%d. Retrying...".formatted(className, attempt.getAttemptNumber()), attempt.getExceptionCause());
                     } else {
-                      log.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d. No exception?".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()));
+                      log.log(Level.WARNING, "%s, Attempt #%d OK, wait: %s".formatted(className, attempt.getAttemptNumber(), Duration.ofMillis(attempt.getDelaySinceFirstAttempt())));
                     }
                   }
                 }
