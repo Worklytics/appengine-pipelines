@@ -247,26 +247,13 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         }
       }
       saveAll(transaction, transactionSpec);
-      FanoutTask fanoutTask = null;
+      transaction.commit();
+
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
             (UpdateSpec.TransactionWithTasks) transactionSpec;
-        Collection<Task> tasks = transactionWithTasks.getTasks();
-        if (tasks.size() > 0) {
-          byte[] encodedTasks = FanoutTask.encodeTasks(tasks);
-          FanoutTaskRecord ftRecord = new FanoutTaskRecord(rootJobKey, encodedTasks);
-          // Store FanoutTaskRecord outside of any transaction, but before
-          // the FanoutTask is enqueued. If the put succeeds but the
-          // enqueue fails then the FanoutTaskRecord is orphaned. But
-          // the Pipeline is still consistent.
-          datastore.put(ftRecord.toEntity());
-          ftRecord.toEntity().getKey().getKind();
-          fanoutTask = new FanoutTask(ftRecord.getKey(), queueSettings);
-        }
-      }
-      transaction.commit();
-      if (fanoutTask != null) {
-        taskQueue.enqueue(fanoutTask);
+
+        taskQueue.enqueue(transactionWithTasks.getTasks());
       }
     } finally {
       if (transaction.isActive()) {
