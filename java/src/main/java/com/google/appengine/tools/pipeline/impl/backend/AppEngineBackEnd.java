@@ -247,6 +247,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         }
       }
       saveAll(transaction, transactionSpec);
+      FanoutTask fanoutTask = null;
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
             (UpdateSpec.TransactionWithTasks) transactionSpec;
@@ -260,13 +261,13 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
           // the Pipeline is still consistent.
           datastore.put(ftRecord.toEntity());
           ftRecord.toEntity().getKey().getKind();
-          FanoutTask fanoutTask = new FanoutTask(ftRecord.getKey(), queueSettings);
-
-          //TODO: should this enqueue be in context of transaction??
-          taskQueue.enqueue(fanoutTask);
+          fanoutTask = new FanoutTask(ftRecord.getKey(), queueSettings);
         }
       }
       transaction.commit();
+      if (fanoutTask != null) {
+        taskQueue.enqueue(fanoutTask);
+      }
     } finally {
       if (transaction.isActive()) {
         transaction.rollback();
