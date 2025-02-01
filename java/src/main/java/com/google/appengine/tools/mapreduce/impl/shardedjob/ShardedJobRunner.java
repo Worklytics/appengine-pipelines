@@ -83,7 +83,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .retryIfException(RetryUtils.handleDatastoreExceptionRetry())
       .retryIfExceptionOfType(ApiProxyException.class)
-      .retryIfExceptionOfType(ConcurrentModificationException.class) // don't think this is thrown by new datastore lib
+      // don't think this is thrown by new datastore lib
+      // thrown by us if the task state is from the past
+      .retryIfExceptionOfType(ConcurrentModificationException.class)
       .retryIfExceptionOfType(TransientFailureException.class)
       .retryIfExceptionOfType(TransactionalTaskException.class)
       .withRetryListener(RetryUtils.logRetry(log, ShardedJobRunner.class.getName()));
@@ -282,8 +284,10 @@ public class ShardedJobRunner implements ShardedJobHandler {
       log.info(taskId + ": Task sequence number " + sequenceNumber + " already completed: "
         + taskState);
     } else {
-      //q : throw here??
       log.severe(taskId + " sequenceNumber=" + sequenceNumber + " : Task state is from the past: " + taskState);
+      // presumably we are reading an old state, maybe being updated concurrently?
+      // we should not proceed with this state, throw an ConcurrentModificationException to force retry
+      throw new ConcurrentModificationException("Task state is from the past: " + taskState);
     }
     return null;
   }
@@ -396,9 +400,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
           long eta = System.currentTimeMillis() + new Random().nextInt(5000) + 5000;
           scheduleWorkerTask(jobState.getSettings(), taskState, eta);
         }
-      } catch (ConcurrentModificationException ex) {
-        // don't believe this is possible with new datastore lib
-        throw new IllegalStateException("Concurrent modification exception should not happen here", ex);
       } finally {
         rollbackIfActive(lockAcquisition);
       }

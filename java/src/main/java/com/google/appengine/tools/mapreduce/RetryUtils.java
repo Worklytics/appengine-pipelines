@@ -9,6 +9,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -21,7 +22,9 @@ public class RetryUtils {
 
   public static WaitStrategy defaultWaitStrategy() {
     return WaitStrategies.join(
-      WaitStrategies.exponentialWait(1_000,30_000, TimeUnit.MILLISECONDS)
+      WaitStrategies.randomWait(200, TimeUnit.MILLISECONDS),
+      // before we had 30s max, seems too high
+      WaitStrategies.exponentialWait(1_000, 10_000, TimeUnit.MILLISECONDS)
     );
   }
 
@@ -31,9 +34,9 @@ public class RetryUtils {
       public <V> void onRetry(Attempt<V> attempt) {
         if (attempt.getAttemptNumber() > 1 || attempt.hasException()) {
           if (attempt.hasException()) {
-            log.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()), attempt.getExceptionCause());
+            log.log(Level.WARNING, "%s, Attempt #%d. Retrying...".formatted(className, attempt.getAttemptNumber()), attempt.getExceptionCause());
           } else {
-            log.log(Level.WARNING, "%s, Retry attempt: %d, wait: %d. No exception?".formatted(className, attempt.getAttemptNumber(), attempt.getDelaySinceFirstAttempt()));
+            log.log(Level.WARNING, "%s, Attempt #%d OK, wait: %s".formatted(className, attempt.getAttemptNumber(), Duration.ofMillis(attempt.getDelaySinceFirstAttempt())));
           }
         }
       }
