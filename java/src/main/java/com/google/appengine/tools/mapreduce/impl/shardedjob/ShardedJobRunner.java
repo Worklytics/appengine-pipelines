@@ -282,8 +282,10 @@ public class ShardedJobRunner implements ShardedJobHandler {
       log.info(taskId + ": Task sequence number " + sequenceNumber + " already completed: "
         + taskState);
     } else {
-      //q : throw here??
       log.severe(taskId + " sequenceNumber=" + sequenceNumber + " : Task state is from the past: " + taskState);
+      // presumably we are reading an old state, maybe being updated concurrently?
+      // we should not proceed with this state, throw an ConcurrentModificationException to force retry
+      throw new ConcurrentModificationException("Task state is from the past: " + taskState);
     }
     return null;
   }
