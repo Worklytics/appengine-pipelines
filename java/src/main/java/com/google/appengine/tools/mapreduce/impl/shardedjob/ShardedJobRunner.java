@@ -33,6 +33,7 @@ import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.logging.Level;
@@ -189,15 +190,15 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   private <T extends IncrementalTask> void scheduleWorkerTask(ShardedJobSettings settings,
-                                                              IncrementalTaskState<T> state, Long eta) {
+                                                              IncrementalTaskState<T> state, Long etaMIllis) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
       .url(settings.getWorkerPath())
       .param(TASK_ID_PARAM, state.getTaskId().toString())
       .param(JOB_ID_PARAM, state.getJobId().asEncodedString())
       .param(SEQUENCE_NUMBER_PARAM, String.valueOf(state.getSequenceNumber()));
     taskOptions.header("Host", settings.getTaskQueueTarget());
-    if (eta != null) {
-      taskOptions.etaMillis(eta);
+    if (etaMIllis != null) {
+      taskOptions.etaMillis(etaMIllis);
     }
     //QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
     //Q: how can we transactionally add to queue with new library??
@@ -604,7 +605,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
           private void scheduleTask(ShardedJobStateImpl<T> jobState,
                                     IncrementalTaskState<T> taskState, Transaction tx) {
             if (taskState.getStatus().isActive()) {
-              scheduleWorkerTask(jobState.getSettings(), taskState, null);
+              // this used to be transactional, but no longer is with new libraries; so enqueue with a little delay, in hope
+              // that the transaction will be committed by the time the task is executed
+              scheduleWorkerTask(jobState.getSettings(), taskState, Duration.ofSeconds(3).toMillis());
             } else {
               scheduleControllerTask(jobState.getShardedJobId(), taskState.getTaskId(),
                 jobState.getSettings());
