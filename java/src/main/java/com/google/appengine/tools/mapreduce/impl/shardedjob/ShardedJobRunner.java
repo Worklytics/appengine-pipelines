@@ -55,6 +55,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   static final int TASK_LOOKUP_BATCH_SIZE = 20;
 
+  static final long CONTROLLER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
+  static final long WORKER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
+
   @Getter
   final Provider<PipelineService> pipelineServiceProvider;
   @Getter
@@ -183,6 +186,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .param(JOB_ID_PARAM, jobId.asEncodedString())
       .param(TASK_ID_PARAM, taskId.toString());
     taskOptions.header("Host", settings.getTaskQueueTarget());
+
+    taskOptions.etaMillis(System.currentTimeMillis() + CONTROLLER_TASK_DELAY);
 
     //Q: how can we transactionally add to queue with new library??
     //QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
@@ -607,7 +612,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
             if (taskState.getStatus().isActive()) {
               // this used to be transactional, but no longer is with new libraries; so enqueue with a little delay, in hope
               // that the transaction will be committed by the time the task is executed
-              scheduleWorkerTask(jobState.getSettings(), taskState, Duration.ofSeconds(3).toMillis());
+              scheduleWorkerTask(jobState.getSettings(), taskState, WORKER_TASK_DELAY);
             } else {
               scheduleControllerTask(jobState.getShardedJobId(), taskState.getTaskId(),
                 jobState.getSettings());
@@ -639,8 +644,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
         ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
         tx.put(IncrementalTaskState.Serializer.toEntity(tx, taskState),
           ShardRetryState.Serializer.toEntity(tx, retryState));
-        scheduleWorkerTask(settings, taskState, null);
         tx.commit();
+        scheduleWorkerTask(settings, taskState, null);
       } finally {
         rollbackIfActive(tx);
       }
