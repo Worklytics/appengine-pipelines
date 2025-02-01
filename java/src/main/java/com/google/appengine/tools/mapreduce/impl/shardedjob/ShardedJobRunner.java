@@ -89,7 +89,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .retryIfExceptionOfType(ApiProxyException.class)
       // don't think this is thrown by new datastore lib
       // thrown by us if the task state is from the past
-      .retryIfExceptionOfType(ConcurrentModificationException.class)
+      .retryIfExceptionOfType(IllegalStateException.class)
       .retryIfExceptionOfType(TransientFailureException.class)
       .retryIfExceptionOfType(TransactionalTaskException.class)
       .withRetryListener(RetryUtils.logRetry(log, ShardedJobRunner.class.getName()));
@@ -291,9 +291,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
         + taskState);
     } else {
       log.severe(taskId + " sequenceNumber=" + sequenceNumber + " : Task state is from the past: " + taskState);
-      // presumably we are reading an old state, maybe being updated concurrently?
-      // we should not proceed with this state, throw an ConcurrentModificationException to force retry
-      throw new ConcurrentModificationException("Task state is from the past: " + taskState);
+      // presumably we are reading an old state
+      // task to execute sequenceNumber was enqueued, but state in datastore does not yet reflect it
+      // this can happen now because we no longer have transactions across Cloud Tasks + Datastore
+      // we should not proceed with this state, throw an IllegalStateException to force retry
+      throw new IllegalStateException("Task state is from the past: " + taskState);
     }
     return null;
   }
