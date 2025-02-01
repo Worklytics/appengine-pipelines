@@ -21,7 +21,6 @@ import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
-import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.cloud.datastore.Key;
@@ -106,22 +105,6 @@ public interface PipelineBackEnd {
    * @throws NoSuchObjectException
    */
   ExceptionRecord queryFailure(Key key) throws NoSuchObjectException;
-
-
-
-  /**
-   * Enqueues to the App Engine task queue the tasks encoded by the given
-   * {@code FanoutTask}. This method is invoked from within the task handler for
-   * a FanoutTask. See the comments at the top of {@link FanoutTask} for more
-   * details.
-   *
-   * @param fanoutTask The FanoutTask to handle
-   * @throws NoSuchObjectException If the
-   *         {@link com.google.appengine.tools.pipeline.impl.model.FanoutTaskRecord}
-   *         specified by the {@link FanoutTask#getRecordKey() key} contained in
-   *         {@code fanoutTask} does not exist in the data store.
-   */
-  void handleFanoutTask(FanoutTask fanoutTask) throws NoSuchObjectException;
 
   /**
    * Queries the data store for all Pipeline objects associated with the given
