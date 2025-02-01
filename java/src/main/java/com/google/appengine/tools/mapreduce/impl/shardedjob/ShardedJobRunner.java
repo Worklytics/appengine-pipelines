@@ -83,7 +83,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .retryIfException(RetryUtils.handleDatastoreExceptionRetry())
       .retryIfExceptionOfType(ApiProxyException.class)
-      .retryIfExceptionOfType(ConcurrentModificationException.class) // don't think this is thrown by new datastore lib
+      // don't think this is thrown by new datastore lib
+      // thrown by us if the task state is from the past
+      .retryIfExceptionOfType(ConcurrentModificationException.class)
       .retryIfExceptionOfType(TransientFailureException.class)
       .retryIfExceptionOfType(TransactionalTaskException.class)
       .withRetryListener(RetryUtils.logRetry(log, ShardedJobRunner.class.getName()));
@@ -398,9 +400,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
           long eta = System.currentTimeMillis() + new Random().nextInt(5000) + 5000;
           scheduleWorkerTask(jobState.getSettings(), taskState, eta);
         }
-      } catch (ConcurrentModificationException ex) {
-        // don't believe this is possible with new datastore lib
-        throw new IllegalStateException("Concurrent modification exception should not happen here", ex);
       } finally {
         rollbackIfActive(lockAcquisition);
       }
