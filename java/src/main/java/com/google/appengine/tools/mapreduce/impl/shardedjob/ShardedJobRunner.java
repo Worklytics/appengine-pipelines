@@ -2,12 +2,8 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import com.github.rholder.retry.RetryerBuilder;
-import com.github.rholder.retry.StopStrategies;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TaskOptions;
-import com.google.appengine.api.taskqueue.TransactionalTaskException;
-import com.google.appengine.api.taskqueue.TransientFailureException;
+import com.github.rholder.retry.*;
+import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
@@ -29,6 +25,7 @@ import com.google.common.collect.Iterators;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
@@ -36,6 +33,8 @@ import javax.inject.Provider;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Stream;
 
@@ -104,6 +103,15 @@ public class ShardedJobRunner implements ShardedJobHandler {
       || e instanceof DeadlineExceededException))
     .withStopStrategy(StopStrategies.stopAfterAttempt(SYMBOLIC_FOREVER));
 
+
+  /**
+   *  @see com.google.appengine.api.taskqueue.Queue#add(TaskOptions taskOptions)
+    */
+  public static final RetryerBuilder ENQUEUE_RETRYER = RetryerBuilder.newBuilder()
+    .withWaitStrategy(WaitStrategies.incrementingWait(1000L, TimeUnit.MILLISECONDS, 1000L, TimeUnit.MILLISECONDS))
+    .retryIfExceptionOfType(TransientFailureException.class)
+    .retryIfExceptionOfType(InternalFailureException.class)
+    .withStopStrategy(StopStrategies.stopAfterAttempt(5)); // effective 0 before, so this is better
 
   public <T extends IncrementalTask> List<IncrementalTaskState<T>> lookupTasks(
     final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
@@ -179,6 +187,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     jobState.getController().completed(tasks);
   }
 
+  @SneakyThrows
   private void scheduleControllerTask(ShardedJobRunId jobId, IncrementalTaskId taskId,
                                       ShardedJobSettings settings) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
@@ -189,11 +198,18 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
     taskOptions.etaMillis(System.currentTimeMillis() + CONTROLLER_TASK_DELAY);
 
-    //Q: how can we transactionally add to queue with new library??
-    //QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
-    QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
+    try {
+      ENQUEUE_RETRYER.build().call(() -> {
+        QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
+        return null;
+      });
+    } catch (RetryException | ExecutionException e) {
+      log.severe("Failed to enqueue controller task: " + e);
+      throw e.getCause();
+    }
   }
 
+  @SneakyThrows
   private <T extends IncrementalTask> void scheduleWorkerTask(ShardedJobSettings settings,
                                                               IncrementalTaskState<T> state, Long etaMillis) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
@@ -205,9 +221,16 @@ public class ShardedJobRunner implements ShardedJobHandler {
     if (etaMillis != null) {
       taskOptions.etaMillis(etaMillis);
     }
-    //QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
-    //Q: how can we transactionally add to queue with new library??
-    QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
+
+    try {
+      ENQUEUE_RETRYER.build().call(() -> {
+        QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
+        return null;
+      });
+    } catch (RetryException | ExecutionException e) {
+      log.severe("Failed to enqueue worker task: " + e);
+      throw e.getCause();
+    }
   }
 
   @Override
