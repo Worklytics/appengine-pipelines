@@ -268,8 +268,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
                                                                                       int sequenceNumber, ShardedJobStateImpl<T> jobState) {
     IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
     if (taskState == null) {
-      log.warning(taskId + ": Task gone");
-      return null;
+      throw new IllegalStateException(taskId + ": Task gone");
     }
     if (!taskState.getStatus().isActive()) {
       log.info(taskId + ": Task no longer active: " + taskState);
@@ -278,14 +277,16 @@ public class ShardedJobRunner implements ShardedJobHandler {
     if (!jobState.getStatus().isActive()) {
       taskState.setStatus(new Status(StatusCode.ABORTED));
       log.info(taskId + ": Job no longer active: " + jobState + ", aborting task.");
+      //this will also schedule controller callback as a side-effect, which is wierd
       updateTask(tx, jobState, taskState, null, false);
       return null;
     }
     if (sequenceNumber == taskState.getSequenceNumber()) {
-      if (!taskState.getLockInfo().isLocked()) {
+      if (taskState.getLockInfo().isLocked()) {
+        handleLockHeld(tx, taskId, jobState, taskState);
+      } else {
         return taskState;
       }
-      handleLockHeld(tx, taskId, jobState, taskState);
     } else if (taskState.getSequenceNumber() > sequenceNumber) {
       log.info(taskId + ": Task sequence number " + sequenceNumber + " already completed: "
         + taskState);
@@ -310,10 +311,10 @@ public class ShardedJobRunner implements ShardedJobHandler {
     long lockExpiration = taskState.getLockInfo().lockedSince() + sliceTimeoutMillis;
 
     //NOTE: always 'false' now; requests that complete properly SHOULD release their locks..
-    boolean wasRequestCompleted = wasRequestCompleted(taskState.getLockInfo().getRequestId());
+    boolean wasRequestCompleted = false; // wasRequestCompleted(taskState.getLockInfo().getRequestId());
 
     if (lockExpiration > currentTime && !wasRequestCompleted) {
-      // if lock was not expired AND not abandon reschedule in 1 minute.
+      // if lock was not expired AND not abandoned, reschedule in 1 minute.
       long eta = Math.min(lockExpiration, currentTime + 60_000);
       scheduleWorkerTask(jobState.getSettings(), taskState, eta);
       log.info("Lock for " + taskId + " is being held. Will retry after " + (eta - currentTime));
