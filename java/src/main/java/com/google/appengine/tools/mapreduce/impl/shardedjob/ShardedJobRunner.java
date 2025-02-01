@@ -20,6 +20,8 @@ import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
 import com.google.apphosting.api.ApiProxy.ResponseTooLargeException;
 import com.google.apphosting.api.DeadlineExceededException;
 import com.google.cloud.datastore.*;
+import com.google.cloud.tasks.v2.CloudTasksClient;
+import com.google.cloud.tasks.v2.Task;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
@@ -62,6 +64,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
   final Provider<PipelineService> pipelineServiceProvider;
   @Getter
   final Datastore datastore;
+  @Getter
+  final CloudTasksClient cloudTasksClient;
 
 
   // High-level overview:
@@ -310,17 +314,16 @@ public class ShardedJobRunner implements ShardedJobHandler {
     int sliceTimeoutMillis = jobState.getSettings().getSliceTimeoutMillis();
     long lockExpiration = taskState.getLockInfo().lockedSince() + sliceTimeoutMillis;
 
-    //NOTE: always 'false' now; requests that complete properly SHOULD release their locks..
-    boolean wasRequestCompleted = false; // wasRequestCompleted(taskState.getLockInfo().getRequestId());
+    boolean wasWorkerExecutionCompleted = wasWorkerExecutionCompleted(taskState.getLockInfo().getRequestId());
 
-    if (lockExpiration > currentTime && !wasRequestCompleted) {
+    if (lockExpiration > currentTime && !wasWorkerExecutionCompleted) {
       // if lock was not expired AND not abandoned, reschedule in 1 minute.
       long eta = Math.min(lockExpiration, currentTime + 60_000);
       scheduleWorkerTask(jobState.getSettings(), taskState, eta);
       log.info("Lock for " + taskId + " is being held. Will retry after " + (eta - currentTime));
     } else {
       ShardRetryState<T> retryState;
-      if (wasRequestCompleted) {
+      if (wasWorkerExecutionCompleted) {
         //request was completed, but lock was not released ??
         retryState = handleSliceFailure(tx, jobState, taskState, new RuntimeException(
           "Resuming after abandon lock for " + taskId + " on slice: "
@@ -335,31 +338,36 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   /**
-   * determines whether a given GAE request was completed by querying against Logs Service
-   * @param requestId
+   * determines whether we believe a given execution of the task has been completed
+   * @param executionId
    * @return whether request is known to have been completed
    */
-  private static boolean wasRequestCompleted(String requestId) {
-    if (requestId != null) {
-      //previously, this checked against GAE LogService; this seems to no longer work as-expected
-      // and there does not appear to be any clear success after we move from Java8 --> Java11 anyways
-      // presumably, successor is Cloud Logging; neither REST or gRPC APIs provide any obvious way
-      // to query by "request id"
-      // @see https://cloud.google.com/logging/docs/apis
-      // an actual Logs Explorer query that does it is:
-      //   resource.type="gae_app" resource.labels.module_id="jobs"
-      //   protoPayload.requestId="60db8a4400ff06d6adcf87f2400001737e6576616c2d656e67696e00016a6f62733a7633393863000100"
-      // but this seems to be a BQ-powered search against partitioned log tables, not an efficient
-      // lookup by id
-      log.log(Level.INFO, "Check for whether request is completed no longer support; will assume it's not");
+  private boolean wasWorkerExecutionCompleted(String executionId) {
+    if (executionId != null) {
+      try {
+        WorkerTaskExecutionId workerTaskExecutionId = WorkerTaskExecutionId.fromEncodedString(executionId);
+        Task task = cloudTasksClient.getTask(workerTaskExecutionId.getTaskName());
+
+        if (task != null) {
+          // assume completed if responseCount (number of times CloudTask has received responses from attempts to execute task)
+          // is greater than or equal to execution count value used to acquire the lock
+
+          //LATER attempts at the task might have completed, with the actual one we care about not yet having completed
+          // so not sure this is a good idea
+          return task.getResponseCount() >= workerTaskExecutionId.getExecutionCount();
+        }
+      } catch (Exception e) {
+        log.warning("Failed to check if task was completed: " + executionId + "; will assume not.");
+      }
     }
     return false;
   }
 
   private <T extends IncrementalTask> boolean lockShard(Transaction tx,
-                                                        IncrementalTaskState<T> taskState) {
+                                                        IncrementalTaskState<T> taskState,
+                                                        WorkerTaskExecutionId workerTaskExecutionId) {
     boolean locked = false;
-    taskState.getLockInfo().lock();
+    taskState.getLockInfo().lock(workerTaskExecutionId);
     Entity entity = IncrementalTaskState.Serializer.toEntity(tx, taskState);
     try {
       tx.put(entity);
@@ -373,7 +381,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   @Override
-  public void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber) {
+  public void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber, WorkerTaskExecutionId workerTaskExecutionId) {
     //acquire lock (allows this process to START potentially long-running work of task itself)
 
     RetryExecutor.<Void>call(FOREVER_RETRYER, () -> {
@@ -397,7 +405,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
           return null;
         }
 
-        if (lockShard(lockAcquisition, taskState)) {
+        if (lockShard(lockAcquisition, taskState, workerTaskExecutionId)) {
           // committing here, which forces acquisition of lock ...
           lockAcquisition.commit();
 

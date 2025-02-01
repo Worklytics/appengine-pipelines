@@ -3,6 +3,8 @@ package com.google.appengine.tools.pipeline.di;
 
 import com.google.appengine.tools.pipeline.impl.backend.*;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.tasks.v2.CloudTasksClient;
+import com.google.cloud.tasks.v2.CloudTasksSettings;
 import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
@@ -35,6 +37,15 @@ public class AppEngineBackendModule {
   @Provides @StepExecutionScoped
   AppEngineTaskQueue appEngineTaskQueue() {
     return new AppEngineTaskQueue();
+  }
+
+
+  @SneakyThrows
+  @Provides  @StepExecutionScoped
+  CloudTasksClient cloudTasksClient(AppEngineBackEnd.Options options) {
+    return CloudTasksClient.create(CloudTasksSettings.newBuilder()
+      .setCredentialsProvider(() -> options.getCredentials())
+      .build());
   }
 
   @Provides @StepExecutionScoped

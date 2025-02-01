@@ -4,6 +4,7 @@ import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
 import com.google.appengine.tools.pipeline.impl.backend.*;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.tasks.v2.CloudTasksClient;
 import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
@@ -61,6 +62,12 @@ public class TenantModule {
     @Provides @TenantScoped
     AppEngineTaskQueue appEngineTaskQueue() {
       return new AppEngineTaskQueue();
+    }
+
+    @SneakyThrows
+    @Provides @TenantScoped
+    CloudTasksClient cloudTasksClient() {
+      return CloudTasksClient.create();
     }
 
     @Provides @TenantScoped

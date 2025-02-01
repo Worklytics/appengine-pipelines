@@ -11,6 +11,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.appengine.tools.mapreduce.MapReduceJob;
 import com.google.appengine.tools.mapreduce.MapReduceServlet;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
@@ -18,6 +19,7 @@ import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.servlets.StaticContentHandler;
+import com.google.cloud.tasks.v2.CloudTasksClient;
 import com.google.common.collect.ImmutableMap;
 import lombok.AllArgsConstructor;
 
@@ -125,7 +127,8 @@ public class MapReduceServletImpl {
       shardedJobRunner.runTask(
         getJobId(request),
         IncrementalTaskId.parse(checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id")),
-        Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)));
+        Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)),
+        getExecutionId(request));
     } else if (handler.startsWith(COMMAND_PATH)) {
       if (!checkForAjax(request, response)) {
         return;
@@ -135,6 +138,11 @@ public class MapReduceServletImpl {
       throw new RuntimeException(
           "Received an unknown MapReduce request handler. See logs for more detail.");
     }
+  }
+
+  private ShardedJobHandler.WorkerTaskExecutionId getExecutionId(HttpServletRequest request) {
+    return ShardedJobHandler.WorkerTaskExecutionId.of(requestUtils.getParam(request, "X-CloudTasks-TaskName").orElseThrow(),
+      requestUtils.getParam(request, "X-CloudTasks-TaskExecutionCount").map(Integer::parseInt).orElseThrow());
   }
 
   private ShardedJobRunId getJobId(HttpServletRequest request) {
