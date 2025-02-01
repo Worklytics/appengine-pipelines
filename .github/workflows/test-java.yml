@@ -6,6 +6,9 @@ on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [ "com.google.appengine.tools.cloudtasktest", "com.google.appengine.tools.mapreduce", "com.google.appengine.tools.pipeline" ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -16,9 +19,9 @@ jobs:
         run: |
             cd java/
             mvn clean compile
-      - name: Build with Maven
+      - name: Run Tests for Package ${{ matrix.package }}
         env:
           APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY: ${{ secrets.APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY }}
         run: |
           cd java/
-          mvn test
+          mvn test -Dtest=${{ matrix.package }}.**
