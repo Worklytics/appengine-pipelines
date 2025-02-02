@@ -467,7 +467,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
               handleLockHeld(lockAcquisition, taskId, jobState, taskState);
               log.info(taskId + ": Lock is held by another execution, retrying.");
               lockAcquisition.commit();
-              lockAcquisition.commit();
               return null; // we're done here; task scheduled by 'handleLockHeld' will pick-up execution
             default:
               log.severe("Unknown validation error: " + validationError);
