@@ -19,6 +19,7 @@ import com.google.apphosting.api.ApiProxy.ArgumentException;
 import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
 import com.google.apphosting.api.ApiProxy.ResponseTooLargeException;
 import com.google.apphosting.api.DeadlineExceededException;
+import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -334,31 +335,32 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   /**
-   * determines whether a given GAE request was completed by querying against Logs Service
+   * determines whether a given
    * @param requestId
    * @return whether request is known to have been completed
    */
-  private static boolean wasRequestCompleted(String requestId) {
+  private boolean wasRequestCompleted(String requestId) {
     if (requestId != null) {
-      //previously, this checked against GAE LogService; this seems to no longer work as-expected
-      // and there does not appear to be any clear success after we move from Java8 --> Java11 anyways
-      // presumably, successor is Cloud Logging; neither REST or gRPC APIs provide any obvious way
-      // to query by "request id"
-      // @see https://cloud.google.com/logging/docs/apis
-      // an actual Logs Explorer query that does it is:
-      //   resource.type="gae_app" resource.labels.module_id="jobs"
-      //   protoPayload.requestId="60db8a4400ff06d6adcf87f2400001737e6576616c2d656e67696e00016a6f62733a7633393863000100"
-      // but this seems to be a BQ-powered search against partitioned log tables, not an efficient
-      // lookup by id
-      log.log(Level.INFO, "Check for whether request is completed no longer support; will assume it's not");
+      //NOTE: original request attempted to parse GAE logs service, which very-much couples to GAE and
+      // was hacky ...
+
+      WorkerTaskExecutionId executionId = WorkerTaskExecutionId.fromEncodedString(requestId);
+      try {
+        Entity r = getDatastore().get(key(executionId));
+        return r != null;
+      } catch (DatastoreException e) {
+        //assume not ...
+        return false;
+      }
     }
     return false;
   }
 
   private <T extends IncrementalTask> boolean lockShard(Transaction tx,
-                                                        IncrementalTaskState<T> taskState) {
+                                                        IncrementalTaskState<T> taskState,
+                                                        WorkerTaskExecutionId workerTaskExecutionId) {
     boolean locked = false;
-    taskState.getLockInfo().lock();
+    taskState.getLockInfo().lock(workerTaskExecutionId);
     Entity entity = IncrementalTaskState.Serializer.toEntity(tx, taskState);
     try {
       tx.put(entity);
@@ -372,7 +374,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   @Override
-  public void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber) {
+  public void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber, WorkerTaskExecutionId workerTaskExecutionId) {
     //acquire lock (allows this process to START potentially long-running work of task itself)
 
     RetryExecutor.<Void>call(FOREVER_RETRYER, () -> {
@@ -396,7 +398,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
           return null;
         }
 
-        if (lockShard(lockAcquisition, taskState)) {
+        if (lockShard(lockAcquisition, taskState, workerTaskExecutionId)) {
           // committing here, which forces acquisition of lock ...
           lockAcquisition.commit();
 
@@ -414,6 +416,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       return null;
     });
 
+    markCompleted(workerTaskExecutionId);
   }
 
   private enum RetryType {
@@ -421,6 +424,24 @@ public class ShardedJobRunner implements ShardedJobHandler {
     SHARD,
     JOB,
     NONE
+  }
+
+  final int COMPLETION_MARK_TTL_DAYS = 30;
+  final String COMPLETION_MARK_KIND ="WorkerTaskCompletionMark";
+  void markCompleted(WorkerTaskExecutionId executionId) {
+
+    Entity entity = Entity.newBuilder(key(executionId))
+      .set("completed", Timestamp.of(Date.from(Instant.now())))
+      .set("expireAt", Timestamp.of(Date.from(Instant.now().plus(Duration.ofDays(COMPLETION_MARK_TTL_DAYS)))))
+      .build();
+
+    datastore.put(entity);
+
+  }
+  Key key(WorkerTaskExecutionId executionId) {
+    String keyName = executionId.getTaskName() + "-" + executionId.getExecutionCount();
+    return datastore.newKeyFactory().setKind(COMPLETION_MARK_KIND)
+      .newKey(keyName);
   }
 
   //actual incremental task execution ( run() method )

@@ -1,5 +1,10 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
+import lombok.Value;
+
 /**
  * As part of its operation, the {@code ShardedJobService} will enqueue task
  * queue tasks that send requests to the URLs specified in
@@ -24,5 +29,26 @@ public interface ShardedJobHandler {
    * that is potentially long-running
    * {@link ShardedJobSettings#getWorkerPath} to run a task.
    */
-  void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber);
-}
+  void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber, WorkerTaskExecutionId workerTaskExecutionId);
+
+
+  @Value
+  @AllArgsConstructor(staticName = "of")
+  class WorkerTaskExecutionId {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    String taskName;
+    Integer executionCount;
+
+
+    @SneakyThrows
+    public String encodeAsString() {
+      return OBJECT_MAPPER.writeValueAsString(this);
+    }
+
+    @SneakyThrows
+    public static WorkerTaskExecutionId fromEncodedString(String string) {
+      return OBJECT_MAPPER.readValue(string, WorkerTaskExecutionId.class);
+    }
+  }}
