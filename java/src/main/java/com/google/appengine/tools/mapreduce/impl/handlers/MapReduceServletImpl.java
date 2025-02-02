@@ -127,6 +127,7 @@ public class MapReduceServletImpl {
         getJobId(request),
         IncrementalTaskId.parse(checkNotNull(request.getParameter(TASK_ID_PARAM), "Null task id")),
         Integer.parseInt(request.getParameter(SEQUENCE_NUMBER_PARAM)),
+        getExecutionId(request)
         );
     } else if (handler.startsWith(COMMAND_PATH)) {
       if (!checkForAjax(request, response)) {
