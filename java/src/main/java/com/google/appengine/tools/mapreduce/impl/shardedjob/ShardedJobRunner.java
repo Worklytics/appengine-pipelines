@@ -290,38 +290,49 @@ public class ShardedJobRunner implements ShardedJobHandler {
   private <T extends IncrementalTask> IncrementalTaskState<T> getAndValidateTaskState(Transaction tx, IncrementalTaskId taskId,
                                                                                       int sequenceNumber, ShardedJobStateImpl<T> jobState) {
     IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
+    IncrementalTaskStateValidationError validationError = validateTaskState(taskState, sequenceNumber, jobState);
+    if (validationError != null) {
+      return null;
+    } else {
+      return taskState;
+    }
+  }
+
+  enum IncrementalTaskStateValidationError {
+    TASK_GONE,
+    TASK_NO_LONGER_ACTIVE,
+    JOB_NO_LONGER_ACTIVE,
+    TASK_STATE_FROM_PAST,
+    TASK_ALREADY_COMPLETED,
+    LOCK_HELD_BY_OTHER_EXECUTION,
+    ;
+  }
+
+  private <T extends IncrementalTask> IncrementalTaskStateValidationError validateTaskState(IncrementalTaskState<T> taskState,
+                                                                                      int sequenceNumber, ShardedJobStateImpl<T> jobState) {
     if (taskState == null) {
-      throw new IllegalStateException(taskId + ": Task gone");
+      return IncrementalTaskStateValidationError.TASK_GONE;
     }
     if (!taskState.getStatus().isActive()) {
-      log.info(taskId + ": Task no longer active: " + taskState);
-      return null;
+      return IncrementalTaskStateValidationError.TASK_NO_LONGER_ACTIVE;
     }
     if (!jobState.getStatus().isActive()) {
-      taskState.setStatus(new Status(StatusCode.ABORTED));
-      log.info(taskId + ": Job no longer active: " + jobState + ", aborting task.");
       //this will also schedule controller callback as a side-effect, which is wierd
-      updateTask(tx, jobState, taskState, null, false);
-      return null;
+      return IncrementalTaskStateValidationError.JOB_NO_LONGER_ACTIVE;
     }
+
+    //sequenceNumber cases
     if (sequenceNumber == taskState.getSequenceNumber()) {
       if (taskState.getLockInfo().isLocked()) {
-        handleLockHeld(tx, taskId, jobState, taskState);
+        return IncrementalTaskStateValidationError.LOCK_HELD_BY_OTHER_EXECUTION;
       } else {
-        return taskState;
+        return null;
       }
     } else if (taskState.getSequenceNumber() > sequenceNumber) {
-      log.info(taskId + ": Task sequence number " + sequenceNumber + " already completed: "
-        + taskState);
+      return IncrementalTaskStateValidationError.TASK_ALREADY_COMPLETED;
     } else {
-      log.severe(taskId + " sequenceNumber=" + sequenceNumber + " : Task state is from the past: " + taskState);
-      // presumably we are reading an old state
-      // task to execute sequenceNumber was enqueued, but state in datastore does not yet reflect it
-      // this can happen now because we no longer have transactions across Cloud Tasks + Datastore
-      // we should not proceed with this state, throw an IllegalStateException to force retry
-      throw new IllegalStateException("Task state is from the past: " + taskState);
+      return IncrementalTaskStateValidationError.TASK_STATE_FROM_PAST;
     }
-    return null;
   }
 
   /**
@@ -410,16 +421,64 @@ public class ShardedJobRunner implements ShardedJobHandler {
         }
 
         //taskState represents attempt of executing a slice of a shard of a sharded job
-        IncrementalTaskState taskState =
-          getAndValidateTaskState(lockAcquisition, taskId, sequenceNumber, jobState);
-        if (taskState == null) {
-          // some sort of error code happened
+        IncrementalTaskState taskState = lookupTaskState(lockAcquisition, taskId);
+        IncrementalTaskStateValidationError validationError = validateTaskState(taskState, sequenceNumber, jobState);
+        if (validationError != null) {
+          switch (validationError) {
+            case TASK_GONE:
+              log.info(taskId + ": Task is gone, ignoring runTask call.");
+              lockAcquisition.commit();
+              //throw, so we re-try a few moments later and see if taskState has been updated
+              throw new IllegalStateException("Task is gone");
 
-          // seems like getAndValidationTaskState has potential side-effects, which need to be committed
-          lockAcquisition.commit();
-          return null;
+            case TASK_NO_LONGER_ACTIVE:
+              log.info(taskId + ": Task is no longer active, ignoring runTask call.");
+              lockAcquisition.commit();
+              return null; //we're done here
+
+            case JOB_NO_LONGER_ACTIVE:
+              taskState.setStatus(new Status(StatusCode.ABORTED));
+              log.info(taskId + ": Job no longer active: " + jobState + ", aborting task.");
+
+              //TODO: has side-effects (enqueuing things)
+              updateTask(lockAcquisition, jobState, taskState, null, false);
+              lockAcquisition.commit();
+              return null; // we're done here
+
+            case TASK_STATE_FROM_PAST:
+              log.warning(taskId + " sequenceNumber=" + sequenceNumber + " : Task state is from the past: " + taskState);
+              // presumably we are reading an old state
+              // task to execute sequenceNumber was enqueued, but state in datastore does not yet reflect it
+              // this can happen now because we no longer have transactions across Cloud Tasks + Datastore
+              // we should not proceed with this state, throw an IllegalStateException to force retry
+              lockAcquisition.commit();
+              //throw, so we re-try a few moments later and see if taskState has been updated
+              throw new IllegalStateException("Task state is from the past");
+
+            case TASK_ALREADY_COMPLETED:
+              log.info(taskId + ": Task sequence number " + sequenceNumber + " already completed: "
+                + taskState);
+              lockAcquisition.commit();
+              return null; // we're done here
+
+            case LOCK_HELD_BY_OTHER_EXECUTION:
+              //TODO: has side-effects (enqueuing things); essentially underneath makes decisions that better to wait by enqueuing fresh Cloud Task
+              // than waiting in this thread ... refactor??
+              handleLockHeld(lockAcquisition, taskId, jobState, taskState);
+              log.info(taskId + ": Lock is held by another execution, retrying.");
+              lockAcquisition.commit();
+              lockAcquisition.commit();
+              return null; // we're done here; task scheduled by 'handleLockHeld' will pick-up execution
+            default:
+              log.severe("Unknown validation error: " + validationError);
+              lockAcquisition.rollback();
+              throw new IllegalStateException("Validation error: " + validationError);
+              //throw, so re-try moments later with fresh state
+          }
+          //should be unreachable
         }
 
+        //OK, good to lock and run
         if (lockShard(lockAcquisition, taskState)) {
           // committing here, which forces acquisition of lock ...
           lockAcquisition.commit();
@@ -437,7 +496,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
       }
       return null;
     });
-
   }
 
   private enum RetryType {
