@@ -61,8 +61,6 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
   public static class LockInfo {
 
-    private static final String REQUEST_ID = "com.google.appengine.runtime.request_log_id";
-
     private Long startTime;
 
     @Getter
@@ -81,9 +79,9 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       return startTime == null ? -1 : startTime;
     }
 
-    public void lock() {
+    public void lock(ShardedJobHandler.WorkerTaskExecutionId executionId) {
       startTime = System.currentTimeMillis();
-      requestId = (String) ApiProxy.getCurrentEnvironment().getAttributes().get(REQUEST_ID);
+      requestId = executionId.encodeAsString();
     }
 
     public void unlock() {
