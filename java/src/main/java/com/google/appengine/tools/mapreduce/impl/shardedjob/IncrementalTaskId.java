@@ -37,10 +37,10 @@ public class IncrementalTaskId {
     return prefix(shardedJobId) + number;
   }
 
-  private final static String NUMBER_SUFFIC_DELIMITER = "-task-";
+  private final static String NUMBER_SUFFIX_DELIMITER = "-task-";
 
   public static IncrementalTaskId parse(@NonNull String taskId) {
-    String[] parts = taskId.split(NUMBER_SUFFIC_DELIMITER);
+    String[] parts = taskId.split(NUMBER_SUFFIX_DELIMITER);
     if (parts.length != 2) {
       throw new IllegalArgumentException("Invalid taskId: " + taskId);
     }
@@ -48,6 +48,6 @@ public class IncrementalTaskId {
   }
 
   private static String prefix(ShardedJobRunId shardedJobId) {
-    return shardedJobId.asEncodedString() + NUMBER_SUFFIC_DELIMITER;
+    return shardedJobId.asEncodedString() + NUMBER_SUFFIX_DELIMITER;
   }
 }
