@@ -15,12 +15,10 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.github.rholder.retry.*;
-import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.*;
-import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.appengine.tools.pipeline.impl.util.TestUtils;
@@ -247,26 +245,17 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         }
       }
       saveAll(transaction, transactionSpec);
+      transaction.commit();
+
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
-            (UpdateSpec.TransactionWithTasks) transactionSpec;
+          (UpdateSpec.TransactionWithTasks) transactionSpec;
         Collection<Task> tasks = transactionWithTasks.getTasks();
-        if (tasks.size() > 0) {
-          byte[] encodedTasks = FanoutTask.encodeTasks(tasks);
-          FanoutTaskRecord ftRecord = new FanoutTaskRecord(rootJobKey, encodedTasks);
-          // Store FanoutTaskRecord outside of any transaction, but before
-          // the FanoutTask is enqueued. If the put succeeds but the
-          // enqueue fails then the FanoutTaskRecord is orphaned. But
-          // the Pipeline is still consistent.
-          datastore.put(ftRecord.toEntity());
-          ftRecord.toEntity().getKey().getKind();
-          FanoutTask fanoutTask = new FanoutTask(ftRecord.getKey(), queueSettings);
-
-          //TODO: should this enqueue be in context of transaction??
-          taskQueue.enqueue(fanoutTask);
+        for (Task task : tasks) {
+          taskQueue.enqueue(task);
         }
       }
-      transaction.commit();
+
     } finally {
       if (transaction.isActive()) {
         transaction.rollback();
@@ -554,16 +543,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       throw new NoSuchObjectException(key.toString());
     }
     return entity;
-  }
-
-  @Override
-  public void handleFanoutTask(FanoutTask fanoutTask) throws NoSuchObjectException {
-    Key fanoutTaskRecordKey = fanoutTask.getRecordKey();
-    // Fetch the fanoutTaskRecord outside of any transaction
-    Entity entity = getEntity("handleFanoutTask", fanoutTaskRecordKey);
-    FanoutTaskRecord ftRecord = new FanoutTaskRecord(entity);
-    byte[] encodedBytes = ftRecord.getPayload();
-    taskQueue.enqueue(FanoutTask.decodeTasks(encodedBytes));
   }
 
   public List<Entity> queryAll(final String kind, final Key rootJobKey) {

@@ -41,7 +41,6 @@ import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.tasks.CancelJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.DelayedSlotFillTask;
 import com.google.appengine.tools.pipeline.impl.tasks.DeletePipelineTask;
-import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.FinalizeJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.HandleChildExceptionTask;
 import com.google.appengine.tools.pipeline.impl.tasks.HandleSlotFilledTask;
@@ -545,9 +544,6 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
           break;
         case FINALIZE_JOB:
           finalizeJob((FinalizeJobTask) task);
-          break;
-        case FAN_OUT:
-          handleFanoutTaskOrAbandonTask((FanoutTask) task);
           break;
         case CANCEL_JOB:
           cancelJob((CancelJobTask) task);
@@ -1258,21 +1254,6 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
       return backEnd.querySlot(key, inflate);
     } catch (NoSuchObjectException e) {
       log.log(Level.WARNING, "Cannot find the slot: " + key + ". Ignoring the task.", e);
-      throw new AbandonTaskException();
-    }
-  }
-
-  /**
-   * Handles the given FanoutTask and if the corresponding FanoutTaskRecord is
-   * not found then throws an {@link AbandonTaskException}.
-   *
-   * @param fanoutTask The FanoutTask to handle
-   */
-  private void handleFanoutTaskOrAbandonTask(FanoutTask fanoutTask) {
-    try {
-      backEnd.handleFanoutTask(fanoutTask);
-    } catch (NoSuchObjectException e) {
-      log.log(Level.SEVERE, "Pipeline is fatally corrupted. Fanout task record not found", e);
       throw new AbandonTaskException();
     }
   }
