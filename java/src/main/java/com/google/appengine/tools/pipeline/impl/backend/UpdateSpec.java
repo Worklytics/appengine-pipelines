@@ -58,10 +58,7 @@ import java.util.Set;
  *
  * The {@link #getFinalTransaction() final transactional group} is a
  * {@link TransactionWithTasks} and so may contain {@link Task tasks}. The tasks
- * will be enqueued in the final transaction. If there are too many tasks to
- * enqueue in a single transaction then instead a single
- * {@link com.google.appengine.tools.pipeline.impl.tasks.FanoutTask} will be
- * enqueued.
+ * will be enqueued in the final transaction.
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
@@ -200,10 +197,7 @@ public class UpdateSpec {
    * An extension of {@link Transaction} that also accepts
    * {@link Task Tasks}. Each task included in the group will
    * be enqueued to the task queue as part of the same transaction
-   * in which the objects are saved. If there are too many tasks
-   * to include in a single transaction then a
-   * {@link com.google.appengine.tools.pipeline.impl.tasks.FanoutTask} will be
-   * used.
+   * in which the objects are saved.
    *
    * @author rudominer@google.com (Mitch Rudominer)
    */

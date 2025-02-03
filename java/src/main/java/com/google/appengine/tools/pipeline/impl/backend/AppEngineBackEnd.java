@@ -15,12 +15,10 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.github.rholder.retry.*;
-import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.*;
-import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.appengine.tools.pipeline.impl.util.TestUtils;
@@ -252,9 +250,9 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
             (UpdateSpec.TransactionWithTasks) transactionSpec;
-
         taskQueue.enqueue(transactionWithTasks.getTasks());
       }
+
     } finally {
       if (transaction.isActive()) {
         transaction.rollback();
@@ -542,16 +540,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       throw new NoSuchObjectException(key.toString());
     }
     return entity;
-  }
-
-  @Override
-  public void handleFanoutTask(FanoutTask fanoutTask) throws NoSuchObjectException {
-    Key fanoutTaskRecordKey = fanoutTask.getRecordKey();
-    // Fetch the fanoutTaskRecord outside of any transaction
-    Entity entity = getEntity("handleFanoutTask", fanoutTaskRecordKey);
-    FanoutTaskRecord ftRecord = new FanoutTaskRecord(entity);
-    byte[] encodedBytes = ftRecord.getPayload();
-    taskQueue.enqueue(FanoutTask.decodeTasks(encodedBytes));
   }
 
   public List<Entity> queryAll(final String kind, final Key rootJobKey) {
