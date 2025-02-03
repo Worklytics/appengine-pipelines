@@ -159,6 +159,12 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     // --> JobRecordFactory or something, that gets injected
     String projectId = backEnd.getOptions().as(AppEngineBackEnd.Options.class).getProjectId();
 
+    // if projectId is the local gae 'no_app_id', change it (new Datastore client blows up if attempt to create keys with it)
+    if (projectId.equals("no_app_id")) {
+      throw new IllegalStateException("projectId is 'no_app_id'; this isn't legal GCP project id, so changing to 'local-gae-project'");
+    }
+    projectId = "local-gae";
+
     return registerNewJobRecord(updateSpec, JobRecord.createRootJobRecord(projectId, jobInstance, getSerializationStrategy(), settings), params);
   }
 
