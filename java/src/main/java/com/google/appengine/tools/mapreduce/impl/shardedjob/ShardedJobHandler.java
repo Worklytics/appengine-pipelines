@@ -2,8 +2,9 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
-import lombok.Value;
+import lombok.Getter;
 
 /**
  * As part of its operation, the {@code ShardedJobService} will enqueue task
@@ -32,7 +33,9 @@ public interface ShardedJobHandler {
   void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber, WorkerTaskExecutionId workerTaskExecutionId);
 
 
-  @Value
+
+  @Getter
+  @NoArgsConstructor // for jackson
   @AllArgsConstructor(staticName = "of")
   class WorkerTaskExecutionId {
 
@@ -40,7 +43,6 @@ public interface ShardedJobHandler {
 
     String taskName;
     Integer executionCount;
-
 
     @SneakyThrows
     public String encodeAsString() {

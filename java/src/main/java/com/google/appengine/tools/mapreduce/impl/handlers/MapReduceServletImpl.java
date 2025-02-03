@@ -146,8 +146,8 @@ public class MapReduceServletImpl {
   }
 
   private ShardedJobHandler.WorkerTaskExecutionId getExecutionId(HttpServletRequest request) {
-    return ShardedJobHandler.WorkerTaskExecutionId.of(requestUtils.getParam(request, "X-CloudTasks-TaskName").orElseThrow(),
-      requestUtils.getParam(request, "X-CloudTasks-TaskExecutionCount").map(Integer::parseInt).orElseThrow());
+    return ShardedJobHandler.WorkerTaskExecutionId.of(requestUtils.getHeader(request, RequestUtils.GCPHeaders.CLOUD_TASKS_TASKNAME).orElseThrow(),
+      requestUtils.getHeader(request, RequestUtils.GCPHeaders.CLOUD_TASKS_EXECUTION_COUNT).map(Integer::parseInt).orElseThrow());
   }
 
 

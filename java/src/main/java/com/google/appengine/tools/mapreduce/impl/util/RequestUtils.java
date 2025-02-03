@@ -27,6 +27,8 @@ import java.util.Optional;
 @AllArgsConstructor(onConstructor_ = @Inject)
 public class RequestUtils {
 
+
+
   public static class Params {
     public static final String DATASTORE_PROJECT_ID = "dsProjectId";
     public static final String DATASTORE_DATABASE_ID = "dsDatabaseId";
@@ -38,6 +40,11 @@ public class RequestUtils {
 
     //hard-coded in many places, JS / etc
     public static final String MAPREDUCE_ID = "mapreduce_id";
+  }
+
+  public static class GCPHeaders {
+    public static final String CLOUD_TASKS_EXECUTION_COUNT = "X-CloudTasks-ExecutionCount";
+    public static final String CLOUD_TASKS_TASKNAME = "X-CloudTasks-TaskName";
   }
 
   public PipelineBackEnd buildBackendFromRequest(HttpServletRequest request) {
@@ -61,6 +68,10 @@ public class RequestUtils {
     getParam(request, Params.DATASTORE_DATABASE_ID).ifPresent(builder::setDatabaseId);
 
     return builder.build().getService();
+  }
+
+  public Optional<String> getHeader(HttpServletRequest request, String s) {
+    return Optional.ofNullable(request.getHeader(s));
   }
 
   public Optional<String> getParam(HttpServletRequest request, String name) {

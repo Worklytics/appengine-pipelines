@@ -16,6 +16,7 @@ import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobHandler;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.PipelineService;
@@ -144,6 +145,9 @@ public abstract class EndToEndTestCase {
     expect(request.getHeader("X-AppEngine-QueueName")).andReturn(queueName).anyTimes();
     expect(request.getHeader("X-AppEngine-TaskName")).andReturn(taskStateInfo.getTaskName())
         .anyTimes();
+    expect(request.getHeader(RequestUtils.GCPHeaders.CLOUD_TASKS_TASKNAME)).andReturn(taskStateInfo.getTaskName()).anyTimes();
+    expect(request.getHeader(RequestUtils.GCPHeaders.CLOUD_TASKS_EXECUTION_COUNT)).andReturn("0").anyTimes();
+
     // Pipeline looks at this header but uses the value only for diagnostic messages
     expect(request.getIntHeader(TaskHandler.TASK_RETRY_COUNT_HEADER)).andReturn(-1).anyTimes();
     for (HeaderWrapper header : taskStateInfo.getHeaders()) {
