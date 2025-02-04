@@ -84,8 +84,10 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
       .put(ContextStoreKey.APP_ENGINE_BACKEND.name(), appEngineBackend);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.JOB_RUN_SERVICE_COMPONENT.name(), component);
+    ShardedJobRunner shardedJobRunner = stepExecutionComponent.shardedJobRunner();
+    shardedJobRunner.setLockCheckTaskDelay(5_000);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.SHARDED_JOB_RUNNER, stepExecutionComponent.shardedJobRunner());
+      .put(ContextStoreKey.SHARDED_JOB_RUNNER, shardedJobRunner);
   }
 
   public static class ParameterResolver implements org.junit.jupiter.api.extension.ParameterResolver {
