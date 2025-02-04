@@ -14,9 +14,6 @@
 
 package com.google.appengine.tools.mapreduce.servlets;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import com.google.appengine.api.blobstore.dev.LocalBlobstoreService;
 import com.google.appengine.api.taskqueue.QueueFactory;
@@ -27,9 +24,9 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.*;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
@@ -40,6 +37,7 @@ import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.apphosting.api.ApiProxy;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.datastore.Datastore;
@@ -67,6 +65,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
  * Tests for {@link ShufflerServlet}
  */
@@ -87,7 +87,8 @@ public class ShufflerServletTest {
       Marshaller<KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>> KEY_VALUES_MARSHALLER =
           Marshallers.getKeyValuesMarshaller(Marshallers.getByteBufferMarshaller(),
               Marshallers.getByteBufferMarshaller());
-  private final int recordsPerFile = 10;
+
+  private final static int RECORDS_PER_FILE = 10;
 
   private static final Semaphore WAIT_ON = new Semaphore(0);
 
@@ -163,9 +164,6 @@ public class ShufflerServletTest {
       .build();
   }
 
-
-
-
   @AfterEach
   public void tearDown() throws Exception {
     for (int count = 0; getQueueDepth() > 0; count++) {
@@ -198,18 +196,24 @@ public class ShufflerServletTest {
 
     shufflerParams.setManifestFileNameOverride(UUID.randomUUID().toString());
 
-
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
+    assertEquals(3 * RECORDS_PER_FILE, input.keySet().size());
 
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
     JobRunId mrJobId = pipelineService.startNewPipeline(mr);
 
     assertTrue(WAIT_ON.tryAcquire(100, TimeUnit.SECONDS));
 
-    pipelineService.getJobInfo(mrJobId);
+    TreeMultimap<ByteBuffer, ByteBuffer> notSeen;
+    int retriesRemaining = 3;
+    do {
+      Thread.sleep(3000);
+      List<KeyValue<ByteBuffer, List<ByteBuffer>>> output = validateOrdered(shufflerParams);
+      notSeen = assertExpectedOutput(input, output);
+    } while (!notSeen.isEmpty() && retriesRemaining-- > 0);
 
-    List<KeyValue<ByteBuffer, List<ByteBuffer>>> output = validateOrdered(shufflerParams);
-    assertExpectedOutput(input, output);
+    assertTrue(notSeen.isEmpty());
+    assertEquals(3, retriesRemaining);
   }
 
   @Test
@@ -232,14 +236,16 @@ public class ShufflerServletTest {
     assertEquals(shufflerParams.getServiceAccountKey(), readShufflerParams.getServiceAccountKey());
   }
 
-  private void assertExpectedOutput(TreeMultimap<ByteBuffer, ByteBuffer> expected,
-      List<KeyValue<ByteBuffer, List<ByteBuffer>>> actual) {
+  private TreeMultimap<ByteBuffer, ByteBuffer> assertExpectedOutput(TreeMultimap<ByteBuffer, ByteBuffer> expected,
+                                                                    List<KeyValue<ByteBuffer, List<ByteBuffer>>> actual) {
+    TreeMultimap<ByteBuffer, ByteBuffer> notYetSeen = TreeMultimap.create();
+    notYetSeen.putAll(expected);
     for (KeyValue<ByteBuffer, List<ByteBuffer>> kv : actual) {
-      SortedSet<ByteBuffer> expectedValues = expected.removeAll(kv.getKey());
+      SortedSet<ByteBuffer> expectedValues = notYetSeen.removeAll(kv.getKey());
       assertTrue(expectedValues.containsAll(kv.getValue()));
       assertTrue(kv.getValue().containsAll(expectedValues));
     }
-    assertTrue(expected.isEmpty());
+    return notYetSeen;
   }
 
   List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams) throws IOException {
@@ -256,6 +262,8 @@ public class ShufflerServletTest {
         .map(s -> new GcsFilename(shufflerParams.getGcsBucket(), s))
           .collect(Collectors.toList());
     }
+
+    assertEquals(shufflerParams.getOutputShards(), outputFiles.size());
 
     for (GcsFilename file : outputFiles) {
       GoogleCloudStorageLevelDbInputReader reader = new GoogleCloudStorageLevelDbInputReader(file,
@@ -297,7 +305,7 @@ public class ShufflerServletTest {
           new GcsFilename(shufflerParams.getGcsBucket(), fileName), "text/plain; charset=UTF-8", outputOptions()));
       writer.beginShard();
       writer.beginSlice();
-      for (int i = 0; i < recordsPerFile; i++) {
+      for (int i = 0; i < RECORDS_PER_FILE; i++) {
         KeyValue<ByteBuffer, ByteBuffer> kv = writeRandomKVByteBuffer(rand, writer);
         result.put(kv.getKey(), kv.getValue());
       }
