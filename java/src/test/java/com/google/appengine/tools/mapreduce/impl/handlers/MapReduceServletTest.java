@@ -23,7 +23,6 @@ import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.MapReduceJob;
@@ -57,7 +56,7 @@ public class MapReduceServletTest{
 
   private final LocalServiceTestHelper helper =
       new LocalServiceTestHelper(
-          new LocalTaskQueueTestConfig(), new LocalMemcacheServiceTestConfig());
+          new LocalTaskQueueTestConfig());
 
   private MapReduceServlet servlet;
 
