@@ -180,10 +180,9 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       taskState.set(SEQUENCE_NUMBER_PROPERTY, in.getSequenceNumber());
       taskState.set(RETRY_COUNT_PROPERTY, in.getRetryCount());
 
-      int taskShards = serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask(), Optional.ofNullable(in.taskValueShards));
-      in.setTaskValueShards(taskShards);
-      int statusShards = serializeToDatastoreProperty(tx, taskState, STATUS_PROPERTY, in.getStatus(), Optional.ofNullable(in.statusValueShards));
-      in.setStatusValueShards(statusShards);
+      serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask(), Optional.ofNullable(in.taskValueShards));
+      serializeToDatastoreProperty(tx, taskState, STATUS_PROPERTY, in.getStatus(), Optional.ofNullable(in.statusValueShards));
+
       return taskState.build();
     }
 
