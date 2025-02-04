@@ -26,18 +26,15 @@ import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 import com.google.appengine.tools.mapreduce.servlets.ShufflerServlet.ShuffleMapReduce;
-import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
-import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.apphosting.api.ApiProxy;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.datastore.Datastore;
@@ -196,6 +193,7 @@ public class ShufflerServletTest {
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
     assertEquals(INPUT_FILES_FOR_TEST * RECORDS_PER_FILE, input.keySet().size());
 
+
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
     pipelineService.startNewPipeline(mr);
 
@@ -205,6 +203,7 @@ public class ShufflerServletTest {
     int retriesRemaining = SHUFFLE_VERIFICATION_RETRIES;
     do {
       Thread.sleep((retriesRemaining - SHUFFLE_VERIFICATION_RETRIES) * 1000L);
+
       List<KeyValue<ByteBuffer, List<ByteBuffer>>> output = validateOrdered(shufflerParams);
       notSeen = assertExpectedOutput(input, output);
     } while (!notSeen.isEmpty() && retriesRemaining-- > 0);
