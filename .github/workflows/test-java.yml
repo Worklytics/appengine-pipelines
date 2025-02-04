@@ -36,6 +36,7 @@ jobs:
           key: ${{ runner.os }}-${{ env.M2_CACHE_VERSION }}-${{ hashFiles('**/pom.xml') }}
   test:
     runs-on: ubuntu-latest
+    needs: compile
     strategy:
       matrix:
         package: [ "com.google.appengine.tools.cloudtasktest.**",
