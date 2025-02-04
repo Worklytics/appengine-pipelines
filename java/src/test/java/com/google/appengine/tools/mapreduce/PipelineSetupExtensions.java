@@ -50,14 +50,14 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
   }
 
 
-  static Map<Class<?>, String> PARAMETER_CLASSES_CONTEXT_KEY_MAP = ImmutableMap.of(
-    PipelineManager.class, ContextStoreKey.PIPELINE_MANAGER.name(),
-    PipelineOrchestrator.class, ContextStoreKey.PIPELINE_MANAGER.name(),
-    PipelineRunner.class, ContextStoreKey.PIPELINE_MANAGER.name(),
-    PipelineService.class, ContextStoreKey.PIPELINE_SERVICE.name(),
-    AppEngineBackEnd.class, ContextStoreKey.APP_ENGINE_BACKEND.name(),
-    JobRunServiceComponent.class, ContextStoreKey.JOB_RUN_SERVICE_COMPONENT.name(),
-    ShardedJobRunner.class, ContextStoreKey.SHARDED_JOB_RUNNER.name()
+  static Map<Class<?>, ContextStoreKey> PARAMETER_CLASSES_CONTEXT_KEY_MAP = ImmutableMap.of(
+    PipelineManager.class, ContextStoreKey.PIPELINE_MANAGER,
+    PipelineOrchestrator.class, ContextStoreKey.PIPELINE_MANAGER,
+    PipelineRunner.class, ContextStoreKey.PIPELINE_MANAGER,
+    PipelineService.class, ContextStoreKey.PIPELINE_SERVICE,
+    AppEngineBackEnd.class, ContextStoreKey.APP_ENGINE_BACKEND,
+    JobRunServiceComponent.class, ContextStoreKey.JOB_RUN_SERVICE_COMPONENT,
+    ShardedJobRunner.class, ContextStoreKey.SHARDED_JOB_RUNNER
     // PipelineServlet.class not supported
   );
 
@@ -78,13 +78,13 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
       = component.stepExecutionComponent(new StepExecutionModule(appEngineBackend));
 
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.PIPELINE_SERVICE.name(), stepExecutionComponent.pipelineService());
+      .put(ContextStoreKey.PIPELINE_SERVICE, stepExecutionComponent.pipelineService());
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.PIPELINE_MANAGER.name(), stepExecutionComponent.pipelineManager());
+      .put(ContextStoreKey.PIPELINE_MANAGER, stepExecutionComponent.pipelineManager());
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.APP_ENGINE_BACKEND.name(), appEngineBackend);
+      .put(ContextStoreKey.APP_ENGINE_BACKEND, appEngineBackend);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.JOB_RUN_SERVICE_COMPONENT.name(), component);
+      .put(ContextStoreKey.JOB_RUN_SERVICE_COMPONENT, component);
     ShardedJobRunner shardedJobRunner = stepExecutionComponent.shardedJobRunner();
     shardedJobRunner.setLockCheckTaskDelay(5_000);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
@@ -96,7 +96,7 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
     @Override
     public boolean supportsParameter(ParameterContext parameterContext,
                                      ExtensionContext extensionContext) throws ParameterResolutionException {
-      return PARAMETER_CLASSES_CONTEXT_KEY_MAP.keySet().contains(parameterContext.getParameter().getType());
+      return PARAMETER_CLASSES_CONTEXT_KEY_MAP.containsKey(parameterContext.getParameter().getType());
     }
 
     @Override
