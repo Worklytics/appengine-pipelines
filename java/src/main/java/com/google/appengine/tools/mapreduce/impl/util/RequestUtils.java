@@ -10,7 +10,8 @@ import com.google.cloud.datastore.DatastoreOptions;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import lombok.AllArgsConstructor;
+
+import lombok.*;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
@@ -25,7 +26,7 @@ import java.util.Optional;
  */
 @Log
 @Singleton
-@AllArgsConstructor(onConstructor_ = @Inject)
+@NoArgsConstructor(onConstructor_ = @Inject)
 public class RequestUtils {
 
   public static class Params {
@@ -45,6 +46,14 @@ public class RequestUtils {
   // so if this ever ends up being used in a real GCP API call, it blows up in validation before request is even sent by client
   private static final String LOCAL_GAE_PROJECT_ID = "no_app_id";
 
+  private static final String DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID = "local-gae-project";
+
+  /**
+   * value to override local GAE project id with, when running locally; to allow this on case-by-case basis
+   */
+  @Getter @Setter
+  private String localProjectIdOverride = DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID;
+
   public PipelineBackEnd buildBackendFromRequest(HttpServletRequest request) {
     return new AppEngineBackEnd(buildDatastoreFromRequest(request), new AppEngineTaskQueue());
   }
@@ -60,13 +69,12 @@ public class RequestUtils {
 
     DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
 
-
     DatastoreOptions.Builder builder = defaultInstance.toBuilder();
 
     if (LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId())) {
       log.info("pipelines fw detected running locally with GAE projectId set as 'no_app_id'; this isn't legal GCP project id, so changing to 'local-gae-project'");
       // 'no_app_id' isn't legal name, so change it
-      builder.setProjectId("local-gae-project");
+      builder.setProjectId(getLocalProjectIdOverride());
       // try to get emulator host from env var, if available
       builder.setHost(System.getProperty("DATASTORE_EMULATOR_HOST", System.getenv("DATASTORE_EMULATOR_HOST")));
     }
