@@ -2,8 +2,8 @@ package com.google.appengine.tools.mapreduce.outputs;
 
 import com.google.appengine.tools.mapreduce.InputReader;
 import com.google.appengine.tools.mapreduce.OutputWriter;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.inputs.InMemoryInput;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +34,7 @@ public class InMemoryInputOutputTest {
     writer.beginSlice();
     writer.write(one);
     writer.endSlice();
-    writer = SerializationUtil.clone(writer);
+    writer = SerializationUtils.clone(writer);
     writer.beginSlice();
     writer.write(two);
     writer.endSlice();

@@ -2,11 +2,11 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.deserializeFromDatastoreProperty;
-import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
+import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil.deserializeFromDatastoreProperty;
+import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
 import com.google.cloud.datastore.*;
 import com.google.common.primitives.Ints;
 import lombok.*;
@@ -82,7 +82,7 @@ public final class ShardRetryState<T extends IncrementalTask> {
       T initialTask = deserializeFromDatastoreProperty(tx, in, INITIAL_TASK_PROPERTY);
       int retryCount = Ints.checkedCast(in.getLong(RETRY_COUNT_PROPERTY));
       IncrementalTaskId taskId = IncrementalTaskId.parse(in.getString(TASK_ID_PROPERTY));
-      return new ShardRetryState<>(taskId, initialTask, retryCount, SerializationUtil.shardsUsedToStore(in, INITIAL_TASK_PROPERTY));
+      return new ShardRetryState<>(taskId, initialTask, retryCount, DatastoreSerializationUtil.shardsUsedToStore(in, INITIAL_TASK_PROPERTY));
     }
   }
 }

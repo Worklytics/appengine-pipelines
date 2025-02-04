@@ -21,9 +21,9 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.InProcessShardedJobR
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.outputs.InMemoryOutput;
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.common.collect.ImmutableList;
 
 import lombok.Getter;
@@ -188,15 +188,13 @@ public class InProcessMapReduce<I, K, V, O, R> {
   @SneakyThrows
   @SuppressWarnings("unchecked")
   private Mapper<I, K, V> getCopyOfMapper() {
-    byte[] bytes = SerializationUtil.serializeToByteArray(mapper);
-    return (Mapper<I, K, V>) SerializationUtil.deserialize(bytes);
+    return SerializationUtils.clone(mapper);
   }
 
   @SneakyThrows
   @SuppressWarnings("unchecked")
   private Reducer<K, V, O> getCopyOfReducer() {
-    byte[] bytes = SerializationUtil.serializeToByteArray(reducer);
-    return (Reducer<K, V, O>) SerializationUtil.deserialize(bytes);
+    return SerializationUtils.clone(reducer);
   }
 
   MapReduceResult<R> reduce(List<List<KeyValue<K, List<V>>>> inputs, Output<O, R> output,

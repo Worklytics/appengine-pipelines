@@ -1,19 +1,18 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageLevelDbOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 
 
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -181,13 +180,13 @@ public class GoogleCloudStorageLevelDbInputReaderTest {
     reader.beginShard();
     ByteBufferGenerator expected = new ByteBufferGenerator(records);
     while (expected.hasNext()) {
-      reader = SerializationUtil.clone(reader);
+      reader = SerializationUtils.clone(reader);
       reader.beginSlice();
       ByteBuffer read = reader.next();
       assertEquals(expected.next(), read);
       reader.endSlice();
     }
-    reader = SerializationUtil.clone(reader);
+    reader = SerializationUtils.clone(reader);
     reader.beginSlice();
     verifyEmpty(reader);
     reader.endSlice();

@@ -2,13 +2,13 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
+import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
 import com.google.common.base.Preconditions;
 import lombok.*;
 import lombok.extern.java.Log;
@@ -192,16 +192,16 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
 
       return ShardedJobStateImpl.<T>builder()
         .shardedJobId(jobId)
-        .controller(SerializationUtil.deserializeFromDatastoreProperty(tx, in, CONTROLLER_PROPERTY, lenient))
-        .controllerValueShards(SerializationUtil.shardsUsedToStore(in, CONTROLLER_PROPERTY))
-        .settings(SerializationUtil.deserializeFromDatastoreProperty(tx, in, SETTINGS_PROPERTY))
-        .settingsValueShards(SerializationUtil.shardsUsedToStore(in, SETTINGS_PROPERTY))
+        .controller(DatastoreSerializationUtil.deserializeFromDatastoreProperty(tx, in, CONTROLLER_PROPERTY, lenient))
+        .controllerValueShards(DatastoreSerializationUtil.shardsUsedToStore(in, CONTROLLER_PROPERTY))
+        .settings(DatastoreSerializationUtil.deserializeFromDatastoreProperty(tx, in, SETTINGS_PROPERTY))
+        .settingsValueShards(DatastoreSerializationUtil.shardsUsedToStore(in, SETTINGS_PROPERTY))
         .totalTaskCount((int) in.getLong(TOTAL_TASK_COUNT_PROPERTY))
         .startTime(from(in.getTimestamp(START_TIME_PROPERTY)))
-        .status(SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY))
-        .statusValueShards(SerializationUtil.shardsUsedToStore(in, STATUS_PROPERTY))
+        .status(DatastoreSerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY))
+        .statusValueShards(DatastoreSerializationUtil.shardsUsedToStore(in, STATUS_PROPERTY))
         .mostRecentUpdateTime(in.contains(MOST_RECENT_UPDATE_TIME_PROPERTY) ? from(in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY)) : null)
-        .shardsCompleted(SerializationUtil.deserializeFromDatastoreProperty(tx, in, SHARDS_COMPLETED_PROPERTY))
+        .shardsCompleted(DatastoreSerializationUtil.deserializeFromDatastoreProperty(tx, in, SHARDS_COMPLETED_PROPERTY))
         .build();
     }
   }

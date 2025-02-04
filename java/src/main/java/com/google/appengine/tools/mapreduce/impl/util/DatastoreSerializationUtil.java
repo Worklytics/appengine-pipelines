@@ -16,85 +16,34 @@
 
 package com.google.appengine.tools.mapreduce.impl.util;
 
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.CorruptDataException;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.zip.*;
+
+import static com.google.appengine.tools.pipeline.impl.util.SerializationUtils.serializeToByteArray;
 
 /**
- * A serialization utility class.
+ * A serialization utility class to aid with serializing and deserializing values to and from datastore entities (properties).
  *
  */
-public class SerializationUtil {
+public class DatastoreSerializationUtil {
 
-  private static final Logger log = Logger.getLogger(SerializationUtil.class.getName());
+  private static final Logger log = Logger.getLogger(DatastoreSerializationUtil.class.getName());
   // 1MB - 200K slack for the rest of the properties and entity overhead
   private static final int MAX_BLOB_BYTE_SIZE = 1024 * 1024 - 200 * 1024;
   private static final String SHARDED_VALUE_KIND = "MR-ShardedValue";
   private static final Function<Entity, Key> ENTITY_TO_KEY = Entity::getKey;
-
-  public static int MAX_UNCOMPRESSED_BYTE_SIZE = 50_000;
-
-  public static byte[] serialize(Serializable obj) throws IOException {
-    // Serialize the object
-    ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-    try (ObjectOutputStream objectOut = new ObjectOutputStream(byteOut)) {
-      objectOut.writeObject(obj);
-    }
-    // Compress only if serialized data exceeds threshold
-    if (byteOut.size() > MAX_UNCOMPRESSED_BYTE_SIZE) {
-      ByteArrayOutputStream compressedByteOut = new ByteArrayOutputStream();
-      try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedByteOut);
-           ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut)) {
-        objectOut.writeObject(obj);
-        objectOut.flush();
-        gzipOut.finish();
-        return compressedByteOut.toByteArray();
-      }
-    } else {
-      return byteOut.toByteArray();
-    }
-  }
-
-  @SneakyThrows
-  public static <T> T deserialize(byte[] data) throws IOException, ClassNotFoundException {
-    // Attempt to decompress
-    try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data)) {
-      if (isGZIPCompressed(data)) {
-        try (GZIPInputStream gzipIn = new GZIPInputStream(byteIn);
-             ObjectInputStream objectIn = new ObjectInputStream(gzipIn)) {
-          return (T) objectIn.readObject();
-        }
-      } else {
-        try (ObjectInputStream objectIn = new ObjectInputStream(byteIn)) {
-          return (T) objectIn.readObject();
-        }
-      }
-    }
-  }
-
-  @VisibleForTesting
-  static boolean isGZIPCompressed(byte[] bytes) {
-    return (bytes != null)
-      && (bytes.length >= 2)
-      && ((bytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC))
-      && (bytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
-  }
 
 
   public static <T extends Serializable> T deserializeFromDatastoreProperty(
@@ -136,7 +85,7 @@ public class SerializationUtil {
         }
         bytes = bout.toByteArray();
       }
-      return deserialize(bytes);
+      return SerializationUtils.deserialize(bytes);
     } catch (RuntimeException | IOException ex) {
       log.warning("Deserialization of " + entity.getKey() + "#" + property + " failed: "
               + ex.getMessage() + ", returning null instead.");
@@ -148,7 +97,6 @@ public class SerializationUtil {
   }
 
   public static Iterable<Key> getShardedValueKeysFor(@NonNull Transaction tx, Key parent, String property) {
-
     KeyQuery.Builder queryBuilder = Query.newKeyQueryBuilder()
       .setKind(SHARDED_VALUE_KIND);
 
@@ -252,30 +200,5 @@ public class SerializationUtil {
     } catch (ClassCastException e) {
       return 0;
     }
-  }
-
-  @SneakyThrows
-  public static byte[] serializeToByteArray(Serializable o) {
-    return serialize(o);
-  }
-
-  public static byte[] getBytes(ByteBuffer in) {
-    if (in.hasArray() && in.position() == 0
-        && in.arrayOffset() == 0 && in.array().length == in.limit()) {
-      return in.array();
-    } else {
-      byte[] buf = new byte[in.remaining()];
-      int position = in.position();
-      in.get(buf);
-      in.position(position);
-      return buf;
-    }
-  }
-
-  @SneakyThrows
-  @SuppressWarnings("unchecked")
-  public static <T extends Serializable> T clone(T toClone) {
-    byte[] bytes = SerializationUtil.serializeToByteArray(toClone);
-    return (T) SerializationUtil.deserialize(bytes);
   }
 }

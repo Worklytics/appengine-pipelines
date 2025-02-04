@@ -5,12 +5,10 @@
 package com.google.appengine.tools.pipeline.impl.util;
 
 import com.google.common.annotations.VisibleForTesting;
+import lombok.SneakyThrows;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
+import java.nio.ByteBuffer;
 import java.util.zip.*;
 
 /**
@@ -45,17 +43,23 @@ public class SerializationUtils {
     return byteOut.toByteArray();
   }
 
-  public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
+  @SneakyThrows
+  public static byte[] serializeToByteArray(Serializable o) {
+    return SerializationUtils.serialize(o);
+  }
+
+
+  public static <T> T deserialize(byte[] data) throws IOException, ClassNotFoundException {
     // Attempt to decompress
     try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data)) {
       if (isGZIPCompressed(data)) {
         try (GZIPInputStream gzipIn = new GZIPInputStream(byteIn);
              ObjectInputStream objectIn = new ObjectInputStream(gzipIn)) {
-          return objectIn.readObject();
+          return (T) objectIn.readObject();
         }
       } else {
         try (ObjectInputStream objectIn = new ObjectInputStream(byteIn)) {
-          return objectIn.readObject();
+          return (T) objectIn.readObject();
         }
       }
     }
@@ -68,4 +72,26 @@ public class SerializationUtils {
       && ((bytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC))
       && (bytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
   }
+
+
+  public static byte[] getBytes(ByteBuffer in) {
+    if (in.hasArray() && in.position() == 0
+      && in.arrayOffset() == 0 && in.array().length == in.limit()) {
+      return in.array();
+    } else {
+      byte[] buf = new byte[in.remaining()];
+      int position = in.position();
+      in.get(buf);
+      in.position(position);
+      return buf;
+    }
+  }
+
+  @SneakyThrows
+  @SuppressWarnings("unchecked")
+  public static <T extends Serializable> T clone(T toClone) {
+    byte[] bytes = serializeToByteArray(toClone);
+    return deserialize(bytes);
+  }
+
 }

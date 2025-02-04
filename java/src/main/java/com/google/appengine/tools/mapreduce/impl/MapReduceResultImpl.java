@@ -7,7 +7,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.Counters;
 import com.google.appengine.tools.mapreduce.MapReduceResult;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import lombok.NoArgsConstructor;
 
 import java.io.Externalizable;
@@ -61,7 +61,7 @@ public class MapReduceResultImpl<R> implements MapReduceResult<R>, Externalizabl
   public void writeExternal(ObjectOutput out) throws IOException {
     out.writeObject(counters);
     if (outputResult != null) {
-      byte[] bytes = SerializationUtil.serialize((Serializable) outputResult);
+      byte[] bytes = SerializationUtils.serialize(outputResult);
       out.writeObject(bytes);
     } else {
       out.writeObject(null);
@@ -73,7 +73,7 @@ public class MapReduceResultImpl<R> implements MapReduceResult<R>, Externalizabl
     counters = (Counters) in.readObject();
     byte[] bytes = (byte[]) in.readObject();
     if (bytes != null) {
-      outputResult = (R) SerializationUtil.deserialize(bytes);
+      outputResult = (R) SerializationUtils.deserialize(bytes);
     }
   }
 }
