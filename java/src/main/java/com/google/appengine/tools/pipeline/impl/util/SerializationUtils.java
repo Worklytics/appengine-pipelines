@@ -48,7 +48,6 @@ public class SerializationUtils {
     return SerializationUtils.serialize(o);
   }
 
-
   public static <T> T deserialize(byte[] data) throws IOException, ClassNotFoundException {
     // Attempt to decompress
     try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data)) {
@@ -64,15 +63,6 @@ public class SerializationUtils {
       }
     }
   }
-
-  @VisibleForTesting
-  static boolean isGZIPCompressed(byte[] bytes) {
-    return (bytes != null)
-      && (bytes.length >= 2)
-      && ((bytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC))
-      && (bytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
-  }
-
 
   public static byte[] getBytes(ByteBuffer in) {
     if (in.hasArray() && in.position() == 0
@@ -94,4 +84,11 @@ public class SerializationUtils {
     return deserialize(bytes);
   }
 
+  @VisibleForTesting
+  static boolean isGZIPCompressed(byte[] bytes) {
+    return (bytes != null)
+      && (bytes.length >= 2)
+      && ((bytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC))
+      && (bytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
+  }
 }
