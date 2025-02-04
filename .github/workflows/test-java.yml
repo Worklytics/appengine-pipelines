@@ -8,7 +8,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [ "com.google.appengine.tools.cloudtasktest", "com.google.appengine.tools.mapreduce", "com.google.appengine.tools.pipeline" ]
+        package: [ "com.google.appengine.tools.cloudtasktest.**",
+                   "com.google.appengine.tools.mapreduce.impl.**",
+                   "com.google.appengine.tools.mapreduce.inputs.**",
+                   "com.google.appengine.tools.mapreduce.outputs.**",
+                   "com.google.appengine.tools.mapreduce.servlets.**",
+                   "com.google.appengine.tools.mapreduce.*",
+                   "com.google.appengine.tools.pipeline" ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
