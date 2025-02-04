@@ -21,10 +21,22 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: '17' # maven won't accept --release argument with java < 8; and 11 is next LTS
+      - id: 'read-cache-maven-packages'
+        name: Read Cached Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-${{ env.M2_CACHE_VERSION }}-${{ hashFiles('**/pom.xml') }}
       - name: Maven compile
         run: |
             cd java/
             mvn clean compile
+      - id: 'cache-maven-packages'
+        name: Cache Maven packages
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-${{ env.M2_CACHE_VERSION }}-${{ hashFiles('**/pom.xml') }}
       - name: Run Tests for Package ${{ matrix.package }}
         env:
           APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY: ${{ secrets.APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY }}
