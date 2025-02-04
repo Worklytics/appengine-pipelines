@@ -9,10 +9,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.cloud.datastore.*;
 import com.google.common.primitives.Ints;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.Optional;
 
@@ -22,7 +19,8 @@ import java.util.Optional;
  *
  * @param <T> type of task
  */
-@AllArgsConstructor
+@Builder(access=AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 public final class ShardRetryState<T extends IncrementalTask> {
 
@@ -45,7 +43,12 @@ public final class ShardRetryState<T extends IncrementalTask> {
 
   static <T extends IncrementalTask> ShardRetryState<T> createFor(
       IncrementalTaskState<T> taskState) {
-    return new ShardRetryState<>(taskState.getTaskId(), taskState.getTask(), 0, 0);
+    return ShardRetryState.<T>builder()
+      .taskId(taskState.getTaskId())
+      .initialTask(taskState.getTask())
+      .retryCount(0)
+      .initialTaskShards(0)
+      .build();
   }
 
   /**

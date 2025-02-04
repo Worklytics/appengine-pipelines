@@ -28,8 +28,8 @@ import java.util.Optional;
 @Log
 @Getter
 @EqualsAndHashCode
-@Builder
-@AllArgsConstructor // for builder
+@Builder(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState {
 
   private final ShardedJobRunId shardedJobId;
