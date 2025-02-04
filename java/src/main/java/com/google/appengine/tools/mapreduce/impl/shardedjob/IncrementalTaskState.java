@@ -51,19 +51,24 @@ public class IncrementalTaskState<T extends IncrementalTask> {
   @Setter
   private T task;
 
-  @Setter(AccessLevel.PRIVATE)
-  @Getter(AccessLevel.PRIVATE)
-  private Integer taskShards;
-
   @Setter
   private Status status;
 
-  @Setter(AccessLevel.PRIVATE)
-  @Getter(AccessLevel.PRIVATE)
-  private Integer statusShards;
-
   @ToString.Exclude
   private LockInfo lockInfo;
+
+  // internal tracking of how many shards were used to store the task value, if too large to be single Blob property
+  // eg, how many entities task value was split into, if it was too large; not to be confused with other notions of sharding
+  @Setter(AccessLevel.PRIVATE)
+  @Getter(AccessLevel.PRIVATE)
+  private Integer taskValueShards;
+
+  // internal tracking of how many shards were used to store the status value, if too large to be single Blob property
+  // eg, how many entities status value was split into, if it was too large; not to be confused with other notions of sharding
+  @Setter(AccessLevel.PRIVATE)
+  @Getter(AccessLevel.PRIVATE)
+  private Integer statusValueShards;
+
 
   public static class LockInfo {
 
@@ -124,9 +129,9 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     this.mostRecentUpdateTime = mostRecentUpdateTime;
     this.lockInfo = lockInfo;
     this.task = task;
-    this.taskShards = 0;
+    this.taskValueShards = 0;
     this.status = status;
-    this.statusShards = 0;
+    this.statusValueShards = 0;
   }
 
   int incrementAndGetRetryCount() {
@@ -175,10 +180,10 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       taskState.set(SEQUENCE_NUMBER_PROPERTY, in.getSequenceNumber());
       taskState.set(RETRY_COUNT_PROPERTY, in.getRetryCount());
 
-      int taskShards = serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask(), Optional.ofNullable(in.taskShards));
-      in.setTaskShards(taskShards);
-      int statusShards = serializeToDatastoreProperty(tx, taskState, STATUS_PROPERTY, in.getStatus(), Optional.ofNullable(in.statusShards));
-      in.setStatusShards(statusShards);
+      int taskShards = serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask(), Optional.ofNullable(in.taskValueShards));
+      in.setTaskValueShards(taskShards);
+      int statusShards = serializeToDatastoreProperty(tx, taskState, STATUS_PROPERTY, in.getStatus(), Optional.ofNullable(in.statusValueShards));
+      in.setStatusValueShards(statusShards);
       return taskState.build();
     }
 
@@ -222,8 +227,8 @@ public class IncrementalTaskState<T extends IncrementalTask> {
         state.retryCount = Ints.checkedCast(in.getLong(RETRY_COUNT_PROPERTY));
       }
 
-      state.setStatusShards(SerializationUtil.shardsUsedToStore(in, STATUS_PROPERTY));
-      state.setTaskShards(SerializationUtil.shardsUsedToStore(in, NEXT_TASK_PROPERTY));
+      state.setStatusValueShards(SerializationUtil.shardsUsedToStore(in, STATUS_PROPERTY));
+      state.setTaskValueShards(SerializationUtil.shardsUsedToStore(in, NEXT_TASK_PROPERTY));
 
       return state;
     }

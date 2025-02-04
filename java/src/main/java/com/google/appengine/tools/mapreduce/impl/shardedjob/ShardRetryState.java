@@ -28,9 +28,11 @@ public final class ShardRetryState<T extends IncrementalTask> {
   private final T initialTask;
   private int retryCount;
 
+  // internal tracking of how many shards were used to store the task value, if too large to be single Blob property
+  // eg, for a large serialized task, this will be the number of shards used to store the serialized task; not to be confused with other notions of sharding
   @Getter(AccessLevel.PRIVATE)
   @Setter(AccessLevel.PRIVATE)
-  private int initialTaskShards;
+  private int initialTaskValueShards;
 
   public int incrementAndGet() {
     return ++retryCount;
@@ -47,7 +49,7 @@ public final class ShardRetryState<T extends IncrementalTask> {
       .taskId(taskState.getTaskId())
       .initialTask(taskState.getTask())
       .retryCount(0)
-      .initialTaskShards(0)
+      .initialTaskValueShards(0)
       .build();
   }
 
@@ -69,8 +71,8 @@ public final class ShardRetryState<T extends IncrementalTask> {
 
     static Entity toEntity(Transaction tx, ShardRetryState<?> in) {
       Entity.Builder shardInfo = Entity.newBuilder(makeKey(tx.getDatastore(), in.getTaskId()));
-      int initialTaskShards = serializeToDatastoreProperty(tx, shardInfo, INITIAL_TASK_PROPERTY, in.initialTask, Optional.of(in.initialTaskShards));
-      in.setInitialTaskShards(initialTaskShards);
+      int initialTaskShards = serializeToDatastoreProperty(tx, shardInfo, INITIAL_TASK_PROPERTY, in.initialTask, Optional.of(in.initialTaskValueShards));
+      in.setInitialTaskValueShards(initialTaskShards);
       shardInfo.set(RETRY_COUNT_PROPERTY, LongValue.newBuilder(in.retryCount).setExcludeFromIndexes(true).build());
       shardInfo.set(TASK_ID_PROPERTY, in.taskId.asEncodedString());
       return shardInfo.build();

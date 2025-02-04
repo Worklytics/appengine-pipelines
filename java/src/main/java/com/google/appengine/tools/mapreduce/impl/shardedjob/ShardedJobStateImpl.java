@@ -46,15 +46,15 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   @Getter(AccessLevel.PRIVATE)
   @Setter(AccessLevel.PRIVATE)
   @Builder.Default
-  private int statusShards = 0;
+  private int statusValueShards = 0;
   @Getter(AccessLevel.PRIVATE)
   @Setter(AccessLevel.PRIVATE)
   @Builder.Default
-  private int controllerShards = 0;
+  private int controllerValueShards = 0;
   @Getter(AccessLevel.PRIVATE)
   @Setter(AccessLevel.PRIVATE)
   @Builder.Default
-  private int settingsShards = 0;
+  private int settingsValueShards = 0;
 
 
   public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(
@@ -160,10 +160,10 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
 
       //avoid serialization issue; will fill on deserialization
       in.getController().setPipelineService(null);
-      serializeToDatastoreProperty(tx, jobState, CONTROLLER_PROPERTY, in.getController(), Optional.of(in.controllerShards));
-      serializeToDatastoreProperty(tx, jobState, SETTINGS_PROPERTY, in.getSettings(), Optional.of(in.settingsShards));
+      serializeToDatastoreProperty(tx, jobState, CONTROLLER_PROPERTY, in.getController(), Optional.of(in.controllerValueShards));
+      serializeToDatastoreProperty(tx, jobState, SETTINGS_PROPERTY, in.getSettings(), Optional.of(in.settingsValueShards));
       serializeToDatastoreProperty(tx, jobState, SHARDS_COMPLETED_PROPERTY, in.shardsCompleted, Optional.of(0)); // this is a BitSet, so assume will NEVER exceed blob limit (as that'd be nuts)
-      serializeToDatastoreProperty(tx, jobState, STATUS_PROPERTY, in.getStatus(), Optional.of(in.statusShards));
+      serializeToDatastoreProperty(tx, jobState, STATUS_PROPERTY, in.getStatus(), Optional.of(in.statusValueShards));
       jobState.set(TOTAL_TASK_COUNT_PROPERTY, LongValue.newBuilder(in.getTotalTaskCount()).setExcludeFromIndexes(true).build());
       jobState.set(START_TIME_PROPERTY, timestampBuilder(in.getStartTime()).setExcludeFromIndexes(true).build());
       jobState.set(MOST_RECENT_UPDATE_TIME_PROPERTY,
@@ -193,13 +193,13 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
       return ShardedJobStateImpl.<T>builder()
         .shardedJobId(jobId)
         .controller(SerializationUtil.deserializeFromDatastoreProperty(tx, in, CONTROLLER_PROPERTY, lenient))
-        .controllerShards(SerializationUtil.shardsUsedToStore(in, CONTROLLER_PROPERTY))
+        .controllerValueShards(SerializationUtil.shardsUsedToStore(in, CONTROLLER_PROPERTY))
         .settings(SerializationUtil.deserializeFromDatastoreProperty(tx, in, SETTINGS_PROPERTY))
-        .settingsShards(SerializationUtil.shardsUsedToStore(in, SETTINGS_PROPERTY))
+        .settingsValueShards(SerializationUtil.shardsUsedToStore(in, SETTINGS_PROPERTY))
         .totalTaskCount((int) in.getLong(TOTAL_TASK_COUNT_PROPERTY))
         .startTime(from(in.getTimestamp(START_TIME_PROPERTY)))
         .status(SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY))
-        .statusShards(SerializationUtil.shardsUsedToStore(in, STATUS_PROPERTY))
+        .statusValueShards(SerializationUtil.shardsUsedToStore(in, STATUS_PROPERTY))
         .mostRecentUpdateTime(in.contains(MOST_RECENT_UPDATE_TIME_PROPERTY) ? from(in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY)) : null)
         .shardsCompleted(SerializationUtil.deserializeFromDatastoreProperty(tx, in, SHARDS_COMPLETED_PROPERTY))
         .build();
