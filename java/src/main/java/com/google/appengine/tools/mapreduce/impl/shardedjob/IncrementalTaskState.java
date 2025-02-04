@@ -12,13 +12,11 @@ import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.apphosting.api.ApiProxy;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.Optional;
 
 /**
  * Information about execution of an {@link IncrementalTask}.
@@ -53,8 +51,16 @@ public class IncrementalTaskState<T extends IncrementalTask> {
   @Setter
   private T task;
 
+  @Setter(AccessLevel.PRIVATE)
+  @Getter(AccessLevel.PRIVATE)
+  private Integer taskShards;
+
   @Setter
   private Status status;
+
+  @Setter(AccessLevel.PRIVATE)
+  @Getter(AccessLevel.PRIVATE)
+  private Integer statusShards;
 
   @ToString.Exclude
   private LockInfo lockInfo;
@@ -118,7 +124,9 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     this.mostRecentUpdateTime = mostRecentUpdateTime;
     this.lockInfo = lockInfo;
     this.task = task;
+    this.taskShards = 0;
     this.status = status;
+    this.statusShards = 0;
   }
 
   int incrementAndGetRetryCount() {
@@ -166,8 +174,11 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       }
       taskState.set(SEQUENCE_NUMBER_PROPERTY, in.getSequenceNumber());
       taskState.set(RETRY_COUNT_PROPERTY, in.getRetryCount());
-      serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask());
-      serializeToDatastoreProperty(tx, taskState, STATUS_PROPERTY, in.getStatus());
+
+      int taskShards = serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask(), Optional.ofNullable(in.taskShards));
+      in.setTaskShards(taskShards);
+      int statusShards = serializeToDatastoreProperty(tx, taskState, STATUS_PROPERTY, in.getStatus(), Optional.ofNullable(in.statusShards));
+      in.setStatusShards(statusShards);
       return taskState.build();
     }
 
@@ -210,6 +221,10 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       if (in.contains(RETRY_COUNT_PROPERTY)) {
         state.retryCount = Ints.checkedCast(in.getLong(RETRY_COUNT_PROPERTY));
       }
+
+      state.setStatusShards(SerializationUtil.shardsUsedToStore(in, STATUS_PROPERTY));
+      state.setTaskShards(SerializationUtil.shardsUsedToStore(in, NEXT_TASK_PROPERTY));
+
       return state;
     }
 

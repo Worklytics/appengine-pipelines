@@ -18,12 +18,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 /**
@@ -108,7 +109,7 @@ public class SerializationUtilTest {
   private static class Value implements Serializable {
 
     private static final long serialVersionUID = -2908491492725087639L;
-    private byte[] bytes;
+    private final byte[] bytes;
 
     Value(int kb) {
       bytes = new byte[kb * 1024];
@@ -131,19 +132,23 @@ public class SerializationUtilTest {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = { 0, 500,
-    2000, //sufficient to force sharding
-    4000,
+  @CsvSource(value = {
+    "0,0",
+    "500,0",
+    "1000,2", // sufficient to force sharding
+    "2000,3",
+    "4000,5",
     // >4000 fails with emulator error: [datastore] io.grpc.StatusRuntimeException: INTERNAL: Frame size 5123097 exceeds maximum: 4194304. If this is normal, increase the maxMessageSize in the channel/server builder
     // 5000, 10000
   })
-  public void testSerializeToDatastore(int size) throws Exception {
+  public void testSerializeToDatastore(int size, int expectedShardCount) throws Exception {
     Value original = new Value(size);
 
     Transaction tx = this.datastore.newTransaction();
     Key key = tx.getDatastore().newKeyFactory().setKind("mr-entity").newKey(1+size);
     Entity.Builder entity = Entity.newBuilder(key);
-    SerializationUtil.serializeToDatastoreProperty(tx, entity, "foo", original);
+    int shards = SerializationUtil.serializeToDatastoreProperty(tx, entity, "foo", original, Optional.of(0));
+    assertEquals(expectedShardCount, shards);
     tx.put(entity.build());
     tx.commit();
 

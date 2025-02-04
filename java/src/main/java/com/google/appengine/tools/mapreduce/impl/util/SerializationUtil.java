@@ -27,14 +27,11 @@ import lombok.SneakyThrows;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.zip.*;
@@ -173,18 +170,31 @@ public class SerializationUtil {
     return keys;
   }
 
-  public static void serializeToDatastoreProperty(
-      Transaction tx, Entity.Builder entity, String property, Serializable o) {
-    byte[] bytes = serializeToByteArray(o);
+  /**
+   * Serializes the given value to a byte array and stores it in the given entity under the property.
+   * if too large to fit in a single BLOB property, may split into entities (shard), and store them
+   *
+   * @param tx                under which to store the value (only used in sharded case)
+   * @param entity            on which to store the value
+   * @param property          name to use
+   * @param value             to store
+   * @param priorVersionShards whether the property was previously sharded (if known)
+   * @return number of shards used to store the value, if any
+   */
+  public static int serializeToDatastoreProperty(
+    Transaction tx, Entity.Builder entity, String property, Serializable value, Optional<Integer> priorVersionShards) {
+    byte[] bytes = serializeToByteArray(value);
 
     Key key = entity.build().getKey();
 
-    // deleting previous shards
-    List<Key> toDelete = Lists.newArrayList(getShardedValueKeysFor(tx, key, property));
-
     if (bytes.length < MAX_BLOB_BYTE_SIZE) {
-      tx.delete(toDelete.toArray(new Key[toDelete.size()]));
+      if (priorVersionShards.isEmpty() || priorVersionShards.get() > 0) {
+        //need to delete previous shards
+        List<Key> toDelete = Lists.newArrayList(getShardedValueKeysFor(tx, key, property));
+        tx.delete(toDelete.toArray(new Key[toDelete.size()]));
+      }
       entity.set(property, BlobValue.newBuilder(Blob.copyFrom(bytes)).setExcludeFromIndexes(true).build());
+      return 0;
     } else {
       int shardId = 0;
       int offset = 0;
@@ -205,20 +215,42 @@ public class SerializationUtil {
         keyFactory.setKind(SHARDED_VALUE_KIND);
 
         Entity shard = Entity.newBuilder(keyFactory.newKey(keyName))
-            .set("property", property)
-            .set("content", BlobValue.newBuilder(Blob.copyFrom(chunk)).setExcludeFromIndexes(true).build())
-            .build();
+          .set("property", property)
+          .set("content", BlobValue.newBuilder(Blob.copyFrom(chunk)).setExcludeFromIndexes(true).build())
+          .build();
         shards.add(shard);
       }
-      if (shards.size() < toDelete.size()) {
-        tx.delete(toDelete.toArray(new Key[toDelete.size()]));
+
+      if (shards.size() < priorVersionShards.orElse(Integer.MAX_VALUE)) {
+        List<Key> preExistingShards = Lists.newArrayList(getShardedValueKeysFor(tx, key, property));
+        //NOTE: datastore lib is smart enough that any puts() overwriting entities deleted in this step() will take precedence
+        // de-dup here would be premature optimization
+        tx.delete(preExistingShards.toArray(Key[]::new));
       }
-      tx.put(shards.toArray(new Entity[shards.size()]));
-      List<KeyValue> value = shards.stream()
+
+      tx.put(shards.toArray(Entity[]::new));
+      List<KeyValue> values = shards.stream()
         .map(ENTITY_TO_KEY)
         .map(k -> KeyValue.newBuilder(k).setExcludeFromIndexes(true).build())
         .collect(Collectors.toList());
-      entity.set(property, ListValue.newBuilder().set(value).build());
+      entity.set(property, ListValue.newBuilder().set(values).build());
+      return shards.size();
+    }
+  }
+
+  /**
+   * get count of shards used to store value for property on entity, if any
+   *
+   * @param entity
+   * @param property
+   * @return
+   */
+  public static int shardsUsedToStore(Entity entity, String property) {
+    try {
+      List<KeyValue> keys = entity.getList(property);
+      return keys.size();
+    } catch (ClassCastException e) {
+      return 0;
     }
   }
 

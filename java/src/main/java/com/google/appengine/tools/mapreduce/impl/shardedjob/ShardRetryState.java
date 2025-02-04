@@ -6,9 +6,15 @@ import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.d
 import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.cloud.datastore.*;
 import com.google.common.primitives.Ints;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
+
+import java.util.Optional;
 
 /**
  * Retry information for a shard.
@@ -16,6 +22,7 @@ import lombok.Getter;
  *
  * @param <T> type of task
  */
+@AllArgsConstructor
 @Getter
 public final class ShardRetryState<T extends IncrementalTask> {
 
@@ -23,11 +30,9 @@ public final class ShardRetryState<T extends IncrementalTask> {
   private final T initialTask;
   private int retryCount;
 
-  private ShardRetryState(IncrementalTaskId taskId, T initialTask, int retryCount) {
-    this.taskId = checkNotNull(taskId);
-    this.initialTask = checkNotNull(initialTask);
-    this.retryCount = retryCount;
-  }
+  @Getter(AccessLevel.PRIVATE)
+  @Setter(AccessLevel.PRIVATE)
+  private int initialTaskShards;
 
   public int incrementAndGet() {
     return ++retryCount;
@@ -40,7 +45,7 @@ public final class ShardRetryState<T extends IncrementalTask> {
 
   static <T extends IncrementalTask> ShardRetryState<T> createFor(
       IncrementalTaskState<T> taskState) {
-    return new ShardRetryState<>(taskState.getTaskId(), taskState.getTask(), 0);
+    return new ShardRetryState<>(taskState.getTaskId(), taskState.getTask(), 0, 0);
   }
 
   /**
@@ -61,7 +66,8 @@ public final class ShardRetryState<T extends IncrementalTask> {
 
     static Entity toEntity(Transaction tx, ShardRetryState<?> in) {
       Entity.Builder shardInfo = Entity.newBuilder(makeKey(tx.getDatastore(), in.getTaskId()));
-      serializeToDatastoreProperty(tx, shardInfo, INITIAL_TASK_PROPERTY, in.initialTask);
+      int initialTaskShards = serializeToDatastoreProperty(tx, shardInfo, INITIAL_TASK_PROPERTY, in.initialTask, Optional.of(in.initialTaskShards));
+      in.setInitialTaskShards(initialTaskShards);
       shardInfo.set(RETRY_COUNT_PROPERTY, LongValue.newBuilder(in.retryCount).setExcludeFromIndexes(true).build());
       shardInfo.set(TASK_ID_PROPERTY, in.taskId.asEncodedString());
       return shardInfo.build();
@@ -71,7 +77,7 @@ public final class ShardRetryState<T extends IncrementalTask> {
       T initialTask = deserializeFromDatastoreProperty(tx, in, INITIAL_TASK_PROPERTY);
       int retryCount = Ints.checkedCast(in.getLong(RETRY_COUNT_PROPERTY));
       IncrementalTaskId taskId = IncrementalTaskId.parse(in.getString(TASK_ID_PROPERTY));
-      return new ShardRetryState<>(taskId, initialTask, retryCount);
+      return new ShardRetryState<>(taskId, initialTask, retryCount, SerializationUtil.shardsUsedToStore(in, INITIAL_TASK_PROPERTY));
     }
   }
 }
