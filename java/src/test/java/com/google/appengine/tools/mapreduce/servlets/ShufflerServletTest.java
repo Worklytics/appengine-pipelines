@@ -177,19 +177,16 @@ public class ShufflerServletTest {
   }
 
 
-  private int getQueueDepth() {
-    return LocalTaskQueueTestConfig
-        .getLocalTaskQueue()
-        .getQueueStateInfo()
-        .get(QueueFactory.getDefaultQueue().getQueueName())
-        .getTaskInfo()
-        .size();
-  }
+
+  static final int SHUFFLE_VERIFICATION_RETRIES = 3;
 
   @SneakyThrows
   @Test
   public void testDataIsOrdered() throws InterruptedException, IOException {
-    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
+    final int INPUT_FILES_FOR_TEST = 3;
+    final int OUTPUT_SHARDS = 2;
+    ShufflerParams shufflerParams =
+      createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), INPUT_FILES_FOR_TEST, OUTPUT_SHARDS);
 
     // for test purposes, give a manifest file name that's unique, yet known outside of the shuffle stage of the map reduce job
     // (in usual case, derived from the shuffle stage's job id, which isn't known outside)
@@ -197,23 +194,23 @@ public class ShufflerServletTest {
     shufflerParams.setManifestFileNameOverride(UUID.randomUUID().toString());
 
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
-    assertEquals(3 * RECORDS_PER_FILE, input.keySet().size());
+    assertEquals(INPUT_FILES_FOR_TEST * RECORDS_PER_FILE, input.keySet().size());
 
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
-    JobRunId mrJobId = pipelineService.startNewPipeline(mr);
+    pipelineService.startNewPipeline(mr);
 
     assertTrue(WAIT_ON.tryAcquire(100, TimeUnit.SECONDS));
 
     TreeMultimap<ByteBuffer, ByteBuffer> notSeen;
-    int retriesRemaining = 3;
+    int retriesRemaining = SHUFFLE_VERIFICATION_RETRIES;
     do {
-      Thread.sleep(3000);
+      Thread.sleep((retriesRemaining - SHUFFLE_VERIFICATION_RETRIES) * 1000L);
       List<KeyValue<ByteBuffer, List<ByteBuffer>>> output = validateOrdered(shufflerParams);
       notSeen = assertExpectedOutput(input, output);
     } while (!notSeen.isEmpty() && retriesRemaining-- > 0);
 
     assertTrue(notSeen.isEmpty());
-    assertEquals(3, retriesRemaining);
+    assertEquals(SHUFFLE_VERIFICATION_RETRIES, retriesRemaining, "Passed, but only after retries");
   }
 
   @Test
@@ -344,6 +341,16 @@ public class ShufflerServletTest {
     shufflerParams.setOutputDir("storageDir");
     shufflerParams.setServiceAccountKey(serviceAccountKey);
     return shufflerParams;
+  }
+
+
+  private int getQueueDepth() {
+    return LocalTaskQueueTestConfig
+      .getLocalTaskQueue()
+      .getQueueStateInfo()
+      .get(QueueFactory.getDefaultQueue().getQueueName())
+      .getTaskInfo()
+      .size();
   }
 
 }
