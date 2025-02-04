@@ -33,8 +33,6 @@ import java.util.List;
   DatastoreExtension.ParameterResolver.class,
   PipelineComponentsExtension.class,
   PipelineComponentsExtension.ParameterResolver.class,
-  CloudTasksExtension.class,
-  CloudTasksExtension.ParameterResolver.class
 })
 public @interface PipelineSetupExtensions {
 
