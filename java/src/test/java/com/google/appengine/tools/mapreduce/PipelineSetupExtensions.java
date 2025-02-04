@@ -56,7 +56,6 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
     PipelineRunner.class, ContextStoreKey.PIPELINE_MANAGER.name(),
     PipelineService.class, ContextStoreKey.PIPELINE_SERVICE.name(),
     AppEngineBackEnd.class, ContextStoreKey.APP_ENGINE_BACKEND.name(),
-    DatastoreOptions.class, DatastoreExtension.DS_OPTIONS_CONTEXT_KEY,
     JobRunServiceComponent.class, ContextStoreKey.JOB_RUN_SERVICE_COMPONENT.name(),
     ShardedJobRunner.class, ContextStoreKey.SHARDED_JOB_RUNNER.name()
     // PipelineServlet.class not supported
