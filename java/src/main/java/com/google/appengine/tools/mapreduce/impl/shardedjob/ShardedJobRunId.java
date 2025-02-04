@@ -13,7 +13,6 @@ import java.io.Serial;
  */
 @SuperBuilder
 @EqualsAndHashCode(callSuper = true)
-@ToString
 public class ShardedJobRunId extends JobRunId {
 
   @Serial
@@ -37,6 +36,11 @@ public class ShardedJobRunId extends JobRunId {
 
   public static ShardedJobRunId of(Key key) {
     return new ShardedJobRunId(key.getProjectId(), key.getDatabaseId(), key.getNamespace(), key.getName());
+  }
+
+  @Override
+  public String toString() {
+    return "ShardedJobRunId(" + this.asEncodedString() + ")";
   }
 
 }

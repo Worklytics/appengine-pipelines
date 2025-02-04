@@ -102,6 +102,6 @@ public class JobRunId implements Serializable {
 
   @Override
   public String toString() {
-    return asEncodedString();
+    return "JobRunId(" + asEncodedString() + ")";
   }
 }
