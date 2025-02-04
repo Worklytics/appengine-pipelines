@@ -14,11 +14,8 @@
 
 package com.google.appengine.tools.mapreduce.servlets;
 
-import static java.util.concurrent.Executors.callable;
-
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
-import com.github.rholder.retry.WaitStrategies;
 import com.google.appengine.api.modules.ModulesServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
@@ -26,7 +23,6 @@ import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
@@ -49,9 +45,14 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.codec.digest.DigestUtils;
+
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
-
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
@@ -60,17 +61,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import org.apache.commons.codec.digest.DigestUtils;
+import static java.util.concurrent.Executors.callable;
 
 /**
  * This servlet provides a way for Python MapReduce Jobs to use the Java MapReduce as a shuffle. It
@@ -100,8 +94,9 @@ public class ShufflerServlet extends HttpServlet {
           || e instanceof RequestTooLargeException
           || e instanceof ArgumentException)
       )
-      .withWaitStrategy(WaitStrategies.exponentialWait(30_000, TimeUnit.MILLISECONDS))
-      .withStopStrategy(StopStrategies.stopAfterAttempt(10));
+      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
+      .withStopStrategy(StopStrategies.stopAfterAttempt(10))
+      .withRetryListener(RetryUtils.logRetry(log, ShufflerServlet.class.getName()));
   }
 
 

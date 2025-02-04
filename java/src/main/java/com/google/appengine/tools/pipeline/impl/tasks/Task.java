@@ -130,7 +130,6 @@ public abstract class Task {
     HANDLE_CHILD_EXCEPTION(HandleChildExceptionTask.class),
     CANCEL_JOB(CancelJobTask.class),
     FINALIZE_JOB(FinalizeJobTask.class),
-    FAN_OUT(FanoutTask.class),
     DELETE_PIPELINE(DeletePipelineTask.class),
     DELAYED_SLOT_FILL(DelayedSlotFillTask.class),
     // TODO(user): Remove in the future. Left for backward compatibility with 0.3

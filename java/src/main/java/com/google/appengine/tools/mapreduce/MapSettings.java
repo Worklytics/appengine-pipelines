@@ -2,10 +2,8 @@
 
 package com.google.appengine.tools.mapreduce;
 
-import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings.DEFAULT_SLICE_TIMEOUT_MILLIS;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import com.github.rholder.retry.*;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.api.modules.ModulesException;
 import com.google.appengine.api.modules.ModulesService;
 import com.google.appengine.api.modules.ModulesServiceFactory;
@@ -23,11 +21,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
+import lombok.extern.java.Log;
 
 import java.io.Serializable;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+
+import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings.DEFAULT_SLICE_TIMEOUT_MILLIS;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Settings that affect how a Map job is executed.  May affect performance and
@@ -38,22 +39,25 @@ import java.util.concurrent.TimeUnit;
 @Getter
 @ToString
 @RequiredArgsConstructor
+@Log
 public class MapSettings implements Serializable {
 
   private static final long serialVersionUID = 51425056338041064L;
 
   private static RetryerBuilder getQueueRetryerBuilder() {
     return RetryerBuilder.newBuilder()
-      .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
+      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
-      .retryIfExceptionOfType(TransientFailureException.class);
+      .retryIfExceptionOfType(TransientFailureException.class)
+      .withRetryListener(RetryUtils.logRetry(log, MapSettings.class.getName()));
   }
 
   private static RetryerBuilder getModulesRetryerBuilder() {
     return RetryerBuilder.newBuilder()
-      .withWaitStrategy(WaitStrategies.exponentialWait(20_000, TimeUnit.MILLISECONDS))
+      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
-      .retryIfExceptionOfType(ModulesException.class);
+      .retryIfExceptionOfType(ModulesException.class)
+      .withRetryListener(RetryUtils.logRetry(log, MapSettings.class.getName()));
   }
 
   public static final String DEFAULT_BASE_URL = "/mapreduce/";

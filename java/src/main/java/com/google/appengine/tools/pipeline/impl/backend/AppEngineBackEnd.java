@@ -14,38 +14,22 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import static com.google.appengine.tools.pipeline.impl.model.JobRecord.IS_ROOT_JOB_PROPERTY;
-import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_DISPLAY_NAME;
-import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
-import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
-
 import com.github.rholder.retry.*;
-
 import com.google.appengine.tools.pipeline.JobRunId;
+import com.google.appengine.tools.pipeline.NoSuchObjectException;
+import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.model.*;
+import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.appengine.tools.pipeline.impl.util.TestUtils;
+import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.*;
-import com.google.appengine.tools.pipeline.NoSuchObjectException;
-import com.google.appengine.tools.pipeline.impl.QueueSettings;
-import com.google.appengine.tools.pipeline.impl.model.Barrier;
-import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
-import com.google.appengine.tools.pipeline.impl.model.FanoutTaskRecord;
-import com.google.appengine.tools.pipeline.impl.model.JobInstanceRecord;
-import com.google.appengine.tools.pipeline.impl.model.JobRecord;
-import com.google.appengine.tools.pipeline.impl.model.PipelineModelObject;
-import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
-import com.google.appengine.tools.pipeline.impl.model.ShardedValue;
-import com.google.appengine.tools.pipeline.impl.model.Slot;
-import com.google.appengine.tools.pipeline.impl.tasks.FanoutTask;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
-import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
-import com.google.appengine.tools.pipeline.util.Pair;
-
-import com.google.cloud.datastore.Blob;
-import com.google.cloud.datastore.Entity;
-import com.google.cloud.datastore.Key;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 import com.google.datastore.v1.QueryResultBatch;
 import lombok.Builder;
@@ -55,6 +39,7 @@ import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -65,6 +50,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static com.google.appengine.tools.pipeline.impl.model.JobRecord.IS_ROOT_JOB_PROPERTY;
+import static com.google.appengine.tools.pipeline.impl.model.JobRecord.ROOT_JOB_DISPLAY_NAME;
+import static com.google.appengine.tools.pipeline.impl.model.PipelineModelObject.ROOT_JOB_KEY_PROPERTY;
+import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereForTesting;
+
 /**
  * @author rudominer@google.com (Mitch Rudominer)
  *
@@ -74,20 +64,45 @@ import java.util.stream.Collectors;
 public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy {
 
   public static final int MAX_RETRY_ATTEMPTS = 5;
-  public static final int RETRY_BACKOFF_MULTIPLIER = 2;
+  public static final int RETRY_BACKOFF_MULTIPLIER = 300;
   public static final int RETRY_MAX_BACKOFF_MS = 5000;
 
+  // TODO: RetryUtils is in mapreduce package, so duplicated to not mix on purpose
+  // TODO: consider moving to a shared package
+  // TODO: possibly we should inspect error code in more detail? see https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
+  @SuppressWarnings("DuplicatedCode")
+  public static Predicate<Throwable> handleDatastoreExceptionRetry() {
+    return t -> {
+      Iterator<DatastoreException> datastoreExceptionIterator = Iterables.filter(Throwables.getCausalChain(t), DatastoreException.class).iterator();
+      if (datastoreExceptionIterator.hasNext()) {
+        DatastoreException de = datastoreExceptionIterator.next();
+        return de.isRetryable() ||
+          (de.getMessage() != null && de.getMessage().toLowerCase().contains("retry the transaction"));
+      }
+      return false;
+    };
+  }
 
   private <E> Retryer<E> withDefaults(RetryerBuilder<E> builder) {
       return builder
-              .withWaitStrategy(WaitStrategies.exponentialWait(RETRY_BACKOFF_MULTIPLIER, RETRY_MAX_BACKOFF_MS, TimeUnit.MILLISECONDS))
-              // TODO: possibly we should inspect error code in more detail? see https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
-              .retryIfException(e -> e instanceof DatastoreException && (((DatastoreException) e).isRetryable()))
+              .withWaitStrategy(
+                  WaitStrategies.exponentialWait(RETRY_BACKOFF_MULTIPLIER, RETRY_MAX_BACKOFF_MS, TimeUnit.MILLISECONDS))
+              .retryIfException(handleDatastoreExceptionRetry())
               .retryIfExceptionOfType(IOException.class) //q: can this happen?
-              .withStopStrategy((Attempt failedAttempt) ->
-                      failedAttempt.getAttemptNumber() >= MAX_RETRY_ATTEMPTS
-                       //
-                      //|| (failedAttempt.hasException() && (failedAttempt.getExceptionCause() instanceOf SomePersistentIOException)
+              .withStopStrategy(StopStrategies.stopAfterAttempt(MAX_RETRY_ATTEMPTS))
+              .withRetryListener(new RetryListener() {
+                @Override
+                public <V> void onRetry(Attempt<V> attempt) {
+                  if (attempt.getAttemptNumber() > 1 || attempt.hasException()) {
+                    String className = AppEngineBackEnd.class.getName();
+                    if (attempt.hasException()) {
+                      log.log(Level.WARNING, "%s, Attempt #%d. Retrying...".formatted(className, attempt.getAttemptNumber()), attempt.getExceptionCause());
+                    } else {
+                      log.log(Level.WARNING, "%s, Attempt #%d OK, wait: %s".formatted(className, attempt.getAttemptNumber(), Duration.ofMillis(attempt.getDelaySinceFirstAttempt())));
+                    }
+                  }
+                }
+              }
               )
               .build();
 
@@ -230,26 +245,17 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         }
       }
       saveAll(transaction, transactionSpec);
+      transaction.commit();
+
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
-            (UpdateSpec.TransactionWithTasks) transactionSpec;
+          (UpdateSpec.TransactionWithTasks) transactionSpec;
         Collection<Task> tasks = transactionWithTasks.getTasks();
-        if (tasks.size() > 0) {
-          byte[] encodedTasks = FanoutTask.encodeTasks(tasks);
-          FanoutTaskRecord ftRecord = new FanoutTaskRecord(rootJobKey, encodedTasks);
-          // Store FanoutTaskRecord outside of any transaction, but before
-          // the FanoutTask is enqueued. If the put succeeds but the
-          // enqueue fails then the FanoutTaskRecord is orphaned. But
-          // the Pipeline is still consistent.
-          datastore.put(ftRecord.toEntity());
-          ftRecord.toEntity().getKey().getKind();
-          FanoutTask fanoutTask = new FanoutTask(ftRecord.getKey(), queueSettings);
-
-          //TODO: should this enqueue be in context of transaction??
-          taskQueue.enqueue(fanoutTask);
+        for (Task task : tasks) {
+          taskQueue.enqueue(task);
         }
       }
-      transaction.commit();
+
     } finally {
       if (transaction.isActive()) {
         transaction.rollback();
@@ -537,16 +543,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       throw new NoSuchObjectException(key.toString());
     }
     return entity;
-  }
-
-  @Override
-  public void handleFanoutTask(FanoutTask fanoutTask) throws NoSuchObjectException {
-    Key fanoutTaskRecordKey = fanoutTask.getRecordKey();
-    // Fetch the fanoutTaskRecord outside of any transaction
-    Entity entity = getEntity("handleFanoutTask", fanoutTaskRecordKey);
-    FanoutTaskRecord ftRecord = new FanoutTaskRecord(entity);
-    byte[] encodedBytes = ftRecord.getPayload();
-    taskQueue.enqueue(FanoutTask.decodeTasks(encodedBytes));
   }
 
   public List<Entity> queryAll(final String kind, final Key rootJobKey) {

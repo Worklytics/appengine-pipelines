@@ -171,8 +171,18 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       return taskState.build();
     }
 
-    static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(Transaction tx, Entity in) {
+    public static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(Transaction tx, Entity in) {
       return fromEntity(tx, in, false);
+    }
+
+    public static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(
+      @NonNull Datastore datastore,
+      Entity in,
+      boolean lenient) {
+      Transaction txn = datastore.newTransaction();
+      IncrementalTaskState<T> state = fromEntity(txn, in, lenient);
+      txn.commit();
+      return state;
     }
 
     public static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(
