@@ -1,6 +1,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.tools.pipeline.DatastoreExtension;
+import com.google.appengine.tools.test.DatastoreExtension;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.cloud.datastore.Blob;
 import com.google.cloud.datastore.Datastore;

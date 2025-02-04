@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
-import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
+import com.google.appengine.tools.test.PipelineSetupExtensions;
 import com.google.appengine.tools.pipeline.JobSetting.BackoffFactor;
 import com.google.appengine.tools.pipeline.JobSetting.BackoffSeconds;
 import com.google.appengine.tools.pipeline.JobSetting.MaxAttempts;

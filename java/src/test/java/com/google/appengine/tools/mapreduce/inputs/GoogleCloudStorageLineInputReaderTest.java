@@ -2,6 +2,8 @@ package com.google.appengine.tools.mapreduce.inputs;
 
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.test.CloudStorageExtension;
+import com.google.appengine.tools.test.CloudStorageExtensions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -26,9 +28,9 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
 
   @BeforeEach
   public void prepareFile() throws Exception {
-    filename = new GcsFilename(cloudStorageIntegrationTestHelper.getBucket(), FILENAME);
+    filename = new GcsFilename(bucket, FILENAME);
     fileSize = createFile(filename.getObjectName(), RECORD, RECORDS_COUNT);
-    inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(cloudStorageIntegrationTestHelper.getBase64EncodedServiceAccountKey());
+    inputOptions = GoogleCloudStorageLineInput.BaseOptions.defaults().withServiceAccountKey(CloudStorageExtension.getBase64EncodedServiceAccountKey());
   }
 
   @Test

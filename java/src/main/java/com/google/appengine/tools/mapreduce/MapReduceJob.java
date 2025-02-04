@@ -204,6 +204,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
               new HashingSharder(getNumOutputFiles(readers.size())),
               GoogleCloudStorageFileOutput.BaseOptions.builder()
                 .serviceAccountKey(settings.getServiceAccountKey())
+                .projectId(settings.getProjectId())
                 .build()
       );
       output.setContext(context);
