@@ -38,8 +38,11 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   private final int totalTaskCount;
   @NonNull
   private final Instant startTime;
+  @Setter
   private Instant mostRecentUpdateTime;
   private BitSet shardsCompleted;
+
+  @NonNull @Setter
   private Status status;
 
   // used internally to track serialization of these values in the datastore
@@ -101,20 +104,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
     shardsCompleted.set(shard);
   }
 
-  private ShardedJobStateImpl<T> setShardsCompleted(BitSet shardsCompleted) {
-    this.shardsCompleted = shardsCompleted;
-    return this;
-  }
 
-  ShardedJobStateImpl<T> setMostRecentUpdateTime(Instant mostRecentUpdateTime) {
-    this.mostRecentUpdateTime = mostRecentUpdateTime;
-    return this;
-  }
-
-  ShardedJobStateImpl<T> setStatus(Status status) {
-    this.status = checkNotNull(status, "Null status");
-    return this;
-  }
 
   @Override
   public String toString() {
@@ -166,8 +156,12 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
       serializeToDatastoreProperty(tx, jobState, STATUS_PROPERTY, in.getStatus(), Optional.of(in.statusValueShards));
       jobState.set(TOTAL_TASK_COUNT_PROPERTY, LongValue.newBuilder(in.getTotalTaskCount()).setExcludeFromIndexes(true).build());
       jobState.set(START_TIME_PROPERTY, timestampBuilder(in.getStartTime()).setExcludeFromIndexes(true).build());
+
+      Instant mostRecentUpdate = Optional.ofNullable(in.getMostRecentUpdateTime()).orElse(Instant.now());
+
       jobState.set(MOST_RECENT_UPDATE_TIME_PROPERTY,
-          timestampBuilder(Optional.ofNullable(in.getMostRecentUpdateTime()).orElse(Instant.now())).setExcludeFromIndexes(true).build());
+          timestampBuilder(mostRecentUpdate).setExcludeFromIndexes(true).build());
+      in.setMostRecentUpdateTime(mostRecentUpdate);
 
       return jobState.build();
     }
