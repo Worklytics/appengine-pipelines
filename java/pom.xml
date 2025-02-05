@@ -51,8 +51,8 @@
         <configuration>
           <environmentVariables>
             <!-- allows DatastoreOptions.getDefaultInstance() to work in tests -->
-            <!-- is there a better way to do this? -->
             <GOOGLE_CLOUD_PROJECT>test-project</GOOGLE_CLOUD_PROJECT>
+            <rerunFailingTestsCount>3</rerunFailingTestsCount> <!-- Retry up to 3 times -->
           </environmentVariables>
         </configuration>
       </plugin>

@@ -9,18 +9,17 @@ import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
-import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 
+import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.extension.*;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 @Target({ ElementType.TYPE, ElementType.METHOD })
 @Retention(RetentionPolicy.RUNTIME)
@@ -50,14 +49,16 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
     JOB_RUN_SERVICE_COMPONENT,
   }
 
-  static final List<Class<?>> PARAMETER_CLASSES = Arrays.asList(
-    PipelineManager.class,
-    PipelineService.class,
-    AppEngineBackEnd.class,
-    PipelineOrchestrator.class,
-    PipelineRunner.class,
-    JobRunServiceComponent.class,
-    ShardedJobRunner.class
+
+  static Map<Class<?>, ContextStoreKey> PARAMETER_CLASSES_CONTEXT_KEY_MAP = ImmutableMap.of(
+    PipelineManager.class, ContextStoreKey.PIPELINE_MANAGER,
+    PipelineOrchestrator.class, ContextStoreKey.PIPELINE_MANAGER,
+    PipelineRunner.class, ContextStoreKey.PIPELINE_MANAGER,
+    PipelineService.class, ContextStoreKey.PIPELINE_SERVICE,
+    AppEngineBackEnd.class, ContextStoreKey.APP_ENGINE_BACKEND,
+    JobRunServiceComponent.class, ContextStoreKey.JOB_RUN_SERVICE_COMPONENT,
+    ShardedJobRunner.class, ContextStoreKey.SHARDED_JOB_RUNNER
+    // PipelineServlet.class not supported
   );
 
   @Override
@@ -77,15 +78,17 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
       = component.stepExecutionComponent(new StepExecutionModule(appEngineBackend));
 
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.PIPELINE_SERVICE.name(), stepExecutionComponent.pipelineService());
+      .put(ContextStoreKey.PIPELINE_SERVICE, stepExecutionComponent.pipelineService());
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.PIPELINE_MANAGER.name(), stepExecutionComponent.pipelineManager());
+      .put(ContextStoreKey.PIPELINE_MANAGER, stepExecutionComponent.pipelineManager());
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.APP_ENGINE_BACKEND.name(), appEngineBackend);
+      .put(ContextStoreKey.APP_ENGINE_BACKEND, appEngineBackend);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.JOB_RUN_SERVICE_COMPONENT.name(), component);
+      .put(ContextStoreKey.JOB_RUN_SERVICE_COMPONENT, component);
+    ShardedJobRunner shardedJobRunner = stepExecutionComponent.shardedJobRunner();
+    shardedJobRunner.setLockCheckTaskDelay(5_000);
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-      .put(ContextStoreKey.SHARDED_JOB_RUNNER, stepExecutionComponent.shardedJobRunner());
+      .put(ContextStoreKey.SHARDED_JOB_RUNNER, shardedJobRunner);
   }
 
   public static class ParameterResolver implements org.junit.jupiter.api.extension.ParameterResolver {
@@ -93,41 +96,15 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
     @Override
     public boolean supportsParameter(ParameterContext parameterContext,
                                      ExtensionContext extensionContext) throws ParameterResolutionException {
-      return PARAMETER_CLASSES.contains(parameterContext.getParameter().getType());
+      return PARAMETER_CLASSES_CONTEXT_KEY_MAP.containsKey(parameterContext.getParameter().getType());
     }
 
     @Override
     public Object resolveParameter(ParameterContext parameterContext,
                                    ExtensionContext extensionContext) throws ParameterResolutionException {
-      if (parameterContext.getParameter().getType() == PipelineManager.class) {
-        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-          .get(ContextStoreKey.PIPELINE_MANAGER.name());
-      } else if (parameterContext.getParameter().getType() == PipelineService.class) {
-        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-          .get(ContextStoreKey.PIPELINE_SERVICE.name());
-      } else if (parameterContext.getParameter().getType() == AppEngineBackEnd.class) {
-        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-          .get(ContextStoreKey.APP_ENGINE_BACKEND.name());
-      } else if (parameterContext.getParameter().getType() == DatastoreOptions.class) {
-        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-          .get(DatastoreExtension.DS_OPTIONS_CONTEXT_KEY);
-      } else if (parameterContext.getParameter().getType() == PipelineServlet.class) {
-        throw new Error("Not supported!");
-      } else if (parameterContext.getParameter().getType() == PipelineOrchestrator.class) {
-        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-          .get(ContextStoreKey.PIPELINE_MANAGER.name());
-      } else if (parameterContext.getParameter().getType() == PipelineRunner.class) {
-        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-          .get(ContextStoreKey.PIPELINE_MANAGER.name());
-      } else if (parameterContext.getParameter().getType() == JobRunServiceComponent.class) {
-        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-          .get(ContextStoreKey.JOB_RUN_SERVICE_COMPONENT.name());
-      } else if (parameterContext.getParameter().getType() == ShardedJobRunner.class) {
-        return extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
-          .get(ContextStoreKey.SHARDED_JOB_RUNNER);
-      } else {
-        throw new Error("Shouldn't be reached");
-      }
+      return Optional.ofNullable(PARAMETER_CLASSES_CONTEXT_KEY_MAP.get(parameterContext.getParameter().getType()))
+        .map(extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)::get)
+        .orElseThrow(() -> new Error("Not Supported"));
     }
   }
 
