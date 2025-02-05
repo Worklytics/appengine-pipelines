@@ -937,7 +937,7 @@ public final class KeyValuePb {
           }
         };
     Descriptors.FileDescriptor.internalBuildGeneratedFileFrom(descriptorData,
-        new Descriptors.FileDescriptor[] {}, assigner);
+        new Descriptors.FileDescriptor[] { descriptor});
   }
 
   // @@protoc_insertion_point(outer_class_scope)
