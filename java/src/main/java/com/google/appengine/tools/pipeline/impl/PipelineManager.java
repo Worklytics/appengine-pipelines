@@ -159,6 +159,10 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     // --> JobRecordFactory or something, that gets injected
     String projectId = backEnd.getOptions().as(AppEngineBackEnd.Options.class).getProjectId();
 
+    if (projectId.equals("no_app_id")) {
+      throw new IllegalStateException("projectId is 'no_app_id'; this isn't legal GCP project id");
+    }
+
     return registerNewJobRecord(updateSpec, JobRecord.createRootJobRecord(projectId, jobInstance, getSerializationStrategy(), settings), params);
   }
 
