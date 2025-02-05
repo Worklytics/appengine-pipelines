@@ -21,7 +21,7 @@ public class DeleteShardedJob extends AbstractShardedJob {
 
   @Override
   protected Job<?> createShardsJob(int start, int end) {
-    return new DeleteShardsInfos(datastoreOptions, getJobId(), start, end);
+    return new DeleteShardsInfos(datastoreOptions.toBuilder().build(), getJobId(), start, end);
   }
 
   @Override
