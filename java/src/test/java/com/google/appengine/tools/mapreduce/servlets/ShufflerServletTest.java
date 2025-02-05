@@ -14,9 +14,6 @@
 
 package com.google.appengine.tools.mapreduce.servlets;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import com.google.appengine.api.blobstore.dev.LocalBlobstoreService;
 import com.google.appengine.api.taskqueue.QueueFactory;
@@ -27,7 +24,6 @@ import com.google.appengine.tools.development.testing.LocalModulesServiceTestCon
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.*;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.sort.LexicographicalComparator;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInputReader;
@@ -36,7 +32,6 @@ import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutputWriter;
 import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
 import com.google.appengine.tools.mapreduce.servlets.ShufflerServlet.ShuffleMapReduce;
-import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
@@ -67,6 +62,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
  * Tests for {@link ShufflerServlet}
  */
@@ -87,7 +84,8 @@ public class ShufflerServletTest {
       Marshaller<KeyValue<ByteBuffer, ? extends Iterable<ByteBuffer>>> KEY_VALUES_MARSHALLER =
           Marshallers.getKeyValuesMarshaller(Marshallers.getByteBufferMarshaller(),
               Marshallers.getByteBufferMarshaller());
-  private final int recordsPerFile = 10;
+
+  private final static int RECORDS_PER_FILE = 10;
 
   private static final Semaphore WAIT_ON = new Semaphore(0);
 
@@ -163,9 +161,6 @@ public class ShufflerServletTest {
       .build();
   }
 
-
-
-
   @AfterEach
   public void tearDown() throws Exception {
     for (int count = 0; getQueueDepth() > 0; count++) {
@@ -179,37 +174,42 @@ public class ShufflerServletTest {
   }
 
 
-  private int getQueueDepth() {
-    return LocalTaskQueueTestConfig
-        .getLocalTaskQueue()
-        .getQueueStateInfo()
-        .get(QueueFactory.getDefaultQueue().getQueueName())
-        .getTaskInfo()
-        .size();
-  }
+
+  static final int SHUFFLE_VERIFICATION_RETRIES = 3;
 
   @SneakyThrows
   @Test
   public void testDataIsOrdered() throws InterruptedException, IOException {
-    ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
+    final int INPUT_FILES_FOR_TEST = 3;
+    final int OUTPUT_SHARDS = 2;
+    ShufflerParams shufflerParams =
+      createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), INPUT_FILES_FOR_TEST, OUTPUT_SHARDS);
 
     // for test purposes, give a manifest file name that's unique, yet known outside of the shuffle stage of the map reduce job
     // (in usual case, derived from the shuffle stage's job id, which isn't known outside)
 
     shufflerParams.setManifestFileNameOverride(UUID.randomUUID().toString());
 
-
     TreeMultimap<ByteBuffer, ByteBuffer> input = writeInputFiles(shufflerParams, new Random(0));
+    assertEquals(INPUT_FILES_FOR_TEST * RECORDS_PER_FILE, input.keySet().size());
+
 
     ShuffleMapReduce mr = new ShuffleMapReduce(shufflerParams);
-    JobRunId mrJobId = pipelineService.startNewPipeline(mr);
+    pipelineService.startNewPipeline(mr);
 
     assertTrue(WAIT_ON.tryAcquire(100, TimeUnit.SECONDS));
 
-    pipelineService.getJobInfo(mrJobId);
+    TreeMultimap<ByteBuffer, ByteBuffer> notSeen;
+    int retriesRemaining = SHUFFLE_VERIFICATION_RETRIES;
+    do {
+      Thread.sleep((retriesRemaining - SHUFFLE_VERIFICATION_RETRIES) * 1000L);
 
-    List<KeyValue<ByteBuffer, List<ByteBuffer>>> output = validateOrdered(shufflerParams);
-    assertExpectedOutput(input, output);
+      List<KeyValue<ByteBuffer, List<ByteBuffer>>> output = validateOrdered(shufflerParams);
+      notSeen = assertExpectedOutput(input, output);
+    } while (!notSeen.isEmpty() && retriesRemaining-- > 0);
+
+    assertTrue(notSeen.isEmpty());
+    assertEquals(SHUFFLE_VERIFICATION_RETRIES, retriesRemaining, "Passed, but only after retries");
   }
 
   @Test
@@ -232,14 +232,16 @@ public class ShufflerServletTest {
     assertEquals(shufflerParams.getServiceAccountKey(), readShufflerParams.getServiceAccountKey());
   }
 
-  private void assertExpectedOutput(TreeMultimap<ByteBuffer, ByteBuffer> expected,
-      List<KeyValue<ByteBuffer, List<ByteBuffer>>> actual) {
+  private TreeMultimap<ByteBuffer, ByteBuffer> assertExpectedOutput(TreeMultimap<ByteBuffer, ByteBuffer> expected,
+                                                                    List<KeyValue<ByteBuffer, List<ByteBuffer>>> actual) {
+    TreeMultimap<ByteBuffer, ByteBuffer> notYetSeen = TreeMultimap.create();
+    notYetSeen.putAll(expected);
     for (KeyValue<ByteBuffer, List<ByteBuffer>> kv : actual) {
-      SortedSet<ByteBuffer> expectedValues = expected.removeAll(kv.getKey());
+      SortedSet<ByteBuffer> expectedValues = notYetSeen.removeAll(kv.getKey());
       assertTrue(expectedValues.containsAll(kv.getValue()));
       assertTrue(kv.getValue().containsAll(expectedValues));
     }
-    assertTrue("should be empty but still has: " + expected.size() + " elements", expected.isEmpty());
+    return notYetSeen;
   }
 
   List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams) throws IOException {
@@ -256,6 +258,8 @@ public class ShufflerServletTest {
         .map(s -> new GcsFilename(shufflerParams.getGcsBucket(), s))
           .collect(Collectors.toList());
     }
+
+    assertEquals(shufflerParams.getOutputShards(), outputFiles.size());
 
     for (GcsFilename file : outputFiles) {
       GoogleCloudStorageLevelDbInputReader reader = new GoogleCloudStorageLevelDbInputReader(file,
@@ -297,7 +301,7 @@ public class ShufflerServletTest {
           new GcsFilename(shufflerParams.getGcsBucket(), fileName), "text/plain; charset=UTF-8", outputOptions()));
       writer.beginShard();
       writer.beginSlice();
-      for (int i = 0; i < recordsPerFile; i++) {
+      for (int i = 0; i < RECORDS_PER_FILE; i++) {
         KeyValue<ByteBuffer, ByteBuffer> kv = writeRandomKVByteBuffer(rand, writer);
         result.put(kv.getKey(), kv.getValue());
       }
@@ -336,6 +340,16 @@ public class ShufflerServletTest {
     shufflerParams.setOutputDir("storageDir");
     shufflerParams.setServiceAccountKey(serviceAccountKey);
     return shufflerParams;
+  }
+
+
+  private int getQueueDepth() {
+    return LocalTaskQueueTestConfig
+      .getLocalTaskQueue()
+      .getQueueStateInfo()
+      .get(QueueFactory.getDefaultQueue().getQueueName())
+      .getTaskInfo()
+      .size();
   }
 
 }

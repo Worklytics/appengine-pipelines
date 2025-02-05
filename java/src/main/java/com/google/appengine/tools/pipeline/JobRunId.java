@@ -57,6 +57,7 @@ public class JobRunId implements Serializable {
   private final String jobId;
 
   protected JobRunId(@NonNull String project, String databaseId, String namespace, @NonNull String jobId) {
+    Preconditions.checkArgument(!jobId.contains(":"), "Job id must not contain ':'");
     this.project = project;
     //so generated EqualsAndHashCode properly equates null, empty cases for databaseId/namespace
     this.databaseId = Strings.emptyToNull(databaseId);
@@ -102,6 +103,6 @@ public class JobRunId implements Serializable {
 
   @Override
   public String toString() {
-    return asEncodedString();
+    return "JobRunId(" + asEncodedString() + ")";
   }
 }
