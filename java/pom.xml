@@ -8,7 +8,7 @@
   <url>https://github.com/Worklytics/appengine-pipelines/</url>
   <!-- follow semver, with suggested guidance for versioning fork of OSS -->
   <!-- see https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.3+worklytics.4</version>
+  <version>0.3+worklytics.5</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -102,7 +102,7 @@
       <dependency>
         <groupId>com.google.cloud</groupId>
         <artifactId>libraries-bom</artifactId>
-        <version>26.41.0</version>
+        <version>26.53.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

@@ -39,7 +39,7 @@ public class DeleteShardsInfos extends Job0<Void> {
 
   @Override
   public Value<Void> run() {
-    Datastore datastore = datastoreOptions.getService();
+    Datastore datastore = datastoreOptions.toBuilder().build().getService();
     final List<Key> toDelete = new ArrayList<>((end - start) * 2);
 
     Transaction tx = datastore.newTransaction();
