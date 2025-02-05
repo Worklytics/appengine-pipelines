@@ -72,4 +72,4 @@ jobs:
           APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY: ${{ secrets.APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY }}
         run: |
           cd java/
-          mvn test -o -Dtest=${{ matrix.package }} -Dmaven.main.skip=true -Dversions.logOutput=false -DprocessDependencies=false -DprocessDependencyManagement=false
+          mvn test -T 1C -B -Dtest=${{ matrix.package }} -Dversions.logOutput=false -DprocessDependencies=false -DprocessDependencyManagement=false
