@@ -10,11 +10,12 @@ import com.google.cloud.datastore.DatastoreOptions;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import lombok.AllArgsConstructor;
+
+import lombok.*;
+import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.net.URLEncoder;
 import java.util.Optional;
 
 /**
@@ -23,8 +24,9 @@ import java.util.Optional;
  * q: good pattern? kinda franken factory to build instances from requests ... but w/o this, gets repeated in a bunch
  *  of places
  */
+@Log
 @Singleton
-@AllArgsConstructor(onConstructor_ = @Inject)
+@NoArgsConstructor(onConstructor_ = @Inject)
 public class RequestUtils {
 
   public static class Params {
@@ -40,13 +42,24 @@ public class RequestUtils {
     public static final String MAPREDUCE_ID = "mapreduce_id";
   }
 
+  // value of env var GOOGLE_CLOUD_PROJECT when running locally; underscores aren't actually legal in GCP project ids,
+  // so if this ever ends up being used in a real GCP API call, it blows up in validation before request is even sent by client
+  private static final String LOCAL_GAE_PROJECT_ID = "no_app_id";
+
+  private static final String DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID = "local-gae-project";
+
+  /**
+   * value to override local GAE project id with, when running locally; to allow this on case-by-case basis
+   */
+  @Getter @Setter
+  private String localProjectIdOverride = DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID;
+
   public PipelineBackEnd buildBackendFromRequest(HttpServletRequest request) {
     return new AppEngineBackEnd(buildDatastoreFromRequest(request), new AppEngineTaskQueue());
   }
 
-
   @Deprecated // use pipeline backend
-  public Datastore buildDatastoreFromRequest(HttpServletRequest request) {
+  Datastore buildDatastoreFromRequest(HttpServletRequest request) {
     // so we need 1) host, 2) projectId, and 3) databaseId from somewhere
 
     // options
@@ -54,11 +67,23 @@ public class RequestUtils {
     // - set as env vars (system properties), via Maven to pull (wouldn't exactly let us do integration tests)
     //    --> no, host may include port, set at runtime by emulator; not easy/appropriate to fake as env var
 
-    DatastoreOptions.Builder builder = DatastoreOptions.getDefaultInstance().toBuilder();
+    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+
+    DatastoreOptions.Builder builder = defaultInstance.toBuilder();
+
+    if (LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId())) {
+      log.info("pipelines fw detected running locally with GAE projectId set as 'no_app_id'; this isn't legal GCP project id, so changing to 'local-gae-project'");
+      // 'no_app_id' isn't legal name, so change it
+      builder.setProjectId(getLocalProjectIdOverride());
+      // try to get emulator host from env var, if available
+      builder.setHost(System.getProperty("DATASTORE_EMULATOR_HOST", System.getenv("DATASTORE_EMULATOR_HOST")));
+    }
+
+    // whatever values are, they can be overridden by request params
     getParam(request, Params.DATASTORE_HOST).ifPresent(builder::setHost);
-    getParam(request, Params.DATASTORE_NAMESPACE).ifPresent(builder::setNamespace);
     getParam(request, Params.DATASTORE_PROJECT_ID).ifPresent(builder::setProjectId);
     getParam(request, Params.DATASTORE_DATABASE_ID).ifPresent(builder::setDatabaseId);
+    getParam(request, Params.DATASTORE_NAMESPACE).ifPresent(builder::setNamespace);
 
     return builder.build().getService();
   }

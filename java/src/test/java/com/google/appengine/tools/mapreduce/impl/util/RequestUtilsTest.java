@@ -1,6 +1,10 @@
 package com.google.appengine.tools.mapreduce.impl.util;
 
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
+import com.google.appengine.tools.pipeline.JobRunId;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.cloud.datastore.Key;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
@@ -8,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import javax.servlet.http.HttpServletRequest;
 
 import java.net.URLDecoder;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
@@ -25,12 +31,26 @@ class RequestUtilsTest {
     HttpServletRequest request = mock(HttpServletRequest.class);
 
     when(request.getParameter("mapreduce_id"))
-      .thenReturn(URLDecoder.decode(ENCODED_MR_EXAMPLE));
+      .thenReturn(URLDecoder.decode(ENCODED_MR_EXAMPLE, StandardCharsets.UTF_8));
 
 
     assertEquals(ShardedJobRunId.of("test-project", null,  null,"c6fa877b-81a6-4e17-a8f7-62268036db97").asEncodedString(),
       requestUtils.getMapReduceId(request).asEncodedString());
 
+  }
+
+  @Test
+  public void localBootstrap() {
+    //make this like local situation
+    System.setProperty("GOOGLE_CLOUD_PROJECT", "no_app_id");
+    System.setProperty("DATASTORE_EMULATOR_HOST", "http://localhost:8081");
+
+    RequestUtils requestUtils = new RequestUtils();
+    HttpServletRequest request = mock(HttpServletRequest.class);
+
+    PipelineBackEnd backend = requestUtils.buildBackendFromRequest(request);
+
+    assertEquals(backend.getOptions().as(AppEngineBackEnd.Options.class).getDatastoreOptions().getHost(), "http://localhost:8081");
   }
 }
 
