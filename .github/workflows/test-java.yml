@@ -30,7 +30,7 @@ jobs:
         # Compiled classes are cached, later restored for tests
         uses: actions/cache/save@v4
         with:
-          path: java/${{ github.workspace }}/**/target/**/*.*
+          path: ${{ github.workspace }}/**/target/**/*.*
           key: ${{ runner.os }}-${{ env.CODE_CACHE_VERSION }}-${{ github.ref_name }}-${{ github.sha }}
       - id: 'cache-maven-packages'
         name: Cache Maven packages
@@ -59,11 +59,11 @@ jobs:
       - name: Restore compiled classes from cache
         uses: actions/cache@v4
         with:
-          path: java/${{ github.workspace }}/**/target/**/*.*
+          path: ${{ github.workspace }}/**/target/**/*.*
           key: ${{ runner.os }}-${{ env.CODE_CACHE_VERSION }}-${{ github.ref_name }}-${{ github.sha }}
       - name: Run Tests for Package ${{ matrix.package }}
         env:
           APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY: ${{ secrets.APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY }}
         run: |
           cd java/
-          mvn test -Dtest=${{ matrix.package }} -Dversions.logOutput=false -DprocessDependencies=false -DprocessDependencyManagement=false
+          mvn test -o -Dtest=${{ matrix.package }} -Dmaven.main.skip=true -Dversions.logOutput=false -DprocessDependencies=false -DprocessDependencyManagement=false
