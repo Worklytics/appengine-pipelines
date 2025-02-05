@@ -2,6 +2,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.cloud.datastore.Key;
+import com.google.common.base.Preconditions;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -27,6 +28,7 @@ public class ShardedJobRunId extends JobRunId {
   }
 
   public static ShardedJobRunId of(String project, String databaseId, String namespace, String jobId) {
+    Preconditions.checkArgument(!jobId.contains(":"), "Job id must not contain ':'");
     return new ShardedJobRunId(project, databaseId, namespace, jobId);
   }
 

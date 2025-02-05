@@ -113,7 +113,7 @@ public class InProcessMap<I, O, R> {
   }
 
   private static String getMapReduceId() {
-    return "in-process-map-" + Instant.now().toString() + "-" + new Random().nextInt(1000000);
+    return "in-process-map-" + Instant.now().toString().replace(":", "") + "-" + new Random().nextInt(1000000);
   }
 
   public static <I, O, R> MapReduceResult<R> runMap(PipelineService pipelineService,

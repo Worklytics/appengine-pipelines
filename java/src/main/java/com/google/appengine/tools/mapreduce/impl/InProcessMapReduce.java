@@ -241,7 +241,7 @@ public class InProcessMapReduce<I, K, V, O, R> {
 
   public static <I, K, V, O, R> MapReduceResult<R> runMapReduce(
     PipelineService pipelineService, MapReduceSpecification<I, K, V, O, R> mrSpec) throws IOException {
-    ShardedJobRunId mapReduceId = ShardedJobRunId.of("in-process", null,  null,"in-process-mr-" + Instant.now().toString() + "-" + new Random().nextInt(1000000));
+    ShardedJobRunId mapReduceId = ShardedJobRunId.of("in-process", null,  null,"in-process-mr-" + Instant.now().toString().replace(":", "") + "-" + new Random().nextInt(1000000));
     InProcessMapReduce<I, K, V, O, R> mapReduce = new InProcessMapReduce<>(mapReduceId, mrSpec, pipelineService);
     log.info(mapReduce + " started");
 
