@@ -4,8 +4,8 @@ name: Test Java
 on: [push]
 
 env:
-  M2_CACHE_KEY: ${{ runner.os }}-1-${{ hashFiles('**/pom.xml') }}
-  CODE_CACHE_KEY: ${{ runner.os }}-1-${{ github.ref_name }}-${{ github.sha }}
+  CODE_CACHE_VERSION: 'code-v1'
+  M2_CACHE_VERSION: 'm2-v1'
 
 jobs:
   compile:
@@ -21,7 +21,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.m2
-          key: ${{ env.M2_CACHE_KEY }}
+          key: ${{ runner.os }}-${{ env.M2_CACHE_VERSION }}-${{ hashFiles('**/pom.xml') }}
       - name: Maven compile
         run: |
           cd java/
@@ -31,13 +31,13 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: java/${{ github.workspace }}/**/target/**/*.*
-          key: ${{ env.CODE_CACHE_KEY }}
+          key: ${{ runner.os }}-${{ env.CODE_CACHE_VERSION }}-${{ github.ref_name }}-${{ github.sha }}
       - id: 'cache-maven-packages'
         name: Cache Maven packages
         uses: actions/cache/save@v4
         with:
           path: ~/.m2
-          key: ${{ env.M2_CACHE_KEY }}
+          key: ${{ runner.os }}-${{ env.M2_CACHE_VERSION }}-${{ hashFiles('**/pom.xml') }}
   test:
     runs-on: ubuntu-latest
     needs: compile
@@ -60,10 +60,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: java/${{ github.workspace }}/**/target/**/*.*
-          key: ${{ env.CODE_CACHE_KEY }}
+          key: ${{ runner.os }}-${{ env.CODE_CACHE_VERSION }}-${{ github.ref_name }}-${{ github.sha }}
       - name: Run Tests for Package ${{ matrix.package }}
         env:
           APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY: ${{ secrets.APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY }}
         run: |
           cd java/
-          mvn test -Dtest=${{ matrix.package }} -B -Dversions.logOutput=false -DprocessDependencies=false -DprocessDependencyManagement=false
+          mvn test -Dtest=${{ matrix.package }} -Dversions.logOutput=false -DprocessDependencies=false -DprocessDependencyManagement=false
