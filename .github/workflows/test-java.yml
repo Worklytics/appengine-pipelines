@@ -3,6 +3,10 @@ name: Test Java
 
 on: [push]
 
+env:
+  M2_CACHE_KEY: ${{ runner.os }}-1-${{ hashFiles('**/pom.xml') }}
+  CODE_CACHE_KEY: ${{ runner.os }}-1-${{ github.ref_name }}-${{ github.sha }}
+
 jobs:
   compile:
     runs-on: ubuntu-latest
@@ -17,7 +21,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.m2
-          key: ${{ runner.os }}-${{ env.M2_CACHE_VERSION }}-${{ hashFiles('**/pom.xml') }}
+          key: ${{ env.M2_CACHE_KEY }}
       - name: Maven compile
         run: |
           cd java/
@@ -26,14 +30,14 @@ jobs:
         # Compiled classes are cached, later restored for tests
         uses: actions/cache/save@v4
         with:
-          path: ${{ github.workspace }}/**/target/**/*.*
-          key: ${{ runner.os }}-${{ env.CODE_CACHE_VERSION }}-${{ github.ref_name }}-${{ github.sha }}
+          path: java/${{ github.workspace }}/**/target/**/*.*
+          key: ${{ env.CODE_CACHE_KEY }}
       - id: 'cache-maven-packages'
         name: Cache Maven packages
         uses: actions/cache/save@v4
         with:
           path: ~/.m2
-          key: ${{ runner.os }}-${{ env.M2_CACHE_VERSION }}-${{ hashFiles('**/pom.xml') }}
+          key: ${{ env.M2_CACHE_KEY }}
   test:
     runs-on: ubuntu-latest
     needs: compile
@@ -55,11 +59,11 @@ jobs:
       - name: Restore compiled classes from cache
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}/**/target/**/*.*
-          key: ${{ runner.os }}-${{ env.CODE_CACHE_VERSION }}-${{ github.ref_name }}-${{ github.sha }}
+          path: java/${{ github.workspace }}/**/target/**/*.*
+          key: ${{ env.CODE_CACHE_KEY }}
       - name: Run Tests for Package ${{ matrix.package }}
         env:
           APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY: ${{ secrets.APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY }}
         run: |
           cd java/
-          mvn test -Dtest=${{ matrix.package }}
+          mvn test -Dtest=${{ matrix.package }} -B -Dversions.logOutput=false -DprocessDependencies=false -DprocessDependencyManagement=false
