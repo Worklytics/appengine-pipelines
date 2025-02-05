@@ -4,8 +4,8 @@ import com.google.appengine.tools.mapreduce.InputReader;
 import com.google.appengine.tools.mapreduce.KeyValue;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -68,7 +68,7 @@ public class MergeShardTaskTest {
 
     task.callWorker(createData(1));
     assertEquals(1, ((MockOutputWriter) task.getOutputWriter()).written.size());
-    task = SerializationUtil.clone(task);
+    task = SerializationUtils.clone(task);
 
     task.callWorker(createData(1));
     assertEquals(2, ((MockOutputWriter) task.getOutputWriter()).written.size());

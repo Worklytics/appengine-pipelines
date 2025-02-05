@@ -16,88 +16,34 @@
 
 package com.google.appengine.tools.mapreduce.impl.util;
 
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.CorruptDataException;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.zip.*;
+
+import static com.google.appengine.tools.pipeline.impl.util.SerializationUtils.serializeToByteArray;
 
 /**
- * A serialization utility class.
+ * A serialization utility class to aid with serializing and deserializing values to and from datastore entities (properties).
  *
  */
-public class SerializationUtil {
+public class DatastoreSerializationUtil {
 
-  private static final Logger log = Logger.getLogger(SerializationUtil.class.getName());
+  private static final Logger log = Logger.getLogger(DatastoreSerializationUtil.class.getName());
   // 1MB - 200K slack for the rest of the properties and entity overhead
   private static final int MAX_BLOB_BYTE_SIZE = 1024 * 1024 - 200 * 1024;
   private static final String SHARDED_VALUE_KIND = "MR-ShardedValue";
   private static final Function<Entity, Key> ENTITY_TO_KEY = Entity::getKey;
-
-  public static int MAX_UNCOMPRESSED_BYTE_SIZE = 50_000;
-
-  public static byte[] serialize(Serializable obj) throws IOException {
-    // Serialize the object
-    ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-    try (ObjectOutputStream objectOut = new ObjectOutputStream(byteOut)) {
-      objectOut.writeObject(obj);
-    }
-    // Compress only if serialized data exceeds threshold
-    if (byteOut.size() > MAX_UNCOMPRESSED_BYTE_SIZE) {
-      ByteArrayOutputStream compressedByteOut = new ByteArrayOutputStream();
-      try (GZIPOutputStream gzipOut = new GZIPOutputStream(compressedByteOut);
-           ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut)) {
-        objectOut.writeObject(obj);
-        objectOut.flush();
-        gzipOut.finish();
-        return compressedByteOut.toByteArray();
-      }
-    } else {
-      return byteOut.toByteArray();
-    }
-  }
-
-  @SneakyThrows
-  public static <T> T deserialize(byte[] data) throws IOException, ClassNotFoundException {
-    // Attempt to decompress
-    try (ByteArrayInputStream byteIn = new ByteArrayInputStream(data)) {
-      if (isGZIPCompressed(data)) {
-        try (GZIPInputStream gzipIn = new GZIPInputStream(byteIn);
-             ObjectInputStream objectIn = new ObjectInputStream(gzipIn)) {
-          return (T) objectIn.readObject();
-        }
-      } else {
-        try (ObjectInputStream objectIn = new ObjectInputStream(byteIn)) {
-          return (T) objectIn.readObject();
-        }
-      }
-    }
-  }
-
-  @VisibleForTesting
-  static boolean isGZIPCompressed(byte[] bytes) {
-    return (bytes != null)
-      && (bytes.length >= 2)
-      && ((bytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC))
-      && (bytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
-  }
 
 
   public static <T extends Serializable> T deserializeFromDatastoreProperty(
@@ -139,7 +85,7 @@ public class SerializationUtil {
         }
         bytes = bout.toByteArray();
       }
-      return deserialize(bytes);
+      return SerializationUtils.deserialize(bytes);
     } catch (RuntimeException | IOException ex) {
       log.warning("Deserialization of " + entity.getKey() + "#" + property + " failed: "
               + ex.getMessage() + ", returning null instead.");
@@ -151,7 +97,6 @@ public class SerializationUtil {
   }
 
   public static Iterable<Key> getShardedValueKeysFor(@NonNull Transaction tx, Key parent, String property) {
-
     KeyQuery.Builder queryBuilder = Query.newKeyQueryBuilder()
       .setKind(SHARDED_VALUE_KIND);
 
@@ -173,18 +118,31 @@ public class SerializationUtil {
     return keys;
   }
 
-  public static void serializeToDatastoreProperty(
-      Transaction tx, Entity.Builder entity, String property, Serializable o) {
-    byte[] bytes = serializeToByteArray(o);
+  /**
+   * Serializes the given value to a byte array and stores it in the given entity under the property.
+   * if too large to fit in a single BLOB property, may split into entities (shard), and store them
+   *
+   * @param tx                under which to store the value (only used in sharded case)
+   * @param entity            on which to store the value
+   * @param property          name to use
+   * @param value             to store
+   * @param priorVersionShards whether the property was previously sharded (if known)
+   * @return number of shards used to store the value, if any
+   */
+  public static int serializeToDatastoreProperty(
+    Transaction tx, Entity.Builder entity, String property, Serializable value, Optional<Integer> priorVersionShards) {
+    byte[] bytes = serializeToByteArray(value);
 
     Key key = entity.build().getKey();
 
-    // deleting previous shards
-    List<Key> toDelete = Lists.newArrayList(getShardedValueKeysFor(tx, key, property));
-
     if (bytes.length < MAX_BLOB_BYTE_SIZE) {
-      tx.delete(toDelete.toArray(new Key[toDelete.size()]));
+      if (priorVersionShards.isEmpty() || priorVersionShards.get() > 0) {
+        //need to delete previous shards
+        List<Key> toDelete = Lists.newArrayList(getShardedValueKeysFor(tx, key, property));
+        tx.delete(toDelete.toArray(new Key[toDelete.size()]));
+      }
       entity.set(property, BlobValue.newBuilder(Blob.copyFrom(bytes)).setExcludeFromIndexes(true).build());
+      return 0;
     } else {
       int shardId = 0;
       int offset = 0;
@@ -205,45 +163,42 @@ public class SerializationUtil {
         keyFactory.setKind(SHARDED_VALUE_KIND);
 
         Entity shard = Entity.newBuilder(keyFactory.newKey(keyName))
-            .set("property", property)
-            .set("content", BlobValue.newBuilder(Blob.copyFrom(chunk)).setExcludeFromIndexes(true).build())
-            .build();
+          .set("property", property)
+          .set("content", BlobValue.newBuilder(Blob.copyFrom(chunk)).setExcludeFromIndexes(true).build())
+          .build();
         shards.add(shard);
       }
-      if (shards.size() < toDelete.size()) {
-        tx.delete(toDelete.toArray(new Key[toDelete.size()]));
+
+      if (shards.size() < priorVersionShards.orElse(Integer.MAX_VALUE)) {
+        List<Key> preExistingShards = Lists.newArrayList(getShardedValueKeysFor(tx, key, property));
+        //NOTE: datastore lib is smart enough that any puts() overwriting entities deleted in this step() will take precedence
+        // de-dup here would be premature optimization
+        tx.delete(preExistingShards.toArray(Key[]::new));
       }
-      tx.put(shards.toArray(new Entity[shards.size()]));
-      List<KeyValue> value = shards.stream()
+
+      tx.put(shards.toArray(Entity[]::new));
+      List<KeyValue> values = shards.stream()
         .map(ENTITY_TO_KEY)
         .map(k -> KeyValue.newBuilder(k).setExcludeFromIndexes(true).build())
         .collect(Collectors.toList());
-      entity.set(property, ListValue.newBuilder().set(value).build());
+      entity.set(property, ListValue.newBuilder().set(values).build());
+      return shards.size();
     }
   }
 
-  @SneakyThrows
-  public static byte[] serializeToByteArray(Serializable o) {
-    return serialize(o);
-  }
-
-  public static byte[] getBytes(ByteBuffer in) {
-    if (in.hasArray() && in.position() == 0
-        && in.arrayOffset() == 0 && in.array().length == in.limit()) {
-      return in.array();
-    } else {
-      byte[] buf = new byte[in.remaining()];
-      int position = in.position();
-      in.get(buf);
-      in.position(position);
-      return buf;
+  /**
+   * get count of shards used to store value for property on entity, if any
+   *
+   * @param entity
+   * @param property
+   * @return
+   */
+  public static int shardsUsedToStore(Entity entity, String property) {
+    try {
+      List<KeyValue> keys = entity.getList(property);
+      return keys.size();
+    } catch (ClassCastException e) {
+      return 0;
     }
-  }
-
-  @SneakyThrows
-  @SuppressWarnings("unchecked")
-  public static <T extends Serializable> T clone(T toClone) {
-    byte[] bytes = SerializationUtil.serializeToByteArray(toClone);
-    return (T) SerializationUtil.deserialize(bytes);
   }
 }

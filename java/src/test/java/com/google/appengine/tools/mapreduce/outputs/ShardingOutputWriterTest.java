@@ -6,8 +6,8 @@ import com.google.appengine.tools.mapreduce.Marshallers;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Sharder;
 import com.google.appengine.tools.mapreduce.impl.HashingSharder;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -51,7 +51,7 @@ public class ShardingOutputWriterTest  {
     }
     assertEquals(numShards, writer.shardsCreated);
     writer.endSlice();
-    writer = SerializationUtil.clone(writer);
+    writer = SerializationUtils.clone(writer);
     writer.beginSlice();
     for (int i = 0; i < numShards * 10; i++) {
       writer.write(new KeyValue<>(i, i));

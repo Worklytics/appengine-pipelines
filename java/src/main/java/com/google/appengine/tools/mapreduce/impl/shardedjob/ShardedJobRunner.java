@@ -22,10 +22,12 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+import com.google.common.util.concurrent.Uninterruptibles;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
+import lombok.Setter;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
@@ -48,19 +50,28 @@ import static java.util.concurrent.Executors.callable;
  * @author ohler@google.com (Christian Ohler)
  *
  */
-@AllArgsConstructor(onConstructor_ = @Inject)
 @Log
 public class ShardedJobRunner implements ShardedJobHandler {
 
   static final int TASK_LOOKUP_BATCH_SIZE = 20;
 
-  static final long CONTROLLER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
-  static final long WORKER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
-
   @Getter
   final Provider<PipelineService> pipelineServiceProvider;
   @Getter
   final Datastore datastore;
+
+  @Inject
+  public ShardedJobRunner(Provider<PipelineService> pipelineServiceProvider, Datastore datastore) {
+    this.pipelineServiceProvider = pipelineServiceProvider;
+    this.datastore = datastore;
+  }
+
+  @Getter @Setter
+  private long controllerTaskDelay = Duration.ofSeconds(2).toMillis();
+  @Getter @Setter
+  private long workerTaskDelay = Duration.ofSeconds(2).toMillis();
+  @Getter @Setter
+  private long lockCheckTaskDelay = Duration.ofSeconds(60).toMillis();
 
 
   // High-level overview:
@@ -196,7 +207,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .param(TASK_ID_PARAM, taskId.toString());
     taskOptions.header("Host", settings.getTaskQueueTarget());
 
-    taskOptions.etaMillis(System.currentTimeMillis() + CONTROLLER_TASK_DELAY);
+    taskOptions.etaMillis(System.currentTimeMillis() + getControllerTaskDelay());
 
     try {
       ENQUEUE_RETRYER.build().call(() -> {
@@ -348,8 +359,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
     boolean wasRequestCompleted = false; // wasRequestCompleted(taskState.getLockInfo().getRequestId());
 
     if (lockExpiration > currentTime && !wasRequestCompleted) {
-      // if lock was not expired AND not abandoned, reschedule in 1 minute.
-      long eta = Math.min(lockExpiration, currentTime + 60_000);
+      // if lock was not expired AND not abandon reschedule in 1 minute.
+      long eta = Math.min(lockExpiration, currentTime + getLockCheckTaskDelay());
+
       scheduleWorkerTask(jobState.getSettings(), taskState, eta);
       log.info("Lock for " + taskId + " is being held. Will retry after " + (eta - currentTime));
     } else {
@@ -695,7 +707,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
             if (taskState.getStatus().isActive()) {
               // this used to be transactional, but no longer is with new libraries; so enqueue with a little delay, in hope
               // that the transaction will be committed by the time the task is executed
-              scheduleWorkerTask(jobState.getSettings(), taskState, System.currentTimeMillis() + WORKER_TASK_DELAY);
+              scheduleWorkerTask(jobState.getSettings(), taskState, System.currentTimeMillis() + getWorkerTaskDelay());
             } else {
               scheduleControllerTask(jobState.getShardedJobId(), taskState.getTaskId(),
                 jobState.getSettings());
@@ -712,26 +724,32 @@ public class ShardedJobRunner implements ShardedJobHandler {
     log.info(jobId + ": Creating " + initialTasks.size() + " tasks");
     int taskNumber = 0;
     for (T initialTask : initialTasks) {
+      final int finalTaskNumber = taskNumber++;
       // TODO(user): shardId (as known to WorkerShardTask) and taskId happen to be the same
       // number, just because they are created in the same order and happen to use their ordinal.
       // We should have way to inject the "shard-id" to the task.
-      IncrementalTaskId taskId = IncrementalTaskId.of(jobId, taskNumber++);
-      Transaction tx = datastore.newTransaction();
-      try {
-        IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
-        if (taskState != null) {
-          log.info(jobId + ": Task already exists: " + taskState);
-          continue;
+      RetryExecutor.call(FOREVER_RETRYER, () -> {
+        IncrementalTaskId taskId = IncrementalTaskId.of(jobId, finalTaskNumber);
+        Transaction tx = datastore.newTransaction();
+        try {
+          IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
+          if (taskState != null) {
+            log.info(jobId + ": Task already exists: " + taskState);
+            return null;
+          }
+          taskState = IncrementalTaskState.create(taskId, jobId, startTime, initialTask);
+          ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
+          tx.put(IncrementalTaskState.Serializer.toEntity(tx, taskState),
+            ShardRetryState.Serializer.toEntity(tx, retryState));
+          tx.commit();
+          scheduleWorkerTask(settings, taskState, null);
+        } finally {
+          rollbackIfActive(tx);
         }
-        taskState = IncrementalTaskState.create(taskId, jobId, startTime, initialTask);
-        ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
-        tx.put(IncrementalTaskState.Serializer.toEntity(tx, taskState),
-          ShardRetryState.Serializer.toEntity(tx, retryState));
-        tx.commit();
-        scheduleWorkerTask(settings, taskState, null);
-      } finally {
-        rollbackIfActive(tx);
-      }
+        return null;
+      });
+      // sleep to avoid contention on the same entity group while creating tasks
+      Uninterruptibles.sleepUninterruptibly(Duration.ofSeconds(1));
     }
   }
 

@@ -1,7 +1,7 @@
 package com.google.appengine.tools.mapreduce.outputs;
 
 import com.google.appengine.tools.mapreduce.OutputWriter;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import org.junit.jupiter.api.Test;
 
 
@@ -133,12 +133,12 @@ public class ItemSegmentingOutputWriterTest {
     writer.write(2);
     assertEquals(2, writer.created.size());
     writer.endSlice();
-    writer = SerializationUtil.clone(writer);
+    writer = SerializationUtils.clone(writer);
     writer.beginSlice();
     writer.created.get(0).assertValues(1, 1, 1, 1, 1);
     writer.created.get(1).assertValues(1, 2, 1, 1, 0);
     writer.endSlice();
-    writer = SerializationUtil.clone(writer);
+    writer = SerializationUtils.clone(writer);
     writer.beginSlice();
     writer.write(3);
     writer.created.get(0).assertValues(1, 1, 1, 1, 1);

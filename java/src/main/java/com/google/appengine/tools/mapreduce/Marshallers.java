@@ -9,10 +9,10 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.appengine.tools.mapreduce.impl.KeyValueMarshaller;
 import com.google.appengine.tools.mapreduce.impl.KeyValuesMarshaller;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import lombok.SneakyThrows;
 
 import java.io.EOFException;
@@ -41,7 +41,7 @@ public class Marshallers {
     @SneakyThrows
     @Override
     public ByteBuffer toBytes(T object) {
-      return ByteBuffer.wrap(SerializationUtil.serialize(object));
+      return ByteBuffer.wrap(SerializationUtils.serialize(object));
     }
 
     @SneakyThrows
@@ -50,7 +50,7 @@ public class Marshallers {
       byte[] serialized = new byte[in.remaining()];
       in.get(serialized);
       try {
-        return (T) SerializationUtil.deserialize(serialized);
+        return SerializationUtils.deserialize(serialized);
       } catch (EOFException e)  {
         throw new CorruptDataException("Could not deserialize object; stream ended before full object read back.", e);
       }
