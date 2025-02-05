@@ -3,7 +3,7 @@ package com.google.appengine.tools.mapreduce.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.appengine.tools.mapreduce.Sharder;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 
@@ -31,7 +31,7 @@ public class HashingSharder implements Sharder {
 
   @Override
   public int getShardForKey(ByteBuffer key) {
-    byte[] bytes = SerializationUtil.getBytes(key);
+    byte[] bytes = SerializationUtils.getBytes(key);
     int hash = (HASH.hashBytes(bytes).asInt()) & Integer.MAX_VALUE; // Keeping positive
     // Dividing integer range rather than using modulo so as to avoid rewriting entries if they are
     // re-hashed.

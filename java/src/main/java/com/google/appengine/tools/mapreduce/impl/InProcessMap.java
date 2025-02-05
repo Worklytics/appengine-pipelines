@@ -15,8 +15,8 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.InProcessShardedJobR
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.common.collect.ImmutableList;
 
 import lombok.Getter;
@@ -108,8 +108,7 @@ public class InProcessMap<I, O, R> {
   @SneakyThrows
   @SuppressWarnings("unchecked")
   private MapOnlyMapper<I, O> getCopyOfMapper() {
-    byte[] bytes = SerializationUtil.serializeToByteArray(mapper);
-    return SerializationUtil.deserialize(bytes);
+    return SerializationUtils.clone(mapper);
   }
 
   private static String getMapReduceId() {

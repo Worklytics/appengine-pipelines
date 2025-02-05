@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.fail;
 import com.google.appengine.tools.mapreduce.CorruptDataException;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.inputs.LevelDbInputReader;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
@@ -65,7 +65,7 @@ public class LevelDbTest {
 
     @Override
     public void write(ByteBuffer value) throws IOException {
-      bout.write(SerializationUtil.getBytes(value));
+      bout.write(SerializationUtils.getBytes(value));
     }
 
     @Override
@@ -77,7 +77,6 @@ public class LevelDbTest {
       return bout.toByteArray();
     }
   }
-
 
   @Test
   public void testDataCorruption() throws IOException {
@@ -230,7 +229,7 @@ public class LevelDbTest {
     reader.beginSlice();
     for (int i = 0; i < written.size(); i++) {
       ByteBuffer read = reader.next();
-      assertArrayEquals(written.get(i), SerializationUtil.getBytes(read));
+      assertArrayEquals(written.get(i), SerializationUtils.getBytes(read));
     }
     try {
       reader.next();

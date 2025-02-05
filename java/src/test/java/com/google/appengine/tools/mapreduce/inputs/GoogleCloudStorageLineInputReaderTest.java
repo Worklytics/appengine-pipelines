@@ -1,7 +1,7 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
 import com.google.appengine.tools.mapreduce.GcsFilename;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -81,11 +81,11 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
 
     for (GoogleCloudStorageLineInputReader reader : readers) {
       if (performSerialization) {
-        reader = SerializationUtil.clone(reader);
+        reader = SerializationUtils.clone(reader);
       }
       reader.beginShard();
       if (performSerialization) {
-        reader = SerializationUtil.clone(reader);
+        reader = SerializationUtils.clone(reader);
       }
       while (true) {
         reader.beginSlice();
@@ -100,7 +100,7 @@ public class GoogleCloudStorageLineInputReaderTest extends GoogleCloudStorageLin
 
         reader.endSlice();
         if (performSerialization) {
-          reader = SerializationUtil.clone(reader);
+          reader = SerializationUtils.clone(reader);
         }
       }
       reader.endShard();

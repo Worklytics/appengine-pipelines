@@ -4,8 +4,8 @@ import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.mapreduce.CloudStorageIntegrationTestHelper;
 import com.google.appengine.tools.mapreduce.GoogleCloudStorageFileSet;
 import com.google.appengine.tools.mapreduce.OutputWriter;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.cloud.storage.Blob;
 import lombok.Getter;
 import org.junit.jupiter.api.AfterEach;
@@ -66,11 +66,11 @@ public class SizeSegmentedGoogleCloudStorageFileOutputTest {
       w.beginSlice();
       w.write(ByteBuffer.wrap(new byte[9]));
       w.endSlice();
-      w = SerializationUtil.clone(w);
+      w = SerializationUtils.clone(w);
       w.beginSlice();
       w.write(ByteBuffer.wrap(new byte[9]));
       w.endSlice();
-      w = SerializationUtil.clone(w);
+      w = SerializationUtils.clone(w);
       w.beginSlice();
       w.write(ByteBuffer.wrap(new byte[9]));
       w.endSlice();

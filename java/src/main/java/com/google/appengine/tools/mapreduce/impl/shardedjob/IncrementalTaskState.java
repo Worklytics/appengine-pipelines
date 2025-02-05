@@ -2,23 +2,21 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static com.google.appengine.tools.mapreduce.impl.util.SerializationUtil.serializeToDatastoreProperty;
+import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
 import com.google.apphosting.api.ApiProxy;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.Optional;
 
 /**
  * Information about execution of an {@link IncrementalTask}.
@@ -58,6 +56,19 @@ public class IncrementalTaskState<T extends IncrementalTask> {
 
   @ToString.Exclude
   private LockInfo lockInfo;
+
+  // internal tracking of how many shards were used to store the task value, if too large to be single Blob property
+  // eg, how many entities task value was split into, if it was too large; not to be confused with other notions of sharding
+  @Setter(AccessLevel.PRIVATE)
+  @Getter(AccessLevel.PRIVATE)
+  private Integer taskValueShards;
+
+  // internal tracking of how many shards were used to store the status value, if too large to be single Blob property
+  // eg, how many entities status value was split into, if it was too large; not to be confused with other notions of sharding
+  @Setter(AccessLevel.PRIVATE)
+  @Getter(AccessLevel.PRIVATE)
+  private Integer statusValueShards;
+
 
   public static class LockInfo {
 
@@ -118,7 +129,9 @@ public class IncrementalTaskState<T extends IncrementalTask> {
     this.mostRecentUpdateTime = mostRecentUpdateTime;
     this.lockInfo = lockInfo;
     this.task = task;
+    this.taskValueShards = 0;
     this.status = status;
+    this.statusValueShards = 0;
   }
 
   int incrementAndGetRetryCount() {
@@ -166,8 +179,10 @@ public class IncrementalTaskState<T extends IncrementalTask> {
       }
       taskState.set(SEQUENCE_NUMBER_PROPERTY, in.getSequenceNumber());
       taskState.set(RETRY_COUNT_PROPERTY, in.getRetryCount());
-      serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask());
-      serializeToDatastoreProperty(tx, taskState, STATUS_PROPERTY, in.getStatus());
+
+      serializeToDatastoreProperty(tx, taskState, NEXT_TASK_PROPERTY, in.getTask(), Optional.ofNullable(in.taskValueShards));
+      serializeToDatastoreProperty(tx, taskState, STATUS_PROPERTY, in.getStatus(), Optional.ofNullable(in.statusValueShards));
+
       return taskState.build();
     }
 
@@ -203,13 +218,17 @@ public class IncrementalTaskState<T extends IncrementalTask> {
           ShardedJobRunId.fromEncodedString(in.getString(JOB_ID_PROPERTY)),
           in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY).toDate().toInstant(),
           lockInfo,
-          in.contains(NEXT_TASK_PROPERTY) ? SerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,
-          SerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY));
+          in.contains(NEXT_TASK_PROPERTY) ? DatastoreSerializationUtil.deserializeFromDatastoreProperty(tx, in, NEXT_TASK_PROPERTY, lenient) : null,
+          DatastoreSerializationUtil.deserializeFromDatastoreProperty(tx, in, STATUS_PROPERTY));
       state.setSequenceNumber(
           Ints.checkedCast(in.getLong(SEQUENCE_NUMBER_PROPERTY)));
       if (in.contains(RETRY_COUNT_PROPERTY)) {
         state.retryCount = Ints.checkedCast(in.getLong(RETRY_COUNT_PROPERTY));
       }
+
+      state.setStatusValueShards(DatastoreSerializationUtil.shardsUsedToStore(in, STATUS_PROPERTY));
+      state.setTaskValueShards(DatastoreSerializationUtil.shardsUsedToStore(in, NEXT_TASK_PROPERTY));
+
       return state;
     }
 

@@ -1,12 +1,17 @@
 package com.google.appengine.tools.pipeline.impl.util;
 
+import lombok.EqualsAndHashCode;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Random;
+
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SerializationUtilsTest {
@@ -70,6 +75,70 @@ class SerializationUtilsTest {
       array[i] = i;
     }
     return array;
+  }
+
+
+
+  @Test
+  public void testGetBytes_slice1() throws Exception {
+    ByteBuffer b = ByteBuffer.allocate(10);
+    b.putShort((short) 0x1234);
+    b.limit(2);
+    b.position(0);
+    ByteBuffer slice = b.slice();
+    byte[] bytes = SerializationUtils.getBytes(slice);
+    assertEquals(2, bytes.length);
+    assertTrue(Arrays.equals(new byte[] { 0x12, 0x34 }, bytes));
+  }
+
+  @Test
+  public void testGetBytes_slice2() throws Exception {
+    ByteBuffer b = ByteBuffer.allocate(10);
+    b.position(2);
+    b.putShort((short) 0x1234);
+    b.position(2);
+    b.limit(4);
+    ByteBuffer slice = b.slice();
+    byte[] bytes = SerializationUtils.getBytes(slice);
+    assertEquals(2, bytes.length);
+    assertTrue(Arrays.equals(new byte[] { 0x12, 0x34 }, bytes));
+  }
+
+  @Test
+  public void testSerializeToFromByteArrayWithNoParams() throws Exception {
+    Serializable original = "hello";
+    byte[] bytes = SerializationUtils.serializeToByteArray(original);
+    assertEquals(12, bytes.length);
+
+    bytes = SerializationUtils.serializeToByteArray(original);
+    Object restored = SerializationUtils.deserialize(bytes);
+    assertEquals(original, restored);
+  }
+
+  @Test
+  public void testSerializeToFromByteArray() throws Exception {
+    for (Serializable original : asList(10L, "hello", new Value(1000))) {
+      byte[] bytes =
+        SerializationUtils.serializeToByteArray(original);
+      Object restored = SerializationUtils.deserialize(bytes);
+      assertEquals(original, restored);
+      bytes = SerializationUtils.serializeToByteArray(original);
+      restored = SerializationUtils.deserialize(bytes);
+      assertEquals(original, restored);
+    }
+  }
+
+  @EqualsAndHashCode
+  private static class Value implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+    private final byte[] bytes;
+
+    Value(int kb) {
+      bytes = new byte[kb * 1024];
+      new Random().nextBytes(bytes);
+    }
   }
 
 }

@@ -7,7 +7,7 @@ import com.google.appengine.tools.mapreduce.InputReader;
 import com.google.appengine.tools.mapreduce.impl.util.Crc32c;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants.RecordType;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.cloud.Restorable;
 import com.google.cloud.RestorableState;
 import com.google.common.annotations.VisibleForTesting;
@@ -21,7 +21,6 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Properties;
 
 /**
  * Reads LevelDB formatted input. (Which is produced by
@@ -144,7 +143,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
         channelState = ((Restorable<? extends ReadableByteChannel>) in).capture();
 
         try {
-          SerializationUtil.deserialize(SerializationUtil.serialize((Serializable) channelState));
+          SerializationUtils.deserialize(SerializationUtils.serialize(channelState));
         } catch (Throwable e) {
           //wtf - Restorable is not *always* serializable, even though docs for `Restorable<>` says it MUST be.
           // possible we bring this on ourselves in tests, because of CloudStorageIntegrationTestHelper???

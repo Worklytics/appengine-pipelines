@@ -3,8 +3,8 @@ package com.google.appengine.tools.mapreduce.inputs;
 import com.google.appengine.tools.mapreduce.InputReader;
 import com.google.appengine.tools.mapreduce.Marshaller;
 import com.google.appengine.tools.mapreduce.Marshallers;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -85,10 +85,10 @@ public class PeekingInputReaderTest {
     PeekingInputReader<Long> reader = new PeekingInputReader<>(new MarshallingInputReader<>(
         new ConsecutiveLongInput.Reader(0L, numRecords), MARSHALLER), MARSHALLER);
     for (Long i = 0L; i <  numRecords; i++) {
-      reader = SerializationUtil.clone(reader);
+      reader = SerializationUtils.clone(reader);
       assertEquals(i, reader.next());
     }
-    reader = SerializationUtil.clone(reader);
+    reader = SerializationUtils.clone(reader);
     assertThrowsNoSuchElement(reader);
   }
 
@@ -101,11 +101,11 @@ public class PeekingInputReaderTest {
     PeekingInputReader<Long> reader = new PeekingInputReader<>(new MarshallingInputReader<>(
         new ConsecutiveLongInput.Reader(0L, numRecords), MARSHALLER), MARSHALLER);
     for (Long i = 0L; i < numRecords; i++) {
-      reader = SerializationUtil.clone(reader);
+      reader = SerializationUtils.clone(reader);
       assertEquals(i, reader.peek());
       assertEquals(i, reader.next());
     }
-    reader = SerializationUtil.clone(reader);
+    reader = SerializationUtils.clone(reader);
     assertNull(reader.peek());
     assertThrowsNoSuchElement(reader);
   }
@@ -119,10 +119,10 @@ public class PeekingInputReaderTest {
     PeekingInputReader<Long> reader = new PeekingInputReader<>(new MarshallingInputReader<>(
         new ConsecutiveLongInput.Reader(0L, numRecords), MARSHALLER), MARSHALLER);
     for (Long i = 0L; i < numRecords; i++) {
-      reader = SerializationUtil.clone(reader);
+      reader = SerializationUtils.clone(reader);
       assertEquals(i, reader.next());
     }
-    reader = SerializationUtil.clone(reader);
+    reader = SerializationUtils.clone(reader);
     assertNull(reader.peek());
     assertThrowsNoSuchElement(reader);
   }
@@ -139,13 +139,13 @@ public class PeekingInputReaderTest {
         new ConsecutiveLongInput.Reader(0L, numRecords), MARSHALLER), MARSHALLER);
     for (Long i = 0L; i < numRecords; i++) {
       assertEquals(i, reader.peek());
-      reader = SerializationUtil.clone(reader);
+      reader = SerializationUtils.clone(reader);
       assertEquals(i, reader.peek());
-      reader = SerializationUtil.clone(reader);
+      reader = SerializationUtils.clone(reader);
       assertEquals(i, reader.next());
     }
     assertNull(reader.peek());
-    reader = SerializationUtil.clone(reader);
+    reader = SerializationUtils.clone(reader);
     assertThrowsNoSuchElement(reader);
   }
 
