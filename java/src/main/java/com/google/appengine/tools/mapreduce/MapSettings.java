@@ -16,19 +16,16 @@ import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.cloud.datastore.DatastoreOptions;
-import com.google.common.base.Preconditions;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import lombok.ToString;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import lombok.extern.java.Log;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings.DEFAULT_SLICE_TIMEOUT_MILLIS;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Settings that affect how a Map job is executed.  May affect performance and
@@ -40,8 +37,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 @ToString
 @RequiredArgsConstructor
 @Log
+@SuperBuilder(toBuilder = true)
 public class MapSettings implements Serializable {
 
+  @Serial
   private static final long serialVersionUID = 51425056338041064L;
 
   private static RetryerBuilder getQueueRetryerBuilder() {
@@ -71,169 +70,55 @@ public class MapSettings implements Serializable {
   private final String datastoreHost;
   private final String projectId;
   private final String databaseId;
+  /**
+   * Sets the namespace that will be used for all requests related to this job.
+   */
   private final String namespace;
-  private final String baseUrl;
+  @lombok.Builder.Default
+  /**
+   * Sets the base URL that will be used for all requests related to this job.
+   * Defaults to {@value #DEFAULT_BASE_URL}
+   */
+  @NonNull
+  private final String baseUrl = DEFAULT_BASE_URL;
+  /**
+   * Specifies the Module (Service) that the job will run on.
+   * If this is not set or {@code null}, it will run on the current module (service).
+   *
+   * in appengine gen2, these are called services
+   */
   private final String module;
+  /**
+   * Sets the TaskQueue that will be used to queue the job's tasks.
+   */
   private final String workerQueueName;
-  private final int millisPerSlice;
-  private final double sliceTimeoutRatio;
-  private final int maxShardRetries;
-  private final int maxSliceRetries;
 
-  @ToString
-  abstract static class BaseBuilder<B extends BaseBuilder<B>> {
+  /**
+   * Sets how long a worker will process items before endSlice is called and progress is
+   * checkpointed to datastore.
+   */
+  @lombok.Builder.Default
+  private final int millisPerSlice = DEFAULT_MILLIS_PER_SLICE;
 
-    protected String datastoreHost;
-    protected String projectId;
-    protected String databaseId;
-    protected String namespace;
-    protected String baseUrl = DEFAULT_BASE_URL;
-    protected String module;
-    protected String workerQueueName;
-    protected int millisPerSlice = DEFAULT_MILLIS_PER_SLICE;
-    protected double sliceTimeoutRatio = DEFAULT_SLICE_TIMEOUT_RATIO;
-    protected int maxShardRetries = DEFAULT_SHARD_RETRIES;
-    protected int maxSliceRetries = DEFAULT_SLICE_RETRIES;
+  /**
+   * Sets a ratio for how much time beyond millisPerSlice must elapse before slice will be
+   * considered to have failed due to a timeout.
+   */
+  @lombok.Builder.Default
+  private final double sliceTimeoutRatio= DEFAULT_SLICE_TIMEOUT_RATIO;
 
-    BaseBuilder() {
-    }
+  /**
+   * The number of times a Shard can fail before it gives up and fails the whole job.
+   */
+  @lombok.Builder.Default
+  private final int maxShardRetries = DEFAULT_SHARD_RETRIES;
 
-    BaseBuilder(MapSettings settings) {
-      datastoreHost = settings.getDatastoreHost();
-      projectId = settings.getProjectId();
-      databaseId = settings.getDatabaseId();
-      namespace = settings.getNamespace();
-      baseUrl = settings.getBaseUrl();
-      module = settings.getModule();
-      workerQueueName = settings.getWorkerQueueName();
-      millisPerSlice = settings.getMillisPerSlice();
-      sliceTimeoutRatio = settings.getSliceTimeoutRatio();
-      maxShardRetries = settings.getMaxShardRetries();
-      maxSliceRetries = settings.getMaxSliceRetries();
-    }
+  /**
+   * The number of times a Slice can fail before triggering a shard retry.
+   */
+  @lombok.Builder.Default
+  private final int maxSliceRetries = DEFAULT_SLICE_RETRIES;
 
-    protected abstract B self();
-
-    public B setDatastoreHost(String datastoreHost) {
-      this.datastoreHost = datastoreHost;
-      return self();
-    }
-
-    /**
-     * Sets the namespace that will be used for all requests related to this job.
-     */
-    public B setNamespace(String namespace) {
-      this.namespace = namespace;
-      return self();
-    }
-
-    /**
-     * Sets the base URL that will be used for all requests related to this job.
-     * Defaults to {@value #DEFAULT_BASE_URL}
-     */
-    public B setBaseUrl(String baseUrl) {
-      this.baseUrl = checkNotNull(baseUrl, "Null baseUrl");
-      return self();
-    }
-
-    /**
-     * Specifies the Module (Service) that the job will run on.
-     * If this is not set or {@code null}, it will run on the current module (service).
-     *
-     * in appengine gen2, these are called services
-     */
-    public B setModule(String module) {
-      this.module = module;
-      return self();
-    }
-
-    /**
-     * Sets the TaskQueue that will be used to queue the job's tasks.
-     */
-    public B setWorkerQueueName(String workerQueueName) {
-      this.workerQueueName = workerQueueName;
-      return self();
-    }
-
-    /**
-     * Sets how long a worker will process items before endSlice is called and progress is
-     * checkpointed to datastore.
-     */
-    public B setMillisPerSlice(int millisPerSlice) {
-      Preconditions.checkArgument(millisPerSlice >= 0);
-      this.millisPerSlice = millisPerSlice;
-      return self();
-    }
-
-    /**
-     * Sets a ratio for how much time beyond millisPerSlice must elapse before slice will be
-     * considered to have failed due to a timeout.
-     */
-    public B setSliceTimeoutRatio(double sliceTimeoutRatio) {
-      Preconditions.checkArgument(sliceTimeoutRatio >= 1.0);
-      this.sliceTimeoutRatio = sliceTimeoutRatio;
-      return self();
-    }
-
-    /**
-     * The number of times a Shard can fail before it gives up and fails the whole job.
-     */
-    public B setMaxShardRetries(int maxShardRetries) {
-      Preconditions.checkArgument(maxShardRetries >= 0);
-      this.maxShardRetries = maxShardRetries;
-      return self();
-    }
-
-    /**
-     * The number of times a Slice can fail before triggering a shard retry.
-     */
-    public B setMaxSliceRetries(int maxSliceRetries) {
-      Preconditions.checkArgument(maxSliceRetries >= 0);
-      this.maxSliceRetries = maxSliceRetries;
-      return self();
-    }
-
-    public B setProjectId(String projectId) {
-      this.projectId = projectId;
-      return self();
-    }
-
-    public B setDatabaseId(String databaseId) {
-      this.databaseId = databaseId;
-      return self();
-    }
-  }
-
-  @NoArgsConstructor
-  public static class Builder extends BaseBuilder<Builder> {
-
-    public Builder(MapSettings settings) {
-      super(settings);
-    }
-
-    @Override
-    protected Builder self() {
-      return this;
-    }
-
-    public MapSettings build() {
-      return new MapSettings(this);
-    }
-  }
-
-  MapSettings(BaseBuilder<?> builder) {
-    datastoreHost = builder.datastoreHost;
-    projectId = builder.projectId;
-    databaseId = builder.databaseId;
-    namespace = builder.namespace;
-    baseUrl = builder.baseUrl;
-    module = builder.module;
-    workerQueueName = this.checkQueueSettings(builder.workerQueueName);
-    millisPerSlice = builder.millisPerSlice;
-    sliceTimeoutRatio = builder.sliceTimeoutRatio;
-    maxShardRetries = builder.maxShardRetries;
-    maxSliceRetries = builder.maxSliceRetries;
-  }
 
   public JobSetting[] toJobSettings(JobSetting... extra) {
     JobSetting[] settings = new JobSetting[3 + extra.length];

@@ -39,7 +39,7 @@ public class MapReduceSettingsTest {
 
   @Test
   public void testDefaultSettings() {
-    MapReduceSettings mrSettings = new MapReduceSettings.Builder().build();
+    MapReduceSettings mrSettings = MapReduceSettings.builder().build();
     assertEquals(DEFAULT_BASE_URL, mrSettings.getBaseUrl());
     assertEquals("app_default_bucket", mrSettings.getBucketName());
     assertEquals(DEFAULT_MAP_FANOUT, mrSettings.getMapFanout());
@@ -56,46 +56,46 @@ public class MapReduceSettingsTest {
 
   @Test
   public void testNonDefaultSettings() {
-    MapReduceSettings.Builder builder = new MapReduceSettings.Builder();
-    builder.setModule("m").build();
-    builder = builder.setBaseUrl("base-url");
-    builder = builder.setBucketName("bucket");
+    MapReduceSettings.MapReduceSettingsBuilder builder = MapReduceSettings.builder();
+    builder.module("m");
+    builder = builder.baseUrl("base-url");
+    builder = builder.bucketName("bucket");
     try {
-      builder.setMapFanout(-1);
+      builder.mapFanout(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMapFanout(3);
+    builder = builder.mapFanout(3);
     try {
-      builder.setMaxShardRetries(-1);
+      builder.maxShardRetries(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMaxShardRetries(1);
+    builder = builder.maxShardRetries(1);
     try {
-      builder.setMaxSliceRetries(-1);
+      builder.maxSliceRetries(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMaxSliceRetries(0);
+    builder = builder.maxSliceRetries(0);
     try {
-      builder.setMaxSortMemory(-1L);
+      builder.maxSortMemory(-1L);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMaxSortMemory(10L);
+    builder = builder.maxSortMemory(10L);
     try {
-      builder.setMergeFanin(-1);
+      builder.mergeFanin(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMergeFanin(4);
+    builder = builder.mergeFanin(4);
     try {
-      builder.setMillisPerSlice(-1);
+      builder.millisPerSlice(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMillisPerSlice(10);
+    builder = builder.millisPerSlice(10);
     try {
       builder.setSortBatchPerEmitBytes(-1);
     } catch (IllegalArgumentException ex) {
@@ -126,7 +126,7 @@ public class MapReduceSettingsTest {
     assertEquals(6, mrSettings.getSortReadTimeMillis());
     assertEquals("queue1", mrSettings.getWorkerQueueName());
 
-    builder = new MapReduceSettings.Builder().setModule("m1");
+    builder = MapReduceSettings.builder().module("m1");
 
     mrSettings = builder.build();
     assertEquals("m1", mrSettings.getModule());
