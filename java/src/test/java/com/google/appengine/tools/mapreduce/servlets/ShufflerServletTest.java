@@ -239,7 +239,7 @@ public class ShufflerServletTest {
       assertTrue(expectedValues.containsAll(kv.getValue()));
       assertTrue(kv.getValue().containsAll(expectedValues));
     }
-    assertTrue(expected.isEmpty());
+    assertTrue("should be empty but still has: " + expected.size() + " elements", expected.isEmpty());
   }
 
   List<KeyValue<ByteBuffer, List<ByteBuffer>>> validateOrdered(ShufflerParams shufflerParams) throws IOException {
