@@ -2,11 +2,9 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
 import static java.util.concurrent.Executors.callable;
 
-import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
-import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
 import com.google.cloud.datastore.Datastore;
@@ -33,7 +31,7 @@ public class DeleteShardsInfos extends Job0<Void> {
 
 
   private static void addParentKeyToList(Transaction tx, List<Key> list, Key parent) {
-    for (Key child : SerializationUtil.getShardedValueKeysFor(tx, parent, null)) {
+    for (Key child : DatastoreSerializationUtil.getShardedValueKeysFor(tx, parent, null)) {
       list.add(child);
     }
     list.add(parent);

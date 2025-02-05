@@ -1,6 +1,7 @@
 package com.google.appengine.tools.mapreduce.impl.util;
 
 import com.google.appengine.tools.mapreduce.Marshaller;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -41,7 +42,7 @@ public final class SerializableValue<T> implements Serializable {
   private void writeObject(ObjectOutputStream aOutputStream) throws IOException {
     aOutputStream.defaultWriteObject();
     ByteBuffer byteBuffer = marshaller.toBytes(value);
-    aOutputStream.writeObject(SerializationUtil.getBytes(byteBuffer.slice()));
+    aOutputStream.writeObject(SerializationUtils.getBytes(byteBuffer.slice()));
     // In case marshalling modified the item
     value = marshaller.fromBytes(byteBuffer);
   }

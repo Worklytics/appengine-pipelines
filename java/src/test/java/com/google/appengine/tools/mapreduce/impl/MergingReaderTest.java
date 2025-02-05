@@ -3,11 +3,10 @@ package com.google.appengine.tools.mapreduce.impl;
 import com.google.appengine.tools.mapreduce.InputReader;
 import com.google.appengine.tools.mapreduce.KeyValue;
 import com.google.appengine.tools.mapreduce.Marshallers;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.inputs.PeekingInputReader;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.common.collect.Iterators;
 
-import junit.framework.TestCase;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -153,7 +152,7 @@ public class MergingReaderTest  {
     int valueCount = 0;
     for (int key = 0; key < numKeys; key++) {
       merging.endSlice();
-      merging = SerializationUtil.clone(merging);
+      merging = SerializationUtils.clone(merging);
       merging.beginSlice();
       KeyValue<String, Iterator<Integer>> next = merging.next();
       assertEquals(String.valueOf(key), next.getKey());
@@ -167,7 +166,7 @@ public class MergingReaderTest  {
       // expected
     }
     merging.endSlice();
-    merging = SerializationUtil.clone(merging);
+    merging = SerializationUtils.clone(merging);
     merging.beginSlice();
     try {
       merging.next();
@@ -196,7 +195,7 @@ public class MergingReaderTest  {
     for (int key = 0; key < numKeys; key++) {
       for (int reader = 0; reader < readerCount; reader++) {
         merging.endSlice();
-        merging = SerializationUtil.clone(merging);
+        merging = SerializationUtils.clone(merging);
         merging.beginSlice();
         KeyValue<String, Iterator<Integer>> next = merging.next();
         assertEquals(String.valueOf(key), next.getKey());
@@ -211,7 +210,7 @@ public class MergingReaderTest  {
       // expected
     }
     merging.endSlice();
-    merging = SerializationUtil.clone(merging);
+    merging = SerializationUtils.clone(merging);
     merging.beginSlice();
     try {
       merging.next();
@@ -238,7 +237,7 @@ public class MergingReaderTest  {
     for (int key = 0; key < numKeys; key++) {
       for (int reader = 0; reader < readerCount; reader++) {
         merging.endSlice();
-        merging = SerializationUtil.clone(merging);
+        merging = SerializationUtils.clone(merging);
         merging.beginSlice();
         KeyValue<String, Iterator<Integer>> next = merging.next();
         assertEquals(String.valueOf(key), next.getKey());
@@ -251,7 +250,7 @@ public class MergingReaderTest  {
       // expected
     }
     merging.endSlice();
-    merging = SerializationUtil.clone(merging);
+    merging = SerializationUtils.clone(merging);
     merging.beginSlice();
     try {
       merging.next();
@@ -277,7 +276,7 @@ public class MergingReaderTest  {
     merging.beginSlice();
     for (int key = 0; key < numKeys; key++) {
       merging.endSlice();
-      merging = SerializationUtil.clone(merging);
+      merging = SerializationUtils.clone(merging);
       merging.beginSlice();
       KeyValue<String, Iterator<Integer>> next = merging.next();
       assertEquals(String.valueOf(key), next.getKey());
@@ -289,7 +288,7 @@ public class MergingReaderTest  {
       // expected
     }
     merging.endSlice();
-    merging = SerializationUtil.clone(merging);
+    merging = SerializationUtils.clone(merging);
     merging.beginSlice();
     try {
       merging.next();

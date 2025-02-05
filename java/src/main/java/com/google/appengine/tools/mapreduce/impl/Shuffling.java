@@ -7,7 +7,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.appengine.tools.mapreduce.KeyValue;
 import com.google.appengine.tools.mapreduce.Marshaller;
 import com.google.appengine.tools.mapreduce.Sharder;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.common.base.Function;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
@@ -75,7 +75,7 @@ class Shuffling {
       Marshaller<K> keyMarshaller, Iterable<KeyValue<K, V>> in) {
     ImmutableList.Builder<KeyValue<Bytes, V>> out = ImmutableList.builder();
     for (KeyValue<K, V> pair : in) {
-      Bytes key = new Bytes(SerializationUtil.getBytes(keyMarshaller.toBytes(pair.getKey())));
+      Bytes key = new Bytes(SerializationUtils.getBytes(keyMarshaller.toBytes(pair.getKey())));
       out.add(KeyValue.of(key, pair.getValue()));
     }
     return out.build();

@@ -2,11 +2,9 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
 import static java.util.concurrent.Executors.callable;
 
-import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
-import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
+import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
 import com.google.cloud.datastore.*;
@@ -45,7 +43,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
           toFetch.add(IncrementalTaskState.Serializer.makeKey(datastore, taskId));
           Key retryStateKey = ShardRetryState.Serializer.makeKey(datastore, taskId);
           toDelete.add(retryStateKey);
-          for (Key key : SerializationUtil.getShardedValueKeysFor(tx, retryStateKey, null)) {
+          for (Key key : DatastoreSerializationUtil.getShardedValueKeysFor(tx, retryStateKey, null)) {
             toDelete.add(key);
           }
         }

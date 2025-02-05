@@ -21,9 +21,9 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.InProcessShardedJobR
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
-import com.google.appengine.tools.mapreduce.impl.util.SerializationUtil;
 import com.google.appengine.tools.mapreduce.outputs.InMemoryOutput;
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.common.collect.ImmutableList;
 
 import lombok.Getter;
@@ -188,15 +188,13 @@ public class InProcessMapReduce<I, K, V, O, R> {
   @SneakyThrows
   @SuppressWarnings("unchecked")
   private Mapper<I, K, V> getCopyOfMapper() {
-    byte[] bytes = SerializationUtil.serializeToByteArray(mapper);
-    return (Mapper<I, K, V>) SerializationUtil.deserialize(bytes);
+    return SerializationUtils.clone(mapper);
   }
 
   @SneakyThrows
   @SuppressWarnings("unchecked")
   private Reducer<K, V, O> getCopyOfReducer() {
-    byte[] bytes = SerializationUtil.serializeToByteArray(reducer);
-    return (Reducer<K, V, O>) SerializationUtil.deserialize(bytes);
+    return SerializationUtils.clone(reducer);
   }
 
   MapReduceResult<R> reduce(List<List<KeyValue<K, List<V>>>> inputs, Output<O, R> output,
@@ -241,7 +239,7 @@ public class InProcessMapReduce<I, K, V, O, R> {
 
   public static <I, K, V, O, R> MapReduceResult<R> runMapReduce(
     PipelineService pipelineService, MapReduceSpecification<I, K, V, O, R> mrSpec) throws IOException {
-    ShardedJobRunId mapReduceId = ShardedJobRunId.of("in-process", null,  null,"in-process-mr-" + Instant.now().toString() + "-" + new Random().nextInt(1000000));
+    ShardedJobRunId mapReduceId = ShardedJobRunId.of("in-process", null,  null,"in-process-mr-" + Instant.now().toString().replace(":", "") + "-" + new Random().nextInt(1000000));
     InProcessMapReduce<I, K, V, O, R> mapReduce = new InProcessMapReduce<>(mapReduceId, mrSpec, pipelineService);
     log.info(mapReduce + " started");
 
