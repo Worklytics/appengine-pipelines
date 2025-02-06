@@ -249,11 +249,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
-          (UpdateSpec.TransactionWithTasks) transactionSpec;
-        Collection<Task> tasks = transactionWithTasks.getTasks();
-        for (Task task : tasks) {
-          taskQueue.enqueue(task);
-        }
+            (UpdateSpec.TransactionWithTasks) transactionSpec;
+        taskQueue.enqueue(transactionWithTasks.getTasks());
       }
 
     } finally {
