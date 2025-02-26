@@ -23,7 +23,6 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.Uninterruptibles;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -55,10 +54,34 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   static final int TASK_LOOKUP_BATCH_SIZE = 20;
 
+
+  static final long CONTROLLER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
+  static final long WORKER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
+
+  /**
+   * a status of an Incremental task; not to be confused with IncrementTaskState, which is a datastore entity
+   * that encodes more state information / data about the task etc/
+   */
+  enum IncrementalTaskStatus {
+    TASK_OK,
+    TASK_GONE,
+    TASK_NO_LONGER_ACTIVE,
+    JOB_NO_LONGER_ACTIVE,
+    TASK_STATE_FROM_PAST,
+    TASK_ALREADY_COMPLETED,
+    LOCK_HELD_BY_OTHER_EXECUTION,
+    ;
+
+    boolean passed() {
+      return this == TASK_OK;
+    }
+  }
+
   @Getter
   final Provider<PipelineService> pipelineServiceProvider;
   @Getter
   final Datastore datastore;
+
 
   @Inject
   public ShardedJobRunner(Provider<PipelineService> pipelineServiceProvider, Datastore datastore) {
@@ -298,51 +321,31 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  private <T extends IncrementalTask> IncrementalTaskState<T> getAndValidateTaskState(Transaction tx, IncrementalTaskId taskId,
-                                                                                      int sequenceNumber, ShardedJobStateImpl<T> jobState) {
-    IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
-    IncrementalTaskStateValidationError validationError = validateTaskState(taskState, sequenceNumber, jobState);
-    if (validationError != null) {
-      return null;
-    } else {
-      return taskState;
-    }
-  }
 
-  enum IncrementalTaskStateValidationError {
-    TASK_GONE,
-    TASK_NO_LONGER_ACTIVE,
-    JOB_NO_LONGER_ACTIVE,
-    TASK_STATE_FROM_PAST,
-    TASK_ALREADY_COMPLETED,
-    LOCK_HELD_BY_OTHER_EXECUTION,
-    ;
-  }
 
-  private <T extends IncrementalTask> IncrementalTaskStateValidationError validateTaskState(IncrementalTaskState<T> taskState,
-                                                                                      int sequenceNumber, ShardedJobStateImpl<T> jobState) {
+  private <T extends IncrementalTask> IncrementalTaskStatus validateTaskState(IncrementalTaskState<T> taskState,
+                                                                              int sequenceNumber, ShardedJobStateImpl<T> jobState) {
     if (taskState == null) {
-      return IncrementalTaskStateValidationError.TASK_GONE;
+      return IncrementalTaskStatus.TASK_GONE;
     }
     if (!taskState.getStatus().isActive()) {
-      return IncrementalTaskStateValidationError.TASK_NO_LONGER_ACTIVE;
+      return IncrementalTaskStatus.TASK_NO_LONGER_ACTIVE;
     }
     if (!jobState.getStatus().isActive()) {
-      //this will also schedule controller callback as a side-effect, which is wierd
-      return IncrementalTaskStateValidationError.JOB_NO_LONGER_ACTIVE;
+      return IncrementalTaskStatus.JOB_NO_LONGER_ACTIVE;
     }
 
     //sequenceNumber cases
     if (sequenceNumber == taskState.getSequenceNumber()) {
       if (taskState.getLockInfo().isLocked()) {
-        return IncrementalTaskStateValidationError.LOCK_HELD_BY_OTHER_EXECUTION;
+        return IncrementalTaskStatus.LOCK_HELD_BY_OTHER_EXECUTION;
       } else {
-        return null;
+        return IncrementalTaskStatus.TASK_OK;
       }
     } else if (taskState.getSequenceNumber() > sequenceNumber) {
-      return IncrementalTaskStateValidationError.TASK_ALREADY_COMPLETED;
+      return IncrementalTaskStatus.TASK_ALREADY_COMPLETED;
     } else {
-      return IncrementalTaskStateValidationError.TASK_STATE_FROM_PAST;
+      return IncrementalTaskStatus.TASK_STATE_FROM_PAST;
     }
   }
 
@@ -434,9 +437,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
         //taskState represents attempt of executing a slice of a shard of a sharded job
         IncrementalTaskState taskState = lookupTaskState(lockAcquisition, taskId);
-        IncrementalTaskStateValidationError validationError = validateTaskState(taskState, sequenceNumber, jobState);
-        if (validationError != null) {
-          switch (validationError) {
+        IncrementalTaskStatus validationResult = validateTaskState(taskState, sequenceNumber, jobState);
+        if (!validationResult.passed()) {
+          switch (validationResult) {
             case TASK_GONE:
               log.info(taskId + ": Task is gone, ignoring runTask call.");
               lockAcquisition.commit();
@@ -481,9 +484,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
               lockAcquisition.commit();
               return null; // we're done here; task scheduled by 'handleLockHeld' will pick-up execution
             default:
-              log.severe("Unknown validation error: " + validationError);
+              log.severe("Unknown validation error: " + validationResult);
               lockAcquisition.rollback();
-              throw new IllegalStateException("Validation error: " + validationError);
+              throw new IllegalStateException("Validation error: " + validationResult);
               //throw, so re-try moments later with fresh state
           }
           //should be unreachable
