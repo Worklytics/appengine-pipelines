@@ -29,6 +29,7 @@ import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.apphosting.api.ApiProxy;
+import lombok.extern.java.Log;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -36,6 +37,7 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -45,9 +47,8 @@ import java.util.stream.Collectors;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@Log
 public class AppEngineTaskQueue implements PipelineTaskQueue {
-
-  private static final Logger logger = Logger.getLogger(AppEngineTaskQueue.class.getName());
 
   static final int MAX_TASKS_PER_ENQUEUE = QueueConstants.maxTasksPerAdd();
 
@@ -66,8 +67,25 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
+  public void deleteTasks(Collection<TaskReference> taskReferences) {
+    Map<String, List<String>> queueToTaskNames = taskReferences.stream()
+      .collect(Collectors.groupingBy(TaskReference::getQueue, Collectors.mapping(TaskReference::getTaskName, Collectors.toList())));
+    for (Map.Entry<String, List<String>> entry : queueToTaskNames.entrySet()) {
+      Queue queue = getQueue(entry.getKey());
+      
+      try {
+        entry.getValue().stream()
+          .forEach(queue::deleteTaskAsync);
+      } catch (RuntimeException ignored) {
+        // weren't even bothering with this previously, so prob OK
+        log.log(Level.WARNING, "Pipeline framework failed to delete tasks from queue", ignored);
+      }
+    }
+  }
+
+  @Override
   public TaskReference enqueue(Task task) {
-    logger.finest("Enqueueing: " + task);
+    log.finest("Enqueueing: " + task);
     TaskOptions taskOptions = toTaskOptions(task);
     Queue queue = getQueue(task.getQueueSettings().getOnQueue());
     try {
@@ -106,19 +124,19 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     List<TaskReference> handles = new ArrayList<>();
     Map<String, List<TaskOptions>> queueNameToTaskOptions = new HashMap<>();
     for (Task task : tasks) {
-      logger.finest("Enqueueing: " + task);
+      log.finest("Enqueueing: " + task);
       String queueName = task.getQueueSettings().getOnQueue();
       TaskOptions taskOptions = toTaskOptions(task);
 
 
       // seen in logs : "Negative countdown is not allowed"
       if (taskOptions.getCountdownMillis() != null && taskOptions.getCountdownMillis() < 0) {
-        logger.warning("Task countdownMillis is  " + taskOptions.getCountdownMillis() + ". Setting to 0 to avoid error.");
+        log.warning("Task countdownMillis is  " + taskOptions.getCountdownMillis() + ". Setting to 0 to avoid error.");
         taskOptions.countdownMillis(0);
       }
       Instant now = Instant.now();
       if (taskOptions.getEtaMillis() != null && taskOptions.getEtaMillis() <= now.toEpochMilli()) {
-        logger.warning("Task etaMillis is  " + (now.toEpochMilli() - taskOptions.getEtaMillis()) + " before now. Setting to now + 30s to avoid error.");
+        log.warning("Task etaMillis is  " + (now.toEpochMilli() - taskOptions.getEtaMillis()) + " before now. Setting to now + 30s to avoid error.");
         taskOptions.etaMillis(now.toEpochMilli() + Duration.ofSeconds(30) .toMillis());
       }
 
@@ -151,7 +169,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
       try {
         future.get().stream().map(this::taskHandleToReference).forEach(taskReferences::add);
       } catch (InterruptedException e) {
-        logger.throwing("AppEngineTaskQueue", "addToQueue", e);
+        log.throwing("AppEngineTaskQueue", "addToQueue", e);
         Thread.currentThread().interrupt();
         throw new RuntimeException("addToQueue failed", e);
       } catch (ExecutionException e) {

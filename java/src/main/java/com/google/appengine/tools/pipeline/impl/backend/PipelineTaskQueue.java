@@ -56,4 +56,13 @@ public interface PipelineTaskQueue {
   TaskReference enqueue(Task task);
 
   Collection<TaskReference> enqueue(final Collection<Task> tasks);
+
+  /**
+   * deletes tasks from the queue, on best-efforts async basis.
+   *
+   * meant to be used only as an optimization, to avoid exec of tasks that are pointless (due to some other pipeline failure)
+   *
+   * @param taskReferences references to the tasks to delete
+   */
+  void deleteTasks(Collection<TaskReference> taskReferences);
 }
