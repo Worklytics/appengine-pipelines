@@ -11,14 +11,14 @@ import com.google.appengine.tools.pipeline.impl.tasks.RunJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -53,8 +53,9 @@ public class AppEngineTaskQueueTest {
     assertEquals(1, handles.size());
     assertEquals(task.getName(), handles.get(0).getTaskName());
 
+    //behavior change; 2nd enqueue of same task now returns it again, even if duplicated
     handles = queue.addToQueue(Collections.singletonList(task));
-    assertEquals(0, handles.size());
+    assertEquals(1, handles.size());
   }
 
   @Test
@@ -72,7 +73,7 @@ public class AppEngineTaskQueueTest {
     }
 
     handles = queue.addToQueue(tasks);
-    assertEquals(0, handles.size());
+    assertEquals(tasks.size(), handles.size());
   }
 
   @Test
@@ -118,12 +119,12 @@ public class AppEngineTaskQueueTest {
 
     handles = queue.addToQueue(tasks);
 
-    // Duplicate is rejected (not counted) per batch.
-    int expected = tasks.size() - firstBatchSize;
-    assertEquals(expected, handles.size());
-    for (int i = 0; i < expected; i++) {
-      assertEquals(tasks.get(firstBatchSize + i).getName(), handles.get(i).getTaskName());
+    assertEquals(tasks.size(), handles.size());
+    Set<String> names = handles.stream().map(PipelineTaskQueue.TaskReference::getTaskName).collect(Collectors.toCollection(HashSet::new));
+    for (int i = 0; i < tasks.size(); i++) {
+      names.remove(tasks.get(i).getName());
     }
+    assertEquals(0, names.size()); //everything in names has 1:1 match in tasks
   }
 
   private Task createTask() {
