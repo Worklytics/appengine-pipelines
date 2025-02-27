@@ -22,8 +22,11 @@ import com.google.cloud.datastore.Key;
 /**
  * A datastore entity for storing data necessary for a fan-out task
  *
+ * fan-out tasks used to be needed
+ *
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@Deprecated // this really shouldn't be used anymore
 public class FanoutTaskRecord extends PipelineModelObject {
 
   public static final String DATA_STORE_KIND = "pipeline-fanoutTask";
