@@ -263,11 +263,6 @@
        <version>4.11.0</version>
        <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.easymock</groupId>
-      <artifactId>easymock</artifactId>
-      <version>5.2.0</version> <!-- need 5.2.0 to solve all JDK 17 issues? see https://github.com/easymock/easymock/releases -->
-    </dependency>
 
   </dependencies>
 </project>
