@@ -22,7 +22,7 @@ public class FinalizeShardedJob extends AbstractShardedJob {
 
   @Override
   protected Job<?> createShardsJob(int start, int end) {
-    return new FinalizeShardsInfos(this.datastoreOptions, getJobId(), status, start, end);
+    return new FinalizeShardsInfos(this.datastoreOptions.toBuilder().build(), getJobId(), status, start, end);
   }
 
   @Override

@@ -118,7 +118,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private final AppEngineTaskQueue taskQueue;
 
   public AppEngineBackEnd(AppEngineBackEnd.Options options) {
-    this(options.getDatastoreOptions().getService(), new AppEngineTaskQueue());
+    this(options.getDatastoreOptions().toBuilder().build().getService(), new AppEngineTaskQueue());
   }
 
 

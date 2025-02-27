@@ -28,6 +28,10 @@ public class TestController extends ShardedJobController<TestTask> {
 
   private boolean completed = false;
 
+  public DatastoreOptions getDatastoreOptions() {
+    // in case serialized, recreate to "recover" transient fields
+    return datastoreOptions.toBuilder().build();
+  }
 
   @Override
   public void completed(Iterator<TestTask> results) {

@@ -28,7 +28,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
 
   @Override
   public Value<Void> run() {
-    Datastore datastore = datastoreOptions.getService();
+    Datastore datastore = datastoreOptions.toBuilder().build().getService();
 
     RetryExecutor.call(
       ShardedJobRunner.FOREVER_RETRYER,

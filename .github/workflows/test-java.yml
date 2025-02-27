@@ -3,6 +3,10 @@ name: Test Java
 
 on: [push]
 
+env:
+  CODE_CACHE_VERSION: 'code-v1'
+  M2_CACHE_VERSION: 'm2-v1'
+
 jobs:
   compile:
     runs-on: ubuntu-latest
@@ -52,6 +56,12 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: '17' # maven won't accept --release argument with java < 8; and 11 is next LTS
+      - id: 'read-cache-maven-packages'
+        name: Read Cached Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-${{ env.M2_CACHE_VERSION }}-${{ hashFiles('**/pom.xml') }}
       - name: Restore compiled classes from cache
         uses: actions/cache@v4
         with:
@@ -62,4 +72,4 @@ jobs:
           APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY: ${{ secrets.APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY }}
         run: |
           cd java/
-          mvn test -Dtest=${{ matrix.package }}
+          mvn test -T 1C -B -Dtest=${{ matrix.package }} -Dversions.logOutput=false -DprocessDependencies=false -DprocessDependencyManagement=false

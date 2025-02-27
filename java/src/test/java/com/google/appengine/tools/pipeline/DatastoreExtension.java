@@ -1,8 +1,10 @@
 package com.google.appengine.tools.pipeline;
 
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOpenTelemetryOptions;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.testing.LocalDatastoreHelper;
+import io.opentelemetry.api.OpenTelemetry;
 import lombok.extern.java.Log;
 import org.junit.jupiter.api.extension.*;
 
