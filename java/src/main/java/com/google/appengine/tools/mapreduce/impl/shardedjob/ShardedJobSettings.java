@@ -74,8 +74,7 @@ public final class ShardedJobSettings implements Serializable {
   private final int maxSliceRetries = DEFAULT_SLICE_RETRIES;
   
   @lombok.Builder.Default
-  private final int sliceTimeoutMillis = DEFAULT_SLICE_TIMEOUT_MILLIS;;
-  
+  private final int sliceTimeoutMillis = DEFAULT_SLICE_TIMEOUT_MILLIS;
 
   private String resolveTaskQueueTarget() {
     return ModulesServiceFactory.getModulesService().getVersionHostname(module, version);
