@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Encapsulates access to the App Engine Task Queue API
@@ -65,14 +66,16 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public void enqueue(Task task) {
+  public String enqueue(Task task) {
     logger.finest("Enqueueing: " + task);
     TaskOptions taskOptions = toTaskOptions(task);
     Queue queue = getQueue(task.getQueueSettings().getOnQueue());
     try {
-      queue.add(taskOptions);
+      TaskHandle handle = queue.add(taskOptions);
+      return handle.getName();
     } catch (TaskAlreadyExistsException ignore) {
       // ignore
+      return ignore.getTaskNames().get(0);
     }
   }
 
@@ -90,8 +93,10 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public void enqueue(final Collection<Task> tasks) {
-    addToQueue(tasks);
+  public Collection<String> enqueue(final Collection<Task> tasks) {
+    return addToQueue(tasks).stream()
+            .map(TaskHandle::getName)
+      .collect(Collectors.toCollection(ArrayList::new));
   }
 
   //VisibleForTesting
