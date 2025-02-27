@@ -61,9 +61,6 @@ public final class ShardedJobSettings implements Serializable {
   @lombok.Builder.Default
   private String workerPath = DEFAULT_BASE_URL + WORKER_PATH;
   
-  @Builder.ObtainVia(method = "resolveTaskQueueTarget")
-  private final String target;
-  
   @lombok.Builder.Default
   private final String queueName  = "default";
 
@@ -76,12 +73,8 @@ public final class ShardedJobSettings implements Serializable {
   @lombok.Builder.Default
   private final int sliceTimeoutMillis = DEFAULT_SLICE_TIMEOUT_MILLIS;
 
-  private String resolveTaskQueueTarget() {
-    return ModulesServiceFactory.getModulesService().getVersionHostname(module, version);
-  }
-
   public String getTaskQueueTarget() {
-    return target;
+    return ModulesServiceFactory.getModulesService().getVersionHostname(module, version);
   }
 
   /*Nullable*/ public String getMapReduceStatusUrl() {
