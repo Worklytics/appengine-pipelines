@@ -38,7 +38,7 @@ import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSet
 @RequiredArgsConstructor
 @Log
 @SuperBuilder(toBuilder = true)
-public class MapSettings implements Serializable {
+public class MapSettings implements ShardedJobAbstractSettings, Serializable {
 
   @Serial
   private static final long serialVersionUID = 51425056338041064L;
@@ -51,14 +51,6 @@ public class MapSettings implements Serializable {
       .withRetryListener(RetryUtils.logRetry(log, MapSettings.class.getName()));
   }
 
-  private static RetryerBuilder getModulesRetryerBuilder() {
-    return RetryerBuilder.newBuilder()
-      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
-      .withStopStrategy(StopStrategies.stopAfterAttempt(8))
-      .retryIfExceptionOfType(ModulesException.class)
-      .withRetryListener(RetryUtils.logRetry(log, MapSettings.class.getName()));
-  }
-
   public static final String DEFAULT_BASE_URL = "/mapreduce/";
   public static final String CONTROLLER_PATH = "controllerCallback";
   public static final String WORKER_PATH = "workerCallback";
@@ -67,13 +59,28 @@ public class MapSettings implements Serializable {
   public static final int DEFAULT_SHARD_RETRIES = 4;
   public static final int DEFAULT_SLICE_RETRIES = 20;
 
-  private final String datastoreHost;
-  private final String projectId;
-  private final String databaseId;
   /**
-   * Sets the namespace that will be used for all requests related to this job.
+   * The host name of the datastore to use for all requests related to this job.
+   *  (use case: local emulation)
+   */
+  private final String datastoreHost;
+
+  /**
+   * The project that the job will run in.
+   */
+  private final String projectId;
+
+  /**
+   * The database within the project to which the job will persist its state data.
+   */
+  private final String databaseId;
+
+  /**
+   * The namespace within the database to which the job will persist its state data.
    */
   private final String namespace;
+
+
   @lombok.Builder.Default
   /**
    * Sets the base URL that will be used for all requests related to this job.
@@ -81,6 +88,7 @@ public class MapSettings implements Serializable {
    */
   @NonNull
   private final String baseUrl = DEFAULT_BASE_URL;
+
   /**
    * Specifies the Module (Service) that the job will run on.
    * If this is not set or {@code null}, it will run on the current module (service).
@@ -88,6 +96,7 @@ public class MapSettings implements Serializable {
    * in appengine gen2, these are called services
    */
   private final String module;
+
   /**
    * Sets the TaskQueue that will be used to queue the job's tasks.
    */
@@ -105,7 +114,7 @@ public class MapSettings implements Serializable {
    * considered to have failed due to a timeout.
    */
   @lombok.Builder.Default
-  private final double sliceTimeoutRatio= DEFAULT_SLICE_TIMEOUT_RATIO;
+  private final double sliceTimeoutRatio = DEFAULT_SLICE_TIMEOUT_RATIO;
 
   /**
    * The number of times a Shard can fail before it gives up and fails the whole job.
@@ -118,51 +127,6 @@ public class MapSettings implements Serializable {
    */
   @lombok.Builder.Default
   private final int maxSliceRetries = DEFAULT_SLICE_RETRIES;
-
-
-  public JobSetting[] toJobSettings(JobSetting... extra) {
-    JobSetting[] settings = new JobSetting[3 + extra.length];
-    settings[0] = new JobSetting.OnService(module);
-    settings[1] = new JobSetting.OnQueue(workerQueueName);
-    settings[2] = new JobSetting.DatastoreNamespace(namespace);
-    System.arraycopy(extra, 0, settings, 3, extra.length);
-    return settings;
-  }
-
-  ShardedJobSettings toShardedJobSettings(ShardedJobRunId shardedJobId, JobRunId pipelineRunId) {
-
-    String module = getModule();
-    String version = null;
-    if (module == null) {
-      ModulesService modulesService = ModulesServiceFactory.getModulesService();
-      module = modulesService.getCurrentModule();
-      version = modulesService.getCurrentVersion();
-    } else {
-      final ModulesService modulesService = ModulesServiceFactory.getModulesService();
-      if (module.equals(modulesService.getCurrentModule())) {
-        version = modulesService.getCurrentVersion();
-      } else {
-        // TODO(user): we may want to support providing a version for a module
-        final String requestedModule = module;
-
-        version = RetryExecutor.call(getModulesRetryerBuilder(), () -> modulesService.getDefaultVersion(requestedModule));
-      }
-    }
-
-    final ShardedJobSettings.Builder builder = new ShardedJobSettings.Builder()
-        .setControllerPath(baseUrl + CONTROLLER_PATH + "/" + shardedJobId.asEncodedString())
-        .setWorkerPath(baseUrl + WORKER_PATH + "/" + shardedJobId.asEncodedString())
-        .setMapReduceStatusUrl(baseUrl + "detail?mapreduce_id=" + shardedJobId.asEncodedString())
-        .setPipelineStatusUrl(PipelineServlet.makeViewerUrl(pipelineRunId, shardedJobId))
-        .setModule(module)
-        .setVersion(version)
-        .setQueueName(workerQueueName)
-        .setMaxShardRetries(maxShardRetries)
-        .setMaxSliceRetries(maxSliceRetries)
-        .setSliceTimeoutMillis(
-            Math.max(DEFAULT_SLICE_TIMEOUT_MILLIS, (int) (millisPerSlice * sliceTimeoutRatio)));
-    return RetryExecutor.call(getModulesRetryerBuilder(), () -> builder.build());
-  }
 
   private String checkQueueSettings(String queueName) {
     if (queueName == null) {
@@ -194,12 +158,4 @@ public class MapSettings implements Serializable {
     return queueName;
   }
 
-  DatastoreOptions getDatastoreOptions() {
-    DatastoreOptions.Builder optionsBuilder = DatastoreOptions.getDefaultInstance().toBuilder();
-    Optional.ofNullable(datastoreHost).ifPresent(optionsBuilder::setHost);
-    Optional.ofNullable(projectId).ifPresent(optionsBuilder::setProjectId);
-    Optional.ofNullable(databaseId).ifPresent(optionsBuilder::setDatabaseId);
-    Optional.ofNullable(namespace).ifPresent(optionsBuilder::setNamespace);
-    return optionsBuilder.build();
-  }
 }

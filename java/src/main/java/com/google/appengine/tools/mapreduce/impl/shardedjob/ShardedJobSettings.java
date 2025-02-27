@@ -4,9 +4,20 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
+import com.google.appengine.api.modules.ModulesException;
+import com.google.appengine.api.modules.ModulesService;
 import com.google.appengine.api.modules.ModulesServiceFactory;
+import com.google.appengine.tools.mapreduce.MapSettings;
+import com.google.appengine.tools.mapreduce.RetryExecutor;
+import com.google.appengine.tools.mapreduce.RetryUtils;
+import com.google.appengine.tools.mapreduce.ShardedJobAbstractSettings;
+import com.google.appengine.tools.pipeline.JobRunId;
+import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import lombok.Getter;
 import lombok.ToString;
+import lombok.extern.java.Log;
 
 import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_BASE_URL;
 import static com.google.appengine.tools.mapreduce.MapSettings.WORKER_PATH;
@@ -22,6 +33,7 @@ import java.io.Serializable;
  *
  * @author ohler@google.com (Christian Ohler)
  */
+@Log
 @Getter
 @ToString
 public final class ShardedJobSettings implements Serializable {
@@ -150,6 +162,48 @@ public final class ShardedJobSettings implements Serializable {
     return mrStatusUrl;
   }
 
+
+  private static RetryerBuilder getModulesRetryerBuilder() {
+    return RetryerBuilder.newBuilder()
+      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
+      .withStopStrategy(StopStrategies.stopAfterAttempt(8))
+      .retryIfExceptionOfType(ModulesException.class)
+      .withRetryListener(RetryUtils.logRetry(log, MapSettings.class.getName()));
+  }
+
+  public static ShardedJobSettings from(ShardedJobAbstractSettings abstractSettings, ShardedJobRunId shardedJobRunId, JobRunId pipelineRunId) {
+    String module = abstractSettings.getModule();
+    String version = null;
+    if (module == null) {
+      ModulesService modulesService = ModulesServiceFactory.getModulesService();
+      module = modulesService.getCurrentModule();
+      version = modulesService.getCurrentVersion();
+    } else {
+      final ModulesService modulesService = ModulesServiceFactory.getModulesService();
+      if (module.equals(modulesService.getCurrentModule())) {
+        version = modulesService.getCurrentVersion();
+      } else {
+        // TODO(user): we may want to support providing a version for a module
+        final String requestedModule = module;
+
+        version = RetryExecutor.call(getModulesRetryerBuilder(), () -> modulesService.getDefaultVersion(requestedModule));
+      }
+    }
+
+    final ShardedJobSettings.Builder builder = new ShardedJobSettings.Builder()
+      .setControllerPath(abstractSettings.getBaseUrl() + CONTROLLER_PATH + "/" + shardedJobRunId.asEncodedString())
+      .setWorkerPath(abstractSettings.getBaseUrl() + WORKER_PATH + "/" + shardedJobRunId.asEncodedString())
+      .setMapReduceStatusUrl(abstractSettings.getBaseUrl() + "detail?mapreduce_id=" + shardedJobRunId.asEncodedString())
+      .setPipelineStatusUrl(PipelineServlet.makeViewerUrl(pipelineRunId, shardedJobRunId))
+      .setModule(module)
+      .setVersion(version)
+      .setQueueName(abstractSettings.getWorkerQueueName())
+      .setMaxShardRetries(abstractSettings.getMaxShardRetries())
+      .setMaxSliceRetries(abstractSettings.getMaxSliceRetries())
+      .setSliceTimeoutMillis(
+        Math.max(DEFAULT_SLICE_TIMEOUT_MILLIS, (int) (abstractSettings.getMillisPerSlice() * abstractSettings.getSliceTimeoutRatio())));
+    return RetryExecutor.call(getModulesRetryerBuilder(), () -> builder.build());
+  }
 
 
 }

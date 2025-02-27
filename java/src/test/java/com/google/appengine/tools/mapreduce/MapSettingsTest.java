@@ -26,7 +26,6 @@ import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 
 import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.Key;
 import org.easymock.EasyMock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -170,7 +169,7 @@ public class MapSettingsTest {
     ShardedJobRunId shardedJobId = ShardedJobRunId.of(datastore.getOptions().getProjectId(),
       datastore.getOptions().getDatabaseId(),
       datastore.getOptions().getNamespace(),  "job1");
-    ShardedJobSettings sjSettings = settings.toShardedJobSettings(shardedJobId, pipelineRunId);
+    ShardedJobSettings sjSettings = ShardedJobSettings.from(settings, shardedJobId, pipelineRunId);
     assertEquals("default", sjSettings.getModule());
     assertEquals("1", sjSettings.getVersion());
     assertEquals("1.default.test.localhost", sjSettings.getTaskQueueTarget());
@@ -183,7 +182,7 @@ public class MapSettingsTest {
 
 
     settings = settings.toBuilder().module("module1").build();
-    sjSettings = settings.toShardedJobSettings(shardedJobId, pipelineRunId);
+    sjSettings = ShardedJobSettings.from(settings, shardedJobId, pipelineRunId);
     assertEquals("v1.module1.test.localhost", sjSettings.getTaskQueueTarget());
     assertEquals("module1", sjSettings.getModule());
     assertEquals("v1", sjSettings.getVersion());
@@ -198,7 +197,7 @@ public class MapSettingsTest {
     ApiProxy.setEnvironmentForCurrentThread(mockEnv);
     // Test when current module is the same as requested module
     try {
-      sjSettings = settings.toShardedJobSettings(shardedJobId, pipelineRunId);
+      sjSettings = ShardedJobSettings.from(settings, shardedJobId, pipelineRunId);
       assertEquals("default", sjSettings.getModule());
       assertEquals("2", sjSettings.getVersion());
     } finally {

@@ -2,21 +2,14 @@
 
 package com.google.appengine.tools.mapreduce;
 
-import com.google.appengine.api.appidentity.AppIdentityServiceFactory;
-
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import lombok.extern.java.Log;
 
 import java.io.Serial;
-import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
+import java.io.Serializable;
 
 /**
  * Settings that affect how a MapReduce is executed. May affect performance and resource usage, but
@@ -26,18 +19,87 @@ import java.util.logging.Logger;
  *
  * @author ohler@google.com (Christian Ohler)
  */
+@Log
 @Getter
 @ToString
 @SuperBuilder(toBuilder = true)
-public class MapReduceSettings extends MapSettings implements GcpCredentialOptions {
+public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstractSettings, Serializable {
 
   @Serial
   private static final long serialVersionUID = 610088354289299175L;
-  private static final Logger log = Logger.getLogger(MapReduceSettings.class.getName());
+
   public static final int DEFAULT_MAP_FANOUT = 32;
   public static final int DEFAULT_SORT_BATCH_PER_EMIT_BYTES = 32 * 1024;
   public static final int DEFAULT_SORT_READ_TIME_MILLIS = 180000;
   public static final int DEFAULT_MERGE_FANIN = 32;
+
+  /**
+   * The host name of the datastore to use for all requests related to this job.
+   *  (use case: local emulation)
+   */
+  private final String datastoreHost;
+
+  /**
+   * The project that the job will run in.
+   */
+  private final String projectId;
+
+  /**
+   * The database within the project to which the job will persist its state data.
+   */
+  private final String databaseId;
+
+  /**
+   * The namespace within the database to which the job will persist its state data.
+   */
+  private final String namespace;
+
+  @lombok.Builder.Default
+  /**
+   * Sets the base URL that will be used for all requests related to this job.
+   * Defaults to {@value #DEFAULT_BASE_URL}
+   */
+  @NonNull
+  private final String baseUrl = MapSettings.DEFAULT_BASE_URL;
+
+  /**
+   * Specifies the Module (Service) that the job will run on.
+   * If this is not set or {@code null}, it will run on the current module (service).
+   *
+   * in appengine gen2, these are called services
+   */
+  private final String module;
+
+  /**
+   * Sets the TaskQueue that will be used to queue the job's tasks.
+   */
+  private final String workerQueueName;
+
+  /**
+   * Sets how long a worker will process items before endSlice is called and progress is
+   * checkpointed to datastore.
+   */
+  @lombok.Builder.Default
+  private final int millisPerSlice = MapSettings.DEFAULT_MILLIS_PER_SLICE;
+
+  /**
+   * Sets a ratio for how much time beyond millisPerSlice must elapse before slice will be
+   * considered to have failed due to a timeout.
+   */
+  @lombok.Builder.Default
+  private final double sliceTimeoutRatio= MapSettings.DEFAULT_SLICE_TIMEOUT_RATIO;
+
+  /**
+   * The number of times a Shard can fail before it gives up and fails the whole job.
+   */
+  @lombok.Builder.Default
+  private final int maxShardRetries = MapSettings.DEFAULT_SHARD_RETRIES;
+
+  /**
+   * The number of times a Slice can fail before triggering a shard retry.
+   */
+  @lombok.Builder.Default
+  private final int maxSliceRetries = MapSettings.DEFAULT_SLICE_RETRIES;
 
   /**
    * Sets the GCS bucket that will be used for temporary files. If this is not set or {@code null}

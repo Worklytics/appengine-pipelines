@@ -45,6 +45,7 @@ import lombok.Setter;
 
 import javax.inject.Inject;
 import java.io.IOException;
+import java.io.Serial;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -67,6 +68,7 @@ import java.util.logging.Logger;
 @RequiredArgsConstructor
 public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
+  @Serial
   private static final long serialVersionUID = 723635736794527552L;
   private static final Logger log = Logger.getLogger(MapReduceJob.class.getName());
 
@@ -218,7 +220,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             mrSpec.getMapper(), writers.get(i), settings.getMillisPerSlice()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineRunId());
+        ShardedJobSettings.from(settings, getShardedJobId(), getPipelineRunId());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<I, KeyValue<K, V>, FilesByShard, MapperContext<K, V>> workerController =
@@ -322,7 +324,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             settings.getSortReadTimeMillis()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineRunId());
+        ShardedJobSettings.from(settings, getShardedJobId(), getPipelineRunId());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, ByteBuffer>, KeyValue<ByteBuffer, List<ByteBuffer>>,
@@ -444,7 +446,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             settings.getSortReadTimeMillis()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineRunId());
+        ShardedJobSettings.from(settings, getShardedJobId(), getPipelineRunId());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, Iterator<ByteBuffer>>,
@@ -540,7 +542,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             mrSpec.getReducer(), writers.get(i), settings.getMillisPerSlice()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineRunId());
+          ShardedJobSettings.from(settings, getShardedJobId(), getPipelineRunId());
       PromisedValue<ResultAndStatus<R>> resultAndStatus = newPromise();
       WorkerController<KeyValue<K, Iterator<V>>, O, R, ReducerContext<O>> workerController =
           new WorkerController<>(getShardedJobId(), mergeResult.getCounters(), output,
@@ -597,7 +599,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             + " job, using 'default'");
         queue = "default";
       }
-      settings = new MapReduceSettings.Builder(settings).setWorkerQueueName(queue).build();
+      settings = settings.toBuilder().workerQueueName(queue).build();
     }
     FutureValue<MapReduceResult<FilesByShard>> mapResult = futureCall(
         new MapJob<>(getJobRunId(), specification, settings), settings.toJobSettings(maxAttempts(1)));
