@@ -97,18 +97,18 @@ public class MapReduceSettingsTest {
     }
     builder = builder.millisPerSlice(10);
     try {
-      builder.setSortBatchPerEmitBytes(-1);
+      builder.sortBatchPerEmitBytes(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setSortBatchPerEmitBytes(5);
+    builder = builder.sortBatchPerEmitBytes(5);
     try {
-      builder.setSortReadTimeMillis(-1);
+      builder.sortReadTimeMillis(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setSortReadTimeMillis(6);
-    builder = builder.setWorkerQueueName("queue1");
+    builder = builder.sortReadTimeMillis(6);
+    builder = builder.workerQueueName("queue1");
 
 
     MapReduceSettings mrSettings = builder.build();

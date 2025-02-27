@@ -31,7 +31,7 @@ public class EndToEndTest extends EndToEndTestCase {
 
   @BeforeEach
   public void initSettings() throws Exception {
-    settings = new ShardedJobSettings.Builder().build();
+    settings = ShardedJobSettings.builder().build();
   }
 
   @Test
