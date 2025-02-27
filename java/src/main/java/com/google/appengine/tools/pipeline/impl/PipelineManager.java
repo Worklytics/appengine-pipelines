@@ -391,11 +391,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     Key key = JobRecord.keyFromPipelineHandle(jobHandle);
     JobRecord jobRecord = backEnd.queryJob(key, InflationType.NONE);
     CancelJobTask cancelJobTask = new CancelJobTask(key, jobRecord.getQueueSettings());
-    try {
-      backEnd.enqueue(cancelJobTask);
-    } catch (TaskAlreadyExistsException e) {
-      // OK. Some other thread has already enqueued this task.
-    }
+    backEnd.enqueue(cancelJobTask);
   }
 
   /**
@@ -987,11 +983,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     for (Key childKey : jobRecord.getChildKeys()) {
       if (!childKey.equals(failedChildKey)) {
         CancelJobTask cancelJobTask = new CancelJobTask(childKey, jobRecord.getQueueSettings());
-        try {
-          backEnd.enqueue(cancelJobTask);
-        } catch (TaskAlreadyExistsException e) {
-          // OK. Some other thread has already enqueued this task.
-        }
+        backEnd.enqueue(cancelJobTask);
       }
     }
   }
@@ -1188,11 +1180,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
             default:
               throw new RuntimeException("Unknown barrier type " + barrier.getType());
           }
-          try {
-            backEnd.enqueue(task);
-          } catch (TaskAlreadyExistsException e) {
-            // OK. Some other thread has already enqueued this task.
-          }
+          backEnd.enqueue(task);
         }
       }
     }

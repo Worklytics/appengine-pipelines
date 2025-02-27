@@ -140,8 +140,12 @@ public interface PipelineBackEnd {
    * with the {@link UpdateSpec#getFinalTransaction() final transaction} of an
    * {@link UpdateSpec}. This method is simpler if one only wants to enqueue a
    * single task in isolation.
+   * <p>
+   * NOTE: will never return TaskAlreadyExistsException (which can only occur with named tasks)
+   *
+   * @return name of task in the queue
    */
-  void enqueue(Task task);
+  PipelineTaskQueue.TaskReference enqueue(Task task);
 
   /**
    * Queries the data store for all root Pipeline.

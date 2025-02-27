@@ -286,8 +286,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   @Override
-  public void enqueue(Task task) {
-    taskQueue.enqueue(task);
+  public PipelineTaskQueue.TaskReference enqueue(Task task) {
+    return taskQueue.enqueue(task);
   }
 
   @Override

@@ -15,7 +15,11 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import lombok.AllArgsConstructor;
+import lombok.Value;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.Collection;
 
 /**
@@ -24,7 +28,32 @@ import java.util.Collection;
  * 
  */
 public interface PipelineTaskQueue {
-  String enqueue(Task task);
 
-  Collection<String> enqueue(final Collection<Task> tasks);
+
+  /**
+   * reference to a task by queue and task name.
+   *
+   * NOTE: we'll need to add project notion, if ever care about cross-project pipelines or something
+   */
+  @AllArgsConstructor(staticName = "of")
+  @Value
+  class TaskReference implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * the queue the task was enqueued to
+     */
+    String queue;
+
+    /**
+     * the name of the task (may have been auto-generated)
+     */
+    String taskName;
+  }
+
+  TaskReference enqueue(Task task);
+
+  Collection<TaskReference> enqueue(final Collection<Task> tasks);
 }

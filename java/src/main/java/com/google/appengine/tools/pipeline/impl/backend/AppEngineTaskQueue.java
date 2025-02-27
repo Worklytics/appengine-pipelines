@@ -66,16 +66,16 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public String enqueue(Task task) {
+  public TaskReference enqueue(Task task) {
     logger.finest("Enqueueing: " + task);
     TaskOptions taskOptions = toTaskOptions(task);
     Queue queue = getQueue(task.getQueueSettings().getOnQueue());
     try {
       TaskHandle handle = queue.add(taskOptions);
-      return handle.getName();
+      return taskHandleToReference(handle);
     } catch (TaskAlreadyExistsException ignore) {
       // ignore
-      return ignore.getTaskNames().get(0);
+      return TaskReference.of(queue.getQueueName(), ignore.getTaskNames().get(0));
     }
   }
 
@@ -93,10 +93,14 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public Collection<String> enqueue(final Collection<Task> tasks) {
+  public Collection<TaskReference> enqueue(final Collection<Task> tasks) {
     return addToQueue(tasks).stream()
-            .map(TaskHandle::getName)
+            .map(this::taskHandleToReference)
       .collect(Collectors.toCollection(ArrayList::new));
+  }
+
+  TaskReference taskHandleToReference(TaskHandle taskHandle) {
+    return TaskReference.of(taskHandle.getQueueName(), taskHandle.getName());
   }
 
   //VisibleForTesting
