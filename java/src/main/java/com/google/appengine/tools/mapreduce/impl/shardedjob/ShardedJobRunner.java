@@ -2,12 +2,8 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import com.github.rholder.retry.RetryerBuilder;
-import com.github.rholder.retry.StopStrategies;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TaskOptions;
-import com.google.appengine.api.taskqueue.TransactionalTaskException;
-import com.google.appengine.api.taskqueue.TransientFailureException;
+import com.github.rholder.retry.*;
+import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
@@ -27,9 +23,9 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.Uninterruptibles;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import lombok.Setter;
 import lombok.extern.java.Log;
 
@@ -38,6 +34,8 @@ import javax.inject.Provider;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Stream;
 
@@ -56,10 +54,34 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   static final int TASK_LOOKUP_BATCH_SIZE = 20;
 
+
+  static final long CONTROLLER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
+  static final long WORKER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
+
+  /**
+   * a status of an Incremental task; not to be confused with IncrementTaskState, which is a datastore entity
+   * that encodes more state information / data about the task etc/
+   */
+  enum IncrementalTaskStatus {
+    TASK_OK,
+    TASK_GONE,
+    TASK_NO_LONGER_ACTIVE,
+    JOB_NO_LONGER_ACTIVE,
+    TASK_STATE_FROM_PAST,
+    TASK_ALREADY_COMPLETED,
+    LOCK_HELD_BY_OTHER_EXECUTION,
+    ;
+
+    boolean passed() {
+      return this == TASK_OK;
+    }
+  }
+
   @Getter
   final Provider<PipelineService> pipelineServiceProvider;
   @Getter
   final Datastore datastore;
+
 
   @Inject
   public ShardedJobRunner(Provider<PipelineService> pipelineServiceProvider, Datastore datastore) {
@@ -115,6 +137,15 @@ public class ShardedJobRunner implements ShardedJobHandler {
       || e instanceof DeadlineExceededException))
     .withStopStrategy(StopStrategies.stopAfterAttempt(SYMBOLIC_FOREVER));
 
+
+  /**
+   *  @see com.google.appengine.api.taskqueue.Queue#add(TaskOptions taskOptions)
+    */
+  public static final RetryerBuilder ENQUEUE_RETRYER = RetryerBuilder.newBuilder()
+    .withWaitStrategy(WaitStrategies.incrementingWait(1000L, TimeUnit.MILLISECONDS, 1000L, TimeUnit.MILLISECONDS))
+    .retryIfExceptionOfType(TransientFailureException.class)
+    .retryIfExceptionOfType(InternalFailureException.class)
+    .withStopStrategy(StopStrategies.stopAfterAttempt(5)); // effective 0 before, so this is better
 
   public <T extends IncrementalTask> List<IncrementalTaskState<T>> lookupTasks(
     final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
@@ -190,6 +221,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     jobState.getController().completed(tasks);
   }
 
+  @SneakyThrows
   private void scheduleControllerTask(ShardedJobRunId jobId, IncrementalTaskId taskId,
                                       ShardedJobSettings settings) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
@@ -200,11 +232,18 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
     taskOptions.etaMillis(System.currentTimeMillis() + getControllerTaskDelay());
 
-    //Q: how can we transactionally add to queue with new library??
-    //QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
-    QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
+    try {
+      ENQUEUE_RETRYER.build().call(() -> {
+        QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
+        return null;
+      });
+    } catch (RetryException | ExecutionException e) {
+      log.severe("Failed to enqueue controller task: " + e);
+      throw e.getCause();
+    }
   }
 
+  @SneakyThrows
   private <T extends IncrementalTask> void scheduleWorkerTask(ShardedJobSettings settings,
                                                               IncrementalTaskState<T> state, Long etaMillis) {
     TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
@@ -216,9 +255,16 @@ public class ShardedJobRunner implements ShardedJobHandler {
     if (etaMillis != null) {
       taskOptions.etaMillis(etaMillis);
     }
-    //QueueFactory.getQueue(settings.getQueueName()).add(tx, taskOptions);
-    //Q: how can we transactionally add to queue with new library??
-    QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
+
+    try {
+      ENQUEUE_RETRYER.build().call(() -> {
+        QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
+        return null;
+      });
+    } catch (RetryException | ExecutionException e) {
+      log.severe("Failed to enqueue worker task: " + e);
+      throw e.getCause();
+    }
   }
 
   @Override
@@ -275,40 +321,32 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  private <T extends IncrementalTask> IncrementalTaskState<T> getAndValidateTaskState(Transaction tx, IncrementalTaskId taskId,
-                                                                                      int sequenceNumber, ShardedJobStateImpl<T> jobState) {
-    IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
+
+
+  private <T extends IncrementalTask> IncrementalTaskStatus validateTaskState(IncrementalTaskState<T> taskState,
+                                                                              int sequenceNumber, ShardedJobStateImpl<T> jobState) {
     if (taskState == null) {
-      log.warning(taskId + ": Task gone");
-      return null;
+      return IncrementalTaskStatus.TASK_GONE;
     }
     if (!taskState.getStatus().isActive()) {
-      log.info(taskId + ": Task no longer active: " + taskState);
-      return null;
+      return IncrementalTaskStatus.TASK_NO_LONGER_ACTIVE;
     }
     if (!jobState.getStatus().isActive()) {
-      taskState.setStatus(new Status(StatusCode.ABORTED));
-      log.info(taskId + ": Job no longer active: " + jobState + ", aborting task.");
-      updateTask(tx, jobState, taskState, null, false);
-      return null;
+      return IncrementalTaskStatus.JOB_NO_LONGER_ACTIVE;
     }
+
+    //sequenceNumber cases
     if (sequenceNumber == taskState.getSequenceNumber()) {
-      if (!taskState.getLockInfo().isLocked()) {
-        return taskState;
+      if (taskState.getLockInfo().isLocked()) {
+        return IncrementalTaskStatus.LOCK_HELD_BY_OTHER_EXECUTION;
+      } else {
+        return IncrementalTaskStatus.TASK_OK;
       }
-      handleLockHeld(tx, taskId, jobState, taskState);
     } else if (taskState.getSequenceNumber() > sequenceNumber) {
-      log.info(taskId + ": Task sequence number " + sequenceNumber + " already completed: "
-        + taskState);
+      return IncrementalTaskStatus.TASK_ALREADY_COMPLETED;
     } else {
-      log.severe(taskId + " sequenceNumber=" + sequenceNumber + " : Task state is from the past: " + taskState);
-      // presumably we are reading an old state
-      // task to execute sequenceNumber was enqueued, but state in datastore does not yet reflect it
-      // this can happen now because we no longer have transactions across Cloud Tasks + Datastore
-      // we should not proceed with this state, throw an IllegalStateException to force retry
-      throw new IllegalStateException("Task state is from the past: " + taskState);
+      return IncrementalTaskStatus.TASK_STATE_FROM_PAST;
     }
-    return null;
   }
 
   /**
@@ -321,11 +359,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
     long lockExpiration = taskState.getLockInfo().lockedSince() + sliceTimeoutMillis;
 
     //NOTE: always 'false' now; requests that complete properly SHOULD release their locks..
-    boolean wasRequestCompleted = wasRequestCompleted(taskState.getLockInfo().getRequestId());
+    boolean wasRequestCompleted = false; // wasRequestCompleted(taskState.getLockInfo().getRequestId());
 
     if (lockExpiration > currentTime && !wasRequestCompleted) {
       // if lock was not expired AND not abandon reschedule in 1 minute.
       long eta = Math.min(lockExpiration, currentTime + getLockCheckTaskDelay());
+
       scheduleWorkerTask(jobState.getSettings(), taskState, eta);
       log.info("Lock for " + taskId + " is being held. Will retry after " + (eta - currentTime));
     } else {
@@ -397,16 +436,63 @@ public class ShardedJobRunner implements ShardedJobHandler {
         }
 
         //taskState represents attempt of executing a slice of a shard of a sharded job
-        IncrementalTaskState taskState =
-          getAndValidateTaskState(lockAcquisition, taskId, sequenceNumber, jobState);
-        if (taskState == null) {
-          // some sort of error code happened
+        IncrementalTaskState taskState = lookupTaskState(lockAcquisition, taskId);
+        IncrementalTaskStatus validationResult = validateTaskState(taskState, sequenceNumber, jobState);
+        if (!validationResult.passed()) {
+          switch (validationResult) {
+            case TASK_GONE:
+              log.info(taskId + ": Task is gone, ignoring runTask call.");
+              lockAcquisition.commit();
+              //throw, so we re-try a few moments later and see if taskState has been updated
+              throw new IllegalStateException("Task is gone");
 
-          // seems like getAndValidationTaskState has potential side-effects, which need to be committed
-          lockAcquisition.commit();
-          return null;
+            case TASK_NO_LONGER_ACTIVE:
+              log.info(taskId + ": Task is no longer active, ignoring runTask call.");
+              lockAcquisition.commit();
+              return null; //we're done here
+
+            case JOB_NO_LONGER_ACTIVE:
+              taskState.setStatus(new Status(StatusCode.ABORTED));
+              log.info(taskId + ": Job no longer active: " + jobState + ", aborting task.");
+
+              //TODO: has side-effects (enqueuing things)
+              updateTask(lockAcquisition, jobState, taskState, null, false);
+              lockAcquisition.commit();
+              return null; // we're done here
+
+            case TASK_STATE_FROM_PAST:
+              log.warning(taskId + " sequenceNumber=" + sequenceNumber + " : Task state is from the past: " + taskState);
+              // presumably we are reading an old state
+              // task to execute sequenceNumber was enqueued, but state in datastore does not yet reflect it
+              // this can happen now because we no longer have transactions across Cloud Tasks + Datastore
+              // we should not proceed with this state, throw an IllegalStateException to force retry
+              lockAcquisition.commit();
+              //throw, so we re-try a few moments later and see if taskState has been updated
+              throw new IllegalStateException("Task state is from the past");
+
+            case TASK_ALREADY_COMPLETED:
+              log.info(taskId + ": Task sequence number " + sequenceNumber + " already completed: "
+                + taskState);
+              lockAcquisition.commit();
+              return null; // we're done here
+
+            case LOCK_HELD_BY_OTHER_EXECUTION:
+              //TODO: has side-effects (enqueuing things); essentially underneath makes decisions that better to wait by enqueuing fresh Cloud Task
+              // than waiting in this thread ... refactor??
+              handleLockHeld(lockAcquisition, taskId, jobState, taskState);
+              log.info(taskId + ": Lock is held by another execution, retrying.");
+              lockAcquisition.commit();
+              return null; // we're done here; task scheduled by 'handleLockHeld' will pick-up execution
+            default:
+              log.severe("Unknown validation error: " + validationResult);
+              lockAcquisition.rollback();
+              throw new IllegalStateException("Validation error: " + validationResult);
+              //throw, so re-try moments later with fresh state
+          }
+          //should be unreachable
         }
 
+        //OK, good to lock and run
         if (lockShard(lockAcquisition, taskState)) {
           // committing here, which forces acquisition of lock ...
           lockAcquisition.commit();
@@ -424,7 +510,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
       }
       return null;
     });
-
   }
 
   private enum RetryType {
