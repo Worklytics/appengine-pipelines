@@ -103,7 +103,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
   //VisibleForTesting
   List<TaskReference> addToQueue(final Collection<Task> tasks) {
-    List<TaskHandle> handles = new ArrayList<>();
+    List<TaskReference> handles = new ArrayList<>();
     Map<String, List<TaskOptions>> queueNameToTaskOptions = new HashMap<>();
     for (Task task : tasks) {
       logger.finest("Enqueueing: " + task);
@@ -133,10 +133,10 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
       Queue queue = getQueue(entry.getKey());
       handles.addAll(addToQueue(queue, entry.getValue()));
     }
-    return handles.stream().map(this::taskHandleToReference).collect(Collectors.toList());
+    return handles;
   }
 
-  private List<TaskHandle> addToQueue(Queue queue, List<TaskOptions> tasks) {
+  private List<TaskReference> addToQueue(Queue queue, List<TaskOptions> tasks) {
     int limit = tasks.size();
     int start = 0;
     List<Future<List<TaskHandle>>> futures = new ArrayList<>(limit / MAX_TASKS_PER_ENQUEUE + 1);
@@ -146,23 +146,27 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
       start = end;
     }
 
-    List<TaskHandle> taskHandles = new ArrayList<>(limit);
+    List<TaskReference> taskReferences = new ArrayList<>(limit);
     for (Future<List<TaskHandle>> future : futures) {
       try {
-        taskHandles.addAll(future.get());
+        future.get().stream().map(this::taskHandleToReference).forEach(taskReferences::add);
       } catch (InterruptedException e) {
         logger.throwing("AppEngineTaskQueue", "addToQueue", e);
         Thread.currentThread().interrupt();
         throw new RuntimeException("addToQueue failed", e);
       } catch (ExecutionException e) {
         if (e.getCause() instanceof TaskAlreadyExistsException) {
+          List<String> existingTaskNames = ((TaskAlreadyExistsException) e.getCause()).getTaskNames();
+          existingTaskNames.stream()
+            .map(taskName -> TaskReference.of(queue.getQueueName(), taskName))
+            .forEach(taskReferences::add);
           // Ignore, as that suggests all non-duplicate tasks were sent successfully
         } else {
           throw new RuntimeException("addToQueue failed", e.getCause());
         }
       }
     }
-    return taskHandles;
+    return taskReferences;
   }
 
   private TaskOptions toTaskOptions(Task task) {
