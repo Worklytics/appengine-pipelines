@@ -1,10 +1,10 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 package com.google.appengine.tools.mapreduce;
 
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
 import static org.junit.Assert.assertFalse;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
@@ -130,8 +130,8 @@ public abstract class EndToEndTestCase {
       object.run();
       return;
     }
-    HttpServletRequest request = createMock(HttpServletRequest.class);
-    HttpServletResponse response = createMock(HttpServletResponse.class);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
 
     String pathInfo = taskStateInfo.getUrl();
     if (pathInfo.startsWith("/")) {
@@ -140,29 +140,25 @@ public abstract class EndToEndTestCase {
     } else {
       pathInfo = "/" + pathInfo;
     }
-    expect(request.getPathInfo()).andReturn(pathInfo).anyTimes();
-    expect(request.getHeader("X-AppEngine-QueueName")).andReturn(queueName).anyTimes();
-    expect(request.getHeader("X-AppEngine-TaskName")).andReturn(taskStateInfo.getTaskName())
-        .anyTimes();
+    when(request.getPathInfo()).thenReturn(pathInfo);
+    when(request.getHeader(eq("X-AppEngine-QueueName"))).thenReturn(queueName);
+    when(request.getHeader(eq("X-AppEngine-TaskName"))).thenReturn(taskStateInfo.getTaskName());
     // Pipeline looks at this header but uses the value only for diagnostic messages
-    expect(request.getIntHeader(TaskHandler.TASK_RETRY_COUNT_HEADER)).andReturn(-1).anyTimes();
+    when(request.getIntHeader(eq(TaskHandler.TASK_RETRY_COUNT_HEADER))).thenReturn(-1);
     for (HeaderWrapper header : taskStateInfo.getHeaders()) {
       int value = parseAsQuotedInt(header.getValue());
-      expect(request.getIntHeader(header.getKey())).andReturn(value).anyTimes();
+      when(request.getIntHeader(header.getKey())).thenReturn(value);
       logger.fine("header: " + header.getKey() + "=" + header.getValue());
-      expect(request.getHeader(header.getKey())).andReturn(header.getValue()).anyTimes();
+      when(request.getHeader(eq(header.getKey()))).thenReturn(header.getValue());
     }
 
     Map<String, String> parameters = decodeParameters(taskStateInfo.getBody());
     for (String name : parameters.keySet()) {
-      expect(request.getParameter(name)).andReturn(parameters.get(name)).anyTimes();
+      when(request.getParameter(eq(name))).thenReturn(parameters.get(name));
     }
-    expect(request.getParameterNames()).andReturn(Collections.enumeration(parameters.keySet()))
-        .anyTimes();
+    when(request.getParameterNames()).thenReturn(Collections.enumeration(parameters.keySet()));
 
-    TestUtils.addDatastoreHeadersToRequestEasymock(request, datastore.getOptions());
-
-    replay(request, response);
+    TestUtils.addDatastoreHeadersToRequest(request, datastore.getOptions());
 
     if (taskStateInfo.getMethod().equals("POST")) {
       if (taskStateInfo.getUrl().startsWith(PipelineServlet.baseUrl())) {
