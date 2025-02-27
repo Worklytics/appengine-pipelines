@@ -48,10 +48,10 @@ public class AppEngineTaskQueueTest {
   public void testEnqueueSingleTask() {
     AppEngineTaskQueue queue = new AppEngineTaskQueue();
     Task task = createTask();
-    List<TaskHandle> handles = queue.addToQueue(Collections.singletonList(task));
+    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(Collections.singletonList(task));
 
     assertEquals(1, handles.size());
-    assertEquals(task.getName(), handles.get(0).getName());
+    assertEquals(task.getName(), handles.get(0).getTaskName());
 
     handles = queue.addToQueue(Collections.singletonList(task));
     assertEquals(0, handles.size());
@@ -65,10 +65,10 @@ public class AppEngineTaskQueueTest {
       Task task = createTask();
       tasks.add(task);
     }
-    List<TaskHandle> handles = queue.addToQueue(tasks);
+    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(tasks);
     assertEquals(AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE, handles.size());
     for (int i = 0; i < AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE; i++) {
-      assertEquals(tasks.get(i).getName(), handles.get(i).getName());
+      assertEquals(tasks.get(i).getName(), handles.get(i).getTaskName());
     }
 
     handles = queue.addToQueue(tasks);
@@ -84,10 +84,10 @@ public class AppEngineTaskQueueTest {
       Task task = createTask();
       tasks.add(task);
     }
-    List<TaskHandle> handles = queue.addToQueue(tasks);
+    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(tasks);
     assertEquals(tasks.size(), handles.size());
     for (int i = 0; i < tasks.size(); i++) {
-      assertEquals(tasks.get(i).getName(), handles.get(i).getName());
+      assertEquals(tasks.get(i).getName(), handles.get(i).getTaskName());
     }
 
     handles = queue.addToQueue(tasks);
@@ -105,11 +105,11 @@ public class AppEngineTaskQueueTest {
     }
 
     int firstBatchSize = AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE;
-    List<TaskHandle> handles = queue.addToQueue(tasks.subList(0, firstBatchSize));
+    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(tasks.subList(0, firstBatchSize));
 
     assertEquals(firstBatchSize, handles.size());
     for (int i = 0; i < firstBatchSize; i++) {
-      assertEquals(tasks.get(i).getName(), handles.get(i).getName());
+      assertEquals(tasks.get(i).getName(), handles.get(i).getTaskName());
     }
 
     handles = queue.addToQueue(tasks);
@@ -118,7 +118,7 @@ public class AppEngineTaskQueueTest {
     int expected = tasks.size() - firstBatchSize;
     assertEquals(expected, handles.size());
     for (int i = 0; i < expected; i++) {
-      assertEquals(tasks.get(firstBatchSize + i).getName(), handles.get(i).getName());
+      assertEquals(tasks.get(firstBatchSize + i).getName(), handles.get(i).getTaskName());
     }
   }
 

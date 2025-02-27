@@ -209,6 +209,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
       QueueSettings queueSettings, Key rootJobKey, Key jobKey, JobRecord.State... expectedStates) {
     Transaction transaction = datastore.newTransaction();
+    Collection<PipelineTaskQueue.TaskReference> taskReferences;
     try {
       if (jobKey != null && expectedStates != null) {
         Entity entity = null;
@@ -250,9 +251,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
             (UpdateSpec.TransactionWithTasks) transactionSpec;
-        taskQueue.enqueue(transactionWithTasks.getTasks());
+        taskReferences = taskQueue.enqueue(transactionWithTasks.getTasks());
       }
-
     } finally {
       if (transaction.isActive()) {
         transaction.rollback();

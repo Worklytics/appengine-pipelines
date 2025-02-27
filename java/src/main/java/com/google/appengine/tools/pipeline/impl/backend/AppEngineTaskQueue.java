@@ -94,9 +94,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
   @Override
   public Collection<TaskReference> enqueue(final Collection<Task> tasks) {
-    return addToQueue(tasks).stream()
-            .map(this::taskHandleToReference)
-      .collect(Collectors.toCollection(ArrayList::new));
+    return addToQueue(tasks);
   }
 
   TaskReference taskHandleToReference(TaskHandle taskHandle) {
@@ -104,7 +102,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   //VisibleForTesting
-  List<TaskHandle> addToQueue(final Collection<Task> tasks) {
+  List<TaskReference> addToQueue(final Collection<Task> tasks) {
     List<TaskHandle> handles = new ArrayList<>();
     Map<String, List<TaskOptions>> queueNameToTaskOptions = new HashMap<>();
     for (Task task : tasks) {
@@ -135,7 +133,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
       Queue queue = getQueue(entry.getKey());
       handles.addAll(addToQueue(queue, entry.getValue()));
     }
-    return handles;
+    return handles.stream().map(this::taskHandleToReference).collect(Collectors.toList());
   }
 
   private List<TaskHandle> addToQueue(Queue queue, List<TaskOptions> tasks) {
