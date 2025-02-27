@@ -29,6 +29,7 @@ import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.apphosting.api.ApiProxy;
+import lombok.extern.java.Log;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -36,7 +37,9 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Encapsulates access to the App Engine Task Queue API
@@ -44,9 +47,8 @@ import java.util.logging.Logger;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@Log
 public class AppEngineTaskQueue implements PipelineTaskQueue {
-
-  private static final Logger logger = Logger.getLogger(AppEngineTaskQueue.class.getName());
 
   static final int MAX_TASKS_PER_ENQUEUE = QueueConstants.maxTasksPerAdd();
 
@@ -65,14 +67,33 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public void enqueue(Task task) {
-    logger.finest("Enqueueing: " + task);
+  public void deleteTasks(Collection<TaskReference> taskReferences) {
+    Map<String, List<String>> queueToTaskNames = taskReferences.stream()
+      .collect(Collectors.groupingBy(TaskReference::getQueue, Collectors.mapping(TaskReference::getTaskName, Collectors.toList())));
+    for (Map.Entry<String, List<String>> entry : queueToTaskNames.entrySet()) {
+      Queue queue = getQueue(entry.getKey());
+      
+      try {
+        entry.getValue().stream()
+          .forEach(queue::deleteTaskAsync);
+      } catch (RuntimeException ignored) {
+        // weren't even bothering with this previously, so prob OK
+        log.log(Level.WARNING, "Pipeline framework failed to delete tasks from queue", ignored);
+      }
+    }
+  }
+
+  @Override
+  public TaskReference enqueue(Task task) {
+    log.finest("Enqueueing: " + task);
     TaskOptions taskOptions = toTaskOptions(task);
     Queue queue = getQueue(task.getQueueSettings().getOnQueue());
     try {
-      queue.add(taskOptions);
+      TaskHandle handle = queue.add(taskOptions);
+      return taskHandleToReference(handle);
     } catch (TaskAlreadyExistsException ignore) {
       // ignore
+      return TaskReference.of(queue.getQueueName(), ignore.getTaskNames().get(0));
     }
   }
 
@@ -90,28 +111,32 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public void enqueue(final Collection<Task> tasks) {
-    addToQueue(tasks);
+  public Collection<TaskReference> enqueue(final Collection<Task> tasks) {
+    return addToQueue(tasks);
+  }
+
+  TaskReference taskHandleToReference(TaskHandle taskHandle) {
+    return TaskReference.of(taskHandle.getQueueName(), taskHandle.getName());
   }
 
   //VisibleForTesting
-  List<TaskHandle> addToQueue(final Collection<Task> tasks) {
-    List<TaskHandle> handles = new ArrayList<>();
+  List<TaskReference> addToQueue(final Collection<Task> tasks) {
+    List<TaskReference> handles = new ArrayList<>();
     Map<String, List<TaskOptions>> queueNameToTaskOptions = new HashMap<>();
     for (Task task : tasks) {
-      logger.finest("Enqueueing: " + task);
+      log.finest("Enqueueing: " + task);
       String queueName = task.getQueueSettings().getOnQueue();
       TaskOptions taskOptions = toTaskOptions(task);
 
 
       // seen in logs : "Negative countdown is not allowed"
       if (taskOptions.getCountdownMillis() != null && taskOptions.getCountdownMillis() < 0) {
-        logger.warning("Task countdownMillis is  " + taskOptions.getCountdownMillis() + ". Setting to 0 to avoid error.");
+        log.warning("Task countdownMillis is  " + taskOptions.getCountdownMillis() + ". Setting to 0 to avoid error.");
         taskOptions.countdownMillis(0);
       }
       Instant now = Instant.now();
       if (taskOptions.getEtaMillis() != null && taskOptions.getEtaMillis() <= now.toEpochMilli()) {
-        logger.warning("Task etaMillis is  " + (now.toEpochMilli() - taskOptions.getEtaMillis()) + " before now. Setting to now + 30s to avoid error.");
+        log.warning("Task etaMillis is  " + (now.toEpochMilli() - taskOptions.getEtaMillis()) + " before now. Setting to now + 30s to avoid error.");
         taskOptions.etaMillis(now.toEpochMilli() + Duration.ofSeconds(30) .toMillis());
       }
 
@@ -129,7 +154,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     return handles;
   }
 
-  private List<TaskHandle> addToQueue(Queue queue, List<TaskOptions> tasks) {
+  private List<TaskReference> addToQueue(Queue queue, List<TaskOptions> tasks) {
     int limit = tasks.size();
     int start = 0;
     List<Future<List<TaskHandle>>> futures = new ArrayList<>(limit / MAX_TASKS_PER_ENQUEUE + 1);
@@ -139,23 +164,27 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
       start = end;
     }
 
-    List<TaskHandle> taskHandles = new ArrayList<>(limit);
+    List<TaskReference> taskReferences = new ArrayList<>(limit);
     for (Future<List<TaskHandle>> future : futures) {
       try {
-        taskHandles.addAll(future.get());
+        future.get().stream().map(this::taskHandleToReference).forEach(taskReferences::add);
       } catch (InterruptedException e) {
-        logger.throwing("AppEngineTaskQueue", "addToQueue", e);
+        log.throwing("AppEngineTaskQueue", "addToQueue", e);
         Thread.currentThread().interrupt();
         throw new RuntimeException("addToQueue failed", e);
       } catch (ExecutionException e) {
         if (e.getCause() instanceof TaskAlreadyExistsException) {
+          List<String> existingTaskNames = ((TaskAlreadyExistsException) e.getCause()).getTaskNames();
+          existingTaskNames.stream()
+            .map(taskName -> TaskReference.of(queue.getQueueName(), taskName))
+            .forEach(taskReferences::add);
           // Ignore, as that suggests all non-duplicate tasks were sent successfully
         } else {
           throw new RuntimeException("addToQueue failed", e.getCause());
         }
       }
     }
-    return taskHandles;
+    return taskReferences;
   }
 
   private TaskOptions toTaskOptions(Task task) {
