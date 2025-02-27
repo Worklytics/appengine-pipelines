@@ -371,7 +371,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   @Override
   public <I, O, R> JobRunId start(MapSpecification<I, O, R> specification, MapSettings settings) {
     if (settings.getWorkerQueueName() == null) {
-      settings = new MapSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
+      settings = settings.toBuilder().workerQueueName(DEFAULT_QUEUE_NAME).build();
     }
     return startNewPipeline(settings.toJobSettings(), new MapJob<>(specification, settings));
   }
@@ -380,7 +380,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   public <I, K, V, O, R> JobRunId start(@NonNull MapReduceSpecification<I, K, V, O, R> specification,
                                         @NonNull MapReduceSettings settings) {
     if (settings.getWorkerQueueName() == null) {
-      settings = new MapReduceSettings.Builder(settings).setWorkerQueueName(DEFAULT_QUEUE_NAME).build();
+      settings =  settings.toBuilder().workerQueueName(DEFAULT_QUEUE_NAME).build();
     }
     return startNewPipeline(settings.toJobSettings(), new MapReduceJob<>(specification, settings));
   }

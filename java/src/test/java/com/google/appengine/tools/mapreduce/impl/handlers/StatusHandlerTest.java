@@ -59,7 +59,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
     ShardedJobRunId jobId = shardedJobId("testCleanupJob");
 
     assertTrue(getPipelineOrchestrator().cleanupJob(jobId)); // No such job yet
-    ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
+    ShardedJobSettings settings = ShardedJobSettings.builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     byte[] bytes = new byte[1024 * 1024];
     new Random().nextBytes(bytes);
@@ -84,7 +84,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
 
     ShardedJobRunId jobId = shardedJobId("testGetJobDetail_empty");
 
-    ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
+    ShardedJobSettings settings = ShardedJobSettings.builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     getPipelineOrchestrator().startJob(jobId, ImmutableList.of(),
       controller, settings);
@@ -100,7 +100,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
   // Tests that a populated job (with a couple of shards) generates a reasonable job detail.
   @Test
   public void testGetJobDetail_populated() throws Exception {
-    ShardedJobSettings settings = new ShardedJobSettings.Builder().build();
+    ShardedJobSettings settings =ShardedJobSettings.builder().build();
     ShardedJobController<TestTask> controller = new DummyWorkerController();
     TestTask s1 = new TestTask(0, 2, 2, 2);
     TestTask s2 = new TestTask(1, 2, 2, 1);

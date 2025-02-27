@@ -97,13 +97,13 @@ public class CustomOutputTest extends EndToEndTestCase {
         .setReducer(ValueProjectionReducer.create())
         .setOutput(new CustomOutput())
         .setNumReducers(17);
-    MapReduceSettings mrSettings = new MapReduceSettings.Builder()
-      .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
-      .setBucketName(getStorageTestHelper().getBucket())
-      .setDatastoreHost(datastore.getOptions().getHost())
-      .setProjectId(datastore.getOptions().getProjectId())
-      .setDatabaseId(datastore.getOptions().getDatabaseId())
-      .setNamespace(datastore.getOptions().getNamespace())
+    MapReduceSettings mrSettings = MapReduceSettings.builder()
+      .serviceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
+      .bucketName(getStorageTestHelper().getBucket())
+      .datastoreHost(datastore.getOptions().getHost())
+      .projectId(datastore.getOptions().getProjectId())
+      .databaseId(datastore.getOptions().getDatabaseId())
+      .namespace(datastore.getOptions().getNamespace())
       .build();
     JobRunId jobRunId = pipelineService.startNewPipeline(
         new MapReduceJob<>(mrSpecBuilder.build(), mrSettings));
