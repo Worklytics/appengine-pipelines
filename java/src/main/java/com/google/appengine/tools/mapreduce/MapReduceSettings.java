@@ -2,6 +2,8 @@
 
 package com.google.appengine.tools.mapreduce;
 
+import com.google.appengine.api.appidentity.AppIdentityServiceFactory;
+import com.google.common.base.Strings;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
@@ -10,6 +12,7 @@ import lombok.extern.java.Log;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.Optional;
 
 /**
  * Settings that affect how a MapReduce is executed. May affect performance and resource usage, but
@@ -105,8 +108,12 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
    * Sets the GCS bucket that will be used for temporary files. If this is not set or {@code null}
    * the app's default bucket will be used.
    */
-  @NonNull
   private final String bucketName;
+
+  public String getBucketNameOrDefault() {
+    return Optional.ofNullable(Strings.emptyToNull(getBucketName()))
+      .orElseGet(AppIdentityServiceFactory.getAppIdentityService()::getDefaultGcsBucketName);
+  }
 
   /**
    * The maximum number of files the map stage will write to at the same time. A higher number may

@@ -137,7 +137,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
   private static void verifyBucketIsWritable(MapReduceSettings settings) {
    Storage client = GcpCredentialOptions.getStorageClient(settings);
-    BlobId blobId = BlobId.of(settings.getBucketName(), UUID.randomUUID() + ".tmp");
+    BlobId blobId = BlobId.of(settings.getBucketNameOrDefault(), UUID.randomUUID() + ".tmp");
     if (client.get(blobId) != null) {
       log.warning("File '" + blobId.getName() + "' exists. Skipping bucket write test.");
       return;
@@ -145,7 +145,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     try {
       client.create(BlobInfo.newBuilder(blobId).build(), "Delete me!".getBytes(StandardCharsets.UTF_8));
     } catch (StorageException e) {
-      throw new IllegalArgumentException("Bucket " + settings.getBucketName() + " is not writeable; MR job needs to write it for sort/shuffle phase of job", e);
+      throw new IllegalArgumentException("Bucket " + settings.getBucketNameOrDefault() + " is not writeable; MR job needs to write it for sort/shuffle phase of job", e);
     } finally {
       client.delete(blobId);
     }
@@ -199,7 +199,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
         throw new RuntimeException(e);
       }
       Output<KeyValue<K, V>, FilesByShard> output = new GoogleCloudStorageMapOutput<>(
-              settings.getBucketName(),
+              settings.getBucketNameOrDefault(),
               getShardedJobId(),
               mrSpec.getKeyMarshaller(),
               mrSpec.getValueMarshaller(),
@@ -303,7 +303,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<ByteBuffer, ByteBuffer>>> readers = input.createReaders();
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageSortOutput(settings.getBucketName(), getShardedJobId(),
+          new GoogleCloudStorageSortOutput(settings.getBucketNameOrDefault(), getShardedJobId(),
               new HashingSharder(reduceShards), outputOptions);
       output.setContext(context);
 
@@ -427,7 +427,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           input.createReaders();
 
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageMergeOutput(settings.getBucketName(), getShardedJobId(), tier, outputOptions);
+          new GoogleCloudStorageMergeOutput(settings.getBucketNameOrDefault(), getShardedJobId(), tier, outputOptions);
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =
