@@ -90,8 +90,12 @@ public class AppEngineTaskQueueTest {
       assertEquals(tasks.get(i).getName(), handles.get(i).getTaskName());
     }
 
-    handles = queue.addToQueue(tasks);
-    assertEquals(0, handles.size());
+    // NOTE: this is behavior change from legacy GAE pipelines; it used to NOT return handles of anything that had be enqueued previously
+   handles = queue.addToQueue(tasks);
+    assertEquals(tasks.size(), handles.size());
+    for (int i = 0; i < tasks.size(); i++) {
+      assertEquals(tasks.get(i).getName(), handles.get(i).getTaskName());
+    }
   }
 
   @Test
