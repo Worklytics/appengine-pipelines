@@ -261,6 +261,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     } finally {
       if (transaction.isActive()) {
         transaction.rollback();
+        int tasksToDelete = taskReferences == null ? 0 : taskReferences.size();
+        log.warning("Transaction rolled back. " + tasksToDelete + " tasks to be deleted.");
 
         if (taskReferences != null) {
           // commiting the transaction failed; let's ALSO delete the tasks that were enqueued,
