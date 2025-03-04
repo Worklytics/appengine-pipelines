@@ -36,6 +36,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.Value;
 import lombok.extern.java.Log;
 
 import java.io.IOException;
@@ -117,13 +118,13 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private final Datastore datastore;
   private final AppEngineTaskQueue taskQueue;
 
-  public AppEngineBackEnd(AppEngineBackEnd.Options options) {
+  public AppEngineBackEnd(Options options) {
     this(options.getDatastoreOptions().toBuilder().build().getService(), new AppEngineTaskQueue());
   }
 
 
   @Builder
-  @lombok.Value
+  @Value
   public static class Options implements PipelineBackEnd.Options {
 
     private String projectId;
@@ -135,7 +136,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     private DatastoreOptions datastoreOptions;
 
     @SneakyThrows
-    public static AppEngineBackEnd.Options defaults() {
+    public static Options defaults() {
       return Options.builder()
         .datastoreOptions(DatastoreOptions.getDefaultInstance())
         .credentials(GoogleCredentials.getApplicationDefault())
@@ -209,6 +210,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
       QueueSettings queueSettings, Key rootJobKey, Key jobKey, JobRecord.State... expectedStates) {
     Transaction transaction = datastore.newTransaction();
+    Collection<PipelineTaskQueue.TaskReference> taskReferences = null;
     try {
       if (jobKey != null && expectedStates != null) {
         Entity entity = null;
@@ -245,17 +247,28 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         }
       }
       saveAll(transaction, transactionSpec);
-      transaction.commit();
+
 
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
             (UpdateSpec.TransactionWithTasks) transactionSpec;
-        taskQueue.enqueue(transactionWithTasks.getTasks());
+        taskReferences = taskQueue.enqueue(transactionWithTasks.getTasks());
       }
 
+      // commit is AFTER enqueue, so if enqueuing fails, we don't commit
+      // then in 'finally' block, if we have to roll back the txn, we ALSO attempt to delete the tasks from the queue
+      transaction.commit();
     } finally {
       if (transaction.isActive()) {
         transaction.rollback();
+        int tasksToDelete = taskReferences == null ? 0 : taskReferences.size();
+        log.warning("Transaction rolled back. " + tasksToDelete + " tasks to be deleted.");
+
+        if (taskReferences != null) {
+          // commiting the transaction failed; let's ALSO delete the tasks that were enqueued,
+          // to more closely replicate the previous transactional behavior
+          taskQueue.deleteTasks(taskReferences);
+        }
       }
     }
     return true;
@@ -286,8 +299,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   @Override
-  public void enqueue(Task task) {
-    taskQueue.enqueue(task);
+  public PipelineTaskQueue.TaskReference enqueue(Task task) {
+    return taskQueue.enqueue(task);
   }
 
   @Override
@@ -617,8 +630,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       public Set<String> call() {
         ProjectionEntityQuery.Builder query = Query.newProjectionEntityQueryBuilder()
           .setKind(JobRecord.DATA_STORE_KIND)
-          .addProjection(JobRecord.ROOT_JOB_DISPLAY_NAME)
-          .addDistinctOn(JobRecord.ROOT_JOB_DISPLAY_NAME);
+          .addProjection(ROOT_JOB_DISPLAY_NAME)
+          .addDistinctOn(ROOT_JOB_DISPLAY_NAME);
 
         QueryResults<ProjectionEntity> queryResults;
         Set<String> pipelines = new LinkedHashSet<>();
@@ -715,8 +728,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
    *                      {@link JobRecord.State#STOPPED} state.
    * @throws IllegalStateException If {@code force = false} and the specified
    *                               pipeline is not in the
-   *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#FINALIZED} or
-   *                               {@link com.google.appengine.tools.pipeline.impl.model.JobRecord.State#STOPPED} state.
+   *                               {@link JobRecord.State#FINALIZED} or
+   *                               {@link JobRecord.State#STOPPED} state.
    */
   @Override
   public void deletePipeline(JobRunId pipelineRunId, boolean force)
