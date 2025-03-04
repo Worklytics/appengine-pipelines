@@ -81,12 +81,14 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
 
   /**
    * How long a worker will process items before endSlice is called and progress is check-pointed to datastore.
+   *
+   * NOTE: if 0/negative, then will be check-pointed after each item.
    */
   @lombok.Builder.Default
   private final int millisPerSlice = MapSettings.DEFAULT_MILLIS_PER_SLICE;
 
   /**
-   * Sets a ratio for how much time beyond millisPerSlice must elapse before slice will be
+   * The ratio for how much time beyond millisPerSlice must elapse before slice will be
    * considered to have failed due to a timeout.
    */
   @lombok.Builder.Default
@@ -187,12 +189,6 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
   }
 
   public static class Builder extends MapReduceSettings.MapReduceSettingsBuilder {
-    @Override
-    public Builder millisPerSlice(int millisPerSlice) {
-      Preconditions.checkArgument(millisPerSlice > 0, "millisPerSlice must be positive");
-      super.millisPerSlice(millisPerSlice);
-      return this;
-    }
 
     @Override
     public Builder sliceTimeoutRatio(double sliceTimeoutRatio) {

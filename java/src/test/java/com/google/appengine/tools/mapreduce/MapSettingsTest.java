@@ -88,12 +88,6 @@ public class MapSettingsTest {
     builder.workerQueueName("queue1");
     builder.baseUrl("base-url");
     builder.millisPerSlice(10);
-    try {
-      builder.millisPerSlice(-1);
-      fail("Expected IllegalArgumentException to be thrown");
-    } catch (IllegalArgumentException ex) {
-      // expected
-    }
     builder.sliceTimeoutRatio(1.5);
     try {
       builder.sliceTimeoutRatio(0.8);

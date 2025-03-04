@@ -94,12 +94,6 @@ public class MapReduceSettingsTest {
       // expected
     }
     builder = builder.mergeFanin(4);
-    try {
-      builder.millisPerSlice(-1);
-      fail("IllegalArgumentException expected for negative millisPerSlice");
-    } catch (IllegalArgumentException ex) {
-      // expected
-    }
     builder = builder.millisPerSlice(10);
     try {
       builder.sortBatchPerEmitBytes(-1);
