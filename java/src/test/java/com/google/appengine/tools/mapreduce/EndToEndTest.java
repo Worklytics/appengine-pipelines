@@ -78,9 +78,9 @@ public class EndToEndTest extends EndToEndTestCase {
     cloudStorageFileOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
       .withServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .withProjectId(getStorageTestHelper().getProjectId()); //prob not really needed ..
-    testSettings = new MapReduceSettings.Builder()
-      .setServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
-      .setBucketName(getStorageTestHelper().getBucket())
+    testSettings = MapReduceSettings.builder()
+      .serviceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
+      .bucketName(getStorageTestHelper().getBucket())
       .build();
   }
 
@@ -132,10 +132,10 @@ public class EndToEndTest extends EndToEndTestCase {
 
   private <I, O, R> void runTest(MapSpecification<I, O, R> mrSpec, Verifier<R> verifier)
       throws Exception {
-    runTest(mrSpec, new MapSettings.Builder()
-      .setProjectId(getDatastore().getOptions().getProjectId())
-      .setNamespace(getDatastore().getOptions().getNamespace())
-      .setDatabaseId(getDatastore().getOptions().getDatabaseId())
+    runTest(mrSpec, MapSettings.builder()
+      .projectId(getDatastore().getOptions().getProjectId())
+      .namespace(getDatastore().getOptions().getNamespace())
+      .databaseId(getDatastore().getOptions().getDatabaseId())
       .build(), verifier);
   }
 
@@ -346,8 +346,8 @@ public class EndToEndTest extends EndToEndTestCase {
         assertEquals(50000, allOutput.size());
       }
     };
-    runTest(new MapReduceSettings.Builder(testSettings).setMapFanout(5).build(), spec, verifier);
-    runTest(new MapReduceSettings.Builder(testSettings).setMapFanout(2).build(), spec, verifier);
+    runTest(testSettings.toBuilder().mapFanout(5).build(), spec, verifier);
+    runTest(testSettings.toBuilder().mapFanout(2).build(), spec, verifier);
   }
 
   @Test
@@ -600,7 +600,7 @@ public class EndToEndTest extends EndToEndTestCase {
     int[][] runs = { {10, 0, 0}, {10, 2, 0}, {10, 0, 10}, {10, 3, 5}, {10, 0, 22}, {10, 1, 50}};
     for (int[] run : runs) {
       RandomLongInput input = new RandomLongInput(run[0], shardsCount);
-      runWithPipeline(new MapReduceSettings.Builder().setMillisPerSlice(0)
+      runWithPipeline(MapReduceSettings.builder().millisPerSlice(0)
           .build(), new MapReduceSpecification.Builder<>(input,
           new RougeMapper(shardsCount, run[1], run[2]), NoReducer.create(),
           new NoOutput<String, String>()).setKeyMarshaller(Marshallers.getStringMarshaller())
@@ -620,7 +620,7 @@ public class EndToEndTest extends EndToEndTestCase {
       RandomLongInput input = new RandomLongInput(run[0], shardsCount);
       RougeMapper mapper = new RougeMapper(shardsCount, run[1], run[2]);
       mapper.setAllowSliceRetry(false);
-      runWithPipeline(new MapReduceSettings.Builder().setMillisPerSlice(0)
+      runWithPipeline(MapReduceSettings.builder().millisPerSlice(0)
           .build(), new MapReduceSpecification.Builder<>(input, mapper,
           NoReducer.create(), new NoOutput<String, String>())
           .setKeyMarshaller(Marshallers.getStringMarshaller())
@@ -642,7 +642,7 @@ public class EndToEndTest extends EndToEndTestCase {
     int[][] runs = { {5, 0}, {4, 21}, {3, 50}};
     for (int[] run : runs) {
       RandomLongInput input = new RandomLongInput(10, shardsCount);
-      MapReduceSettings mrSettings = new MapReduceSettings.Builder().setMillisPerSlice(0).build();
+      MapReduceSettings mrSettings = MapReduceSettings.builder().millisPerSlice(0).build();
       MapReduceSpecification<Long, String, Long, String, String> mrSpec =
           new MapReduceSpecification.Builder<>(input, new RougeMapper(shardsCount, run[0], run[1]),
               NoReducer.create(), new NoOutput<String, String>())
@@ -663,7 +663,7 @@ public class EndToEndTest extends EndToEndTestCase {
       RandomLongInput input = new RandomLongInput(10, shardsCount);
       RougeMapper mapper = new RougeMapper(shardsCount, run[0], run[1]);
       mapper.setAllowSliceRetry(false);
-      MapReduceSettings mrSettings = new MapReduceSettings.Builder(testSettings).setMillisPerSlice(0).build();
+      MapReduceSettings mrSettings = testSettings.toBuilder().millisPerSlice(0).build();
       MapReduceSpecification<Long, String, Long, String, String> mrSpec =
           new MapReduceSpecification.Builder<>(input, mapper,
               NoReducer.create(), new NoOutput<String, String>())
@@ -1099,7 +1099,7 @@ public class EndToEndTest extends EndToEndTestCase {
     builder.setNumReducers(1);
 
     runWithPipeline(
-        new MapReduceSettings.Builder(testSettings).setMaxSortMemory(sortMem).setMergeFanin(2)
+        testSettings.toBuilder().maxSortMemory(sortMem).mergeFanin(2)
           .build(),
         builder.build(), (MapReduceResult<List<List<Long>>> result) -> {
             Counters counters = result.getCounters();
@@ -1129,7 +1129,7 @@ public class EndToEndTest extends EndToEndTestCase {
     builder.setReducer(KeyProjectionReducer.<String, Long>create());
     builder.setOutput(new InMemoryOutput<>());
     builder.setNumReducers(NUM_REDUCERS);
-    runTest(new MapReduceSettings.Builder(testSettings).setMillisPerSlice(0).build(), builder.build(),
+    runTest(testSettings.toBuilder().millisPerSlice(0).build(), builder.build(),
         new Verifier<List<List<String>>>() {
           @Override
           public void verify(MapReduceResult<List<List<String>>> result) throws Exception {

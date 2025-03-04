@@ -35,7 +35,7 @@ public class LockingTest extends EndToEndTestCase {
 
   @BeforeEach
   public void initSettings() throws Exception {
-    settings = new ShardedJobSettings.Builder().build();
+    settings = ShardedJobSettings.builder().build();
   }
 
   @Setter(onMethod_ = @BeforeEach)
@@ -193,8 +193,7 @@ public class LockingTest extends EndToEndTestCase {
     //Setting the timeout to 0 insures that the shard will have timed out by the time the
     //duplicate arrives.
     ShardedJobSettings settings =
-        new ShardedJobSettings.Builder()
-          .setSliceTimeoutMillis(0).build();
+        ShardedJobSettings.builder().sliceTimeoutMillis(0).build();
     final ShardedJobRunId jobId = startNewTask(settings);
 
     //Run task

@@ -39,9 +39,9 @@ public class MapReduceSettingsTest {
 
   @Test
   public void testDefaultSettings() {
-    MapReduceSettings mrSettings = new MapReduceSettings.Builder().build();
+    MapReduceSettings mrSettings = MapReduceSettings.builder().build();
     assertEquals(DEFAULT_BASE_URL, mrSettings.getBaseUrl());
-    assertEquals("app_default_bucket", mrSettings.getBucketName());
+    assertEquals("app_default_bucket", mrSettings.getBucketNameOrDefault());
     assertEquals(DEFAULT_MAP_FANOUT, mrSettings.getMapFanout());
     assertEquals(DEFAULT_SHARD_RETRIES, mrSettings.getMaxShardRetries());
     assertEquals(DEFAULT_SLICE_RETRIES, mrSettings.getMaxSliceRetries());
@@ -56,65 +56,66 @@ public class MapReduceSettingsTest {
 
   @Test
   public void testNonDefaultSettings() {
-    MapReduceSettings.Builder builder = new MapReduceSettings.Builder();
-    builder.setModule("m").build();
-    builder = builder.setBaseUrl("base-url");
-    builder = builder.setBucketName("bucket");
+    MapReduceSettings.MapReduceSettingsBuilder builder = MapReduceSettings.builder();
+    builder.module("m");
+    builder = builder.baseUrl("base-url");
+    builder = builder.bucketName("bucket");
     try {
-      builder.setMapFanout(-1);
+      builder.mapFanout(-1);
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMapFanout(3);
+    builder = builder.mapFanout(3);
     try {
-      builder.setMaxShardRetries(-1);
+      builder.maxShardRetries(-1);
+      fail("IllegalArgumentException expected for negative maxShardRetries");
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMaxShardRetries(1);
+    builder = builder.maxShardRetries(1);
     try {
-      builder.setMaxSliceRetries(-1);
+      builder.maxSliceRetries(-1);
+      fail("IllegalArgumentException expected for negative maxSliceRetries");
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMaxSliceRetries(0);
+    builder = builder.maxSliceRetries(0);
     try {
-      builder.setMaxSortMemory(-1L);
+      builder.maxSortMemory(-1L);
+      fail("IllegalArgumentException expected for negative maxSortMemory");
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMaxSortMemory(10L);
+    builder = builder.maxSortMemory(10L);
     try {
-      builder.setMergeFanin(-1);
+      builder.mergeFanin(-1);
+      fail("IllegalArgumentException expected for negative mergeFanin");
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMergeFanin(4);
+    builder = builder.mergeFanin(4);
+    builder = builder.millisPerSlice(10);
     try {
-      builder.setMillisPerSlice(-1);
+      builder.sortBatchPerEmitBytes(-1);
+      fail("IllegalArgumentException expected for negative sortBatchPerEmitBytes");
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setMillisPerSlice(10);
+    builder = builder.sortBatchPerEmitBytes(5);
     try {
-      builder.setSortBatchPerEmitBytes(-1);
+      builder.sortReadTimeMillis(-1);
+      fail("IllegalArgumentException expected for negative sortReadTimeMillis");
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder = builder.setSortBatchPerEmitBytes(5);
-    try {
-      builder.setSortReadTimeMillis(-1);
-    } catch (IllegalArgumentException ex) {
-      // expected
-    }
-    builder = builder.setSortReadTimeMillis(6);
-    builder = builder.setWorkerQueueName("queue1");
+    builder = builder.sortReadTimeMillis(6);
+    builder = builder.workerQueueName("queue1");
 
 
     MapReduceSettings mrSettings = builder.build();
     //assertEquals("b1", mrSettings.getModule());
     //assertNull(mrSettings.getModule());
-    assertEquals("bucket", mrSettings.getBucketName());
+    assertEquals("bucket", mrSettings.getBucketNameOrDefault());
     assertEquals("base-url", mrSettings.getBaseUrl());
     assertEquals(3, mrSettings.getMapFanout());
     assertEquals(1, mrSettings.getMaxShardRetries());
@@ -126,7 +127,7 @@ public class MapReduceSettingsTest {
     assertEquals(6, mrSettings.getSortReadTimeMillis());
     assertEquals("queue1", mrSettings.getWorkerQueueName());
 
-    builder = new MapReduceSettings.Builder().setModule("m1");
+    builder = MapReduceSettings.builder().module("m1");
 
     mrSettings = builder.build();
     assertEquals("m1", mrSettings.getModule());
