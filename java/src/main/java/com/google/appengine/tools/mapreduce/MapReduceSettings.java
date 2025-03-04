@@ -59,14 +59,15 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
 
   @lombok.Builder.Default
   /**
-   * Sets the base URL that will be used for all requests related to this job.
+   * The base URL that will be used for all requests related to this job.
    * Defaults to {@value #DEFAULT_BASE_URL}
    */
   @NonNull
   private final String baseUrl = MapSettings.DEFAULT_BASE_URL;
 
   /**
-   * Specifies the Module (Service) that the job will run on.
+   * The Module (Service) that the job will run on.
+   *
    * If this is not set or {@code null}, it will run on the current module (service).
    *
    * in appengine gen2, these are called services
@@ -74,13 +75,12 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
   private final String module;
 
   /**
-   * Sets the TaskQueue that will be used to queue the job's tasks.
+   * The TaskQueue that will be used to queue the job's tasks.
    */
   private final String workerQueueName;
 
   /**
-   * Sets how long a worker will process items before endSlice is called and progress is
-   * checkpointed to datastore.
+   * How long a worker will process items before endSlice is called and progress is check-pointed to datastore.
    */
   @lombok.Builder.Default
   private final int millisPerSlice = MapSettings.DEFAULT_MILLIS_PER_SLICE;
@@ -105,11 +105,13 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
   private final int maxSliceRetries = MapSettings.DEFAULT_SLICE_RETRIES;
 
   /**
-   * Sets the GCS bucket that will be used for temporary files. If this is not set or {@code null}
-   * the app's default bucket will be used.
+   * The GCS bucket that will be used for temporary files.
    */
   private final String bucketName;
 
+  /**
+   * Returns the bucket name if set, or the default bucket name if none set on settings. (app's default bucket)
+   */
   public String getBucketNameOrDefault() {
     return Optional.ofNullable(Strings.emptyToNull(getBucketName()))
       .orElseGet(AppIdentityServiceFactory.getAppIdentityService()::getDefaultGcsBucketName);
