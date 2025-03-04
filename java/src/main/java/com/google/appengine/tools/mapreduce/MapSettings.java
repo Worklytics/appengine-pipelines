@@ -124,7 +124,7 @@ public class MapSettings implements ShardedJobAbstractSettings, Serializable {
    *   1) replicates legacy validation logic per-parameter, as each setter is called on the builder
    *   2) name then matches how it was named in the legacy class (MapSettings.Builder, rather than MapSettings.MapSettingsBuilder)
    *
-   *  however, it will NOT do it for the toBuilder() case.
+   *  however, it will NOT do it for the toBuilder() case. (q: how to solve this??)
    *
    */
   public static Builder builder() {
