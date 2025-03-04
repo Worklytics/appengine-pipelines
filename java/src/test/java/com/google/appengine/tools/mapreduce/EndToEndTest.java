@@ -815,46 +815,46 @@ public class EndToEndTest extends EndToEndTestCase {
   @SuppressWarnings("unchecked")
   public void testLifeCycleMethodsCalled() throws Exception {
 
-    Input<Long> input = mock(Input.class, Mockito.withSettings().serializable());
-    InputReader<Long> inputReader = mock(InputReader.class, Mockito.withSettings().serializable());
-    Output<ByteBuffer, Void> output = mock(Output.class, Mockito.withSettings().serializable());
-    OutputWriter<ByteBuffer> outputWriter = mock(OutputWriter.class, Mockito.withSettings().serializable());
+    // trying to make these serializable does not help serializaiton ... still fails *unless*
+    // wrap with TestInput/TestOutput respectively
+    Input<Long> input = mock(Input.class); //, Mockito.withSettings().serializable());
+    Output<ByteBuffer, Void> output = mock(Output.class); //, Mockito.withSettings().serializable());
 
-    input.setContext(mock(Context.class));
+    InputReader<Long> inputReader = mock(InputReader.class, Mockito.withSettings().serializable());
+    OutputWriter<ByteBuffer> outputWriter = mock(OutputWriter.class, Mockito.withSettings().serializable());
 
     when(input.createReaders())
       .thenAnswer((InvocationOnMock invocation) -> List.of(inputReader));
 
-    when(inputReader.estimateMemoryRequirement()).thenReturn(0L);
-
-    inputReader.beginShard();
-    inputReader.beginSlice();
-    when(inputReader.next()).thenThrow(new NoSuchElementException());
-    inputReader.endSlice();
-    inputReader.endShard();
+    when(inputReader.estimateMemoryRequirement())
+      .thenReturn(0L);
+    when(inputReader.next())
+      .thenThrow(new NoSuchElementException());
 
     when(output.createWriters(eq(1)))
       .thenAnswer((InvocationOnMock invocation) -> List.of(outputWriter));
 
-    outputWriter.beginShard();
-    outputWriter.beginSlice();
-    outputWriter.endSlice();
-    outputWriter.endShard();
-
-    when(output.finish(anyCollection())).thenReturn(null);
+    when(output.finish(anyCollection()))
+      .thenReturn(null);
 
     runWithPipeline(testSettings, new MapReduceSpecification.Builder<>(
-        new TestInput<>(input), new LongToBytesMapper(),
-        ValueProjectionReducer.<ByteBuffer, ByteBuffer>create(), new TestOutput<>(output))
-        .setKeyMarshaller(Marshallers.getByteBufferMarshaller())
+        new TestInput<>(input),  //unless wrap this with TestInput, serialization to datastore fails???
+        new LongToBytesMapper(),
+        ValueProjectionReducer.create(),
+        new TestOutput<>(output) //unless wrap this with TestOutput, serialization to datastore fails???
+      ).setKeyMarshaller(Marshallers.getByteBufferMarshaller())
         .setValueMarshaller(Marshallers.getByteBufferMarshaller())
-        .setJobName("testLifeCycleMethodsCalled").build(), new NopVerifier<Void>());
+        .setJobName("testLifeCycleMethodsCalled").build(), new NopVerifier<>());
 
 
+    verify(input, atLeastOnce()).createReaders();
     verify(inputReader, atLeastOnce()).setContext(any(ShardContext.class));
+
+    verify(output, atLeastOnce()).createWriters(eq(1));
     verify(outputWriter, atLeastOnce()).setContext(any(ShardContext.class));
 
     // so below methods seem to be called when I debug; why isn't Mockito picking them up?
+    //--> best guess is serialization!?!? (eg, we're still verifying the original; whereas fw is working on deserialized copies???)
     //verify(inputReader, atLeastOnce()).estimateMemoryRequirement();
     //verify(outputWriter, atLeastOnce()).estimateMemoryRequirement();
   }
