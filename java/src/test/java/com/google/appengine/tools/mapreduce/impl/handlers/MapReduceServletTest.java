@@ -17,11 +17,11 @@
 package com.google.appengine.tools.mapreduce.impl.handlers;
 
 import static com.google.appengine.tools.mapreduce.MapSettings.CONTROLLER_PATH;
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
@@ -36,13 +36,12 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.cloud.datastore.Datastore;
 import lombok.Getter;
 import lombok.Setter;
-import org.easymock.EasyMock;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.io.PrintWriter;
+import java.io.*;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -84,62 +83,92 @@ public class MapReduceServletTest{
   @Test
   public void testBailsOnBadHandler() throws Exception {
     HttpServletRequest request = createMockRequest(getDatastore(), "fizzle", true, true);
-    HttpServletResponse response = createMock(HttpServletResponse.class);
-    replay(request, response);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+
     try {
       servlet.doPost(request, response);
       fail("Should have thrown RuntimeException");
     } catch (RuntimeException e) {
       // Pass
     }
-    verify(request, response);
   }
 
-  @Disabled
+
+  /**
+   * PrintWriter implements locks, which don't get initialized by the constructor using a stream
+   */
+  public class NonLockingPrintWriter extends PrintWriter {
+    private final Writer out;
+
+    public NonLockingPrintWriter(Writer out) {
+      super(out);
+      this.out = out;
+    }
+
+    @SneakyThrows
+    @Override
+    public void write(int c) {
+        out.write(c);
+    }
+
+    @SneakyThrows
+    @Override
+    public void write(char[] buf, int off, int len) {
+      out.write(buf, off, len);
+    }
+
+    @SneakyThrows
+    @Override
+    public void write(String s, int off, int len) {
+      out.write(s, off, len);
+    }
+
+    @SneakyThrows
+    @Override
+    public void flush() {
+      out.flush();
+    }
+
+    @SneakyThrows
+    @Override
+    public void close() {
+      out.close();
+    }
+  }
+
   @Test
-  //this stupid test fails because it's coupled to exact JSON serialization implementation
-  // (eg, calling to PrintWriter.write, with chars/ints/strings as expected)
   public void ignoredTestCommandError() throws Exception {
     HttpServletRequest request = createMockRequest(getDatastore(),
         MapReduceServletImpl.COMMAND_PATH + "/" + StatusHandler.GET_JOB_DETAIL_PATH, false, true);
-    expect(request.getMethod()).andReturn("GET").anyTimes();
-    HttpServletResponse response = createMock(HttpServletResponse.class);
+    when(request.getMethod()).thenReturn("GET");
+    HttpServletResponse response = mock(HttpServletResponse.class);
 
-    //TODO: this should be a spy or something, but Easymock doesn't support spys. result is very cryptic errors, due
-    // to single character-level inconsistencies in output
-    PrintWriter responseWriter = createMock(PrintWriter.class);
-    responseWriter.write('{');
-    responseWriter.write("\"error_class\"");
-    responseWriter.write(':');
-    responseWriter.write("\"java.lang.RuntimeException\"");
-    responseWriter.write(',');
-    responseWriter.write("\"error_message\"");
-    responseWriter.write(':');
-    responseWriter.write("\"Full stack trace is available in the server logs. "
-        + "Message: blargh\"");
-    responseWriter.write('}');
-    responseWriter.flush();
+    StringWriter stringWriter = new StringWriter();
+
+    PrintWriter responseWriter = spy(new NonLockingPrintWriter(stringWriter));
     // This method can't actually throw this exception, but that's not
     // important to the test.
 
     //throw a fake exception, so that MapReduceServletImpl will have to handle an exception
-    expect(request.getParameter("mapreduce_id")).andThrow(new RuntimeException("blargh"));
+    when(request.getParameter("mapreduce_id")).thenThrow(new RuntimeException("blargh"));
     response.setContentType("application/json");
-    expect(response.getWriter()).andReturn(responseWriter).anyTimes();
-    replay(request, response, responseWriter);
+    when(response.getWriter()).thenReturn(responseWriter);
+
     servlet.doPost(request, response);
-    verify(request, response, responseWriter);
+
+    verify(responseWriter, times(1)).flush();
+    assertEquals("{\"error_message\":\"Full stack trace is available in the server logs. Message: blargh\",\"error_class\":\"java.lang.RuntimeException\"}", stringWriter.toString());
   }
 
   @Test
   public void testControllerCSRF() throws Exception {
     // Send it as an AJAX request but not a task queue request - should be denied.
     HttpServletRequest request = createMockRequest(getDatastore(), CONTROLLER_PATH, false, true);
-    HttpServletResponse response = createMock(HttpServletResponse.class);
-    response.sendError(403, "Received unexpected non-task queue request.");
-    replay(request, response);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+
     servlet.doPost(request, response);
-    verify(request, response);
+
+    verify(response, times(1)).sendError(eq(403), eq("Received unexpected non-task queue request."));
   }
 
   @Test
@@ -147,71 +176,58 @@ public class MapReduceServletTest{
     // Send it as a task queue request but not an ajax request - should be denied.
     HttpServletRequest request = createMockRequest(getDatastore(),
       MapReduceServletImpl.COMMAND_PATH + "/" + StatusHandler.GET_JOB_DETAIL_PATH, true, false);
-    expect(request.getMethod()).andReturn("POST").anyTimes();
+    when(request.getMethod()).thenReturn("POST");
 
-    HttpServletResponse response = createMock(HttpServletResponse.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
 
-    // Set before error and last one wins, so this is harmless.
-    response.setContentType("application/json");
-    EasyMock.expectLastCall().anyTimes();
-
-    response.sendError(403, "Received unexpected non-XMLHttpRequest command.");
-    replay(request, response);
     servlet.doGet(request, response);
-    verify(request, response);
+
+    verify(response, times(1)).sendError(eq(403), eq("Received unexpected non-XMLHttpRequest command."));
   }
 
   @Test
   public void testStaticResources_jQuery() throws Exception {
-    HttpServletResponse resp = createMock(HttpServletResponse.class);
+    HttpServletResponse resp = mock(HttpServletResponse.class);
     resp.setContentType("text/javascript");
     resp.setHeader("Cache-Control", "public; max-age=300");
-    ServletOutputStream sos = createMock(ServletOutputStream.class);
-    expect(resp.getOutputStream()).andReturn(sos);
-    sos.write((byte[]) EasyMock.anyObject(), EasyMock.eq(0), EasyMock.anyInt());
-    EasyMock.expectLastCall().atLeastOnce();
-    sos.flush();
-    EasyMock.expectLastCall().anyTimes();
-    replay(resp, sos);
+    ServletOutputStream sos = mock(ServletOutputStream.class);
+    when(resp.getOutputStream()).thenReturn(sos);
+
     MapReduceServletImpl.handleStaticResources("jquery.js", resp);
-    verify(resp, sos);
+
+    verify(resp, atLeastOnce()).getOutputStream();
+    verify(sos, atLeastOnce()).write(any(), eq(0), anyInt());
+    verify(sos, atLeastOnce()).flush(); //actually needed?
   }
 
   @Test
   public void testStaticResources_status() throws Exception {
-    HttpServletResponse resp = createMock(HttpServletResponse.class);
+    HttpServletResponse resp = mock(HttpServletResponse.class);
     resp.sendRedirect("/_ah/pipeline/list?class_path=" + MapReduceJob.class.getName());
-    replay(resp);
     MapReduceServletImpl.handleStaticResources("status", resp);
-    verify(resp);
   }
 
   private static HttpServletRequest createMockRequest(Datastore datastore,
       String handler, boolean taskQueueRequest, boolean ajaxRequest) {
-    HttpServletRequest request = createMock(HttpServletRequest.class);
+    HttpServletRequest request = mock(HttpServletRequest.class);
     if (taskQueueRequest) {
-      expect(request.getHeader("X-AppEngine-QueueName"))
-          .andReturn("default")
-          .anyTimes();
+      when(request.getHeader(eq("X-AppEngine-QueueName")))
+          .thenReturn("default");
     } else {
-      expect(request.getHeader("X-AppEngine-QueueName"))
-          .andReturn(null)
-          .anyTimes();
+      when(request.getHeader(eq("X-AppEngine-QueueName")))
+          .thenReturn(null);
     }
     if (ajaxRequest) {
-      expect(request.getHeader("X-Requested-With"))
-          .andReturn("XMLHttpRequest")
-          .anyTimes();
+      when(request.getHeader(eq("X-Requested-With")))
+          .thenReturn("XMLHttpRequest");
     } else {
-      expect(request.getHeader("X-Requested-With"))
-          .andReturn(null)
-          .anyTimes();
+      when(request.getHeader(eq("X-Requested-With")))
+          .thenReturn(null);
     }
-    expect(request.getPathInfo())
-        .andReturn("/" + handler)
-        .anyTimes();
+    when(request.getPathInfo())
+        .thenReturn("/" + handler);
 
-    TestUtils.addDatastoreHeadersToRequestEasymock(request, datastore.getOptions());
+    TestUtils.addDatastoreHeadersToRequest(request, datastore.getOptions());
 
     return request;
   }

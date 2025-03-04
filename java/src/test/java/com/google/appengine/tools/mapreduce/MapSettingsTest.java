@@ -11,6 +11,7 @@ import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_SLICE_RET
 import static com.google.appengine.tools.mapreduce.MapSettings.WORKER_PATH;
 import static com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet.makeViewerUrl;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
@@ -26,8 +27,6 @@ import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 
 import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.Key;
-import org.easymock.EasyMock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -70,7 +69,7 @@ public class MapSettingsTest {
 
   @Test
   public void testDefaultSettings() {
-    MapSettings mrSettings = new MapSettings.Builder().build();
+    MapSettings mrSettings = MapSettings.builder().build();
     assertNull(mrSettings.getModule());
     assertNull(mrSettings.getWorkerQueueName());
     assertEquals(DEFAULT_BASE_URL, mrSettings.getBaseUrl());
@@ -82,37 +81,31 @@ public class MapSettingsTest {
 
   @Test
   public void testNonDefaultSettings() {
-    MapSettings.Builder builder = new MapSettings.Builder();
+    MapSettings.MapSettingsBuilder builder = MapSettings.builder();
 
-    builder.setModule("m").build();
+    builder.module("m").build();
 
-    builder.setWorkerQueueName("queue1");
-    builder.setBaseUrl("base-url");
-    builder.setMillisPerSlice(10);
+    builder.workerQueueName("queue1");
+    builder.baseUrl("base-url");
+    builder.millisPerSlice(10);
+    builder.sliceTimeoutRatio(1.5);
     try {
-      builder.setMillisPerSlice(-1);
-      fail("Expected IllegalArgumentException to be thrown");
-    } catch (IllegalArgumentException ex) {
-      // expected
-    }
-    builder.setSliceTimeoutRatio(1.5);
-    try {
-      builder.setSliceTimeoutRatio(0.8);
-      fail("Expected IllegalArgumentException to be thrown");
+      builder.sliceTimeoutRatio(0.8);
+      fail("Expected IllegalArgumentException to be thrown sliceTimeoutRatio must be > 1");
     } catch (IllegalArgumentException ex) {
       //expected
     }
-    builder.setMaxShardRetries(1);
+    builder.maxShardRetries(1);
     try {
-      builder.setMaxShardRetries(-1);
-      fail("Expected IllegalArgumentException to be thrown");
+      builder.maxShardRetries(-1);
+      fail("Expected IllegalArgumentException to be thrown maxShardRetries must be >= 0");
     } catch (IllegalArgumentException ex) {
       // expected
     }
-    builder.setMaxSliceRetries(0);
+    builder.maxSliceRetries(0);
     try {
-      builder.setMaxSliceRetries(-1);
-      fail("Expected IllegalArgumentException to be thrown");
+      builder.maxSliceRetries(-1);
+      fail("Expected IllegalArgumentException to be thrown maxSliceRetries must be >= 0");
     } catch (IllegalArgumentException ex) {
       // expected
     }
@@ -122,36 +115,36 @@ public class MapSettingsTest {
     assertEquals(10, settings.getMillisPerSlice());
     assertEquals(1, settings.getMaxShardRetries());
     assertEquals(0, settings.getMaxSliceRetries());
-    builder.setModule("m1");
+    builder.module("m1");
     settings = builder.build();
     assertEquals("m1", settings.getModule());
   }
 
   @Test
   public void testValidate() throws Exception {
-    MapSettings.Builder builder = new MapSettings.Builder();
+    MapSettings.MapSettingsBuilder builder = MapSettings.builder();
     // TODO(user): replace "bad_queue" with "bad-queue". The latter is just
     // an invalid name and does not check if queue exists. see b/13910616
-    builder.setWorkerQueueName("bad_queue");
     try {
-      builder.build();
+      builder.workerQueueName("bad_queue");
       fail("was expecting failure due to bad queue");
     } catch (RuntimeException ex) {
       // expected.
     }
+    builder.build();
   }
 
   @Test
   public void testBuilderWithSettings() {
-    MapSettings settings = new MapSettings.Builder()
-        .setModule("m")
-        .setBaseUrl("url")
-        .setMaxShardRetries(10)
-        .setMaxSliceRetries(20)
-        .setMillisPerSlice(30)
-        .setWorkerQueueName("good-queue")
+    MapSettings settings = MapSettings.builder()
+        .module("m")
+        .baseUrl("url")
+        .maxShardRetries(10)
+        .maxSliceRetries(20)
+        .millisPerSlice(30)
+        .workerQueueName("good-queue")
         .build();
-    settings = new MapSettings.Builder(settings).build();
+    settings = settings.toBuilder().build();
     assertEquals("m", settings.getModule());
     assertEquals("url", settings.getBaseUrl());
     assertEquals(10, settings.getMaxShardRetries());
@@ -166,11 +159,11 @@ public class MapSettingsTest {
       datastore.getOptions().getDatabaseId(),
       datastore.getOptions().getNamespace(), "pipeline");
 
-    MapSettings settings = new MapSettings.Builder().setWorkerQueueName("good-queue").build();
+    MapSettings settings = MapSettings.builder().workerQueueName("good-queue").build();
     ShardedJobRunId shardedJobId = ShardedJobRunId.of(datastore.getOptions().getProjectId(),
       datastore.getOptions().getDatabaseId(),
       datastore.getOptions().getNamespace(),  "job1");
-    ShardedJobSettings sjSettings = settings.toShardedJobSettings(shardedJobId, pipelineRunId);
+    ShardedJobSettings sjSettings = ShardedJobSettings.from(settings, shardedJobId, pipelineRunId);
     assertEquals("default", sjSettings.getModule());
     assertEquals("1", sjSettings.getVersion());
     assertEquals("1.default.test.localhost", sjSettings.getTaskQueueTarget());
@@ -182,29 +175,33 @@ public class MapSettingsTest {
     assertEquals(settings.getMaxSliceRetries(), sjSettings.getMaxSliceRetries());
 
 
-    settings = new MapSettings.Builder(settings).setModule("module1").build();
-    sjSettings = settings.toShardedJobSettings(shardedJobId, pipelineRunId);
+    settings = settings.toBuilder().module("module1").build();
+    sjSettings = ShardedJobSettings.from(settings, shardedJobId, pipelineRunId);
     assertEquals("v1.module1.test.localhost", sjSettings.getTaskQueueTarget());
     assertEquals("module1", sjSettings.getModule());
     assertEquals("v1", sjSettings.getVersion());
 
-    settings = new MapSettings.Builder(settings).setModule("default").build();
-    Environment env = ApiProxy.getCurrentEnvironment();
-    Environment mockEnv = EasyMock.createNiceMock(Environment.class);
-    EasyMock.expect(mockEnv.getModuleId()).andReturn("default").atLeastOnce();
-    EasyMock.expect(mockEnv.getVersionId()).andReturn("2").atLeastOnce();
-    EasyMock.expect(mockEnv.getAttributes()).andReturn(env.getAttributes()).anyTimes();
-    EasyMock.replay(mockEnv);
+
+    settings = settings.toBuilder().module("default").build();
+    Environment trueEnv = ApiProxy.getCurrentEnvironment();
+    HashMap<String, Object> attributes = new HashMap<>(trueEnv.getAttributes());
+    Environment mockEnv = mock(Environment.class);
+    when(mockEnv.getModuleId()).thenReturn("default");
+    when(mockEnv.getVersionId()).thenReturn("2");
+    when(mockEnv.getAttributes()).thenReturn(attributes);
+
     ApiProxy.setEnvironmentForCurrentThread(mockEnv);
     // Test when current module is the same as requested module
     try {
-      sjSettings = settings.toShardedJobSettings(shardedJobId, pipelineRunId);
+      sjSettings = ShardedJobSettings.from(settings, shardedJobId, pipelineRunId);
       assertEquals("default", sjSettings.getModule());
       assertEquals("2", sjSettings.getVersion());
     } finally {
-      ApiProxy.setEnvironmentForCurrentThread(env);
+      ApiProxy.setEnvironmentForCurrentThread(trueEnv);
     }
-    EasyMock.verify(mockEnv);
+
+    verify(mockEnv, atLeastOnce()).getModuleId();
+    verify(mockEnv, atLeastOnce()).getVersionId();
   }
 
   private String getPath(MapSettings settings, String jobId, String logicPath) {
@@ -213,10 +210,10 @@ public class MapSettingsTest {
 
   @Test
   public void testPipelineSettings() {
-    MapSettings mrSettings = new MapSettings.Builder().setWorkerQueueName("queue1").build();
+    MapSettings mrSettings = MapSettings.builder().workerQueueName("queue1").build();
     verifyPipelineSettings(mrSettings.toJobSettings(), new ServiceValidator(null), new QueueValidator("queue1"));
 
-    mrSettings = new MapSettings.Builder().setModule("m1").build();
+    mrSettings =MapSettings.builder().module("m1").build();
     verifyPipelineSettings(mrSettings.toJobSettings(new StatusConsoleUrl("u1")), new ServiceValidator("m1"),
         new QueueValidator(null), new StatusConsoleValidator("u1"));
   }

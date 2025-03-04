@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
@@ -40,11 +41,12 @@ import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_Q
  */
 public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
 
-  private static final long serialVersionUID = 723635736794527552L;
+  @Serial
+  private static final long serialVersionUID = 1L;
   private static final Logger log = Logger.getLogger(MapJob.class.getName());
 
   private final MapSpecification<I, O, R> specification;
-  private final MapSettings settings;
+  private final ShardedJobAbstractSettings settings;
 
   public MapJob(MapSpecification<I, O, R> specification, MapSettings settings) {
     this.specification = specification;
@@ -64,7 +66,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
 
   @Override
   public Value<MapReduceResult<R>> run() {
-    MapSettings settings = this.settings;
+    ShardedJobAbstractSettings settings = this.settings;
     if (settings.getWorkerQueueName() == null) {
       String queue = getOnQueue();
       if (queue == null) {
@@ -72,11 +74,11 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
             + " job, using 'default'");
         queue = DEFAULT_QUEUE_NAME;
       }
-      settings = new MapReduceSettings.Builder()
-        .setProjectId(settings.getProjectId())
-        .setDatabaseId(settings.getDatabaseId())
-        .setNamespace(settings.getNamespace())
-        .setWorkerQueueName(queue)
+      settings = MapReduceSettings.builder()
+        .projectId(settings.getProjectId())
+        .databaseId(settings.getDatabaseId())
+        .namespace(settings.getNamespace())
+        .workerQueueName(queue)
         .build();
     }
     ShardedJobRunId jobId = getShardedJobId();
@@ -100,7 +102,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
       mapTasks.add(new MapOnlyShardTask<>(jobId, i, readers.size(), readers.get(i),
           specification.getMapper(), writers.get(i), settings.getMillisPerSlice()));
     }
-    ShardedJobSettings shardedJobSettings = settings.toShardedJobSettings(getShardedJobId(), getPipelineRunId());
+    ShardedJobSettings shardedJobSettings = ShardedJobSettings.from(settings, getShardedJobId(), getPipelineRunId());
     PromisedValue<ResultAndStatus<R>> resultAndStatus = newPromise();
     WorkerController<I, O, R, MapOnlyMapperContext<O>> workerController = new WorkerController<>(
         jobId, new CountersImpl(), output, resultAndStatus.getHandle());

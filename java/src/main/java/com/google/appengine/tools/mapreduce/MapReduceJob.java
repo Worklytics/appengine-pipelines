@@ -45,6 +45,7 @@ import lombok.Setter;
 
 import javax.inject.Inject;
 import java.io.IOException;
+import java.io.Serial;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -67,6 +68,7 @@ import java.util.logging.Logger;
 @RequiredArgsConstructor
 public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
+  @Serial
   private static final long serialVersionUID = 723635736794527552L;
   private static final Logger log = Logger.getLogger(MapReduceJob.class.getName());
 
@@ -135,7 +137,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
   private static void verifyBucketIsWritable(MapReduceSettings settings) {
    Storage client = GcpCredentialOptions.getStorageClient(settings);
-    BlobId blobId = BlobId.of(settings.getBucketName(), UUID.randomUUID() + ".tmp");
+    BlobId blobId = BlobId.of(settings.getBucketNameOrDefault(), UUID.randomUUID() + ".tmp");
     if (client.get(blobId) != null) {
       log.warning("File '" + blobId.getName() + "' exists. Skipping bucket write test.");
       return;
@@ -143,7 +145,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     try {
       client.create(BlobInfo.newBuilder(blobId).build(), "Delete me!".getBytes(StandardCharsets.UTF_8));
     } catch (StorageException e) {
-      throw new IllegalArgumentException("Bucket " + settings.getBucketName() + " is not writeable; MR job needs to write it for sort/shuffle phase of job", e);
+      throw new IllegalArgumentException("Bucket " + settings.getBucketNameOrDefault() + " is not writeable; MR job needs to write it for sort/shuffle phase of job", e);
     } finally {
       client.delete(blobId);
     }
@@ -197,7 +199,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
         throw new RuntimeException(e);
       }
       Output<KeyValue<K, V>, FilesByShard> output = new GoogleCloudStorageMapOutput<>(
-              settings.getBucketName(),
+              settings.getBucketNameOrDefault(),
               getShardedJobId(),
               mrSpec.getKeyMarshaller(),
               mrSpec.getValueMarshaller(),
@@ -218,7 +220,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             mrSpec.getMapper(), writers.get(i), settings.getMillisPerSlice()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineRunId());
+        ShardedJobSettings.from(settings, getShardedJobId(), getPipelineRunId());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<I, KeyValue<K, V>, FilesByShard, MapperContext<K, V>> workerController =
@@ -301,7 +303,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<ByteBuffer, ByteBuffer>>> readers = input.createReaders();
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageSortOutput(settings.getBucketName(), getShardedJobId(),
+          new GoogleCloudStorageSortOutput(settings.getBucketNameOrDefault(), getShardedJobId(),
               new HashingSharder(reduceShards), outputOptions);
       output.setContext(context);
 
@@ -322,7 +324,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             settings.getSortReadTimeMillis()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineRunId());
+        ShardedJobSettings.from(settings, getShardedJobId(), getPipelineRunId());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, ByteBuffer>, KeyValue<ByteBuffer, List<ByteBuffer>>,
@@ -425,7 +427,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           input.createReaders();
 
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageMergeOutput(settings.getBucketName(), getShardedJobId(), tier, outputOptions);
+          new GoogleCloudStorageMergeOutput(settings.getBucketNameOrDefault(), getShardedJobId(), tier, outputOptions);
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =
@@ -444,7 +446,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             settings.getSortReadTimeMillis()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineRunId());
+        ShardedJobSettings.from(settings, getShardedJobId(), getPipelineRunId());
 
       PromisedValue<ResultAndStatus<FilesByShard>> resultAndStatus = newPromise();
       WorkerController<KeyValue<ByteBuffer, Iterator<ByteBuffer>>,
@@ -540,7 +542,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             mrSpec.getReducer(), writers.get(i), settings.getMillisPerSlice()));
       }
       ShardedJobSettings shardedJobSettings =
-          settings.toShardedJobSettings(getShardedJobId(), getPipelineRunId());
+          ShardedJobSettings.from(settings, getShardedJobId(), getPipelineRunId());
       PromisedValue<ResultAndStatus<R>> resultAndStatus = newPromise();
       WorkerController<KeyValue<K, Iterator<V>>, O, R, ReducerContext<O>> workerController =
           new WorkerController<>(getShardedJobId(), mergeResult.getCounters(), output,
@@ -597,7 +599,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
             + " job, using 'default'");
         queue = "default";
       }
-      settings = new MapReduceSettings.Builder(settings).setWorkerQueueName(queue).build();
+      settings = settings.toBuilder().workerQueueName(queue).build();
     }
     FutureValue<MapReduceResult<FilesByShard>> mapResult = futureCall(
         new MapJob<>(getJobRunId(), specification, settings), settings.toJobSettings(maxAttempts(1)));
