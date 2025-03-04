@@ -68,42 +68,49 @@ public class MapReduceSettingsTest {
     builder = builder.mapFanout(3);
     try {
       builder.maxShardRetries(-1);
+      fail("IllegalArgumentException expected for negative maxShardRetries");
     } catch (IllegalArgumentException ex) {
       // expected
     }
     builder = builder.maxShardRetries(1);
     try {
       builder.maxSliceRetries(-1);
+      fail("IllegalArgumentException expected for negative maxSliceRetries");
     } catch (IllegalArgumentException ex) {
       // expected
     }
     builder = builder.maxSliceRetries(0);
     try {
       builder.maxSortMemory(-1L);
+      fail("IllegalArgumentException expected for negative maxSortMemory");
     } catch (IllegalArgumentException ex) {
       // expected
     }
     builder = builder.maxSortMemory(10L);
     try {
       builder.mergeFanin(-1);
+      fail("IllegalArgumentException expected for negative mergeFanin");
     } catch (IllegalArgumentException ex) {
       // expected
     }
     builder = builder.mergeFanin(4);
     try {
       builder.millisPerSlice(-1);
+      fail("IllegalArgumentException expected for negative millisPerSlice");
     } catch (IllegalArgumentException ex) {
       // expected
     }
     builder = builder.millisPerSlice(10);
     try {
       builder.sortBatchPerEmitBytes(-1);
+      fail("IllegalArgumentException expected for negative sortBatchPerEmitBytes");
     } catch (IllegalArgumentException ex) {
       // expected
     }
     builder = builder.sortBatchPerEmitBytes(5);
     try {
       builder.sortReadTimeMillis(-1);
+      fail("IllegalArgumentException expected for negative sortReadTimeMillis");
     } catch (IllegalArgumentException ex) {
       // expected
     }

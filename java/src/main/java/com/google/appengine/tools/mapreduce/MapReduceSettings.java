@@ -3,11 +3,11 @@
 package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.api.appidentity.AppIdentityServiceFactory;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
-import lombok.experimental.SuperBuilder;
 import lombok.extern.java.Log;
 
 import java.io.Serial;
@@ -25,7 +25,7 @@ import java.util.Optional;
 @Log
 @Getter
 @ToString
-@SuperBuilder(toBuilder = true)
+@lombok.Builder(toBuilder = true)
 public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstractSettings, Serializable {
 
   @Serial
@@ -174,5 +174,80 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
    * some risk of exposure.
    */
   private final String serviceAccountKey;
+
+  /**
+   * a static extended Builder class, which gives us two things:
+   *   1) replicates legacy validation logic per-parameter, as each setter is called on the builder
+   *   2) name then matches how it was named in the legacy class (MapSettings.Builder, rather than MapSettings.MapSettingsBuilder)
+   *
+   */
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static class Builder extends MapReduceSettings.MapReduceSettingsBuilder {
+    @Override
+    public Builder millisPerSlice(int millisPerSlice) {
+      Preconditions.checkArgument(millisPerSlice > 0, "millisPerSlice must be positive");
+      super.millisPerSlice(millisPerSlice);
+      return this;
+    }
+
+    @Override
+    public Builder sliceTimeoutRatio(double sliceTimeoutRatio) {
+      Preconditions.checkArgument(sliceTimeoutRatio > 1.0, "sliceTimeoutRatio must be greater than 1.0");
+      super.sliceTimeoutRatio(sliceTimeoutRatio);
+      return this;
+    }
+
+    @Override
+    public Builder maxShardRetries(int maxShardRetries) {
+      Preconditions.checkArgument(maxShardRetries > -1, "maxShardRetries cannot be negative");
+      super.maxShardRetries(maxShardRetries);
+      return this;
+    }
+
+    @Override
+    public Builder maxSliceRetries(int maxSliceRetries) {
+      Preconditions.checkArgument(maxSliceRetries > -1, "maxSliceRetries cannot be negative");
+      super.maxSliceRetries(maxSliceRetries);
+      return this;
+    }
+
+    @Override
+    public Builder workerQueueName(String workerQueueName) {
+      super.workerQueueName( MapSettings.Builder.checkQueueSettings(workerQueueName));
+      return this;
+    }
+
+    @Override
+    public Builder maxSortMemory(Long maxSortMemory) {
+      Preconditions.checkArgument(maxSortMemory > -1L, "maxSortMemory cannot be negative");
+      super.maxSortMemory(maxSortMemory);
+      return this;
+    }
+
+    @Override
+    public Builder mergeFanin(int mergeFanin) {
+      Preconditions.checkArgument(mergeFanin > -1, "mergeFanin cannot be negative");
+      super.mergeFanin(mergeFanin);
+      return this;
+    }
+
+    @Override
+    public Builder sortBatchPerEmitBytes(int sortBatchPerEmitBytes) {
+      Preconditions.checkArgument(sortBatchPerEmitBytes > -1, "sortBatchPerEmitBytes cannot be negative");
+      super.sortBatchPerEmitBytes(sortBatchPerEmitBytes);
+      return this;
+    }
+
+    @Override
+    public Builder sortReadTimeMillis(int sortReadTimeMillis) {
+      Preconditions.checkArgument(sortReadTimeMillis > -1, "sortReadTimeMillis cannot be negative");
+      super.sortReadTimeMillis(sortReadTimeMillis);
+      return this;
+    }
+  }
 }
 

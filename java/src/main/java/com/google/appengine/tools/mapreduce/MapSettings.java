@@ -4,28 +4,17 @@ package com.google.appengine.tools.mapreduce;
 
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
-import com.google.appengine.api.modules.ModulesException;
-import com.google.appengine.api.modules.ModulesService;
-import com.google.appengine.api.modules.ModulesServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TransientFailureException;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
-import com.google.appengine.tools.pipeline.JobRunId;
-import com.google.appengine.tools.pipeline.JobSetting;
-import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
-import com.google.cloud.datastore.DatastoreOptions;
+import com.google.common.base.Preconditions;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 import lombok.extern.java.Log;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
-import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings.DEFAULT_SLICE_TIMEOUT_MILLIS;
 
 /**
  * Settings that affect how a Map job is executed.  May affect performance and
@@ -37,7 +26,7 @@ import static com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSet
 @ToString
 @RequiredArgsConstructor
 @Log
-@SuperBuilder(toBuilder = true)
+@lombok.Builder(toBuilder = true)
 public class MapSettings implements ShardedJobAbstractSettings, Serializable {
 
   @Serial
@@ -58,6 +47,8 @@ public class MapSettings implements ShardedJobAbstractSettings, Serializable {
   public static final double DEFAULT_SLICE_TIMEOUT_RATIO = 1.1;
   public static final int DEFAULT_SHARD_RETRIES = 4;
   public static final int DEFAULT_SLICE_RETRIES = 20;
+
+
 
   /**
    * The host name of the datastore to use for all requests related to this job.
@@ -128,34 +119,84 @@ public class MapSettings implements ShardedJobAbstractSettings, Serializable {
   @lombok.Builder.Default
   private final int maxSliceRetries = DEFAULT_SLICE_RETRIES;
 
-  private String checkQueueSettings(String queueName) {
-    if (queueName == null) {
-      return null;
+  /**
+   * a static extended Builder class, which gives us two things:
+   *   1) replicates legacy validation logic per-parameter, as each setter is called on the builder
+   *   2) name then matches how it was named in the legacy class (MapSettings.Builder, rather than MapSettings.MapSettingsBuilder)
+   *
+   *  however, it will NOT do it for the toBuilder() case.
+   *
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+
+  public static class Builder extends MapSettings.MapSettingsBuilder {
+
+    @Override
+    public Builder millisPerSlice(int millisPerSlice) {
+      Preconditions.checkArgument(millisPerSlice > 0, "millisPerSlice must be positive");
+      super.millisPerSlice(millisPerSlice);
+      return this;
     }
-    final Queue queue = QueueFactory.getQueue(queueName);
-    try {
-      // Does not work as advertise (just check that the queue name is valid).
-      // See b/13910616. Probably after the bug is fixed the check would need
-      // to inspect EnforceRate for not null.
-      RetryExecutor.call(getQueueRetryerBuilder(), () -> {
+
+    @Override
+    public Builder sliceTimeoutRatio(double sliceTimeoutRatio) {
+      Preconditions.checkArgument(sliceTimeoutRatio > 1.0, "sliceTimeoutRatio must be greater than 1.0");
+      super.sliceTimeoutRatio(sliceTimeoutRatio);
+      return this;
+    }
+
+    @Override
+    public Builder maxShardRetries(int maxShardRetries) {
+      Preconditions.checkArgument(maxShardRetries > -1, "maxShardRetries cannot be negative");
+      super.maxShardRetries(maxShardRetries);
+      return this;
+    }
+
+    @Override
+    public Builder maxSliceRetries(int maxSliceRetries) {
+      Preconditions.checkArgument(maxSliceRetries > -1, "maxSliceRetries cannot be negative");
+      super.maxSliceRetries(maxSliceRetries);
+      return this;
+    }
+
+    @Override
+    public Builder workerQueueName(String workerQueueName) {
+      super.workerQueueName(checkQueueSettings(workerQueueName));
+      return this;
+    }
+
+    public static String checkQueueSettings(String queueName) {
+      if (queueName == null) {
+        return null;
+      }
+      final Queue queue = QueueFactory.getQueue(queueName);
+      try {
+        // Does not work as advertise (just check that the queue name is valid).
+        // See b/13910616. Probably after the bug is fixed the check would need
+        // to inspect EnforceRate for not null.
+        RetryExecutor.call(getQueueRetryerBuilder(), () -> {
           // Does not work as advertise (just check that the queue name is valid).
           // See b/13910616. Probably after the bug is fixed the check would need
           // to inspect EnforceRate for not null.
           queue.fetchStatistics();
           return null;
         });
-    } catch (Throwable ex) {
-      if (ex instanceof ExecutionException) {
-        if (ex.getCause() instanceof IllegalStateException) {
-          throw new RuntimeException("Queue '" + queueName + "' does not exists");
+      } catch (Throwable ex) {
+        if (ex instanceof ExecutionException) {
+          if (ex.getCause() instanceof IllegalStateException) {
+            throw new RuntimeException("Queue '" + queueName + "' does not exists");
+          }
+          throw new RuntimeException(
+            "Could not check if queue '" + queueName + "' exists", ex.getCause());
+        } else {
+          throw ex;
         }
-        throw new RuntimeException(
-          "Could not check if queue '" + queueName + "' exists", ex.getCause());
-      } else {
-        throw ex;
       }
+      return queueName;
     }
-    return queueName;
   }
 
 }

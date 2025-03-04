@@ -97,21 +97,21 @@ public class MapSettingsTest {
     builder.sliceTimeoutRatio(1.5);
     try {
       builder.sliceTimeoutRatio(0.8);
-      fail("Expected IllegalArgumentException to be thrown");
+      fail("Expected IllegalArgumentException to be thrown sliceTimeoutRatio must be > 1");
     } catch (IllegalArgumentException ex) {
       //expected
     }
     builder.maxShardRetries(1);
     try {
       builder.maxShardRetries(-1);
-      fail("Expected IllegalArgumentException to be thrown");
+      fail("Expected IllegalArgumentException to be thrown maxShardRetries must be >= 0");
     } catch (IllegalArgumentException ex) {
       // expected
     }
     builder.maxSliceRetries(0);
     try {
       builder.maxSliceRetries(-1);
-      fail("Expected IllegalArgumentException to be thrown");
+      fail("Expected IllegalArgumentException to be thrown maxSliceRetries must be >= 0");
     } catch (IllegalArgumentException ex) {
       // expected
     }
@@ -131,13 +131,13 @@ public class MapSettingsTest {
     MapSettings.MapSettingsBuilder builder = MapSettings.builder();
     // TODO(user): replace "bad_queue" with "bad-queue". The latter is just
     // an invalid name and does not check if queue exists. see b/13910616
-    builder.workerQueueName("bad_queue");
     try {
-      builder.build();
+      builder.workerQueueName("bad_queue");
       fail("was expecting failure due to bad queue");
     } catch (RuntimeException ex) {
       // expected.
     }
+    builder.build();
   }
 
   @Test
