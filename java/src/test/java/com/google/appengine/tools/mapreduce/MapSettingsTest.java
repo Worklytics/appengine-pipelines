@@ -11,6 +11,7 @@ import static com.google.appengine.tools.mapreduce.MapSettings.DEFAULT_SLICE_RET
 import static com.google.appengine.tools.mapreduce.MapSettings.WORKER_PATH;
 import static com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet.makeViewerUrl;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
@@ -26,7 +27,6 @@ import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 
 import com.google.cloud.datastore.Datastore;
-import org.easymock.EasyMock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -181,13 +181,15 @@ public class MapSettingsTest {
     assertEquals("module1", sjSettings.getModule());
     assertEquals("v1", sjSettings.getVersion());
 
+
     settings = settings.toBuilder().module("default").build();
-    Environment env = ApiProxy.getCurrentEnvironment();
-    Environment mockEnv = EasyMock.createNiceMock(Environment.class);
-    EasyMock.expect(mockEnv.getModuleId()).andReturn("default").atLeastOnce();
-    EasyMock.expect(mockEnv.getVersionId()).andReturn("2").atLeastOnce();
-    EasyMock.expect(mockEnv.getAttributes()).andReturn(env.getAttributes()).anyTimes();
-    EasyMock.replay(mockEnv);
+    Environment trueEnv = ApiProxy.getCurrentEnvironment();
+    HashMap<String, Object> attributes = new HashMap<>(trueEnv.getAttributes());
+    Environment mockEnv = mock(Environment.class);
+    when(mockEnv.getModuleId()).thenReturn("default");
+    when(mockEnv.getVersionId()).thenReturn("2");
+    when(mockEnv.getAttributes()).thenReturn(attributes);
+
     ApiProxy.setEnvironmentForCurrentThread(mockEnv);
     // Test when current module is the same as requested module
     try {
@@ -195,9 +197,11 @@ public class MapSettingsTest {
       assertEquals("default", sjSettings.getModule());
       assertEquals("2", sjSettings.getVersion());
     } finally {
-      ApiProxy.setEnvironmentForCurrentThread(env);
+      ApiProxy.setEnvironmentForCurrentThread(trueEnv);
     }
-    EasyMock.verify(mockEnv);
+
+    verify(mockEnv, atLeastOnce()).getModuleId();
+    verify(mockEnv, atLeastOnce()).getVersionId();
   }
 
   private String getPath(MapSettings settings, String jobId, String logicPath) {

@@ -13,7 +13,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static org.easymock.EasyMock.expect;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -84,21 +83,12 @@ public class TestUtils {
     return s.replaceAll("\\s+","");
   }
 
-  @Deprecated
-  public static void addDatastoreHeadersToRequestEasymock(HttpServletRequest request, DatastoreOptions datastoreOptions) {
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_HOST))
-      .andReturn(datastoreOptions.getHost()).anyTimes();
-
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_NAMESPACE))
-      .andReturn(datastoreOptions.getNamespace()).anyTimes();
-
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_PROJECT_ID))
-      .andReturn(datastoreOptions.getProjectId()).anyTimes();
-
-    expect(request.getParameter(RequestUtils.Params.DATASTORE_DATABASE_ID))
-      .andReturn(datastoreOptions.getDatabaseId()).anyTimes();
-  }
-
+  /**
+   * add datastore headers to request mocked with Mockito
+   *
+   * @param request must be a Mockito mock
+   * @param datastoreOptions to add as headers
+   */
   public static void addDatastoreHeadersToRequest(HttpServletRequest request, DatastoreOptions datastoreOptions) {
     when(request.getParameter(eq(RequestUtils.Params.DATASTORE_HOST)))
       .thenReturn(datastoreOptions.getHost());
