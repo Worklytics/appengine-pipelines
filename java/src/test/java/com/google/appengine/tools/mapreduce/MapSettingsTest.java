@@ -23,8 +23,6 @@ import com.google.appengine.tools.pipeline.JobSetting.OnService;
 import com.google.appengine.tools.pipeline.JobSetting.OnQueue;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.apphosting.api.ApiProxy;
-import com.google.apphosting.api.ApiProxy.Environment;
 
 import com.google.cloud.datastore.Datastore;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +37,6 @@ import java.util.Set;
 /**
  */
 @PipelineSetupExtensions
-@SuppressWarnings("deprecation")
 public class MapSettingsTest {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
@@ -51,15 +48,6 @@ public class MapSettingsTest {
   @BeforeEach
   public void setUp(Datastore datastore) {
     helper.setUp();
-    Map<String, Object> attributes = ApiProxy.getCurrentEnvironment().getAttributes();
-    @SuppressWarnings("unchecked")
-    Map<String, Object> portMap =
-        (Map<String, Object>) attributes.get("com.google.appengine.devappserver.portmapping");
-    if (portMap == null) {
-      portMap = new HashMap<>();
-      attributes.put("com.google.appengine.devappserver.portmapping", portMap);
-    }
-    portMap.put("b1", "backend-hostname");
     this.datastore = datastore;
   }
 
@@ -186,25 +174,18 @@ public class MapSettingsTest {
 
 
     settings = settings.toBuilder().module("default").build();
-    Environment trueEnv = ApiProxy.getCurrentEnvironment();
-    HashMap<String, Object> attributes = new HashMap<>(trueEnv.getAttributes());
-    Environment mockEnv = mock(Environment.class);
-    when(mockEnv.getModuleId()).thenReturn("default");
-    when(mockEnv.getVersionId()).thenReturn("2");
-    when(mockEnv.getAttributes()).thenReturn(attributes);
 
-    ApiProxy.setEnvironmentForCurrentThread(mockEnv);
-    // Test when current module is the same as requested module
-    try {
+    when(pipelineService.getDefaultWorkerService()).thenReturn("default");
+    when(pipelineService.getCurrentVersion(eq("default"))).thenReturn("2");
+    when(pipelineService.getCurrentVersion(eq("module1"))).thenReturn("v1");
+    when(pipelineService.getCurrentVersion(eq("module2"))).thenReturn("v2");
+
       sjSettings = ShardedJobSettings.from(pipelineService, settings, shardedJobId, pipelineRunId);
       assertEquals("default", sjSettings.getModule());
       assertEquals("2", sjSettings.getVersion());
-    } finally {
-      ApiProxy.setEnvironmentForCurrentThread(trueEnv);
-    }
 
-    verify(mockEnv, atLeastOnce()).getModuleId();
-    verify(mockEnv, atLeastOnce()).getVersionId();
+    verify(pipelineService, atLeastOnce()).getDefaultWorkerService();
+    verify(pipelineService, atLeastOnce()).getCurrentVersion(eq("default"));
   }
 
   private String getPath(MapSettings settings, String jobId, String logicPath) {
