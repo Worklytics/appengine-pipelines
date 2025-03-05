@@ -19,6 +19,7 @@ import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.apphosting.api.ApiProxy;

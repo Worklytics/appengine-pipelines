@@ -3,11 +3,12 @@ package com.google.appengine.tools.pipeline.di;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
 import com.google.appengine.tools.pipeline.impl.backend.*;
+import com.google.appengine.v1.ServicesClient;
+import com.google.appengine.v1.VersionsClient;
 import com.google.cloud.datastore.Datastore;
 import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 
@@ -33,7 +34,6 @@ public class TenantModule {
 
     @Binds
     PipelineService pipelineService(PipelineServiceImpl pipelineService);
-
   }
 
   @Module(
@@ -63,10 +63,28 @@ public class TenantModule {
       return new AppEngineTaskQueue();
     }
 
+
+    @SneakyThrows
     @Provides @TenantScoped
-    AppEngineBackEnd appEngineBackEnd(AppEngineBackEnd.Options options,
-                                      AppEngineTaskQueue appEngineTaskQueue) {
-      return new AppEngineBackEnd(options.getDatastoreOptions().getService(), appEngineTaskQueue);
+    ServicesClient servicesClient() {
+      return ServicesClient.create();
+    }
+
+    @SneakyThrows
+    @Provides @TenantScoped
+    VersionsClient versionsClient() {
+      return VersionsClient.create();
+    }
+
+    @Provides @TenantScoped
+    AppEngineBackEnd appEngineBackEnd(
+      AppEngineBackEnd.Options options,
+                                      AppEngineTaskQueue appEngineTaskQueue,
+      AppEngineServicesService appEngineServicesService) {
+      return new AppEngineBackEnd(
+        options.getDatastoreOptions().getService(),
+        appEngineTaskQueue,
+        appEngineServicesService);
     }
 
     @Module

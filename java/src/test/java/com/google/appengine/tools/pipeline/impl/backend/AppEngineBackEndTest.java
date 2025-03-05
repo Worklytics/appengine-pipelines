@@ -25,7 +25,7 @@ public class AppEngineBackEndTest {
 
   @BeforeEach
   void setUp(Datastore datastore) {
-    appEngineBackEnd = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
+    appEngineBackEnd = new AppEngineBackEnd(datastore);
 
     root = Key.newBuilder(datastore.getOptions().getProjectId(), "JOb", "test-kind", datastore.getOptions().getDatabaseId()).build();
     generator = Key.newBuilder(datastore.getOptions().getProjectId(), "JOb", "test-kind", datastore.getOptions().getDatabaseId()).build();

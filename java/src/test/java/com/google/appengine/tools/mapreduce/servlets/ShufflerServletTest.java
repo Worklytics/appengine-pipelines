@@ -20,7 +20,6 @@ import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.tools.cloudtasktest.JakartaServletInvokingTaskCallback;
 import com.google.appengine.tools.development.ApiProxyLocal;
 import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
-import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.*;
@@ -91,8 +90,7 @@ public class ShufflerServletTest {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
       new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(false).setCallbackClass(TaskRunner.class),
-      new LocalMemcacheServiceTestConfig(),
-      new LocalModulesServiceTestConfig()
+      new LocalMemcacheServiceTestConfig()
   );
 
 

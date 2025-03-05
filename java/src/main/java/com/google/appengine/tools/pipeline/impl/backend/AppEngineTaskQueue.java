@@ -16,9 +16,6 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.github.rholder.retry.*;
 
-import com.google.appengine.api.modules.ModulesException;
-import com.google.appengine.api.modules.ModulesService;
-import com.google.appengine.api.modules.ModulesServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueConstants;
 import com.google.appengine.api.taskqueue.QueueFactory;
@@ -29,6 +26,7 @@ import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.apphosting.api.ApiProxy;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
 import java.time.Duration;
@@ -38,7 +36,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -47,6 +44,7 @@ import java.util.stream.Collectors;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
+@RequiredArgsConstructor
 @Log
 public class AppEngineTaskQueue implements PipelineTaskQueue {
 
@@ -55,14 +53,18 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   //approximates default Retry policy from GAE GCS lib RetryParams class, which this pipelines lib was originally
   // coupled to
   private static final Retryer<String> retryer = RetryerBuilder.<String>newBuilder()
-          .retryIfExceptionOfType(ModulesException.class)
           .withStopStrategy(StopStrategies.stopAfterAttempt(6))
           .withWaitStrategy(WaitStrategies.incrementingWait(1000L, TimeUnit.MILLISECONDS, 1000L, TimeUnit.MILLISECONDS))
           .build();
 
+  final AppEngineEnvironment environment;
+  final AppEngineServicesService servicesService;
+
   final String taskHandlerUrl;
 
   public AppEngineTaskQueue() {
+    this.environment = new AppEngineStandardGen2();
+    this.servicesService = AppEngineServicesServiceImpl.defaults();
     this.taskHandlerUrl = TaskHandler.handleTaskUrl();
   }
 
@@ -198,14 +200,13 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     try {
       versionHostname = retryer.call(() -> {
         //TODO: Modules are now called 'Services', but there's no "ServicesService" in GAE SDK, afaik
-        ModulesService service = ModulesServiceFactory.getModulesService();
         String module = queueSettings.getOnService();
         String version = queueSettings.getOnServiceVersion();
         if (module == null) {
-          module = service.getCurrentModule();
-          version = service.getCurrentVersion();
+          module = environment.getService();
+          version = environment.getVersion();
         }
-        return service.getVersionHostname(module, version);
+        return servicesService.getWorkerServiceHostName(module, version);
       });
     } catch (ExecutionException e) {
       //avoid excessive wrapping; re-throw the underlying cause

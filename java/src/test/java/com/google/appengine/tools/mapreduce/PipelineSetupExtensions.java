@@ -7,6 +7,7 @@ import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
 import com.google.cloud.datastore.Datastore;
@@ -72,7 +73,24 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
     datastore = (Datastore) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_CONTEXT_KEY);
     datastoreOptions = (DatastoreOptions) extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(DatastoreExtension.DS_OPTIONS_CONTEXT_KEY);
 
-    AppEngineBackEnd appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
+    AppEngineServicesService appEngineServicesService =  new AppEngineServicesService() {
+      @Override
+      public String getDefaultService() {
+        return "default";
+      }
+
+      @Override
+      public String getDefaultVersion(String service) {
+        return "1";
+      }
+
+      @Override
+      public String getWorkerServiceHostName(String service, String version) {
+        return "1.default.localhost";
+      }
+    };
+
+    AppEngineBackEnd appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue(), appEngineServicesService);
 
     StepExecutionComponent stepExecutionComponent
       = component.stepExecutionComponent(new StepExecutionModule(appEngineBackend));

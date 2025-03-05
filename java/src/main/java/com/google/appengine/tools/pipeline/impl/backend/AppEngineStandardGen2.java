@@ -8,6 +8,11 @@ package com.google.appengine.tools.pipeline.impl.backend;
 public class AppEngineStandardGen2 implements AppEngineEnvironment {
 
   @Override
+  public String getProjectId() {
+    return System.getProperty("GOOGLE_CLOUD_PROJECT");
+  }
+
+  @Override
   public String getService() {
     return System.getProperty("GAE_SERVICE");
   }

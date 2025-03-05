@@ -10,6 +10,8 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.DeleteShardedJob;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.FinalizeShardedJob;
 import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
 import com.google.apphosting.api.ApiProxy.ApiProxyException;
 import com.google.apphosting.api.ApiProxy.ArgumentException;
 import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
@@ -46,6 +48,8 @@ import static java.util.concurrent.Executors.callable;
 /**
  * Contains all logic to manage and run sharded jobs; specific to a given backend configuration (injected as backend)
  *
+ * TODO: this is really coupled/equivalent to AppEngineBackend; should either merge with that *or* abstract this on top of that
+ *
  * @author ohler@google.com (Christian Ohler)
  *
  */
@@ -55,8 +59,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
   static final int TASK_LOOKUP_BATCH_SIZE = 20;
 
 
+  //q: historically, theese were used - where???
   static final long CONTROLLER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
   static final long WORKER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
+
+
 
   /**
    * a status of an Incremental task; not to be confused with IncrementTaskState, which is a datastore entity
@@ -76,17 +83,22 @@ public class ShardedJobRunner implements ShardedJobHandler {
       return this == TASK_OK;
     }
   }
-
   @Getter
   final Provider<PipelineService> pipelineServiceProvider;
   @Getter
   final Datastore datastore;
 
+  final AppEngineServicesService appEngineServicesService;
+
 
   @Inject
-  public ShardedJobRunner(Provider<PipelineService> pipelineServiceProvider, Datastore datastore) {
+  public ShardedJobRunner(
+                          Provider<PipelineService> pipelineServiceProvider,
+                          Datastore datastore,
+                          AppEngineServicesService appEngineServicesService) {
     this.pipelineServiceProvider = pipelineServiceProvider;
     this.datastore = datastore;
+    this.appEngineServicesService = appEngineServicesService;
   }
 
   @Getter @Setter
@@ -228,7 +240,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .url(settings.getControllerPath())
       .param(JOB_ID_PARAM, jobId.asEncodedString())
       .param(TASK_ID_PARAM, taskId.toString());
-    taskOptions.header("Host", settings.getTaskQueueTarget());
+    taskOptions.header("Host", getWorkerServiceHostName(settings));
 
     taskOptions.etaMillis(System.currentTimeMillis() + getControllerTaskDelay());
 
@@ -251,7 +263,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .param(TASK_ID_PARAM, state.getTaskId().toString())
       .param(JOB_ID_PARAM, state.getJobId().asEncodedString())
       .param(SEQUENCE_NUMBER_PARAM, String.valueOf(state.getSequenceNumber()));
-    taskOptions.header("Host", settings.getTaskQueueTarget());
+
+    taskOptions.header("Host", getWorkerServiceHostName(settings));
     if (etaMillis != null) {
       taskOptions.etaMillis(etaMillis);
     }
@@ -781,6 +794,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
     Preconditions.checkArgument(!Iterables.any(initialTasks, Predicates.isNull()),
       "Task list must not contain null values");
 
+
+    if (settings.getModule() == null) {
+      settings =  settings.toBuilder().module(pipelineServiceProvider.get().getDefaultWorkerService()).build();
+    }
+
     ShardedJobStateImpl<T> jobState =
       ShardedJobStateImpl.create(jobId, controller, settings, initialTasks.size(), startTime);
     if (initialTasks.isEmpty()) {
@@ -871,5 +889,13 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
     RetryExecutor.call(FOREVER_RETRYER, callable(() -> datastore.delete(jobKey)));
     return true;
+  }
+
+  public String getWorkerServiceHostName(ShardedJobSettings settings) {
+    String version = Optional.ofNullable(settings.getVersion()).orElseGet(() ->
+      appEngineServicesService.getDefaultVersion(settings.getModule())
+    );
+
+    return appEngineServicesService.getWorkerServiceHostName(settings.getModule(), version);
   }
 }

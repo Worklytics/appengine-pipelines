@@ -17,6 +17,7 @@ import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Longs;
 
