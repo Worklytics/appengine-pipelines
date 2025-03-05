@@ -388,10 +388,10 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   private <T extends IncrementalTask> boolean lockShard(Transaction tx,
-                                                        IncrementalTaskState<T> taskState) {
+                                                        IncrementalTaskState<T> taskState, String operationId) {
     boolean locked = false;
-    taskState.getLockInfo().lock();
     Entity entity = taskState.toEntity(tx);
+    taskState.getLockInfo().lock(operationId);
     try {
       tx.put(entity);
       locked = true;
@@ -404,7 +404,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   @Override
-  public void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber) {
+  public void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber, String operationId) {
     //acquire lock (allows this process to START potentially long-running work of task itself)
 
     RetryExecutor.<Void>call(FOREVER_RETRYER, () -> {
@@ -475,7 +475,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         }
 
         //OK, good to lock and run
-        if (lockShard(lockAcquisition, taskState)) {
+        if (lockShard(lockAcquisition, taskState, operationId)) {
           // committing here, which forces acquisition of lock ...
           lockAcquisition.commit();
 
