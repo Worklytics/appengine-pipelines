@@ -92,6 +92,9 @@ public class TenantModule {
 
       @Binds
       PipelineBackEnd.Options backendOptions(AppEngineBackEnd.Options options);
+
+      @Binds
+      AppEngineServicesService appEngineServicesService(AppEngineServicesServiceImpl appEngineServicesService);
     }
   }
 }
