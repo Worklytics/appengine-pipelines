@@ -49,6 +49,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.Serial;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.Semaphore;
@@ -118,6 +119,8 @@ public class ShufflerServletTest {
   }
 
   private static class CallbackServlet extends HttpServlet {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Override
@@ -137,9 +140,6 @@ public class ShufflerServletTest {
   public void setUp(JobRunServiceComponent component,
                     Datastore datastore) throws Exception {
     helper.setUp();
-    ApiProxyLocal proxy = (ApiProxyLocal) ApiProxy.getDelegate();
-    // Creating files is not allowed in some test execution environments, so don't.
-    proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
     WAIT_ON.drainPermits();
     storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     storageIntegrationTestHelper.setUp();

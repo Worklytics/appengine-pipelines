@@ -58,7 +58,9 @@ public class RequestUtils {
 
   public PipelineBackEnd buildBackendFromRequest(HttpServletRequest request) {
     //TODO: we'll have to do this for test queue as well; that won't
-    return new AppEngineBackEnd(buildDatastoreFromRequest(request), new AppEngineTaskQueue(),  buildServicesService());
+
+    AppEngineServicesService servicesService = buildServicesService();
+    return new AppEngineBackEnd(buildDatastoreFromRequest(request), new AppEngineTaskQueue(servicesService), servicesService);
   }
 
   AppEngineServicesService buildServicesService() {

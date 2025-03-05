@@ -68,6 +68,12 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     this.taskHandlerUrl = TaskHandler.handleTaskUrl();
   }
 
+  public AppEngineTaskQueue(AppEngineServicesService appEngineServicesService) {
+    this.environment = new AppEngineStandardGen2();
+    this.servicesService = appEngineServicesService;
+    this.taskHandlerUrl = TaskHandler.handleTaskUrl();
+  }
+
   @Override
   public void deleteTasks(Collection<TaskReference> taskReferences) {
     Map<String, List<String>> queueToTaskNames = taskReferences.stream()

@@ -90,7 +90,8 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
       }
     };
 
-    AppEngineBackEnd appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue(), appEngineServicesService);
+    //TODO: clearly fugly; cleanup with better DI, but saving for TaskQueue modernization
+    AppEngineBackEnd appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue(appEngineServicesService), appEngineServicesService);
 
     StepExecutionComponent stepExecutionComponent
       = component.stepExecutionComponent(new StepExecutionModule(appEngineBackend));
