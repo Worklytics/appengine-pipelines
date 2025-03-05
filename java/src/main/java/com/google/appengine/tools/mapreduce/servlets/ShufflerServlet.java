@@ -38,9 +38,6 @@ import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
-import com.google.apphosting.api.ApiProxy.ArgumentException;
-import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobInfo;
@@ -88,14 +85,11 @@ public class ShufflerServlet extends HttpServlet {
 
   private static final int MAX_VALUES_COUNT = 10000;
 
-  private static final RetryerBuilder getRetryerBuilder() {
+  private static  RetryerBuilder getRetryerBuilder() {
     return RetryerBuilder.newBuilder()
       .retryIfException((e) ->
         e instanceof Exception
-          && !(e instanceof IllegalArgumentException
-          || e instanceof RequestTooLargeException
-          || e instanceof RequestTooLargeException
-          || e instanceof ArgumentException)
+          && !(e instanceof IllegalArgumentException)
       )
       .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .withStopStrategy(StopStrategies.stopAfterAttempt(10))
@@ -114,6 +108,7 @@ public class ShufflerServlet extends HttpServlet {
   @VisibleForTesting
   static final class ShuffleMapReduce extends Job0<Void> {
 
+    @Serial
     private static final long serialVersionUID = 2L;
 
     private final Marshaller<ByteBuffer> identityMarshaller = Marshallers.getByteBufferMarshaller();

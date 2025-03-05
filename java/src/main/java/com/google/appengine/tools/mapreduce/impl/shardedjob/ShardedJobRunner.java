@@ -11,12 +11,6 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.DeleteShard
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.FinalizeShardedJob;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
-import com.google.apphosting.api.ApiProxy.ApiProxyException;
-import com.google.apphosting.api.ApiProxy.ArgumentException;
-import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
-import com.google.apphosting.api.ApiProxy.ResponseTooLargeException;
-import com.google.apphosting.api.DeadlineExceededException;
 import com.google.cloud.datastore.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -131,7 +125,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
     return RetryerBuilder.newBuilder()
       .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .retryIfException(RetryUtils.handleDatastoreExceptionRetry())
-      .retryIfExceptionOfType(ApiProxyException.class)
       // don't think this is thrown by new datastore lib
       // thrown by us if the task state is from the past
       .retryIfExceptionOfType(IllegalStateException.class)
@@ -143,10 +136,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
   public static final RetryerBuilder FOREVER_RETRYER = baseRetryerBuilder().withStopStrategy(StopStrategies.stopAfterAttempt(SYMBOLIC_FOREVER));
 
   public static final RetryerBuilder FOREVER_AGGRESSIVE_RETRYER = baseRetryerBuilder()
-    .retryIfException(e ->!(e instanceof RequestTooLargeException
-      || e instanceof ResponseTooLargeException
-      || e instanceof ArgumentException
-      || e instanceof DeadlineExceededException))
     .withStopStrategy(StopStrategies.stopAfterAttempt(SYMBOLIC_FOREVER));
 
 
