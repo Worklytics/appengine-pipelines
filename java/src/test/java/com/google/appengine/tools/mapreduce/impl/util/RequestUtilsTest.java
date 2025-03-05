@@ -52,5 +52,11 @@ class RequestUtilsTest {
 
     assertEquals(backend.getOptions().as(AppEngineBackEnd.Options.class).getDatastoreOptions().getHost(), "http://localhost:8081");
   }
+
+  @Test
+  public void traceparentHeader() {
+    RequestUtils.TraceParent parsed = RequestUtils.TraceParent.of("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
+    assertEquals("0af7651916cd43dd8448eb211c80319c", parsed.getTraceId());
+  }
 }
 

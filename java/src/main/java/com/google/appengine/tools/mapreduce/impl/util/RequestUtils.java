@@ -42,12 +42,15 @@ public class RequestUtils {
     public static final String MAPREDUCE_ID = "mapreduce_id";
   }
 
+  private static final String TRACEPARENT_HEADER = "traceparent";
+  private static final String CLOUD_TRACE_CONTEXT_HEADER = "X-Cloud-Trace-Context";
+
+
   // value of env var GOOGLE_CLOUD_PROJECT when running locally; underscores aren't actually legal in GCP project ids,
   // so if this ever ends up being used in a real GCP API call, it blows up in validation before request is even sent by client
   private static final String LOCAL_GAE_PROJECT_ID = "no_app_id";
 
   private static final String DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID = "local-gae-project";
-
   /**
    * value to override local GAE project id with, when running locally; to allow this on case-by-case basis
    */
@@ -110,5 +113,54 @@ public class RequestUtils {
   public ShardedJobRunId getMapReduceId(HttpServletRequest request) throws ServletException {
     return getParam(request, Params.MAPREDUCE_ID).map(ShardedJobRunId::fromEncodedString)
       .orElseThrow(() -> new ServletException(Params.MAPREDUCE_ID + " parameter not found."));
+  }
+
+
+  public String getRequestId(HttpServletRequest request) {
+    try {
+      // see: https://cloud.google.com/trace/docs/trace-context
+      Optional<String> traceParentHeader = Optional.ofNullable(request.getHeader(TRACEPARENT_HEADER));
+      if (traceParentHeader.isPresent()) {
+        return TraceParent.of(traceParentHeader.get()).getTraceId();
+      }
+    } catch (RuntimeException e) {
+      log.warning("Error parsing traceparent header: " + e.getMessage());
+    }
+
+    try {
+      Optional<String> cloudTraceContextHeader = Optional.ofNullable(request.getHeader(CLOUD_TRACE_CONTEXT_HEADER));
+      if (cloudTraceContextHeader.isPresent()) {
+        return cloudTraceContextHeader.get().split("/")[0];
+      }
+    } catch (RuntimeException e) {
+      log.warning("Error parsing X-Cloud-Trace-Context header: " + e.getMessage());
+    }
+
+    return "unknown-trace-id"; // Fallback if the header is missing
+  }
+
+  @Value
+  public static class TraceParent {
+
+    String version;
+    String traceId;
+    String parentId;
+    String traceFlags;
+
+    private TraceParent(String traceparentHeader) {
+      String[] parts = traceparentHeader.split("-");
+      if (parts.length != 4) {
+        throw new IllegalArgumentException("Invalid traceparent format");
+      }
+
+      this.version = parts[0];
+      this.traceId = parts[1];
+      this.parentId = parts[2];
+      this.traceFlags = parts[3];
+    }
+
+    public static TraceParent of(String traceparentHeader) {
+      return new TraceParent(traceparentHeader);
+    }
   }
 }
