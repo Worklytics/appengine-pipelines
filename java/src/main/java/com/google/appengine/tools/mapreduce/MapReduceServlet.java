@@ -19,6 +19,7 @@ import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,6 +30,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.Setter;
+import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 
@@ -56,9 +58,11 @@ import javax.inject.Inject;
  * for more details.
  * </pre>
  */
+@Log
 public class MapReduceServlet extends HttpServlet {
+
+  @Serial
   private static final long serialVersionUID = 1L;
-  private static final Logger log = Logger.getLogger(MapReduceServlet.class.getName());
 
   private static final int REJECT_REQUEST_STATUSCODE = 429; // See rfc6585
 

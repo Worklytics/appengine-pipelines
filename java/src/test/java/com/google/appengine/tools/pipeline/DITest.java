@@ -38,6 +38,13 @@ public class DITest extends PipelineTest {
     @Provides
     AppEngineEnvironment appEngineEnvironment() {
       return new AppEngineEnvironment() {
+
+
+        @Override
+        public String getProjectId() {
+          return "test-project";
+        }
+
         @Override
         public String getService() {
           return "service";

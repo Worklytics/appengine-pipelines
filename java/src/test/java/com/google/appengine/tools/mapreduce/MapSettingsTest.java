@@ -13,7 +13,6 @@ import static com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet.
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
@@ -23,6 +22,7 @@ import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.JobSetting.OnService;
 import com.google.appengine.tools.pipeline.JobSetting.OnQueue;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
+import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 
@@ -43,14 +43,10 @@ import java.util.Set;
 public class MapSettingsTest {
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new LocalTaskQueueTestConfig(),
-      new LocalModulesServiceTestConfig()
-        .addBasicScalingModuleVersion("module1", "v1", 10)
-        .addBasicScalingModuleVersion("module1", "v2", 10)
-        .addBasicScalingModuleVersion("default", "1", 1)
-        .addBasicScalingModuleVersion("default", "2", 1));
+      new LocalTaskQueueTestConfig());
 
   Datastore datastore;
+  PipelineService pipelineService;
 
   @BeforeEach
   public void setUp(Datastore datastore) {
@@ -65,6 +61,15 @@ public class MapSettingsTest {
     }
     portMap.put("b1", "backend-hostname");
     this.datastore = datastore;
+  }
+
+  @BeforeEach
+  public void mockPipelineService() {
+    this.pipelineService = mock(PipelineService.class);
+    when(pipelineService.getDefaultWorkerService()).thenReturn("default");
+    when(pipelineService.getCurrentVersion(eq("default"))).thenReturn("1");
+    when(pipelineService.getCurrentVersion(eq("module1"))).thenReturn("v1");
+    when(pipelineService.getCurrentVersion(eq("module2"))).thenReturn("v2");
   }
 
   @Test
@@ -163,10 +168,9 @@ public class MapSettingsTest {
     ShardedJobRunId shardedJobId = ShardedJobRunId.of(datastore.getOptions().getProjectId(),
       datastore.getOptions().getDatabaseId(),
       datastore.getOptions().getNamespace(),  "job1");
-    ShardedJobSettings sjSettings = ShardedJobSettings.from(settings, shardedJobId, pipelineRunId);
+    ShardedJobSettings sjSettings = ShardedJobSettings.from(pipelineService, settings, shardedJobId, pipelineRunId);
     assertEquals("default", sjSettings.getModule());
     assertEquals("1", sjSettings.getVersion());
-    assertEquals("1.default.test.localhost", sjSettings.getTaskQueueTarget());
     assertEquals(settings.getWorkerQueueName(), sjSettings.getQueueName());
     assertEquals(getPath(settings, shardedJobId.asEncodedString(), CONTROLLER_PATH), sjSettings.getControllerPath());
     assertEquals(getPath(settings, shardedJobId.asEncodedString(), WORKER_PATH), sjSettings.getWorkerPath());
@@ -176,8 +180,7 @@ public class MapSettingsTest {
 
 
     settings = settings.toBuilder().module("module1").build();
-    sjSettings = ShardedJobSettings.from(settings, shardedJobId, pipelineRunId);
-    assertEquals("v1.module1.test.localhost", sjSettings.getTaskQueueTarget());
+    sjSettings = ShardedJobSettings.from(pipelineService, settings, shardedJobId, pipelineRunId);
     assertEquals("module1", sjSettings.getModule());
     assertEquals("v1", sjSettings.getVersion());
 
@@ -193,7 +196,7 @@ public class MapSettingsTest {
     ApiProxy.setEnvironmentForCurrentThread(mockEnv);
     // Test when current module is the same as requested module
     try {
-      sjSettings = ShardedJobSettings.from(settings, shardedJobId, pipelineRunId);
+      sjSettings = ShardedJobSettings.from(pipelineService, settings, shardedJobId, pipelineRunId);
       assertEquals("default", sjSettings.getModule());
       assertEquals("2", sjSettings.getVersion());
     } finally {

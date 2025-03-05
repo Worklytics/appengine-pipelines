@@ -35,7 +35,7 @@ class AppEngineBackEndOptionsTest {
       .setCredentials(credentials)
       .build().getService();
 
-    AppEngineBackEnd backend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue());
+    AppEngineBackEnd backend = new AppEngineBackEnd(datastore);
 
     assertEquals(datastore.getOptions().getProjectId(),
       backend.getOptions().as(AppEngineBackEnd.Options.class).getProjectId());

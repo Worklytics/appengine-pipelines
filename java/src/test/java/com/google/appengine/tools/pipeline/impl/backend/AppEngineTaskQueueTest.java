@@ -2,8 +2,6 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.DatastoreExtension;
 import com.google.cloud.datastore.Key;
-import com.google.appengine.api.taskqueue.TaskHandle;
-import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
@@ -35,7 +33,7 @@ public class AppEngineTaskQueueTest {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
     taskQueueConfig.setDisableAutoTaskExecution(true);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig);
     helper.setUp();
   }
 

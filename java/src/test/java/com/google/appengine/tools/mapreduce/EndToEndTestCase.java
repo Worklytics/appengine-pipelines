@@ -10,7 +10,6 @@ import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.HeaderWrapper;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
-import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskId;
@@ -51,10 +50,7 @@ public abstract class EndToEndTestCase {
 
   private final LocalServiceTestHelper helper =
       new LocalServiceTestHelper(
-          new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(true),
-          // don't think we use memcache
-          //new LocalMemcacheServiceTestConfig(),
-          new LocalModulesServiceTestConfig());
+          new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(true));
   private LocalTaskQueue taskQueue;
 
   /** Implement in sub-classes to set system environment properties for tests. */

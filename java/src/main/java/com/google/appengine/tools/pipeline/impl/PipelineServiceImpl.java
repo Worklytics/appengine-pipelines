@@ -35,6 +35,16 @@ public class PipelineServiceImpl implements PipelineService {
   PipelineBackEnd backend;
 
   @Override
+  public String getDefaultWorkerService() {
+    return backend.getDefaultService();
+  }
+
+  @Override
+  public String getCurrentVersion(String workerService) {
+    return backend.getDefaultVersion(workerService);
+  }
+
+  @Override
   public PipelineBackEnd.Options getBackendOptions() {
     return pipelineManager.getBackendOptions();
   }

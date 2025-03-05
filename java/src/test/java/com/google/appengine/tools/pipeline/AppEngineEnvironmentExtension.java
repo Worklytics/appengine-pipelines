@@ -1,17 +1,15 @@
 package com.google.appengine.tools.pipeline;
 
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineStandardGen1;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineStandardGen2;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import org.junit.jupiter.api.extension.*;
 
 public class AppEngineEnvironmentExtension implements BeforeAllCallback {
 
-
   @Override
   public void beforeAll(ExtensionContext extensionContext) throws Exception {
     // this should be legit in prod, if we do the legacy support stuff
-    JobRecord.environment = new AppEngineStandardGen1();
+    JobRecord.environment = new AppEngineStandardGen2();
 
 //      new AppEngineEnvironment() {
 //      @Override

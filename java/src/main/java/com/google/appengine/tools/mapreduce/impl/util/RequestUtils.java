@@ -2,21 +2,23 @@ package com.google.appengine.tools.mapreduce.impl.util;
 
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.pipeline.JobRunId;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
-import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.*;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 
+import com.google.common.base.Strings;
 import lombok.*;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * handles translation to/from request parameters and pipeline backends
@@ -55,7 +57,35 @@ public class RequestUtils {
   private String localProjectIdOverride = DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID;
 
   public PipelineBackEnd buildBackendFromRequest(HttpServletRequest request) {
-    return new AppEngineBackEnd(buildDatastoreFromRequest(request), new AppEngineTaskQueue());
+    //TODO: we'll have to do this for test queue as well; that won't
+    return new AppEngineBackEnd(buildDatastoreFromRequest(request), new AppEngineTaskQueue(),  buildServicesService());
+  }
+
+  AppEngineServicesService buildServicesService() {
+    // TODO: should probably inject AppEngineEnvironment, and get it from there
+    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+
+    //before, test harness basically did this by overriding env vars via ApiProxy stuff; see LocalModulesServiceTestConfig
+    if (LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId()) || "test-project".equals(defaultInstance.getProjectId())) {
+      return new AppEngineServicesService() {
+        @Override
+        public String getDefaultService() {
+          return "default";
+        }
+
+        @Override
+        public String getDefaultVersion(String service) {
+          return "1";
+        }
+
+        @Override
+        public String getWorkerServiceHostName(String service, String version) {
+          return String.join(".", service, version, "localhost");
+        }
+      };
+    } else {
+      return AppEngineServicesServiceImpl.defaults();
+    }
   }
 
   @Deprecated // use pipeline backend

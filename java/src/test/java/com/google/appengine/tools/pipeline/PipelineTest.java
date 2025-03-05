@@ -20,7 +20,6 @@ import static org.mockito.Mockito.mock;
 import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 
 
-import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
@@ -67,7 +66,7 @@ public abstract class PipelineTest {
     taskQueueConfig.setCallbackClass(TestingTaskQueueCallback.class);
     taskQueueConfig.setDisableAutoTaskExecution(false);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig);
   }
 
   protected static void trace(String what) {
