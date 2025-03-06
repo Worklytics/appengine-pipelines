@@ -5,6 +5,7 @@ import com.google.appengine.tools.pipeline.impl.backend.*;
 import com.google.appengine.v1.ServicesClient;
 import com.google.appengine.v1.VersionsClient;
 import com.google.cloud.datastore.DatastoreOptions;
+import com.google.cloud.tasks.v2.CloudTasksClient;
 import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
@@ -32,10 +33,18 @@ public class AppEngineHostModule {
     return VersionsClient.create();
   }
 
+  @SneakyThrows
+  @Provides
+  CloudTasksClient cloudTasksClient() {
+    return CloudTasksClient.create();
+  }
+
   @Provides
   AppEngineEnvironment appEngineEnvironment() {
     return new AppEngineStandardGen2();
   }
+
+
 
   @Provides
   AppEngineServicesService appEngineServicesService(AppEngineServicesServiceImpl impl) {
@@ -71,7 +80,7 @@ public class AppEngineHostModule {
 
 
     @Binds
-    PipelineTaskQueue pipelineTaskQueue(AppEngineTaskQueue appEngineTaskQueue);
+    PipelineTaskQueue pipelineTaskQueue(CloudTasksTaskQueue appEngineTaskQueue);
   }
 
 }
