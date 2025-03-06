@@ -22,6 +22,7 @@ import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.apphosting.api.ApiProxy;
+import com.google.common.base.Preconditions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
@@ -102,6 +103,21 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
       return TaskReference.of(queue.getQueueName(), ignore.getTaskNames().get(0));
     }
   }
+
+  @Override
+  public TaskReference enqueue(String queueName, TaskSpec build) {
+    log.finest("Enqueueing: " + build);
+    TaskOptions taskOptions = toTaskOptions(build);
+    Queue queue = getQueue(queueName);
+    try {
+      TaskHandle handle = queue.add(taskOptions);
+      return taskHandleToReference(handle);
+    } catch (TaskAlreadyExistsException ignore) {
+      // ignore
+      return TaskReference.of(queue.getQueueName(), ignore.getTaskNames().get(0));
+    }
+  }
+
 
   private static Queue getQueue(String queueName) {
     if (queueName == null) {
@@ -233,6 +249,24 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     }
     return taskOptions;
   }
+
+  private TaskOptions toTaskOptions(TaskSpec spec) {
+    TaskOptions taskOptions = TaskOptions.Builder.withUrl(spec.getCallbackPath());
+
+    Optional.ofNullable(spec.getScheduledExecutionTime())
+      .ifPresent(eta -> taskOptions.etaMillis(eta.toEpochMilli()));
+
+    taskOptions.method(spec.getMethod() == TaskSpec.Method.POST ? TaskOptions.Method.POST : TaskOptions.Method.GET);
+    spec.getHeaders().forEach(taskOptions::header);
+    spec.getParams().forEach(taskOptions::param);
+
+    Preconditions.checkArgument(spec.getHost() != null, "Host must be set");
+
+    taskOptions.header("Host", spec.getHost());
+
+    return taskOptions;
+  }
+
 
   private static void addProperties(TaskOptions taskOptions, Properties properties) {
     for (String paramName : properties.stringPropertyNames()) {

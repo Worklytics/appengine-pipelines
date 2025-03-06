@@ -79,7 +79,7 @@ public class TenantModule {
     @Provides @TenantScoped
     AppEngineBackEnd appEngineBackEnd(
       AppEngineBackEnd.Options options,
-                                      AppEngineTaskQueue appEngineTaskQueue,
+      PipelineTaskQueue appEngineTaskQueue,
       AppEngineServicesService appEngineServicesService) {
       return new AppEngineBackEnd(
         options.getDatastoreOptions().getService(),
@@ -95,6 +95,9 @@ public class TenantModule {
 
       @Binds
       AppEngineServicesService appEngineServicesService(AppEngineServicesServiceImpl appEngineServicesService);
+
+      @Binds
+      PipelineTaskQueue pipelineTaskQueue(AppEngineTaskQueue appEngineTaskQueue);
     }
   }
 }

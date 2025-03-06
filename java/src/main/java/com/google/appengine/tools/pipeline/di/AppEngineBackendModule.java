@@ -66,5 +66,8 @@ public class AppEngineBackendModule {
 
     @Binds
     PipelineBackEnd.Options backendOptions(AppEngineBackEnd.Options options);
+
+    @Binds
+    PipelineTaskQueue pipelineTaskQueue(AppEngineTaskQueue appEngineTaskQueue);
   }
 }

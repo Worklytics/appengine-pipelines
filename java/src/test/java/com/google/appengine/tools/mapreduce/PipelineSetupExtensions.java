@@ -20,6 +20,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.time.Duration;
 import java.util.*;
 
 @Target({ ElementType.TYPE, ElementType.METHOD })
@@ -105,7 +106,8 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.JOB_RUN_SERVICE_COMPONENT, component);
     ShardedJobRunner shardedJobRunner = stepExecutionComponent.shardedJobRunner();
-    shardedJobRunner.setLockCheckTaskDelay(5_000);
+    //TODO: set worker/controller task delays to ZERO?? speed up tests
+    shardedJobRunner.setLockCheckTaskDelay(Duration.ofSeconds(5));
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.SHARDED_JOB_RUNNER, shardedJobRunner);
   }

@@ -3,7 +3,6 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
 import com.github.rholder.retry.*;
-import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
@@ -11,6 +10,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.DeleteShard
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.FinalizeShardedJob;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.cloud.datastore.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -30,8 +30,7 @@ import javax.inject.Provider;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+
 import java.util.logging.Level;
 import java.util.stream.Stream;
 
@@ -77,23 +76,27 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   private final AppEngineServicesService appEngineServicesService;
 
+  private final PipelineTaskQueue taskQueue;
+
 
   @Inject
   public ShardedJobRunner(
                           Provider<PipelineService> pipelineServiceProvider,
                           Datastore datastore,
-                          AppEngineServicesService appEngineServicesService) {
+                          AppEngineServicesService appEngineServicesService,
+                          PipelineTaskQueue taskQueue) {
     this.pipelineServiceProvider = pipelineServiceProvider;
     this.datastore = datastore;
     this.appEngineServicesService = appEngineServicesService;
+    this.taskQueue = taskQueue;
   }
 
   @Getter @Setter
-  private long controllerTaskDelay = Duration.ofSeconds(2).toMillis();
+  private Duration controllerTaskDelay = Duration.ofSeconds(2);
   @Getter @Setter
-  private long workerTaskDelay = Duration.ofSeconds(2).toMillis();
+  private Duration workerTaskDelay = Duration.ofSeconds(2);
   @Getter @Setter
-  private long lockCheckTaskDelay = Duration.ofSeconds(60).toMillis();
+  private Duration lockCheckTaskDelay = Duration.ofSeconds(60);
 
 
   // High-level overview:
@@ -121,8 +124,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
       // don't think this is thrown by new datastore lib
       // thrown by us if the task state is from the past
       .retryIfExceptionOfType(IllegalStateException.class)
-      .retryIfExceptionOfType(TransientFailureException.class)
-      .retryIfExceptionOfType(TransactionalTaskException.class)
       .withRetryListener(RetryUtils.logRetry(log, ShardedJobRunner.class.getName()));
   }
 
@@ -130,16 +131,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   public static final RetryerBuilder FOREVER_AGGRESSIVE_RETRYER = baseRetryerBuilder()
     .withStopStrategy(StopStrategies.stopAfterAttempt(SYMBOLIC_FOREVER));
-
-
-  /**
-   *  @see com.google.appengine.api.taskqueue.Queue#add(TaskOptions taskOptions)
-    */
-  public static final RetryerBuilder ENQUEUE_RETRYER = RetryerBuilder.newBuilder()
-    .withWaitStrategy(WaitStrategies.incrementingWait(1000L, TimeUnit.MILLISECONDS, 1000L, TimeUnit.MILLISECONDS))
-    .retryIfExceptionOfType(TransientFailureException.class)
-    .retryIfExceptionOfType(InternalFailureException.class)
-    .withStopStrategy(StopStrategies.stopAfterAttempt(5)); // effective 0 before, so this is better
 
   public <T extends IncrementalTask> List<IncrementalTaskState<T>> lookupTasks(
     final ShardedJobRunId jobId, final int taskCount, final boolean lenient) {
@@ -218,48 +209,43 @@ public class ShardedJobRunner implements ShardedJobHandler {
   @SneakyThrows
   private void scheduleControllerTask(ShardedJobRunId jobId, IncrementalTaskId taskId,
                                       ShardedJobSettings settings) {
-    TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
-      .url(settings.getControllerPath())
+
+    PipelineTaskQueue.TaskSpec.TaskSpecBuilder controllerTaskSpec = PipelineTaskQueue.TaskSpec.builder()
+      .method(PipelineTaskQueue.TaskSpec.Method.POST)
+      .callbackPath(settings.getControllerPath())
+      .param(TASK_ID_PARAM, taskId.toString())
       .param(JOB_ID_PARAM, jobId.asEncodedString())
-      .param(TASK_ID_PARAM, taskId.toString());
-    taskOptions.header("Host", getWorkerServiceHostName(settings));
+      .scheduledExecutionTime(Instant.now().plus(getControllerTaskDelay()));
 
-    taskOptions.etaMillis(System.currentTimeMillis() + getControllerTaskDelay());
 
-    try {
-      ENQUEUE_RETRYER.build().call(() -> {
-        QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
-        return null;
-      });
-    } catch (RetryException | ExecutionException e) {
-      log.severe("Failed to enqueue controller task: " + e);
-      throw e.getCause();
-    }
+    // used to be sent generically as value of a 'Host' header; I think this is clearer as usually expected
+    // alternatively, could refactor to move worker service/version stuff down into PipelineTaskQueue, rather than doing mapping to host here??
+    controllerTaskSpec.host(getWorkerServiceHostName(settings));
+
+    taskQueue.enqueue(settings.getQueueName(), controllerTaskSpec.build());
   }
 
   @SneakyThrows
   private <T extends IncrementalTask> void scheduleWorkerTask(ShardedJobSettings settings,
                                                               IncrementalTaskState<T> state, Long etaMillis) {
-    TaskOptions taskOptions = TaskOptions.Builder.withMethod(TaskOptions.Method.POST)
-      .url(settings.getWorkerPath())
+
+
+    PipelineTaskQueue.TaskSpec.TaskSpecBuilder workerTaskSpec = PipelineTaskQueue.TaskSpec.builder()
+      .method(PipelineTaskQueue.TaskSpec.Method.POST)
+      .callbackPath(settings.getWorkerPath())
       .param(TASK_ID_PARAM, state.getTaskId().toString())
       .param(JOB_ID_PARAM, state.getJobId().asEncodedString())
       .param(SEQUENCE_NUMBER_PARAM, String.valueOf(state.getSequenceNumber()));
 
-    taskOptions.header("Host", getWorkerServiceHostName(settings));
+    // used to be sent generically as value of a 'Host' header; I think this is clearer as usually expected
+    // alternatively, could refactor to move worker service/version stuff down into PipelineTaskQueue, rather than doing mapping to host here??
+    workerTaskSpec.host(getWorkerServiceHostName(settings));
+
     if (etaMillis != null) {
-      taskOptions.etaMillis(etaMillis);
+      workerTaskSpec.scheduledExecutionTime(Instant.ofEpochMilli(etaMillis));
     }
 
-    try {
-      ENQUEUE_RETRYER.build().call(() -> {
-        QueueFactory.getQueue(settings.getQueueName()).add(taskOptions);
-        return null;
-      });
-    } catch (RetryException | ExecutionException e) {
-      log.severe("Failed to enqueue worker task: " + e);
-      throw e.getCause();
-    }
+    taskQueue.enqueue(settings.getQueueName(), workerTaskSpec.build());
   }
 
   @Override
@@ -358,7 +344,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
     if (lockExpiration > currentTime && !wasRequestCompleted) {
       // if lock was not expired AND not abandon reschedule in 1 minute.
-      long eta = Math.min(lockExpiration, currentTime + getLockCheckTaskDelay());
+      long eta = Math.min(lockExpiration, currentTime + getLockCheckTaskDelay().toMillis());
 
       scheduleWorkerTask(jobState.getSettings(), taskState, eta);
       log.info("Lock for " + taskId + " is being held. Will retry after " + (eta - currentTime));
@@ -705,7 +691,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
             if (taskState.getStatus().isActive()) {
               // this used to be transactional, but no longer is with new libraries; so enqueue with a little delay, in hope
               // that the transaction will be committed by the time the task is executed
-              scheduleWorkerTask(jobState.getSettings(), taskState, System.currentTimeMillis() + getWorkerTaskDelay());
+              scheduleWorkerTask(jobState.getSettings(), taskState, System.currentTimeMillis() + getWorkerTaskDelay().toMillis());
             } else {
               scheduleControllerTask(jobState.getShardedJobId(), taskState.getTaskId(),
                 jobState.getSettings());

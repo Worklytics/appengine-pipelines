@@ -15,12 +15,13 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
-import lombok.AllArgsConstructor;
-import lombok.Value;
+import lombok.*;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Collection;
+import java.util.SortedMap;
 
 /**
  * 
@@ -29,6 +30,67 @@ import java.util.Collection;
  */
 public interface PipelineTaskQueue {
 
+
+  /**
+   * represents specification of an async task invocation, prototypically via HTTP callback (webhook) via a 'queue'.
+   *
+   */
+  @Builder
+  @Value
+  class TaskSpec  implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * supported execution methods for async
+     */
+    public enum Method {
+      GET,
+      POST,
+      ;
+    }
+
+    /**
+     * if non-null, a name used to refer to this task.  if null, a name will be auto-generated.
+     * in former case, the name must be unique within the queue. if there is a task already existing with the same name (enqueued within last 7 days), the task will be rejected.
+     */
+    String name;
+
+    //q: keep this? coupled to webhook execution case, and unclear to me why caller should care ...
+    // why not leave to implementation to decide to send as GET or POST??
+    @Builder.Default
+    Method method = Method.GET;
+
+    /**
+     * the host to which to send the task
+     */
+    @NonNull
+    String host;
+
+    /**
+     * callback for the task; relative to a host
+     */
+    @NonNull
+    String callbackPath;
+
+    /**
+     * headers to pass to the task invocation
+     */
+    @Singular
+    SortedMap<String, String> headers;
+
+    /**
+     * parameters to pass to the task
+     */
+    @Singular
+    SortedMap<String, String> params;
+
+    /**
+     * a time at which to run the task, if any; (eg, should execute >= this time, subject to queue concurrency)
+     */
+    Instant scheduledExecutionTime;
+  }
 
   /**
    * reference to a task by queue and task name.
@@ -54,6 +116,8 @@ public interface PipelineTaskQueue {
   }
 
   TaskReference enqueue(PipelineTask pipelineTask);
+
+  TaskReference enqueue(String queueName, TaskSpec build);
 
   Collection<TaskReference> enqueue(final Collection<PipelineTask> pipelineTasks);
 
