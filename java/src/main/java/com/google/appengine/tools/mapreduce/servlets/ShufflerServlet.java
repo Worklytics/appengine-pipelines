@@ -312,7 +312,7 @@ public class ShufflerServlet extends HttpServlet {
     ShufflerParams shufflerParams = readShufflerParams(req.getInputStream());
 
     StepExecutionComponent stepExecutionComponent =
-      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+      component.stepExecutionComponent(new StepExecutionModule(req));
 
     PipelineService pipelineService = stepExecutionComponent.pipelineService();
 

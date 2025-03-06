@@ -1,6 +1,7 @@
 package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
@@ -16,12 +17,16 @@ import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.extension.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.time.Duration;
 import java.util.*;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @Target({ ElementType.TYPE, ElementType.METHOD })
 @Retention(RetentionPolicy.RUNTIME)
@@ -94,8 +99,14 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
     //TODO: clearly fugly; cleanup with better DI, but saving for TaskQueue modernization
     AppEngineBackEnd appEngineBackend = new AppEngineBackEnd(datastore, new AppEngineTaskQueue(appEngineServicesService), appEngineServicesService);
 
+    HttpServletRequest mockRequest = mock(HttpServletRequest.class);
+    when(mockRequest.getParameter(RequestUtils.Params.DATASTORE_PROJECT_ID)).thenReturn(datastoreOptions.getProjectId());
+    when(mockRequest.getParameter(RequestUtils.Params.DATASTORE_DATABASE_ID)).thenReturn(datastoreOptions.getDatabaseId());
+    when(mockRequest.getParameter(RequestUtils.Params.DATASTORE_NAMESPACE)).thenReturn(datastoreOptions.getNamespace());
+    when(mockRequest.getParameter(RequestUtils.Params.DATASTORE_HOST)).thenReturn(datastoreOptions.getHost());
+
     StepExecutionComponent stepExecutionComponent
-      = component.stepExecutionComponent(new StepExecutionModule(appEngineBackend));
+      = component.stepExecutionComponent(new StepExecutionModule(mockRequest));
 
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL)
       .put(ContextStoreKey.PIPELINE_SERVICE, stepExecutionComponent.pipelineService());

@@ -109,7 +109,7 @@ public class MapReduceServletImpl {
     String handler = getHandler(request);
 
     StepExecutionComponent stepExecutionComponent =
-      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(request)));
+      component.stepExecutionComponent(new StepExecutionModule(request));
 
     if (handler.startsWith(CONTROLLER_PATH)) {
       if (!checkForTaskQueue(request, response)) {

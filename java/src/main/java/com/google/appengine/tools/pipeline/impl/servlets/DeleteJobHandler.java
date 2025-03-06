@@ -50,7 +50,7 @@ public class DeleteJobHandler {
     JobRunId rootJobHandle = requestUtils.getRootPipelineId(req);
 
     StepExecutionComponent stepExecutionComponent =
-      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+      component.stepExecutionComponent(new StepExecutionModule(req));
     PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
 
     try {

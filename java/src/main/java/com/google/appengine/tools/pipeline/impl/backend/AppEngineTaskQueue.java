@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
+import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
@@ -70,6 +71,13 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   public AppEngineTaskQueue(AppEngineServicesService appEngineServicesService) {
     this.environment = new AppEngineStandardGen2();
     this.servicesService = appEngineServicesService;
+    this.taskHandlerUrl = TaskHandler.handleTaskUrl();
+  }
+
+  @Inject
+  public AppEngineTaskQueue(AppEngineEnvironment environment, AppEngineServicesService servicesService) {
+    this.environment = environment;
+    this.servicesService = servicesService;
     this.taskHandlerUrl = TaskHandler.handleTaskUrl();
   }
 

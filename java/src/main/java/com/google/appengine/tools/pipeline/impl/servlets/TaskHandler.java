@@ -46,7 +46,6 @@ import javax.inject.Singleton;
 public class TaskHandler {
 
   final JobRunServiceComponent component;
-  final RequestUtils requestUtils;
 
   public static final String PATH_COMPONENT = "handleTask";
   public static final String TASK_NAME_REQUEST_HEADER = "X-AppEngine-TaskName";
@@ -69,7 +68,7 @@ public class TaskHandler {
     }
     try {
       StepExecutionComponent stepExecutionComponent =
-        component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+        component.stepExecutionComponent(new StepExecutionModule(req));
       PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
 
       pipelineRunner.processTask(pipelineTask);

@@ -46,7 +46,7 @@ public class RequestUtils {
 
   // value of env var GOOGLE_CLOUD_PROJECT when running locally; underscores aren't actually legal in GCP project ids,
   // so if this ever ends up being used in a real GCP API call, it blows up in validation before request is even sent by client
-  private static final String LOCAL_GAE_PROJECT_ID = "no_app_id";
+  public static final String LOCAL_GAE_PROJECT_ID = "no_app_id";
 
   private static final String DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID = "local-gae-project";
 
@@ -56,42 +56,7 @@ public class RequestUtils {
   @Getter @Setter
   private String localProjectIdOverride = DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID;
 
-  public PipelineBackEnd buildBackendFromRequest(HttpServletRequest request) {
-    //TODO: we'll have to do this for test queue as well; that won't
-
-    AppEngineServicesService servicesService = buildServicesService();
-    return new AppEngineBackEnd(buildDatastoreFromRequest(request), new AppEngineTaskQueue(servicesService), servicesService);
-  }
-
-  AppEngineServicesService buildServicesService() {
-    // TODO: should probably inject AppEngineEnvironment, and get it from there
-    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
-
-    //before, test harness basically did this by overriding env vars via ApiProxy stuff; see LocalModulesServiceTestConfig
-    if (LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId()) || "test-project".equals(defaultInstance.getProjectId())) {
-      return new AppEngineServicesService() {
-        @Override
-        public String getDefaultService() {
-          return "default";
-        }
-
-        @Override
-        public String getDefaultVersion(String service) {
-          return "1";
-        }
-
-        @Override
-        public String getWorkerServiceHostName(String service, String version) {
-          return String.join(".", service, version, "localhost");
-        }
-      };
-    } else {
-      return AppEngineServicesServiceImpl.defaults();
-    }
-  }
-
-  @Deprecated // use pipeline backend
-  Datastore buildDatastoreFromRequest(HttpServletRequest request) {
+  public DatastoreOptions buildDatastoreFromRequest(HttpServletRequest request) {
     // so we need 1) host, 2) projectId, and 3) databaseId from somewhere
 
     // options
@@ -117,7 +82,7 @@ public class RequestUtils {
     getParam(request, Params.DATASTORE_DATABASE_ID).ifPresent(builder::setDatabaseId);
     getParam(request, Params.DATASTORE_NAMESPACE).ifPresent(builder::setNamespace);
 
-    return builder.build().getService();
+    return builder.build();
   }
 
   public Optional<String> getParam(HttpServletRequest request, String name) {
