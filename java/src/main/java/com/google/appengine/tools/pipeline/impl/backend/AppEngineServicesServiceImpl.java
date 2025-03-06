@@ -1,6 +1,7 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.v1.*;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import lombok.NonNull;
@@ -16,7 +17,7 @@ import java.util.Optional;
 
 public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
-   private final AppEngineEnvironment appEngineEnvironment;
+  private final AppEngineEnvironment appEngineEnvironment;
 
   private final Provider<ServicesClient>  servicesClientProvider;
   private final Provider<VersionsClient>  versionsClientProvider;
@@ -52,8 +53,8 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   }
 
   Cache<String, String> defaultVersionCache = CacheBuilder.newBuilder()
-      .maximumSize(10)
-      .build();
+          .maximumSize(10)
+          .build();
 
   @Override
   public String getDefaultService() {
@@ -75,17 +76,28 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
     }
 
     try (ServicesClient servicesClient = servicesClientProvider.get()) {
-      GetServiceRequest request = GetServiceRequest.newBuilder().setName(service).build();
+      GetServiceRequest request = GetServiceRequest.newBuilder().setName(serviceEntityNameFragment(service)).build();
       Service response = servicesClient.getService(request);
       return response.getSplit().getAllocationsMap().entrySet().stream().sorted(Map.Entry.<String,Double>comparingByValue().reversed()).findFirst().orElseThrow().getKey();
     }
   }
 
   @Override
-  public String getWorkerServiceHostName(String module, String version) {
+  public String getWorkerServiceHostName(String service, String version) {
     try (VersionsClient versionsClient = this.versionsClientProvider.get()) {
-      Version versionResponse = versionsClient.getVersion(GetVersionRequest.newBuilder().setName(module + "/versions/" + version).build());
-      return versionResponse.getVersionUrl();
+      Version versionResponse = versionsClient.getVersion(GetVersionRequest.newBuilder().setName(serviceEntityNameFragment(service) + "/versions/" + version).build());
+      return versionResponse.getVersionUrl().replace("https://", "");
     }
   }
+
+  private String serviceEntityNameFragment(String service) {
+    return "apps/" + appEngineEnvironment.getProjectId() + "/services/" + service;
+  }
+
+  @VisibleForTesting
+  void fillCache(String service, String version) {
+    defaultVersionCache.put(service, version);
+  }
 }
+
+
