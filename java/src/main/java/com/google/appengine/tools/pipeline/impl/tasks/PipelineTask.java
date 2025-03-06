@@ -23,7 +23,7 @@ import java.util.Properties;
 import java.util.Set;
 
 /**
- * An App Engine Task Queue Task. This is the abstract base class for all
+ * A Pipeline Framework task to be executed asynchronously This is the abstract base class for all
  * Pipeline task types.
  *
  * q: kinda analogous to a StepExecution in Spring Batch?
@@ -37,7 +37,7 @@ import java.util.Set;
  * {@link com.google.appengine.tools.pipeline.impl.backend.UpdateSpec} and
  * {@link com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd#save save}.
  * Alternatively the task may be enqueued directly using
- * {@link com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd#enqueue(Task)}.
+ * {@link com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd#enqueue(PipelineTask)}.
  * <p>
  * When handling a task, construct a {@link Properties} object containing the
  * relevant parameters from the request, its name and then invoke
@@ -46,7 +46,7 @@ import java.util.Set;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public abstract class Task {
+public abstract class PipelineTask {
 
   protected static final String TASK_TYPE_PARAMETER = "taskType";
 
@@ -54,66 +54,66 @@ public abstract class Task {
 
     ON_SERVICE {
       @Override
-      void setProperty(Task task, String value) {
-        task.getQueueSettings().setOnService(value);
+      void setProperty(PipelineTask pipelineTask, String value) {
+        pipelineTask.getQueueSettings().setOnService(value);
       }
 
       @Override
-      String getProperty(Task task) {
-        return task.getQueueSettings().getOnService();
+      String getProperty(PipelineTask pipelineTask) {
+        return pipelineTask.getQueueSettings().getOnService();
       }
     },
     ON_SERVICE_VERSION {
       @Override
-      void setProperty(Task task, String value) {
-        task.getQueueSettings().setOnServiceVersion(value);
+      void setProperty(PipelineTask pipelineTask, String value) {
+        pipelineTask.getQueueSettings().setOnServiceVersion(value);
       }
 
       @Override
-      String getProperty(Task task) {
-        return task.getQueueSettings().getOnServiceVersion();
+      String getProperty(PipelineTask pipelineTask) {
+        return pipelineTask.getQueueSettings().getOnServiceVersion();
       }
     },
     ON_QUEUE {
       @Override
-      void setProperty(Task task, String value) {
-        task.getQueueSettings().setOnQueue(value);
+      void setProperty(PipelineTask pipelineTask, String value) {
+        pipelineTask.getQueueSettings().setOnQueue(value);
       }
 
       @Override
-      String getProperty(Task task) {
-        return task.getQueueSettings().getOnQueue();
+      String getProperty(PipelineTask pipelineTask) {
+        return pipelineTask.getQueueSettings().getOnQueue();
       }
     },
     DELAY {
       @Override
-      void setProperty(Task task, String value) {
+      void setProperty(PipelineTask pipelineTask, String value) {
         if (value != null) {
-          task.getQueueSettings().setDelayInSeconds(Long.parseLong(value));
+          pipelineTask.getQueueSettings().setDelayInSeconds(Long.parseLong(value));
         }
       }
 
       @Override
-      String getProperty(Task task) {
-        Long delay = task.getQueueSettings().getDelayInSeconds();
+      String getProperty(PipelineTask pipelineTask) {
+        Long delay = pipelineTask.getQueueSettings().getDelayInSeconds();
         return delay == null ? null : delay.toString();
       }
     };
 
     static final Set<TaskProperty> ALL = EnumSet.allOf(TaskProperty.class);
 
-    abstract void setProperty(Task task, String value);
-    abstract String getProperty(Task task);
+    abstract void setProperty(PipelineTask pipelineTask, String value);
+    abstract String getProperty(PipelineTask pipelineTask);
 
-    void applyFrom(Task task, Properties properties) {
+    void applyFrom(PipelineTask pipelineTask, Properties properties) {
       String value = properties.getProperty(name());
       if (value != null) {
-        setProperty(task, value);
+        setProperty(pipelineTask, value);
       }
     }
 
-    void addTo(Task task, Properties properties) {
-      String value = getProperty(task);
+    void addTo(PipelineTask pipelineTask, Properties properties) {
+      String value = getProperty(pipelineTask);
       if (value != null) {
         properties.setProperty(name(), value);
       }
@@ -134,9 +134,9 @@ public abstract class Task {
     DELAYED_SLOT_FILL(DelayedSlotFillTask.class),
     ;
 
-    private final Constructor<? extends Task> taskConstructor;
+    private final Constructor<? extends PipelineTask> taskConstructor;
 
-    Type(Class<? extends Task> taskClass) {
+    Type(Class<? extends PipelineTask> taskClass) {
       try {
         taskConstructor = taskClass.getDeclaredConstructor(
             getClass(), String.class, Properties.class);
@@ -146,7 +146,7 @@ public abstract class Task {
       }
     }
 
-    public Task createInstance(String taskName, Properties properties) {
+    public PipelineTask createInstance(String taskName, Properties properties) {
       try {
         return taskConstructor.newInstance(this, taskName, properties);
       } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
@@ -165,7 +165,7 @@ public abstract class Task {
    * This constructor is used on the sending side. That is, it is used to
    * construct a task to be enqueued.
    */
-  protected Task(Type type, String taskName, QueueSettings queueSettings) {
+  protected PipelineTask(Type type, String taskName, QueueSettings queueSettings) {
     if (type == null) {
       throw new IllegalArgumentException("type must not be null");
     }
@@ -177,7 +177,7 @@ public abstract class Task {
     this.queueSettings = queueSettings;
   }
 
-  protected Task(Type type, String taskName, Properties properties) {
+  protected PipelineTask(Type type, String taskName, Properties properties) {
     this(type, taskName, new QueueSettings());
     for (TaskProperty taskProperty : TaskProperty.ALL) {
       taskProperty.applyFrom(this, properties);
@@ -192,7 +192,7 @@ public abstract class Task {
    * contain the properties specified by the concrete subclass of this class
    * corresponding to the task type.
    */
-  public static Task fromProperties(String taskName, Properties properties) {
+  public static PipelineTask fromProperties(String taskName, Properties properties) {
     String taskTypeString = properties.getProperty(TASK_TYPE_PARAMETER);
     if (null == taskTypeString) {
       throw new IllegalArgumentException(TASK_TYPE_PARAMETER + " property is missing: "

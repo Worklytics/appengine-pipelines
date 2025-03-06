@@ -19,8 +19,7 @@ import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.apphosting.api.ApiProxy;
 import lombok.AllArgsConstructor;
@@ -60,7 +59,7 @@ public class TaskHandler {
 
 
   public void doPost(HttpServletRequest req) throws ServletException {
-    Task task = reconstructTask(req);
+    PipelineTask pipelineTask = reconstructTask(req);
 
     int retryCount;
     try {
@@ -73,14 +72,14 @@ public class TaskHandler {
         component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
       PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
 
-      pipelineRunner.processTask(task);
+      pipelineRunner.processTask(pipelineTask);
     } catch (RuntimeException e) {
-      StringUtils.logRetryMessage(log, task, retryCount, e);
+      StringUtils.logRetryMessage(log, pipelineTask, retryCount, e);
       throw new ServletException(e);
     }
   }
 
-  private Task reconstructTask(HttpServletRequest request) {
+  private PipelineTask reconstructTask(HttpServletRequest request) {
     Properties properties = new Properties();
     Enumeration<?> paramNames = request.getParameterNames();
     while (paramNames.hasMoreElements()) {
@@ -89,17 +88,17 @@ public class TaskHandler {
       properties.setProperty(paramName, paramValue);
     }
     String taskName = request.getHeader(TASK_NAME_REQUEST_HEADER);
-    Task task = Task.fromProperties(taskName, properties);
-    task.getQueueSettings().setDelayInSeconds(null);
+    PipelineTask pipelineTask = PipelineTask.fromProperties(taskName, properties);
+    pipelineTask.getQueueSettings().setDelayInSeconds(null);
     String queueName = request.getHeader(TASK_QUEUE_NAME_HEADER);
     if (queueName != null && !queueName.isEmpty()) {
-      String onQueue = task.getQueueSettings().getOnQueue();
+      String onQueue = pipelineTask.getQueueSettings().getOnQueue();
        if (onQueue == null || onQueue.isEmpty()) {
-         task.getQueueSettings().setOnQueue(queueName);
+         pipelineTask.getQueueSettings().setOnQueue(queueName);
        }
        Map<String, Object> attributes = ApiProxy.getCurrentEnvironment().getAttributes();
        attributes.put(TASK_QUEUE_NAME_HEADER, queueName);
     }
-    return task;
+    return pipelineTask;
   }
 }

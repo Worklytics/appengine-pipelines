@@ -14,7 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 
@@ -53,9 +53,9 @@ public interface PipelineTaskQueue {
     String taskName;
   }
 
-  TaskReference enqueue(Task task);
+  TaskReference enqueue(PipelineTask pipelineTask);
 
-  Collection<TaskReference> enqueue(final Collection<Task> tasks);
+  Collection<TaskReference> enqueue(final Collection<PipelineTask> pipelineTasks);
 
   /**
    * deletes tasks from the queue, on best-efforts async basis.

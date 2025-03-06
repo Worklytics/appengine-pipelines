@@ -21,7 +21,7 @@ import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.cloud.datastore.Key;
 
@@ -147,7 +147,7 @@ public interface PipelineBackEnd {
    *
    * @return name of task in the queue
    */
-  PipelineTaskQueue.TaskReference enqueue(Task task);
+  PipelineTaskQueue.TaskReference enqueue(PipelineTask pipelineTask);
 
   /**
    * Queries the data store for all root Pipeline.

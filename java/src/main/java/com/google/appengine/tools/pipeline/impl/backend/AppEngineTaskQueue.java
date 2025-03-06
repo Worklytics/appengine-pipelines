@@ -20,7 +20,7 @@ import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.apphosting.api.ApiProxy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
@@ -90,10 +90,10 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public TaskReference enqueue(Task task) {
-    log.finest("Enqueueing: " + task);
-    TaskOptions taskOptions = toTaskOptions(task);
-    Queue queue = getQueue(task.getQueueSettings().getOnQueue());
+  public TaskReference enqueue(PipelineTask pipelineTask) {
+    log.finest("Enqueueing: " + pipelineTask);
+    TaskOptions taskOptions = toTaskOptions(pipelineTask);
+    Queue queue = getQueue(pipelineTask.getQueueSettings().getOnQueue());
     try {
       TaskHandle handle = queue.add(taskOptions);
       return taskHandleToReference(handle);
@@ -117,8 +117,8 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public Collection<TaskReference> enqueue(final Collection<Task> tasks) {
-    return addToQueue(tasks);
+  public Collection<TaskReference> enqueue(final Collection<PipelineTask> pipelineTasks) {
+    return addToQueue(pipelineTasks);
   }
 
   TaskReference taskHandleToReference(TaskHandle taskHandle) {
@@ -126,13 +126,13 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   //VisibleForTesting
-  List<TaskReference> addToQueue(final Collection<Task> tasks) {
+  List<TaskReference> addToQueue(final Collection<PipelineTask> pipelineTasks) {
     List<TaskReference> handles = new ArrayList<>();
     Map<String, List<TaskOptions>> queueNameToTaskOptions = new HashMap<>();
-    for (Task task : tasks) {
-      log.finest("Enqueueing: " + task);
-      String queueName = task.getQueueSettings().getOnQueue();
-      TaskOptions taskOptions = toTaskOptions(task);
+    for (PipelineTask pipelineTask : pipelineTasks) {
+      log.finest("Enqueueing: " + pipelineTask);
+      String queueName = pipelineTask.getQueueSettings().getOnQueue();
+      TaskOptions taskOptions = toTaskOptions(pipelineTask);
 
 
       // seen in logs : "Negative countdown is not allowed"
@@ -193,8 +193,8 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     return taskReferences;
   }
 
-  private TaskOptions toTaskOptions(Task task) {
-    final QueueSettings queueSettings = task.getQueueSettings();
+  private TaskOptions toTaskOptions(PipelineTask pipelineTask) {
+    final QueueSettings queueSettings = pipelineTask.getQueueSettings();
 
     TaskOptions taskOptions = TaskOptions.Builder.withUrl(taskHandlerUrl);
 
@@ -221,14 +221,13 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
     taskOptions.header("Host", versionHostname);
 
-
     Long delayInSeconds = queueSettings.getDelayInSeconds();
     if (null != delayInSeconds) {
       taskOptions.countdownMillis(delayInSeconds * 1000L);
       queueSettings.setDelayInSeconds(null);
     }
-    addProperties(taskOptions, task.toProperties());
-    String taskName = task.getName();
+    addProperties(taskOptions, pipelineTask.toProperties());
+    String taskName = pipelineTask.getName();
     if (null != taskName) {
       taskOptions.taskName(taskName);
     }
