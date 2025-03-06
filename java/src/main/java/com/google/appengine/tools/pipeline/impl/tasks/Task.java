@@ -132,8 +132,7 @@ public abstract class Task {
     FINALIZE_JOB(FinalizeJobTask.class),
     DELETE_PIPELINE(DeletePipelineTask.class),
     DELAYED_SLOT_FILL(DelayedSlotFillTask.class),
-    // TODO(user): Remove in the future. Left for backward compatibility with 0.3
-    FILL_SLOT_HANDLE_SLOT_FILLED(DelayedSlotFillTask.class);
+    ;
 
     private final Constructor<? extends Task> taskConstructor;
 
