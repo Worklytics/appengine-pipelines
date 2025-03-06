@@ -38,6 +38,12 @@ public class RunJobTask extends ObjRefTask {
     this(jobKey, null, queueSettings);
   }
 
+  //NOTE: this IS used via reflection ... fucking hell
+  protected RunJobTask(Type type, String taskName, Properties properties) {
+    super(type, taskName, properties);
+    attemptNumber = null;
+  }
+
   @Override
   public String getName() {
     String name = super.getName();

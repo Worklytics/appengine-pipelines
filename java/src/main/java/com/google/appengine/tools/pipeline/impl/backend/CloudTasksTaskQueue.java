@@ -7,6 +7,7 @@ import com.google.cloud.tasks.v2.*;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -20,16 +21,13 @@ import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_Q
 /**
  * implementation of PipelineTaskQueue backed by Cloud Tasks
  */
-@AllArgsConstructor
+@AllArgsConstructor(onConstructor_ = @Inject)
 public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
-  @Inject
   AppEngineEnvironment appEngineEnvironment;
 
-  @Inject
   Provider<CloudTasksClient> cloudTasksClientProvider;
 
-  @Inject
   AppEngineServicesService appEngineServicesService;
 
   @Override
