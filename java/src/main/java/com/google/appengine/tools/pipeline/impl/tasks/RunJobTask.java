@@ -38,14 +38,9 @@ public class RunJobTask extends ObjRefTask {
     this(jobKey, null, queueSettings);
   }
 
-  protected RunJobTask(Type type, String taskName, Properties properties) {
-    super(type, taskName, properties);
-    attemptNumber = null;
-  }
-
   @Override
   public String getName() {
-    String name = super.getTaskName();
+    String name = super.getName();
     if (null != attemptNumber) {
       name = name + "-attemptNumber-" + attemptNumber;
     }
