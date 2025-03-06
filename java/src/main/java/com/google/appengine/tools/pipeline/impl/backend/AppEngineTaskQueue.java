@@ -16,12 +16,8 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.github.rholder.retry.*;
 
+import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueConstants;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
-import com.google.appengine.api.taskqueue.TaskHandle;
-import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
@@ -53,6 +49,8 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   //approximates default Retry policy from GAE GCS lib RetryParams class, which this pipelines lib was originally
   // coupled to
   private static final Retryer<String> retryer = RetryerBuilder.<String>newBuilder()
+          .retryIfExceptionOfType(TransientFailureException.class)
+          .retryIfExceptionOfType(InternalFailureException.class)
           .withStopStrategy(StopStrategies.stopAfterAttempt(6))
           .withWaitStrategy(WaitStrategies.incrementingWait(1000L, TimeUnit.MILLISECONDS, 1000L, TimeUnit.MILLISECONDS))
           .build();
