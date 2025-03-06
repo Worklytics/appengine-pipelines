@@ -1,8 +1,10 @@
 package com.google.appengine.tools.pipeline.di;
 
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import dagger.Binds;
 import dagger.Module;
@@ -18,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 )
 public class StepExecutionModule {
 
-
   private final PipelineBackEnd backend;
 
   @Provides @StepExecutionScoped
@@ -26,6 +27,11 @@ public class StepExecutionModule {
     return backend;
   }
 
+  @Provides @StepExecutionScoped
+  public AppEngineServicesService appEngineServicesService() {
+    //hacky, but really it's aspect of the pipelineBackend
+    return backend.getServicesService();
+  }
 
   @Module
   interface Bindings {
@@ -38,7 +44,6 @@ public class StepExecutionModule {
 
     @Binds
     PipelineService pipelineService(PipelineServiceImpl pipelineService);
-
   }
 
 }

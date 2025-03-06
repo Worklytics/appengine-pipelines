@@ -29,6 +29,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 
@@ -137,6 +138,7 @@ public abstract class Job<E> implements Serializable {
   /*
    * See the <a href="http://goto/java_cascade_user_guide">user's guide</a> for more information.
    */
+  @Serial
   private static final long serialVersionUID = 1L;
 
   //TODO: setter should ONLY be used from futureCall/PipelineManager::startNewPipeline

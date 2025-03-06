@@ -839,7 +839,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
     Job<?> job = jobExecutionRecord.getJobInstanceDeserialized();
     invokePrivateJobMethod("setPipelineManager", job, this);
-    invokePrivateJobMethod("setPipelineService", job, (PipelineService) pipelineServiceProvider.get());
+    invokePrivateJobMethod("setPipelineService", job, pipelineServiceProvider.get());
+    invokePrivateJobMethod("setShardedJobRunner", job, shardedJobRunner);
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     setJobRecord(job, jobRecord);
     String currentRunGUID = GUIDGenerator.nextGUID();

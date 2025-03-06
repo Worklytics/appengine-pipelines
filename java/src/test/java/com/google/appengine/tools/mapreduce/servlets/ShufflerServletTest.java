@@ -15,12 +15,8 @@
 package com.google.appengine.tools.mapreduce.servlets;
 
 
-import com.google.appengine.api.blobstore.dev.LocalBlobstoreService;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.tools.cloudtasktest.JakartaServletInvokingTaskCallback;
-import com.google.appengine.tools.development.ApiProxyLocal;
-import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
-import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.*;
@@ -35,7 +31,6 @@ import com.google.appengine.tools.mapreduce.servlets.ShufflerServlet.ShuffleMapR
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
-import com.google.apphosting.api.ApiProxy;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.datastore.Datastore;
 import com.google.common.collect.ImmutableMap;
@@ -50,6 +45,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.Serial;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.Semaphore;
@@ -90,9 +86,7 @@ public class ShufflerServletTest {
   private static final Semaphore WAIT_ON = new Semaphore(0);
 
   private final LocalServiceTestHelper helper = new LocalServiceTestHelper(
-      new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(false).setCallbackClass(TaskRunner.class),
-      new LocalMemcacheServiceTestConfig(),
-      new LocalModulesServiceTestConfig()
+      new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(false).setCallbackClass(TaskRunner.class)
   );
 
 
@@ -120,6 +114,8 @@ public class ShufflerServletTest {
   }
 
   private static class CallbackServlet extends HttpServlet {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Override
@@ -139,9 +135,6 @@ public class ShufflerServletTest {
   public void setUp(JobRunServiceComponent component,
                     Datastore datastore) throws Exception {
     helper.setUp();
-    ApiProxyLocal proxy = (ApiProxyLocal) ApiProxy.getDelegate();
-    // Creating files is not allowed in some test execution environments, so don't.
-    proxy.setProperty(LocalBlobstoreService.NO_STORAGE_PROPERTY, "true");
     WAIT_ON.drainPermits();
     storageIntegrationTestHelper = new CloudStorageIntegrationTestHelper();
     storageIntegrationTestHelper.setUp();
