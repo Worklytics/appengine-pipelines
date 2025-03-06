@@ -30,7 +30,6 @@ import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import lombok.Setter;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;

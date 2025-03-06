@@ -2,8 +2,6 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.DatastoreExtension;
 import com.google.cloud.datastore.Key;
-import com.google.appengine.api.taskqueue.TaskHandle;
-import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
@@ -11,7 +9,6 @@ import com.google.appengine.tools.pipeline.impl.tasks.RunJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.Task;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,15 +25,36 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @ExtendWith(DatastoreExtension.class)
 public class AppEngineTaskQueueTest {
 
+  private AppEngineServicesService appEngineServicesService;
   private LocalServiceTestHelper helper;
+  private AppEngineTaskQueue queue;
 
   @BeforeEach
   public void setUp() throws Exception {
     LocalTaskQueueTestConfig taskQueueConfig = new LocalTaskQueueTestConfig();
     taskQueueConfig.setDisableAutoTaskExecution(true);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig);
     helper.setUp();
+
+    appEngineServicesService = new AppEngineServicesService() {
+      @Override
+      public String getDefaultService() {
+        return "default";
+      }
+
+      @Override
+      public String getDefaultVersion(String service) {
+        return "1";
+      }
+
+      @Override
+      public String getWorkerServiceHostName(String service, String version) {
+        return "worker-dot-" + service + "-dot-" + version + ".localhost";
+      }
+    };
+
+    queue = new AppEngineTaskQueue(appEngineServicesService);
   }
 
   @AfterEach
@@ -46,7 +64,6 @@ public class AppEngineTaskQueueTest {
 
   @Test
   public void testEnqueueSingleTask() {
-    AppEngineTaskQueue queue = new AppEngineTaskQueue();
     Task task = createTask();
     List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(Collections.singletonList(task));
 
@@ -60,7 +77,6 @@ public class AppEngineTaskQueueTest {
 
   @Test
   public void testEnqueueBatchTasks() {
-    AppEngineTaskQueue queue = new AppEngineTaskQueue();
     List<Task> tasks = new ArrayList<>(AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE);
     for (int i = 0; i < AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE; i++) {
       Task task = createTask();
@@ -78,7 +94,6 @@ public class AppEngineTaskQueueTest {
 
   @Test
   public void testEnqueueLargeBatchTasks() {
-    AppEngineTaskQueue queue = new AppEngineTaskQueue();
     int batchSize = AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE * 2 + 10;
     List<Task> tasks = new ArrayList<>(batchSize);
     for (int i = 0; i < batchSize; i++) {
@@ -101,7 +116,6 @@ public class AppEngineTaskQueueTest {
 
   @Test
   public void testEnqueueBatchTwoStages() {
-    AppEngineTaskQueue queue = new AppEngineTaskQueue();
     int batchSize = AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE * 2;
     List<Task> tasks = new ArrayList<>(batchSize);
     for (int i = 0; i < batchSize; i++) {

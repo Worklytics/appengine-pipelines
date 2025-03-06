@@ -16,13 +16,14 @@ package com.google.appengine.tools.mapreduce.servlets;
 
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
-import com.google.appengine.api.modules.ModulesServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
@@ -37,8 +38,6 @@ import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
-import com.google.apphosting.api.ApiProxy.ArgumentException;
-import com.google.apphosting.api.ApiProxy.RequestTooLargeException;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobInfo;
@@ -55,6 +54,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serial;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -85,14 +85,11 @@ public class ShufflerServlet extends HttpServlet {
 
   private static final int MAX_VALUES_COUNT = 10000;
 
-  private static final RetryerBuilder getRetryerBuilder() {
+  private static  RetryerBuilder getRetryerBuilder() {
     return RetryerBuilder.newBuilder()
       .retryIfException((e) ->
         e instanceof Exception
-          && !(e instanceof IllegalArgumentException
-          || e instanceof RequestTooLargeException
-          || e instanceof RequestTooLargeException
-          || e instanceof ArgumentException)
+          && !(e instanceof IllegalArgumentException)
       )
       .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .withStopStrategy(StopStrategies.stopAfterAttempt(10))
@@ -111,6 +108,7 @@ public class ShufflerServlet extends HttpServlet {
   @VisibleForTesting
   static final class ShuffleMapReduce extends Job0<Void> {
 
+    @Serial
     private static final long serialVersionUID = 2L;
 
     private final Marshaller<ByteBuffer> identityMarshaller = Marshallers.getByteBufferMarshaller();
@@ -204,7 +202,7 @@ public class ShufflerServlet extends HttpServlet {
     public Value<Void> handleException(Throwable t) {
 
       log.log(Level.SEVERE, "Shuffle job failed: jobId=" + getJobRunId().asEncodedString(), t);
-      enqueueCallbackTask(shufflerParams, "job=" + getJobRunId().asEncodedString() + "&status=failed", "Shuffled-" + getJobRunId().getJobId().replace(JobRunId.DELIMITER, "_"));
+      enqueueCallbackTask(getShardedJobRunner(), shufflerParams, "job=" + getJobRunId().asEncodedString() + "&status=failed", "Shuffled-" + getJobRunId().getJobId().replace(JobRunId.DELIMITER, "_"));
       return immediate(null);
     }
   }
@@ -216,6 +214,8 @@ public class ShufflerServlet extends HttpServlet {
   @RequiredArgsConstructor
   private static final class Complete extends
       Job1<Void, MapReduceResult<GoogleCloudStorageFileSet>> {
+
+    @Serial
     private static final long serialVersionUID = 2L;
     private final ShufflerParams shufflerParams;
     private final JobRunId shuffleMapReduceJobId;
@@ -239,7 +239,8 @@ public class ShufflerServlet extends HttpServlet {
       }
       output.close();
 
-      enqueueCallbackTask(shufflerParams,
+
+      enqueueCallbackTask(getShardedJobRunner(), shufflerParams,
           "job=" + this.getJobRunId().asEncodedString() + "&status=done&output=" + URLEncoder.encode(manifestFile.getObjectName(), "UTF-8"),
           "Shuffled-" + this.getJobRunId() .asEncodedString().replace(JobRunId.DELIMITER, "-"));
       return immediate(null);
@@ -249,12 +250,17 @@ public class ShufflerServlet extends HttpServlet {
   /**
    * Notifies the caller that the job has completed.
    */
-  private static void enqueueCallbackTask(final ShufflerParams shufflerParams,
+  private static void enqueueCallbackTask(ShardedJobRunner shardedJobRunner,
+    final ShufflerParams shufflerParams,
                                           final String url,
                                           final String taskName) {
+
     RetryExecutor.call(getRetryerBuilder(), callable(() -> {
-        String hostname = ModulesServiceFactory.getModulesService().getVersionHostname(
-            shufflerParams.getCallbackService(), shufflerParams.getCallbackVersion());
+
+      String hostname = shardedJobRunner.getWorkerServiceHostName(ShardedJobSettings.builder()
+        .module(shufflerParams.getCallbackService())
+        .version(shufflerParams.getCallbackVersion()).build());
+
         Queue queue = QueueFactory.getQueue(shufflerParams.getCallbackQueue());
         String separator = shufflerParams.getCallbackPath().contains("?") ? "&" : "?";
         try {

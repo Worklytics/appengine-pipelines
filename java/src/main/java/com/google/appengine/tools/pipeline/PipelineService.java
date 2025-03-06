@@ -29,6 +29,10 @@ import lombok.SneakyThrows;
  */
 public interface PipelineService {
 
+  String getDefaultWorkerService();
+
+  String getCurrentVersion(String workerService);
+
   /**
    *
    * @param options

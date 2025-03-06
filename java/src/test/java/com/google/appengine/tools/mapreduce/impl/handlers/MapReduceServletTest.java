@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.MapReduceJob;
@@ -56,7 +55,7 @@ public class MapReduceServletTest{
 
   private final LocalServiceTestHelper helper =
       new LocalServiceTestHelper(
-          new LocalTaskQueueTestConfig(), new LocalMemcacheServiceTestConfig());
+          new LocalTaskQueueTestConfig());
 
   private MapReduceServlet servlet;
 

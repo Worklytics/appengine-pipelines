@@ -17,7 +17,6 @@ package com.google.appengine.tools.pipeline;
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
@@ -49,7 +48,7 @@ public class RetryTest {
     taskQueueConfig.setCallbackClass(TestingTaskQueueCallback.class);
     taskQueueConfig.setDisableAutoTaskExecution(false);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig);
   }
 
   @BeforeEach

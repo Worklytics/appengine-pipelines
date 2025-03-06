@@ -32,10 +32,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 import com.google.datastore.v1.QueryResultBatch;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
+import lombok.*;
 import lombok.Value;
 import lombok.extern.java.Log;
 
@@ -117,9 +114,19 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   private final Datastore datastore;
   private final AppEngineTaskQueue taskQueue;
+  @Getter
+  private final AppEngineServicesService servicesService;
 
   public AppEngineBackEnd(Options options) {
-    this(options.getDatastoreOptions().toBuilder().build().getService(), new AppEngineTaskQueue());
+    this(options.getDatastoreOptions().toBuilder().build().getService());
+  }
+
+  // datastore is configured per-tenant; other stuff is really 'global'
+  @SneakyThrows
+  public AppEngineBackEnd(Datastore datastore) {
+    this.datastore = datastore;
+    this.taskQueue = new AppEngineTaskQueue();
+    this.servicesService = AppEngineServicesServiceImpl.defaults();
   }
 
 
@@ -159,6 +166,17 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   public SerializationStrategy getSerializationStrategy() {
     return this;
   }
+
+  @Override
+  public String getDefaultService() {
+    return servicesService.getDefaultService();
+  }
+
+  @Override
+  public String getDefaultVersion(String service) {
+    return servicesService.getDefaultVersion(service);
+  }
+
 
   private void putAll(DatastoreBatchWriter batchWriter, Collection<? extends PipelineModelObject> objects) {
     objects.stream()
