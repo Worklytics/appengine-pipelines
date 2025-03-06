@@ -17,7 +17,6 @@ import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
 import com.google.appengine.tools.pipeline.impl.servlets.StaticContentHandler;
 import com.google.common.collect.ImmutableMap;
 import lombok.AllArgsConstructor;

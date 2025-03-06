@@ -52,13 +52,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   static final int TASK_LOOKUP_BATCH_SIZE = 20;
 
-
-  //q: historically, theese were used - where???
-  static final long CONTROLLER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
-  static final long WORKER_TASK_DELAY = Duration.ofSeconds(2).toMillis();
-
-
-
   /**
    * a status of an Incremental task; not to be confused with IncrementTaskState, which is a datastore entity
    * that encodes more state information / data about the task etc/
@@ -78,11 +71,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
   @Getter
-  final Provider<PipelineService> pipelineServiceProvider;
+  private final Provider<PipelineService> pipelineServiceProvider;
   @Getter
-  final Datastore datastore;
+  private final Datastore datastore;
 
-  final AppEngineServicesService appEngineServicesService;
+  private final AppEngineServicesService appEngineServicesService;
 
 
   @Inject

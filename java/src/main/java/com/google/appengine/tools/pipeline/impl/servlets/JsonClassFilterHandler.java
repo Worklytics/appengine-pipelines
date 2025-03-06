@@ -23,7 +23,6 @@ import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
 import lombok.AllArgsConstructor;
 
 import java.io.IOException;
@@ -31,7 +30,6 @@ import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import lombok.Setter;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;

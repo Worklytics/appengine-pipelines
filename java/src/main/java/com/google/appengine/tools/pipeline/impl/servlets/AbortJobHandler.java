@@ -22,8 +22,7 @@ import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
+
 import lombok.AllArgsConstructor;
 
 import java.io.IOException;
