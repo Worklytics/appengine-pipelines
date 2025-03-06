@@ -1,8 +1,6 @@
 package com.google.appengine.tools.pipeline.impl;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import javax.annotation.Nullable;
 
@@ -11,6 +9,9 @@ import javax.annotation.Nullable;
  *
  * @author ozarov@google.com (Arie Ozarov)
  */
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
 @Getter @Setter
 @ToString
 public final class QueueSettings implements Cloneable {

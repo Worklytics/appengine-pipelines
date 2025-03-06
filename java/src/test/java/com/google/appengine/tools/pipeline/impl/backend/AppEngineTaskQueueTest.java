@@ -144,7 +144,7 @@ public class AppEngineTaskQueueTest {
   private PipelineTask createTask() {
     String name = GUIDGenerator.nextGUID();
     Key key = Key.newBuilder("test-project", "testType", name).build();
-    PipelineTask pipelineTask = new RunJobTask(key, new QueueSettings().setOnServiceVersion("m1"));
+    PipelineTask pipelineTask = new RunJobTask(key, QueueSettings.builder().onServiceVersion("m1").build());
     return pipelineTask;
   }
 }

@@ -15,6 +15,8 @@
 package com.google.appengine.tools.pipeline.impl.tasks;
 
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import lombok.Getter;
+import lombok.NonNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -157,21 +159,18 @@ public abstract class PipelineTask {
     }
   }
 
+  @Getter @NonNull
   private final Type type;
+  @Getter
   private final String taskName;
+  @Getter @NonNull
   private final QueueSettings queueSettings;
 
   /**
    * This constructor is used on the sending side. That is, it is used to
    * construct a task to be enqueued.
    */
-  protected PipelineTask(Type type, String taskName, QueueSettings queueSettings) {
-    if (type == null) {
-      throw new IllegalArgumentException("type must not be null");
-    }
-    if (queueSettings == null) {
-      throw new IllegalArgumentException("queueSettings must not be null");
-    }
+  protected PipelineTask(@NonNull Type type, String taskName, @NonNull QueueSettings queueSettings) {
     this.type = type;
     this.taskName = taskName;
     this.queueSettings = queueSettings;
@@ -183,6 +182,10 @@ public abstract class PipelineTask {
       taskProperty.applyFrom(this, properties);
     }
   }
+  
+  public String getName() {
+    return getTaskName();
+  }
 
   /**
    * Construct a task from {@code Properties}. This method is used on the
@@ -192,26 +195,13 @@ public abstract class PipelineTask {
    * contain the properties specified by the concrete subclass of this class
    * corresponding to the task type.
    */
-  public static PipelineTask fromProperties(String taskName, Properties properties) {
+  public static PipelineTask fromProperties(String taskName, @NonNull Properties properties) {
     String taskTypeString = properties.getProperty(TASK_TYPE_PARAMETER);
     if (null == taskTypeString) {
-      throw new IllegalArgumentException(TASK_TYPE_PARAMETER + " property is missing: "
-          + properties.toString());
+      throw new IllegalArgumentException(TASK_TYPE_PARAMETER + " property is missing: "  + properties);
     }
     Type type = Type.valueOf(taskTypeString);
     return type.createInstance(taskName, properties);
-  }
-
-  public Type getType() {
-    return type;
-  }
-
-  public String getName() {
-    return taskName;
-  }
-
-  public QueueSettings getQueueSettings() {
-    return queueSettings;
   }
 
   public final Properties toProperties() {
@@ -226,7 +216,7 @@ public abstract class PipelineTask {
 
   @Override
   public String toString() {
-    String value = getType() + "_TASK[name=" + getName() + ", queueSettings=" + getQueueSettings();
+    String value = getType() + "_TASK[name=" + getTaskName() + ", queueSettings=" + getQueueSettings();
     String extraProperties = propertiesAsString();
     if (extraProperties != null && !extraProperties.isEmpty()) {
       value += ", " + extraProperties;
