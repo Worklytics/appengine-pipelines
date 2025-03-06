@@ -40,11 +40,11 @@ class AppEngineServicesServiceImplTest {
 
   @Test
   void getDefaultVersion_current() {
-    assertEquals("v182",
+    assertEquals("v123",
       appEngineServicesServiceImpl.getDefaultVersion("default"));
   }
 
-
+  // prove that will retrieve value from cache, rather than go remote (which would fail)
   @Test
   void getDefaultVersion_cached() {
     appEngineServicesServiceImpl.fillCache("non-default", "v5");
