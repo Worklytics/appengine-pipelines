@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 
 import java.time.Instant;
@@ -15,21 +16,7 @@ public class InProcessTaskQueue implements PipelineTaskQueue {
   @Override
   public TaskReference enqueue(PipelineTask pipelineTask) {
     String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse("default");
-
-    TaskSpec.TaskSpecBuilder spec = TaskSpec.builder()
-      .name(pipelineTask.getTaskName())
-      .callbackPath("/_ah/pipeline/task_callback")
-      .host("localhost:8080")
-      .method(TaskSpec.Method.POST);
-
-    pipelineTask.toProperties().entrySet()
-      .forEach(p -> spec.param((String) p.getKey(), (String) p.getValue()));
-
-    if (pipelineTask.getQueueSettings().getDelayInSeconds() != null) {
-      spec.scheduledExecutionTime(Instant.now().plusSeconds(pipelineTask.getQueueSettings().getDelayInSeconds()));
-    }
-
-    return enqueue(queueName, spec.build());
+    return enqueue(queueName, pipelineTask.toTaskSpec("localhost", TaskHandler.handleTaskUrl()));
   }
 
   @Override

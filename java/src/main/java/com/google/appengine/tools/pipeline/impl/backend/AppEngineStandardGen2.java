@@ -13,6 +13,16 @@ public class AppEngineStandardGen2 implements AppEngineEnvironment {
   }
 
   @Override
+  public String getLocation() {
+
+    String gaeApplication = System.getProperty("GAE_APPLICATION");
+    if (gaeApplication != null && gaeApplication.contains("~")) {
+      return gaeApplication.split("~")[0];
+    }
+    throw new IllegalStateException("GAE_APPLICATION system property is null or not of expected format");
+  }
+
+  @Override
   public String getService() {
     return System.getProperty("GAE_SERVICE");
   }

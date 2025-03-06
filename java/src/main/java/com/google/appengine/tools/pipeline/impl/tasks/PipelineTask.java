@@ -15,11 +15,13 @@
 package com.google.appengine.tools.pipeline.impl.tasks;
 
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import lombok.Getter;
 import lombok.NonNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Properties;
 import java.util.Set;
@@ -51,6 +53,23 @@ import java.util.Set;
 public abstract class PipelineTask {
 
   protected static final String TASK_TYPE_PARAMETER = "taskType";
+
+  public PipelineTaskQueue.TaskSpec toTaskSpec(String host, String callback) {
+    PipelineTaskQueue.TaskSpec.TaskSpecBuilder spec = PipelineTaskQueue.TaskSpec.builder()
+      .name(this.getTaskName())
+      .callbackPath(callback)
+      .host(host)
+      .method(PipelineTaskQueue.TaskSpec.Method.POST);
+
+    this.toProperties().entrySet()
+      .forEach(p -> spec.param((String) p.getKey(), (String) p.getValue()));
+
+    if (this.getQueueSettings().getDelayInSeconds() != null) {
+      spec.scheduledExecutionTime(Instant.now().plusSeconds(this.getQueueSettings().getDelayInSeconds()));
+    }
+
+    return spec.build();
+  }
 
   private enum TaskProperty {
 
@@ -182,7 +201,7 @@ public abstract class PipelineTask {
       taskProperty.applyFrom(this, properties);
     }
   }
-  
+
   public String getName() {
     return getTaskName();
   }
