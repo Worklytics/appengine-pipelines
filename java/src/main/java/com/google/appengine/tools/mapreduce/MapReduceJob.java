@@ -30,9 +30,9 @@ import com.google.appengine.tools.mapreduce.impl.sort.SortWorker;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.pipeline.*;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
-import com.google.cloud.datastore.Key;
 import com.google.cloud.storage.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
@@ -79,11 +79,14 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   @Inject
   transient Datastore datastore;
 
+
+  @Setter(onMethod_ = @VisibleForTesting)
+  @Inject
+  transient AppEngineEnvironment appEngineEnvironment;
+
   protected Datastore getDatastore() {
     if (datastore == null) {
-      datastore = DatastoreOptions.getDefaultInstance().toBuilder()
-        .setNamespace(settings.getNamespace())
-        .build().getService();
+      datastore = getDatastoreOptions(settings).getService();
     }
     return datastore;
   }
@@ -137,7 +140,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
   private static void verifyBucketIsWritable(MapReduceSettings settings) {
    Storage client = GcpCredentialOptions.getStorageClient(settings);
-    BlobId blobId = BlobId.of(settings.getBucketNameOrDefault(), UUID.randomUUID() + ".tmp");
+    BlobId blobId = BlobId.of(settings.getBucketName(), UUID.randomUUID() + ".tmp");
     if (client.get(blobId) != null) {
       log.warning("File '" + blobId.getName() + "' exists. Skipping bucket write test.");
       return;
@@ -145,7 +148,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     try {
       client.create(BlobInfo.newBuilder(blobId).build(), "Delete me!".getBytes(StandardCharsets.UTF_8));
     } catch (StorageException e) {
-      throw new IllegalArgumentException("Bucket " + settings.getBucketNameOrDefault() + " is not writeable; MR job needs to write it for sort/shuffle phase of job", e);
+      throw new IllegalArgumentException("Bucket " + settings.getBucketName() + " is not writeable; MR job needs to write it for sort/shuffle phase of job", e);
     } finally {
       client.delete(blobId);
     }
@@ -199,7 +202,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
         throw new RuntimeException(e);
       }
       Output<KeyValue<K, V>, FilesByShard> output = new GoogleCloudStorageMapOutput<>(
-              settings.getBucketNameOrDefault(),
+              settings.getBucketName(),
               getShardedJobId(),
               mrSpec.getKeyMarshaller(),
               mrSpec.getValueMarshaller(),
@@ -303,7 +306,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       ((Input<?>) input).setContext(context);
       List<? extends InputReader<KeyValue<ByteBuffer, ByteBuffer>>> readers = input.createReaders();
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageSortOutput(settings.getBucketNameOrDefault(), getShardedJobId(),
+          new GoogleCloudStorageSortOutput(settings.getBucketName(), getShardedJobId(),
               new HashingSharder(reduceShards), outputOptions);
       output.setContext(context);
 
@@ -427,7 +430,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           input.createReaders();
 
       Output<KeyValue<ByteBuffer, List<ByteBuffer>>, FilesByShard> output =
-          new GoogleCloudStorageMergeOutput(settings.getBucketNameOrDefault(), getShardedJobId(), tier, outputOptions);
+          new GoogleCloudStorageMergeOutput(settings.getBucketName(), getShardedJobId(), tier, outputOptions);
       output.setContext(context);
 
       List<? extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>>> writers =
@@ -626,4 +629,19 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   public String getJobDisplayName() {
     return Optional.fromNullable(specification.getJobName()).or(super.getJobDisplayName());
   }
+
+
+  //NOTE: very coupled to `MapReduceSettings` implementation; could be there, but don't want to couple that to FW implementation
+  // and also don't want it to be public, as would be exposed to API
+  private DatastoreOptions getDatastoreOptions(@NonNull MapReduceSettings settings) {
+    DatastoreOptions.Builder builder = DatastoreOptions.getDefaultInstance().toBuilder();
+
+    java.util.Optional.ofNullable(settings.getDatastoreHost()).ifPresent(builder::setHost);
+    java.util.Optional.ofNullable(settings.getProjectId()).ifPresent(builder::setProjectId);
+    java.util.Optional.ofNullable(settings.getDatabaseId()).ifPresent(builder::setDatabaseId);
+    java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(builder::setNamespace);
+
+    return builder.build();
+  }
+
 }

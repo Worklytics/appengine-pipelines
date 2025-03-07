@@ -21,6 +21,7 @@ import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import lombok.extern.java.Log;
 
 import java.io.IOException;
 import java.io.Serial;
@@ -39,11 +40,11 @@ import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_Q
  * @param <O> type of output values
  * @param <R> type of final result
  */
+@Log
 public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
 
   @Serial
   private static final long serialVersionUID = 1L;
-  private static final Logger log = Logger.getLogger(MapJob.class.getName());
 
   private final MapSpecification<I, O, R> specification;
   private final ShardedJobAbstractSettings settings;

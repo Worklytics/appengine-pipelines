@@ -19,9 +19,11 @@ import com.google.auth.oauth2.ServiceAccountCredentials;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Base64;
 import java.util.Optional;
@@ -31,9 +33,11 @@ import java.util.Optional;
 @Data
 public class ShufflerParams implements Serializable, GcpCredentialOptions {
 
+  @Serial
   private static final long serialVersionUID = 3L;
 
   private String shufflerQueue;
+  @NonNull
   private String gcsBucket;
   private String namespace;
   private String[] inputFileNames;
