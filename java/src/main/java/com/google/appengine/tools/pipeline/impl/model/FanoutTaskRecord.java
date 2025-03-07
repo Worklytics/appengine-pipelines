@@ -27,7 +27,7 @@ import com.google.cloud.datastore.Key;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 @Deprecated // this really shouldn't be used anymore
-public class FanoutTaskRecord extends PipelineModelObject {
+public class FanoutTaskRecord extends PipelineModelObject implements ExpiringDatastoreEntity {
 
   public static final String DATA_STORE_KIND = "pipeline-fanoutTask";
   private static final String PAYLOAD_PROPERTY = "payload";

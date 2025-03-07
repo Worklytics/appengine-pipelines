@@ -44,7 +44,9 @@ import java.util.Map;
  * @author rudominer@google.com (Mitch Rudominer)
  *
  */
-public class Barrier extends PipelineModelObject {
+public class Barrier extends PipelineModelObject implements ExpiringDatastoreEntity {
+
+  public static final String DATA_STORE_KIND = "pipeline-barrier";
 
   /**
    * The type of Barrier
@@ -54,7 +56,6 @@ public class Barrier extends PipelineModelObject {
     FINALIZE
   }
 
-  public static final String DATA_STORE_KIND = "pipeline-barrier";
   private static final String TYPE_PROPERTY = "barrierType";
   private static final String JOB_KEY_PROPERTY = "jobKey";
   private static final String RELEASED_PROPERTY = "released";
@@ -107,7 +108,7 @@ public class Barrier extends PipelineModelObject {
 
   public Barrier(Type type, JobRecord jobRecord) {
     this(type, jobRecord.getRootJobKey(), jobRecord.getKey(), jobRecord.getGeneratorJobKey(),
-        jobRecord.getGraphGuid());
+        jobRecord.getGraphGUID());
   }
 
   public Barrier(Entity entity) {
@@ -289,6 +290,6 @@ public class Barrier extends PipelineModelObject {
         + jobKey.getName() + ", waitingOn="
         + StringUtils.toStringParallel(waitingOnKeys, waitingOnGroupSizes) + ", job="
         + getKeyName(getJobKey()) + ", parent="
-        + getKeyName(getGeneratorJobKey()) + ", guid=" + getGraphGuid() + "]";
+        + getKeyName(getGeneratorJobKey()) + ", guid=" + getGraphGUID() + "]";
   }
 }

@@ -26,7 +26,7 @@ import com.google.cloud.datastore.LongValue;
  * @author ozarov@google.com (Arie Ozarov)
  *
  */
-public class ShardedValue extends PipelineModelObject {
+public class ShardedValue extends PipelineModelObject implements ExpiringDatastoreEntity {
 
   public static final String DATA_STORE_KIND = "pipeline-sharded-value";
   private static final String SHARD_ID_PROPERTY = "shard-id";
@@ -37,7 +37,7 @@ public class ShardedValue extends PipelineModelObject {
 
   public ShardedValue(PipelineModelObject parent, long shardId, byte[] value) {
     super(parent.getRootJobKey(), parent.getKey(), null, parent.getGeneratorJobKey(),
-        parent.getGraphGuid());
+        parent.getGraphGUID());
     this.shardId = shardId;
     this.value = value;
   }

@@ -19,15 +19,11 @@ import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -35,7 +31,7 @@ import java.util.stream.Collectors;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public abstract class PipelineModelObject {
+public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
 
   public static final String ROOT_JOB_KEY_PROPERTY = "rootJobKey";
   private static final String GENERATOR_JOB_PROPERTY = "generatorJobKey";
@@ -74,6 +70,18 @@ public abstract class PipelineModelObject {
   private final String graphGUID;
 
   /**
+   * time at which this entity should expire, and be cleaned up from the datastore, if any.
+   *
+   * null implies no expiration (entity will not be automatically cleaned up)
+   *
+   * NOTE: will NOT be enforced unless you also configure retention TTL policy on your datastore instance.
+   *
+   * see: https://cloud.google.com/datastore/docs/ttl
+   */
+  @Getter @Setter
+  private Instant expireAt;
+
+  /**
    * Construct a new PipelineModelObject from the provided data.
    *
    * @param rootJobKey The key of the root job for this pipeline. This must be
@@ -98,10 +106,7 @@ public abstract class PipelineModelObject {
    *        its barriers or slots.
    */
   protected PipelineModelObject(
-      Key rootJobKey, Key egParentKey, Key thisKey, Key generatorJobKey, String graphGUID) {
-    if (null == rootJobKey) {
-      throw new IllegalArgumentException("rootJobKey is null");
-    }
+      @NonNull Key rootJobKey, Key egParentKey, Key thisKey, Key generatorJobKey, String graphGUID) {
     if (generatorJobKey == null && graphGUID != null ||
         generatorJobKey != null && graphGUID == null) {
       throw new IllegalArgumentException(
@@ -111,6 +116,7 @@ public abstract class PipelineModelObject {
     this.rootJobKey = rootJobKey;
     this.generatorJobKey = generatorJobKey;
     this.graphGUID = graphGUID;
+
     if (null == thisKey) {
       if (egParentKey == null) {
         key = generateKey(rootJobKey.getProjectId(), rootJobKey.getNamespace(), getDatastoreKind());
@@ -123,6 +129,8 @@ public abstract class PipelineModelObject {
       }
       key = thisKey;
     }
+
+    this.expireAt = defaultExpireAt();
   }
 
   /**
@@ -160,6 +168,8 @@ public abstract class PipelineModelObject {
     if (!expectedEntityType.equals(extractType(entity))) {
       throw new IllegalArgumentException("The entity is not of kind " + expectedEntityType);
     }
+
+    this.expireAt = ExpiringDatastoreEntity.getExpireAt(entity);
   }
 
   protected static Key generateKey(Key parentKey, String kind) {
@@ -233,6 +243,9 @@ public abstract class PipelineModelObject {
     if (graphGUID != null) {
       builder.set(GRAPH_GUID_PROPERTY, graphGUID);
     }
+
+    fillExpireAt(builder);
+
     return builder;
   }
 
