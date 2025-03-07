@@ -38,7 +38,7 @@ public class RunJobTask extends ObjRefTask {
     this(jobKey, null, queueSettings);
   }
 
-  //NOTE: this IS used via reflection ... fucking hell
+  // NOTE: this IS used via reflection ... important
   protected RunJobTask(Type type, String taskName, Properties properties) {
     super(type, taskName, properties);
     attemptNumber = null;
