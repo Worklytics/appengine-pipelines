@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutionException;
 @ToString
 @RequiredArgsConstructor
 @Log
+@With
 @lombok.Builder(toBuilder = true)
 public class MapSettings implements ShardedJobAbstractSettings, Serializable {
 

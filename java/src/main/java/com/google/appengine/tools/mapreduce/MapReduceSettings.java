@@ -8,6 +8,7 @@ import com.google.common.base.Preconditions;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
+import lombok.With;
 import lombok.extern.java.Log;
 
 import java.io.Serial;
@@ -25,6 +26,7 @@ import java.util.Optional;
 @Log
 @Getter
 @ToString
+@With
 @lombok.Builder(toBuilder = true)
 public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstractSettings, Serializable {
 

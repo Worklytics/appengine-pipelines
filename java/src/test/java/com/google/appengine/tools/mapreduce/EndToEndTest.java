@@ -37,6 +37,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -64,10 +65,8 @@ import java.util.logging.Logger;
 /**
  * @author ohler@google.com (Christian Ohler)
  */
+@Log
 public class EndToEndTest extends EndToEndTestCase {
-
-  private static final Logger log = Logger.getLogger(EndToEndTest.class.getName());
-
 
   GoogleCloudStorageFileOutput.Options cloudStorageFileOutputOptions;
   MapReduceSettings testSettings;
@@ -133,9 +132,10 @@ public class EndToEndTest extends EndToEndTestCase {
   private <I, O, R> void runTest(MapSpecification<I, O, R> mrSpec, Verifier<R> verifier)
       throws Exception {
     runTest(mrSpec, MapSettings.builder()
+      .datastoreHost(getDatastore().getOptions().getHost())
       .projectId(getDatastore().getOptions().getProjectId())
-      .namespace(getDatastore().getOptions().getNamespace())
       .databaseId(getDatastore().getOptions().getDatabaseId())
+      .namespace(getDatastore().getOptions().getNamespace())
       .build(), verifier);
   }
 
