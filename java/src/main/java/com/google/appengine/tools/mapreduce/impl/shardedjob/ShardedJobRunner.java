@@ -8,6 +8,7 @@ import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.DeleteShardedJob;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline.FinalizeShardedJob;
+import com.google.appengine.tools.mapreduce.servlets.ShufflerParams;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
@@ -859,11 +860,37 @@ public class ShardedJobRunner implements ShardedJobHandler {
     return true;
   }
 
-  public String getWorkerServiceHostName(ShardedJobSettings settings) {
+  /**
+   * Notifies the caller that the job has completed.
+   */
+  public void enqueueCallbackTask( final ShufflerParams shufflerParams,
+                      final String url,
+                      final String taskName) {
+
+
+    String hostname = getWorkerServiceHostName(ShardedJobSettings.builder()
+      .module(shufflerParams.getCallbackService())
+      .version(shufflerParams.getCallbackVersion()).build());
+
+    String separator = shufflerParams.getCallbackPath().contains("?") ? "&" : "?";
+
+
+    PipelineTaskQueue.TaskSpec.TaskSpecBuilder taskSpecBuilder = PipelineTaskQueue.TaskSpec.builder()
+      .name(taskName)
+      .method(PipelineTaskQueue.TaskSpec.Method.GET)
+      .host(hostname)
+      .callbackPath(shufflerParams.getCallbackPath() + separator + url);
+
+    taskQueue.enqueue(shufflerParams.getCallbackQueue(), taskSpecBuilder.build());
+  }
+
+
+  private String getWorkerServiceHostName(ShardedJobSettings settings) {
     String version = Optional.ofNullable(settings.getVersion()).orElseGet(() ->
       appEngineServicesService.getDefaultVersion(settings.getModule())
     );
 
     return appEngineServicesService.getWorkerServiceHostName(settings.getModule(), version);
   }
+
 }

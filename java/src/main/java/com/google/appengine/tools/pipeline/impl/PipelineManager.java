@@ -151,6 +151,17 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   @Override
+  public void deletePipelineAsync(@NonNull JobRunId pipelineRunId, @NonNull Long delayMillis) {
+    Key key = JobRecord.keyFromPipelineHandle(pipelineRunId);
+    DeletePipelineTask deletePipelineTask = new DeletePipelineTask(key, false, QueueSettings.builder().build());
+    deletePipelineTask.getQueueSettings().setDelayInSeconds(delayMillis / 1000);
+
+    //q: add retries? old one had 5 with 20s backoff; but tasks are auto-retried, right?
+
+    backEnd.enqueue(deletePipelineTask);
+  }
+
+  @Override
   public JobRecord registerNewJobRecord(UpdateSpec updateSpec, JobSetting[] settings, Job<?> jobInstance, Object[] params) {
 
     //TODO: fix this dependency; JobRecord implicitly depends on backend having notion of 'project'

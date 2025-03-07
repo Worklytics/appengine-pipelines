@@ -16,14 +16,9 @@ package com.google.appengine.tools.mapreduce.servlets;
 
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
-import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
-import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
@@ -45,6 +40,7 @@ import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import javax.servlet.ServletConfig;
@@ -62,7 +58,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static java.util.concurrent.Executors.callable;
 
@@ -72,14 +67,14 @@ import static java.util.concurrent.Executors.callable;
  * the job finishes a message will be sent to that queue which indicates the status and where to
  * find the results.
  */
+@Log
 public class ShufflerServlet extends HttpServlet {
 
   JobRunServiceComponent component;
   RequestUtils requestUtils;
 
+  @Serial
   private static final long serialVersionUID = 2L;
-
-  private static final Logger log = Logger.getLogger(ShufflerServlet.class.getName());
 
   private static final String MIME_TYPE = "application/octet-stream";
 
@@ -177,7 +172,7 @@ public class ShufflerServlet extends HttpServlet {
     /**
      * reference to manifest file for shuffle-phase of a mapReduceJob
      *
-     * @param shuffleStageJobId identifies the shuffle stage this manifest file is for
+     * @param shuffleMapReduceJobId identifies the shuffle stage this manifest file is for
      * @param shufflerParams shuffler parameters
      * @return
      */
@@ -200,16 +195,15 @@ public class ShufflerServlet extends HttpServlet {
      * Logs the error and notifies the requester.
      */
     public Value<Void> handleException(Throwable t) {
-
       log.log(Level.SEVERE, "Shuffle job failed: jobId=" + getJobRunId().asEncodedString(), t);
-      enqueueCallbackTask(getShardedJobRunner(), shufflerParams, "job=" + getJobRunId().asEncodedString() + "&status=failed", "Shuffled-" + getJobRunId().getJobId().replace(JobRunId.DELIMITER, "_"));
+      getShardedJobRunner().enqueueCallbackTask(shufflerParams, "job=" + getJobRunId().asEncodedString() + "&status=failed", "Shuffled-" + getJobRunId().getJobId().replace(JobRunId.DELIMITER, "_"));
       return immediate(null);
     }
   }
 
   /**
    * Save the output filenames in GCS with one filename per line. Then invokes
-   * {@link #enqueueCallbackTask}
+   * {@link ShardedJobRunner#enqueueCallbackTask}
    */
   @RequiredArgsConstructor
   private static final class Complete extends
@@ -239,49 +233,16 @@ public class ShufflerServlet extends HttpServlet {
       }
       output.close();
 
-
-      enqueueCallbackTask(getShardedJobRunner(), shufflerParams,
+      getShardedJobRunner().enqueueCallbackTask(shufflerParams,
           "job=" + this.getJobRunId().asEncodedString() + "&status=done&output=" + URLEncoder.encode(manifestFile.getObjectName(), "UTF-8"),
           "Shuffled-" + this.getJobRunId() .asEncodedString().replace(JobRunId.DELIMITER, "-"));
       return immediate(null);
     }
   }
 
-  /**
-   * Notifies the caller that the job has completed.
-   */
-  private static void enqueueCallbackTask(ShardedJobRunner shardedJobRunner,
-    final ShufflerParams shufflerParams,
-                                          final String url,
-                                          final String taskName) {
-
-    RetryExecutor.call(getRetryerBuilder(), callable(() -> {
-
-      String hostname = shardedJobRunner.getWorkerServiceHostName(ShardedJobSettings.builder()
-        .module(shufflerParams.getCallbackService())
-        .version(shufflerParams.getCallbackVersion()).build());
-
-        Queue queue = QueueFactory.getQueue(shufflerParams.getCallbackQueue());
-        String separator = shufflerParams.getCallbackPath().contains("?") ? "&" : "?";
-        try {
-          TaskOptions builder = TaskOptions.Builder.withUrl(shufflerParams.getCallbackPath() + separator + url)
-            .method(TaskOptions.Method.GET)
-            .header("Host", hostname)
-              .taskName(taskName);
-
-          if (shufflerParams.getNamespace() != null) {
-            builder.param(RequestUtils.Params.DATASTORE_NAMESPACE, shufflerParams.getNamespace());
-          }
-
-          queue.add(builder);
-        } catch (TaskAlreadyExistsException e) {
-          // harmless dup.
-        }
-      }));
-  }
 
   @VisibleForTesting
-  static ShufflerParams readShufflerParams(InputStream in) throws IOException {
+  ShufflerParams readShufflerParams(InputStream in) throws IOException {
     Marshaller<ShufflerParams> marshaller =
         Marshallers.getGenericJsonMarshaller(ShufflerParams.class);
     ShufflerParams params = marshaller.fromBytes(ByteBuffer.wrap(ByteStreams.toByteArray(in)));
