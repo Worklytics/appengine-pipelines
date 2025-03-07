@@ -64,6 +64,11 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
           .maximumSize(10)
           .build();
 
+  Cache<String, String> hostnameCache = CacheBuilder.newBuilder()
+          .maximumSize(10)
+          .build();
+
+
   @Override
   public String getDefaultService() {
     return appEngineEnvironment.getService();
@@ -72,11 +77,15 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   @Override
   @SneakyThrows
   public String getDefaultVersion(String service) {
-
-    final String key = Optional.ofNullable(service).orElse(appEngineEnvironment.getService());
-
-    return defaultVersionCache.get(key, () -> getDefaultVersionInternal(key));
+    final String nonNullService = Optional.ofNullable(service).orElse(appEngineEnvironment.getService());
+    return defaultVersionCache.get(nonNullService, () -> getDefaultVersionInternal(nonNullService));
   }
+
+  @Override
+  public String getWorkerServiceHostName(@NonNull String service, @NonNull String version) {
+    return hostnameCache.get(service + version, () -> getWorkerServiceHostNameInternal(service, version));
+  }
+
 
   private String getDefaultVersionInternal(@NonNull String service) {
     if (Objects.equals(service, appEngineEnvironment.getService())) {
@@ -99,8 +108,7 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
     }
   }
 
-  @Override
-  public String getWorkerServiceHostName(String service, String version) {
+  private  String getWorkerServiceHostNameInternal(String service, String version) {
     int attempts = 0;
     while (true) {
       try (VersionsClient versionsClient = this.versionsClientProvider.get()) {
