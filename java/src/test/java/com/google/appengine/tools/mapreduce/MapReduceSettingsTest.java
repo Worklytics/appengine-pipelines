@@ -39,9 +39,10 @@ public class MapReduceSettingsTest {
 
   @Test
   public void testDefaultSettings() {
-    MapReduceSettings mrSettings = MapReduceSettings.builder().build();
+    MapReduceSettings mrSettings = MapReduceSettings.builder()
+      .bucketName("app_default_bucket")
+      .build();
     assertEquals(DEFAULT_BASE_URL, mrSettings.getBaseUrl());
-    assertEquals("app_default_bucket", mrSettings.getBucketNameOrDefault());
     assertEquals(DEFAULT_MAP_FANOUT, mrSettings.getMapFanout());
     assertEquals(DEFAULT_SHARD_RETRIES, mrSettings.getMaxShardRetries());
     assertEquals(DEFAULT_SLICE_RETRIES, mrSettings.getMaxSliceRetries());
@@ -115,7 +116,7 @@ public class MapReduceSettingsTest {
     MapReduceSettings mrSettings = builder.build();
     //assertEquals("b1", mrSettings.getModule());
     //assertNull(mrSettings.getModule());
-    assertEquals("bucket", mrSettings.getBucketNameOrDefault());
+    assertEquals("bucket", mrSettings.getBucketName());
     assertEquals("base-url", mrSettings.getBaseUrl());
     assertEquals(3, mrSettings.getMapFanout());
     assertEquals(1, mrSettings.getMaxShardRetries());

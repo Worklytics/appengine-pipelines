@@ -4,6 +4,8 @@ package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 
+import java.io.Serial;
+
 /**
  * Map function for Map only jobs.  A map function processes input
  * values one at a time and generates zero or more output values.
@@ -16,6 +18,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
  */
 public abstract class MapOnlyMapper<I, O> extends BaseMapper<I, O, MapOnlyMapperContext<O>> {
 
+  @Serial
   private static final long serialVersionUID = 3407371758265252756L;
 
   /**
@@ -81,6 +84,7 @@ public abstract class MapOnlyMapper<I, O> extends BaseMapper<I, O, MapOnlyMapper
 
   private static class MapperAdapter<I, K, V> extends MapOnlyMapper<I, V> {
 
+    @Serial
     private static final long serialVersionUID = 4786890683072379586L;
     private final Mapper<I, K, V> mapper;
 
