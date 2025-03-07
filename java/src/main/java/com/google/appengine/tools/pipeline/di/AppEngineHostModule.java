@@ -14,11 +14,7 @@ import lombok.SneakyThrows;
 /**
  * provides general dependencies for AppEngine environments, which aren't coupled to specific tenant
  */
-@Module(
-  includes = {
-    AppEngineHostModule.Bindings.class,
-  }
-)
+@Module
 public class AppEngineHostModule {
 
   @SneakyThrows
@@ -50,10 +46,10 @@ public class AppEngineHostModule {
   AppEngineServicesService appEngineServicesService(AppEngineServicesServiceImpl impl) {
 
     // TODO: should probably inject AppEngineEnvironment, and get it from there
-    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+
 
     //before, test harness basically did this by overriding env vars via ApiProxy stuff; see LocalModulesServiceTestConfig
-    if (RequestUtils.LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId()) || "test-project".equals(defaultInstance.getProjectId())) {
+    if (isTestingContext()) {
       return new AppEngineServicesService() {
         @Override
         public String getDefaultService() {
@@ -75,12 +71,18 @@ public class AppEngineHostModule {
     }
   }
 
-  @Module
-  interface Bindings {
-
-
-    @Binds
-    PipelineTaskQueue pipelineTaskQueue(CloudTasksTaskQueue appEngineTaskQueue);
+  boolean isTestingContext() {
+    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+    return RequestUtils.LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId()) || "test-project" .equals(defaultInstance.getProjectId());
   }
 
-}
+    @Provides
+    PipelineTaskQueue pipelineTaskQueue(CloudTasksTaskQueue cloudTasksTaskQueue, AppEngineTaskQueue appEngineTaskQueue) {
+      // hacky, and legacy tasks stuff still in here; what I really need to do is OVERRIDE for the tests; but not so simple
+      if (isTestingContext()) {
+        return appEngineTaskQueue;
+      } else {
+        return cloudTasksTaskQueue;
+      }
+    }
+  }

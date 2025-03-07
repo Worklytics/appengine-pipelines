@@ -36,10 +36,10 @@ public class AppEngineBackendModule {
   @Provides @StepExecutionScoped
   AppEngineBackEnd appEngineBackEnd(
     Datastore datastore,
-                                    AppEngineTaskQueue appEngineTaskQueue,
+                                    PipelineTaskQueue taskQueue,
     AppEngineServicesService appEngineServicesService
                                     ) {
-    return new AppEngineBackEnd(datastore, appEngineTaskQueue, appEngineServicesService);
+    return new AppEngineBackEnd(datastore, taskQueue, appEngineServicesService);
   }
 
   @Module
