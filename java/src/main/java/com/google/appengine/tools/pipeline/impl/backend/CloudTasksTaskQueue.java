@@ -7,8 +7,6 @@ import com.google.cloud.tasks.v2.*;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-
 import javax.inject.Inject;
 import javax.inject.Provider;
 import java.net.URLEncoder;
@@ -20,6 +18,10 @@ import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_Q
 
 /**
  * implementation of PipelineTaskQueue backed by Cloud Tasks
+ *
+ * TODO: what happens when tasks exists?
+ * TODO: retries for transients + internal errors
+ *
  */
 @AllArgsConstructor(onConstructor_ = @Inject)
 public class CloudTasksTaskQueue implements PipelineTaskQueue {
