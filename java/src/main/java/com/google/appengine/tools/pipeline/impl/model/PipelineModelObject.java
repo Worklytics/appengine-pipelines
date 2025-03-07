@@ -17,6 +17,7 @@ package com.google.appengine.tools.pipeline.impl.model;
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
+import lombok.Getter;
 import lombok.NonNull;
 
 import java.time.Instant;
@@ -43,12 +44,14 @@ public abstract class PipelineModelObject {
   /**
    * Datastore key of this object
    */
+  @Getter
   private final Key key;
 
   /**
    * Datastore key of the root job identifying the Pipeline to which this object
    * belongs.
    */
+  @Getter
   private final Key rootJobKey;
 
   /**
@@ -56,6 +59,7 @@ public abstract class PipelineModelObject {
    * the job whose run() method created you and the rest of your local job
    * graph. The generator of the objects in the root job graph is null.
    */
+  @Getter
   private final Key generatorJobKey;
 
   /**
@@ -66,6 +70,7 @@ public abstract class PipelineModelObject {
    * orphaned. A child job graph is valid if its graphGUID is equal to the
    * childGraphGUID of its generator job.
    */
+  @Getter
   private final String graphGUID;
 
   /**
@@ -229,22 +234,6 @@ public abstract class PipelineModelObject {
       builder.set(GRAPH_GUID_PROPERTY, graphGUID);
     }
     return builder;
-  }
-
-  public Key getKey() {
-    return key;
-  }
-
-  public Key getRootJobKey() {
-    return rootJobKey;
-  }
-
-  public Key getGeneratorJobKey() {
-    return generatorJobKey;
-  }
-
-  public String getGraphGuid() {
-    return graphGUID;
   }
 
   protected abstract String getDatastoreKind();
