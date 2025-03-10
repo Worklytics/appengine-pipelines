@@ -81,6 +81,7 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
     return defaultVersionCache.get(nonNullService, () -> getDefaultVersionInternal(nonNullService));
   }
 
+  @SneakyThrows
   @Override
   public String getWorkerServiceHostName(@NonNull String service, @NonNull String version) {
     return hostnameCache.get(service + ":" + version, () -> getWorkerServiceHostNameInternal(service, version));
