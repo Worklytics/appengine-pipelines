@@ -600,7 +600,7 @@ public class EndToEndTest extends EndToEndTestCase {
     int[][] runs = { {10, 0, 0}, {10, 2, 0}, {10, 0, 10}, {10, 3, 5}, {10, 0, 22}, {10, 1, 50}};
     for (int[] run : runs) {
       RandomLongInput input = new RandomLongInput(run[0], shardsCount);
-      runWithPipeline(MapReduceSettings.builder().millisPerSlice(0)
+      runWithPipeline(testSettings.toBuilder().millisPerSlice(0)
           .build(), new MapReduceSpecification.Builder<>(input,
           new RougeMapper(shardsCount, run[1], run[2]), NoReducer.create(),
           new NoOutput<String, String>()).setKeyMarshaller(Marshallers.getStringMarshaller())
@@ -620,7 +620,7 @@ public class EndToEndTest extends EndToEndTestCase {
       RandomLongInput input = new RandomLongInput(run[0], shardsCount);
       RougeMapper mapper = new RougeMapper(shardsCount, run[1], run[2]);
       mapper.setAllowSliceRetry(false);
-      runWithPipeline(MapReduceSettings.builder().millisPerSlice(0)
+      runWithPipeline(testSettings.toBuilder().millisPerSlice(0)
           .build(), new MapReduceSpecification.Builder<>(input, mapper,
           NoReducer.create(), new NoOutput<String, String>())
           .setKeyMarshaller(Marshallers.getStringMarshaller())
@@ -642,7 +642,9 @@ public class EndToEndTest extends EndToEndTestCase {
     int[][] runs = { {5, 0}, {4, 21}, {3, 50}};
     for (int[] run : runs) {
       RandomLongInput input = new RandomLongInput(10, shardsCount);
-      MapReduceSettings mrSettings = MapReduceSettings.builder().millisPerSlice(0).build();
+      MapReduceSettings mrSettings = testSettings.toBuilder()
+        .millisPerSlice(0)
+        .build();
       MapReduceSpecification<Long, String, Long, String, String> mrSpec =
           new MapReduceSpecification.Builder<>(input, new RougeMapper(shardsCount, run[0], run[1]),
               NoReducer.create(), new NoOutput<String, String>())
