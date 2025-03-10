@@ -83,7 +83,7 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
   @Override
   public String getWorkerServiceHostName(@NonNull String service, @NonNull String version) {
-    return hostnameCache.get(service + version, () -> getWorkerServiceHostNameInternal(service, version));
+    return hostnameCache.get(service + ":" + version, () -> getWorkerServiceHostNameInternal(service, version));
   }
 
 
