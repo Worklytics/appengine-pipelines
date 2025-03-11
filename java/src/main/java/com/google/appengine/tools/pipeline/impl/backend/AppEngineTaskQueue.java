@@ -16,19 +16,17 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.github.rholder.retry.*;
 
+import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueConstants;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
-import com.google.appengine.api.taskqueue.TaskHandle;
-import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.apphosting.api.ApiProxy;
+import com.google.common.base.Preconditions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
+import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
@@ -53,6 +51,8 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   //approximates default Retry policy from GAE GCS lib RetryParams class, which this pipelines lib was originally
   // coupled to
   private static final Retryer<String> retryer = RetryerBuilder.<String>newBuilder()
+          .retryIfExceptionOfType(TransientFailureException.class)
+          .retryIfExceptionOfType(InternalFailureException.class)
           .withStopStrategy(StopStrategies.stopAfterAttempt(6))
           .withWaitStrategy(WaitStrategies.incrementingWait(1000L, TimeUnit.MILLISECONDS, 1000L, TimeUnit.MILLISECONDS))
           .build();
@@ -74,6 +74,13 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     this.taskHandlerUrl = TaskHandler.handleTaskUrl();
   }
 
+  @Inject
+  public AppEngineTaskQueue(AppEngineEnvironment environment, AppEngineServicesService servicesService) {
+    this.environment = environment;
+    this.servicesService = servicesService;
+    this.taskHandlerUrl = TaskHandler.handleTaskUrl();
+  }
+
   @Override
   public void deleteTasks(Collection<TaskReference> taskReferences) {
     Map<String, List<String>> queueToTaskNames = taskReferences.stream()
@@ -92,10 +99,10 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public TaskReference enqueue(Task task) {
-    log.finest("Enqueueing: " + task);
-    TaskOptions taskOptions = toTaskOptions(task);
-    Queue queue = getQueue(task.getQueueSettings().getOnQueue());
+  public TaskReference enqueue(PipelineTask pipelineTask) {
+    log.finest("Enqueueing: " + pipelineTask);
+    TaskOptions taskOptions = toTaskOptions(pipelineTask);
+    Queue queue = getQueue(pipelineTask.getQueueSettings().getOnQueue());
     try {
       TaskHandle handle = queue.add(taskOptions);
       return taskHandleToReference(handle);
@@ -104,6 +111,21 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
       return TaskReference.of(queue.getQueueName(), ignore.getTaskNames().get(0));
     }
   }
+
+  @Override
+  public TaskReference enqueue(String queueName, TaskSpec build) {
+    log.finest("Enqueueing: " + build);
+    TaskOptions taskOptions = toTaskOptions(build);
+    Queue queue = getQueue(queueName);
+    try {
+      TaskHandle handle = queue.add(taskOptions);
+      return taskHandleToReference(handle);
+    } catch (TaskAlreadyExistsException ignore) {
+      // ignore
+      return TaskReference.of(queue.getQueueName(), ignore.getTaskNames().get(0));
+    }
+  }
+
 
   private static Queue getQueue(String queueName) {
     if (queueName == null) {
@@ -119,8 +141,8 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public Collection<TaskReference> enqueue(final Collection<Task> tasks) {
-    return addToQueue(tasks);
+  public Collection<TaskReference> enqueue(final Collection<PipelineTask> pipelineTasks) {
+    return addToQueue(pipelineTasks);
   }
 
   TaskReference taskHandleToReference(TaskHandle taskHandle) {
@@ -128,13 +150,13 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   //VisibleForTesting
-  List<TaskReference> addToQueue(final Collection<Task> tasks) {
+  List<TaskReference> addToQueue(final Collection<PipelineTask> pipelineTasks) {
     List<TaskReference> handles = new ArrayList<>();
     Map<String, List<TaskOptions>> queueNameToTaskOptions = new HashMap<>();
-    for (Task task : tasks) {
-      log.finest("Enqueueing: " + task);
-      String queueName = task.getQueueSettings().getOnQueue();
-      TaskOptions taskOptions = toTaskOptions(task);
+    for (PipelineTask pipelineTask : pipelineTasks) {
+      log.finest("Enqueueing: " + pipelineTask);
+      String queueName = pipelineTask.getQueueSettings().getOnQueue();
+      TaskOptions taskOptions = toTaskOptions(pipelineTask);
 
 
       // seen in logs : "Negative countdown is not allowed"
@@ -195,8 +217,8 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     return taskReferences;
   }
 
-  private TaskOptions toTaskOptions(Task task) {
-    final QueueSettings queueSettings = task.getQueueSettings();
+  private TaskOptions toTaskOptions(PipelineTask pipelineTask) {
+    final QueueSettings queueSettings = pipelineTask.getQueueSettings();
 
     TaskOptions taskOptions = TaskOptions.Builder.withUrl(taskHandlerUrl);
 
@@ -223,19 +245,36 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
     taskOptions.header("Host", versionHostname);
 
-
     Long delayInSeconds = queueSettings.getDelayInSeconds();
     if (null != delayInSeconds) {
       taskOptions.countdownMillis(delayInSeconds * 1000L);
       queueSettings.setDelayInSeconds(null);
     }
-    addProperties(taskOptions, task.toProperties());
-    String taskName = task.getName();
+    addProperties(taskOptions, pipelineTask.toProperties());
+    String taskName = pipelineTask.getName();
     if (null != taskName) {
       taskOptions.taskName(taskName);
     }
     return taskOptions;
   }
+
+  private TaskOptions toTaskOptions(TaskSpec spec) {
+    TaskOptions taskOptions = TaskOptions.Builder.withUrl(spec.getCallbackPath());
+
+    Optional.ofNullable(spec.getScheduledExecutionTime())
+      .ifPresent(eta -> taskOptions.etaMillis(eta.toEpochMilli()));
+
+    taskOptions.method(spec.getMethod() == TaskSpec.Method.POST ? TaskOptions.Method.POST : TaskOptions.Method.GET);
+    spec.getHeaders().forEach(taskOptions::header);
+    spec.getParams().forEach(taskOptions::param);
+
+    Preconditions.checkArgument(spec.getHost() != null, "Host must be set");
+
+    taskOptions.header("Host", spec.getHost());
+
+    return taskOptions;
+  }
+
 
   private static void addProperties(TaskOptions taskOptions, Properties properties) {
     for (String paramName : properties.stringPropertyNames()) {

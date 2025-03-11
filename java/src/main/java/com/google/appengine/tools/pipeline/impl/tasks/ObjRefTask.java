@@ -19,7 +19,6 @@ import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import lombok.NonNull;
 import org.apache.commons.codec.digest.DigestUtils;
 
-import java.util.Base64;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -31,7 +30,7 @@ import java.util.stream.Stream;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public abstract class ObjRefTask extends Task {
+public abstract class ObjRefTask extends PipelineTask {
 
   private static final String KEY_PARAM = "key";
 

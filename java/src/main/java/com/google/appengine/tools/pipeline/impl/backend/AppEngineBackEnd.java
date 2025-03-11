@@ -19,7 +19,7 @@ import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.*;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.appengine.tools.pipeline.impl.util.TestUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
@@ -113,7 +113,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private static final int MAX_BLOB_BYTE_SIZE = 1_000_000;
 
   private final Datastore datastore;
-  private final AppEngineTaskQueue taskQueue;
+  private final PipelineTaskQueue taskQueue;
   @Getter
   private final AppEngineServicesService servicesService;
 
@@ -317,8 +317,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   @Override
-  public PipelineTaskQueue.TaskReference enqueue(Task task) {
-    return taskQueue.enqueue(task);
+  public PipelineTaskQueue.TaskReference enqueue(PipelineTask pipelineTask) {
+    return taskQueue.enqueue(pipelineTask);
   }
 
   @Override

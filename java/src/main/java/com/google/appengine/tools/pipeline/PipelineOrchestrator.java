@@ -80,4 +80,6 @@ public interface PipelineOrchestrator {
    * Returns true if job was already deleted or asynchronous task was submitted successfully.
    */
   boolean cleanupJob(ShardedJobRunId jobId);
+
+  void deletePipelineAsync(@NonNull JobRunId pipelineRunId, @NonNull Long delayMillis);
 }

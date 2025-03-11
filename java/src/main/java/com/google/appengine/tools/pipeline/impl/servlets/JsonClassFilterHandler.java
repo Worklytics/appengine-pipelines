@@ -44,13 +44,12 @@ public class JsonClassFilterHandler {
   public static final String PATH_COMPONENT = "rpc/class_paths";
 
   final JobRunServiceComponent component;
-  final RequestUtils requestUtils;
 
   public void doGet(@SuppressWarnings("unused") HttpServletRequest req,
       HttpServletResponse resp) throws IOException {
 
     StepExecutionComponent stepExecutionComponent =
-      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+      component.stepExecutionComponent(new StepExecutionModule(req));
     PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
 
 

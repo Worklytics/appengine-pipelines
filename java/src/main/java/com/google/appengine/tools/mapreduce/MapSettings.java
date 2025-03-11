@@ -4,16 +4,12 @@ package com.google.appengine.tools.mapreduce;
 
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
-import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TransientFailureException;
 import com.google.common.base.Preconditions;
 import lombok.*;
 import lombok.extern.java.Log;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.concurrent.ExecutionException;
 
 
 /**
@@ -36,7 +32,6 @@ public class MapSettings implements ShardedJobAbstractSettings, Serializable {
     return RetryerBuilder.newBuilder()
       .withWaitStrategy(RetryUtils.defaultWaitStrategy())
       .withStopStrategy(StopStrategies.stopAfterAttempt(8))
-      .retryIfExceptionOfType(TransientFailureException.class)
       .withRetryListener(RetryUtils.logRetry(log, MapSettings.class.getName()));
   }
 
@@ -158,39 +153,8 @@ public class MapSettings implements ShardedJobAbstractSettings, Serializable {
 
     @Override
     public Builder workerQueueName(String workerQueueName) {
-      super.workerQueueName(checkQueueSettings(workerQueueName));
+      super.workerQueueName(workerQueueName);
       return this;
     }
-
-    public static String checkQueueSettings(String queueName) {
-      if (queueName == null) {
-        return null;
-      }
-      final Queue queue = QueueFactory.getQueue(queueName);
-      try {
-        // Does not work as advertise (just check that the queue name is valid).
-        // See b/13910616. Probably after the bug is fixed the check would need
-        // to inspect EnforceRate for not null.
-        RetryExecutor.call(getQueueRetryerBuilder(), () -> {
-          // Does not work as advertise (just check that the queue name is valid).
-          // See b/13910616. Probably after the bug is fixed the check would need
-          // to inspect EnforceRate for not null.
-          queue.fetchStatistics();
-          return null;
-        });
-      } catch (Throwable ex) {
-        if (ex instanceof ExecutionException) {
-          if (ex.getCause() instanceof IllegalStateException) {
-            throw new RuntimeException("Queue '" + queueName + "' does not exists");
-          }
-          throw new RuntimeException(
-            "Could not check if queue '" + queueName + "' exists", ex.getCause());
-        } else {
-          throw ex;
-        }
-      }
-      return queueName;
-    }
   }
-
 }

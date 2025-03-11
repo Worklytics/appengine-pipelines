@@ -212,7 +212,9 @@ public class ShufflerServletTest {
         Marshallers.getGenericJsonMarshaller(ShufflerParams.class);
     ByteBuffer bytes = marshaller.toBytes(shufflerParams);
     ByteArrayInputStream bin = new ByteArrayInputStream(bytes.array());
-    ShufflerParams readShufflerParams = ShufflerServlet.readShufflerParams(bin);
+
+    ShufflerServlet shufflerServlet = new ShufflerServlet();
+    ShufflerParams readShufflerParams = shufflerServlet.readShufflerParams(bin);
     assertEquals(shufflerParams.getShufflerQueue(), readShufflerParams.getShufflerQueue());
     assertEquals(shufflerParams.getGcsBucket(), readShufflerParams.getGcsBucket());
     assertArrayEquals(shufflerParams.getInputFileNames(), readShufflerParams.getInputFileNames());

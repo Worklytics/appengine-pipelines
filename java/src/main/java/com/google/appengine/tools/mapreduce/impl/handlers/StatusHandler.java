@@ -91,7 +91,7 @@ final class StatusHandler {
     JSONObject retValue = null;
 
     StepExecutionComponent stepExecutionComponent =
-      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(request)));
+      component.stepExecutionComponent(new StepExecutionModule(request));
     PipelineOrchestrator pipelineOrchestrator = stepExecutionComponent.pipelineOrchestrator();
     PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
 

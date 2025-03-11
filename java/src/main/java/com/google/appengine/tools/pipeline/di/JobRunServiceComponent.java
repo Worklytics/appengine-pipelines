@@ -16,9 +16,9 @@ import javax.inject.Singleton;
  */
 @Singleton // expect exactly one of these per process
 @Component(
-//  modules = {
-//    DefaultDIModule.class,
-//  }
+  modules = {
+    AppEngineHostModule.class,
+  }
 )
 public interface JobRunServiceComponent {
 

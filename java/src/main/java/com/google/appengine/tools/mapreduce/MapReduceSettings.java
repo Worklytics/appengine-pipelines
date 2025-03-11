@@ -213,7 +213,7 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
 
     @Override
     public Builder workerQueueName(String workerQueueName) {
-      super.workerQueueName( MapSettings.Builder.checkQueueSettings(workerQueueName));
+      super.workerQueueName(workerQueueName);
       return this;
     }
 

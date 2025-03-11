@@ -3,6 +3,7 @@ package com.google.appengine.tools.pipeline;
 import com.google.appengine.tools.pipeline.di.DIContainer;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import com.google.appengine.tools.pipeline.testutil.FakeAppEngineEnvironment;
 import dagger.Component;
 import dagger.Module;
 import javax.inject.Inject; // jakarta.inject.Inject not working with dagger yet (maybe in 2.0??)
@@ -37,24 +38,11 @@ public class DITest extends PipelineTest {
 
     @Provides
     AppEngineEnvironment appEngineEnvironment() {
-      return new AppEngineEnvironment() {
-
-
-        @Override
-        public String getProjectId() {
-          return "test-project";
-        }
-
-        @Override
-        public String getService() {
-          return "service";
-        }
-
-        @Override
-        public String getVersion() {
-          return "v0.1-test";
-        }
-      };
+      return FakeAppEngineEnvironment.builder()
+        .service("service")
+        .version("v0.1-test")
+        .projectId("test-project")
+        .build();
     }
   }
 

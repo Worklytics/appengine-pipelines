@@ -114,20 +114,6 @@ public class MapSettingsTest {
   }
 
   @Test
-  public void testValidate() throws Exception {
-    MapSettings.MapSettingsBuilder builder = MapSettings.builder();
-    // TODO(user): replace "bad_queue" with "bad-queue". The latter is just
-    // an invalid name and does not check if queue exists. see b/13910616
-    try {
-      builder.workerQueueName("bad_queue");
-      fail("was expecting failure due to bad queue");
-    } catch (RuntimeException ex) {
-      // expected.
-    }
-    builder.build();
-  }
-
-  @Test
   public void testBuilderWithSettings() {
     MapSettings settings = MapSettings.builder()
         .module("m")

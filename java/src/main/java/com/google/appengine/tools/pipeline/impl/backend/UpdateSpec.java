@@ -21,7 +21,7 @@ import com.google.appengine.tools.pipeline.impl.model.JobInstanceRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineModelObject;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -57,7 +57,7 @@ import java.util.Set;
  * <ol>
  *
  * The {@link #getFinalTransaction() final transactional group} is a
- * {@link TransactionWithTasks} and so may contain {@link Task tasks}. The tasks
+ * {@link TransactionWithTasks} and so may contain {@link PipelineTask tasks}. The tasks
  * will be enqueued in the final transaction.
  *
  * @author rudominer@google.com (Mitch Rudominer)
@@ -195,7 +195,7 @@ public class UpdateSpec {
 
   /**
    * An extension of {@link Transaction} that also accepts
-   * {@link Task Tasks}. Each task included in the group will
+   * {@link PipelineTask Tasks}. Each task included in the group will
    * be enqueued to the task queue as part of the same transaction
    * in which the objects are saved.
    *
@@ -203,17 +203,17 @@ public class UpdateSpec {
    */
   public class TransactionWithTasks extends Transaction {
     private static final int INITIAL_SIZE = 20;
-    private final Set<Task> taskSet = new HashSet<>(INITIAL_SIZE);
+    private final Set<PipelineTask> pipelineTaskSet = new HashSet<>(INITIAL_SIZE);
 
-    public void registerTask(Task task) {
-      taskSet.add(task);
+    public void registerTask(PipelineTask pipelineTask) {
+      pipelineTaskSet.add(pipelineTask);
     }
 
     /**
      * @return Unmodifiable collection of Tasks.
      */
-    public Collection<Task> getTasks() {
-      return Collections.unmodifiableCollection(taskSet);
+    public Collection<PipelineTask> getTasks() {
+      return Collections.unmodifiableCollection(pipelineTaskSet);
     }
   }
 }
