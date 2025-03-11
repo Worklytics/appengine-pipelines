@@ -2,6 +2,8 @@
 
 package com.google.appengine.tools.mapreduce;
 
+import java.io.Serial;
+
 /**
  * Map function for MapReduce computations.  A map function processes input
  * values one at a time and generates zero or more output key-value pairs for
@@ -18,6 +20,7 @@ package com.google.appengine.tools.mapreduce;
  */
 public abstract class Mapper<I, K, V> extends BaseMapper<I, KeyValue<K, V>, MapperContext<K, V>> {
 
+  @Serial
   private static final long serialVersionUID = 1966174340710715049L;
 
   /**
