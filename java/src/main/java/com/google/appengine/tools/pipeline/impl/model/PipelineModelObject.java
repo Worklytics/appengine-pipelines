@@ -17,16 +17,13 @@ package com.google.appengine.tools.pipeline.impl.model;
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
+import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -34,7 +31,7 @@ import java.util.stream.Collectors;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public abstract class PipelineModelObject {
+public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
 
   public static final String ROOT_JOB_KEY_PROPERTY = "rootJobKey";
   private static final String GENERATOR_JOB_PROPERTY = "generatorJobKey";
@@ -43,12 +40,14 @@ public abstract class PipelineModelObject {
   /**
    * Datastore key of this object
    */
+  @Getter
   private final Key key;
 
   /**
    * Datastore key of the root job identifying the Pipeline to which this object
    * belongs.
    */
+  @Getter
   private final Key rootJobKey;
 
   /**
@@ -56,6 +55,7 @@ public abstract class PipelineModelObject {
    * the job whose run() method created you and the rest of your local job
    * graph. The generator of the objects in the root job graph is null.
    */
+  @Getter
   private final Key generatorJobKey;
 
   /**
@@ -66,7 +66,20 @@ public abstract class PipelineModelObject {
    * orphaned. A child job graph is valid if its graphGUID is equal to the
    * childGraphGUID of its generator job.
    */
+  @Getter
   private final String graphGUID;
+
+  /**
+   * time at which this entity should expire, and be cleaned up from the datastore, if any.
+   *
+   * null implies no expiration (entity will not be automatically cleaned up)
+   *
+   * NOTE: will NOT be enforced unless you also configure retention TTL policy on your datastore instance.
+   *
+   * see: https://cloud.google.com/datastore/docs/ttl
+   */
+  @Getter @Setter
+  private Instant expireAt;
 
   /**
    * Construct a new PipelineModelObject from the provided data.
@@ -93,10 +106,7 @@ public abstract class PipelineModelObject {
    *        its barriers or slots.
    */
   protected PipelineModelObject(
-      Key rootJobKey, Key egParentKey, Key thisKey, Key generatorJobKey, String graphGUID) {
-    if (null == rootJobKey) {
-      throw new IllegalArgumentException("rootJobKey is null");
-    }
+      @NonNull Key rootJobKey, Key egParentKey, Key thisKey, Key generatorJobKey, String graphGUID) {
     if (generatorJobKey == null && graphGUID != null ||
         generatorJobKey != null && graphGUID == null) {
       throw new IllegalArgumentException(
@@ -106,6 +116,7 @@ public abstract class PipelineModelObject {
     this.rootJobKey = rootJobKey;
     this.generatorJobKey = generatorJobKey;
     this.graphGUID = graphGUID;
+
     if (null == thisKey) {
       if (egParentKey == null) {
         key = generateKey(rootJobKey.getProjectId(), rootJobKey.getNamespace(), getDatastoreKind());
@@ -118,6 +129,8 @@ public abstract class PipelineModelObject {
       }
       key = thisKey;
     }
+
+    this.expireAt = defaultExpireAt();
   }
 
   /**
@@ -155,6 +168,8 @@ public abstract class PipelineModelObject {
     if (!expectedEntityType.equals(extractType(entity))) {
       throw new IllegalArgumentException("The entity is not of kind " + expectedEntityType);
     }
+
+    this.expireAt = ExpiringDatastoreEntity.getExpireAt(entity);
   }
 
   protected static Key generateKey(Key parentKey, String kind) {
@@ -228,23 +243,10 @@ public abstract class PipelineModelObject {
     if (graphGUID != null) {
       builder.set(GRAPH_GUID_PROPERTY, graphGUID);
     }
+
+    fillExpireAt(builder);
+
     return builder;
-  }
-
-  public Key getKey() {
-    return key;
-  }
-
-  public Key getRootJobKey() {
-    return rootJobKey;
-  }
-
-  public Key getGeneratorJobKey() {
-    return generatorJobKey;
-  }
-
-  public String getGraphGuid() {
-    return graphGUID;
   }
 
   protected abstract String getDatastoreKind();

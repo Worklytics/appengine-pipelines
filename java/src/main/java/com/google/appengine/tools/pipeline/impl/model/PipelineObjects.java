@@ -66,7 +66,7 @@ public class PipelineObjects {
       JobRecord job = iter.next();
       if (job != rootJob) {
         Key parentKey = job.getGeneratorJobKey();
-        String graphGuid = job.getGraphGuid();
+        String graphGuid = job.getGraphGUID();
         if (parentKey == null || graphGuid == null) {
           log.info("Ignoring a non-root job with no parent or graphGuid -> " + job);
           iter.remove();
@@ -81,7 +81,7 @@ public class PipelineObjects {
     for (Iterator<Slot> iter = slots.values().iterator(); iter.hasNext(); ) {
       Slot slot = iter.next();
       Key parentKey = slot.getGeneratorJobKey();
-      String parentGuid = slot.getGraphGuid();
+      String parentGuid = slot.getGraphGUID();
       if (parentKey == null && parentGuid == null
             || parentGuid != null && parentGuid.equals(jobToChildGuid.get(parentKey))) {
         slot.inflate(barriers);
@@ -95,7 +95,7 @@ public class PipelineObjects {
     for (Iterator<Barrier> iter = barriers.values().iterator(); iter.hasNext(); ) {
       Barrier barrier = iter.next();
       Key parentKey = barrier.getGeneratorJobKey();
-      String parentGuid = barrier.getGraphGuid();
+      String parentGuid = barrier.getGraphGUID();
       if (parentKey == null && parentGuid == null
           || parentGuid != null && parentGuid.equals(jobToChildGuid.get(parentKey))) {
         barrier.inflate(slots);
