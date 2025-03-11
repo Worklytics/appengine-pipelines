@@ -10,7 +10,6 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
-import com.google.apphosting.api.ApiProxy;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import lombok.*;
@@ -81,8 +80,6 @@ public class IncrementalTaskState<T extends IncrementalTask> implements Expiring
 
   public static class LockInfo {
 
-    private static final String REQUEST_ID = "com.google.appengine.runtime.request_log_id";
-
     private Long startTime;
 
     @Getter
@@ -101,9 +98,9 @@ public class IncrementalTaskState<T extends IncrementalTask> implements Expiring
       return startTime == null ? -1 : startTime;
     }
 
-    public void lock() {
+    public void lock(String requestId) {
       startTime = System.currentTimeMillis();
-      requestId = (String) ApiProxy.getCurrentEnvironment().getAttributes().get(REQUEST_ID);
+      this.requestId = requestId;
     }
 
     public void unlock() {

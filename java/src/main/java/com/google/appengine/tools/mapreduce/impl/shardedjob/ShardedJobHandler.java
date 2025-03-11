@@ -23,6 +23,11 @@ public interface ShardedJobHandler {
    * Is invoked by the servlet that handles the work. this actually calls run() method of the incremental task, doing something
    * that is potentially long-running
    * {@link ShardedJobSettings#getWorkerPath} to run a task.
+   *
+   * @param jobId the id of the job that the task belongs to
+   * @param taskId the id of the task to run
+   * @param sequenceNumber the sequence number of the task execution (eg, N, for Nth invocation of the task)
+   * @param operationId id to identify the workload executing the task; useful for logging. in request-driven context, a request id or similar; but generically name to allow for modes
    */
-  void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber);
+  void runTask(final ShardedJobRunId jobId, final IncrementalTaskId taskId, final int sequenceNumber, String operationId);
 }
