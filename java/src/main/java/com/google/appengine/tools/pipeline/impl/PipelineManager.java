@@ -14,7 +14,6 @@
 
 package com.google.appengine.tools.pipeline.impl;
 
-import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.pipeline.*;
@@ -183,7 +182,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
     Key generatorKey = jobRecord.getGeneratorJobKey();
     // Add slots to the RunBarrier corresponding to the input parameters
-    String graphGuid = jobRecord.getGraphGuid();
+    String graphGuid = jobRecord.getGraphGUID();
     for (Object param : params) {
       Value<?> value;
       if (null != param && param instanceof Value<?>) {
@@ -470,7 +469,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
           "The framework is not ready to accept the promised value yet. "
           + "Please try again after the job that generated the promis handle has completed.");
     }
-    if (!childGraphGuid.equals(slot.getGraphGuid())) {
+    if (!childGraphGuid.equals(slot.getGraphGUID())) {
       // The slot has been orphaned
       throw new OrphanedObjectException(promiseHandle);
     }

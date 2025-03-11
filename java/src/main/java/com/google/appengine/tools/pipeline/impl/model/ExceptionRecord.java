@@ -27,7 +27,7 @@ import java.io.IOException;
  *
  * @author maximf@google.com (Maxim Fateev)
  */
-public class ExceptionRecord extends PipelineModelObject {
+public class ExceptionRecord extends PipelineModelObject implements ExpiringDatastoreEntity {
 
   public static final String DATA_STORE_KIND = "pipeline-exception";
   private static final String EXCEPTION_PROPERTY = "exception";

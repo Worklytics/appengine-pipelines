@@ -15,7 +15,6 @@
 package com.google.appengine.tools.pipeline.impl.model;
 
 import com.google.appengine.tools.pipeline.Job;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
 import com.google.cloud.datastore.Entity;
@@ -31,9 +30,10 @@ import java.io.IOException;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public class JobInstanceRecord extends PipelineModelObject {
+public class JobInstanceRecord extends PipelineModelObject  implements ExpiringDatastoreEntity {
 
   public static final String DATA_STORE_KIND = "pipeline-jobInstanceRecord";
+
   private static final String JOB_KEY_PROPERTY = "jobKey";
   private static final String JOB_CLASS_NAME_PROPERTY = "jobClassName";
   public static final String JOB_DISPLAY_NAME_PROPERTY = "jobDisplayName";
@@ -50,7 +50,7 @@ public class JobInstanceRecord extends PipelineModelObject {
   private SerializationStrategy serializationStrategy;
 
   public JobInstanceRecord(JobRecord job, Job<?> jobInstance, SerializationStrategy serializationStrategy) {
-    super(job.getRootJobKey(), job.getGeneratorJobKey(), job.getGraphGuid());
+    super(job.getRootJobKey(), job.getGeneratorJobKey(), job.getGraphGUID());
     jobKey = job.getKey();
     jobClassName = jobInstance.getClass().getName();
     jobDisplayName = jobInstance.getJobDisplayName();
