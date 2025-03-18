@@ -11,6 +11,7 @@ import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
@@ -83,8 +84,6 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   String location;
 
 
-
-
   @Override
   public String getDefaultService() {
     return appEngineEnvironment.getService();
@@ -107,8 +106,11 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   public String getLocation() {
     if (location == null) {
       try (ApplicationsClient applicationsClient = applicationsClientProvider.get()) {
-        Application application =applicationsClient.getApplication(appEngineEnvironment.getProjectId());
+        Application application = applicationsClient.getApplication("apps/" + appEngineEnvironment.getProjectId());
         location = application.getLocationId();
+      } catch (Throwable e) {
+        log.log(Level.SEVERE, "Failed to retrieve application location", e);
+        throw e;
       }
     }
     return location;
