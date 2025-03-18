@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith({DatastoreExtension.class, DatastoreExtension.ParameterResolver.class})
 public class AppEngineBackEndTest {
@@ -25,7 +26,7 @@ public class AppEngineBackEndTest {
 
   @BeforeEach
   void setUp(Datastore datastore) {
-    appEngineBackEnd = new AppEngineBackEnd(datastore);
+    appEngineBackEnd = new AppEngineBackEnd(datastore, mock(PipelineTaskQueue.class));
 
     root = Key.newBuilder(datastore.getOptions().getProjectId(), "JOb", "test-kind", datastore.getOptions().getDatabaseId()).build();
     generator = Key.newBuilder(datastore.getOptions().getProjectId(), "JOb", "test-kind", datastore.getOptions().getDatabaseId()).build();

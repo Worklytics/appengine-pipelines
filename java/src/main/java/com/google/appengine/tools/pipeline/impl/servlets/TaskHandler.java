@@ -14,7 +14,6 @@
 
 package com.google.appengine.tools.pipeline.impl.servlets;
 
-import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
@@ -55,7 +54,6 @@ public class TaskHandler {
   public static String handleTaskUrl() {
     return PipelineServlet.baseUrl() + PATH_COMPONENT;
   }
-
 
   public void doPost(HttpServletRequest req) throws ServletException {
     PipelineTask pipelineTask = reconstructTask(req);

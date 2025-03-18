@@ -21,6 +21,7 @@ import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.TestUtils;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
+import com.google.appengine.tools.pipeline.testutil.JobRunServiceTestComponent;
 import com.google.cloud.datastore.Datastore;
 import com.google.common.base.CharMatcher;
 
@@ -71,6 +72,7 @@ public abstract class EndToEndTestCase {
   PipelineOrchestrator pipelineOrchestrator;
 
   // will this magically have right context?
+  //TODO: get these from the component ? how
   private PipelineServlet pipelineServlet = new PipelineServlet();
   private MapReduceServlet mrServlet = new MapReduceServlet();
 
@@ -78,7 +80,7 @@ public abstract class EndToEndTestCase {
   private CloudStorageIntegrationTestHelper storageTestHelper;
 
   @BeforeEach
-  public void setUp() throws Exception {
+  public void setUp(JobRunServiceTestComponent component) throws Exception {
     helper.setUp();
     Map<String, String> envAttributes = getEnvAttributes();
     if (envAttributes != null) {
@@ -89,6 +91,8 @@ public abstract class EndToEndTestCase {
     storageTestHelper = new CloudStorageIntegrationTestHelper();
     storageTestHelper.setUp();
 
+    pipelineServlet.setComponent(component);
+    mrServlet.setComponent(component);
     pipelineServlet.init();
     mrServlet.init();
   }

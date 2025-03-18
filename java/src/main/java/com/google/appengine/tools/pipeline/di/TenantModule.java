@@ -19,11 +19,12 @@ import lombok.SneakyThrows;
 )
 public class TenantModule {
 
-  private final PipelineBackEnd backend;
+  // just pass pipeline options instead?? prob.
+  private final AppEngineBackEnd.Options backendOptions;
 
-  @Provides
-  public PipelineBackEnd pipelineBackEnd() {
-    return backend;
+  @Provides @TenantScoped
+  AppEngineBackEnd.Options provideBackendOptions() {
+    return backendOptions;
   }
 
   @Module(
@@ -31,24 +32,18 @@ public class TenantModule {
   )
   public static class AppEngineBackendModule {
 
-    @Provides
+    @Provides @TenantScoped
     public Datastore datastore(AppEngineBackEnd.Options options) {
       return options.getDatastoreOptions().getService();
     }
 
-    @Provides
-    @SneakyThrows
-    AppEngineBackEnd.Options appEngineBackEndOptions(PipelineBackEnd pipelineBackEnd) {
-      return pipelineBackEnd.getOptions().as(AppEngineBackEnd.Options.class);
-    }
-
-    @Provides
+    @Provides  @TenantScoped
     AppEngineBackEnd appEngineBackEnd(
       AppEngineBackEnd.Options options,
-      AppEngineTaskQueue appEngineTaskQueue,
+      PipelineTaskQueue pipelineTaskQueue,
       AppEngineServicesService appEngineServicesService
     ) {
-      return new AppEngineBackEnd(options.getDatastoreOptions().getService(), appEngineTaskQueue, appEngineServicesService);
+      return new AppEngineBackEnd(options.getDatastoreOptions().getService(), pipelineTaskQueue, appEngineServicesService);
     }
 
     @Module
@@ -57,6 +52,8 @@ public class TenantModule {
       @Binds
       PipelineService pipelineService(PipelineServiceImpl pipelineService);
 
+      @Binds
+      PipelineBackEnd appEngineBackEnd(AppEngineBackEnd appEngineBackEnd);
     }
   }
 }

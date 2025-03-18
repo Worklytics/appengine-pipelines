@@ -36,6 +36,7 @@ import lombok.*;
 import lombok.Value;
 import lombok.extern.java.Log;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
@@ -58,7 +59,7 @@ import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereF
  *
  */
 @Log
-@RequiredArgsConstructor
+@RequiredArgsConstructor(onConstructor_ = {@Inject})
 public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy {
 
   public static final int MAX_RETRY_ATTEMPTS = 5;
@@ -117,15 +118,15 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   @Getter
   private final AppEngineServicesService servicesService;
 
-  public AppEngineBackEnd(Options options) {
-    this(options.getDatastoreOptions().toBuilder().build().getService());
+  public AppEngineBackEnd(Options options, PipelineTaskQueue taskQueue) {
+    this(options.getDatastoreOptions().toBuilder().build().getService(), taskQueue);
   }
 
   // datastore is configured per-tenant; other stuff is really 'global'
   @SneakyThrows
-  public AppEngineBackEnd(Datastore datastore) {
+  public AppEngineBackEnd(Datastore datastore, PipelineTaskQueue taskQueue) {
     this.datastore = datastore;
-    this.taskQueue = new AppEngineTaskQueue();
+    this.taskQueue = taskQueue;
     this.servicesService = AppEngineServicesServiceImpl.defaults();
   }
 

@@ -21,10 +21,8 @@ import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import java.io.IOException;
 import java.io.Serial;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
-import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -32,7 +30,6 @@ import javax.servlet.http.HttpServletResponse;
 import lombok.Setter;
 import lombok.extern.java.Log;
 
-import javax.inject.Inject;
 
 /**
  * Servlet for all MapReduce API related functions.
@@ -72,7 +69,9 @@ public class MapReduceServlet extends HttpServlet {
   @Override
   public void init() throws ServletException {
     super.init();
-    component = DaggerJobRunServiceComponent.create();
+    if (this.component == null) {
+      component = DaggerJobRunServiceComponent.create();
+    }
   }
 
   @Override

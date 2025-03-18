@@ -1,4 +1,4 @@
-package com.google.appengine.tools.pipeline.di;
+package com.google.appengine.tools.pipeline.testutil;
 
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.impl.backend.*;
@@ -12,12 +12,12 @@ import dagger.Provides;
 import lombok.SneakyThrows;
 
 /**
- * provides general dependencies for AppEngine environments, which aren't coupled to specific tenant
+ * test equivalent of {@link com.google.appengine.tools.pipeline.di.AppEngineHostModule}
  */
 @Module(
-  includes = AppEngineHostModule.Bindings.class
+  includes = AppEngineHostTestModule.Bindings.class
 )
-public class AppEngineHostModule {
+public class AppEngineHostTestModule {
 
   @SneakyThrows
   @Provides
@@ -78,7 +78,8 @@ public class AppEngineHostModule {
 
   @Module
   interface Bindings {
+    // this is the real difference for tests atm
     @Binds
-    PipelineTaskQueue pipelineTaskQueue(CloudTasksTaskQueue taskQueue);
+    PipelineTaskQueue pipelineTaskQueue(AppEngineTaskQueue taskQueue);
   }
 }

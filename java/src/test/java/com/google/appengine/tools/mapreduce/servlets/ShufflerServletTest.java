@@ -206,7 +206,7 @@ public class ShufflerServletTest {
   }
 
   @Test
-  public void testJson() throws IOException {
+  public void testJson(JobRunServiceComponent component) throws IOException {
     ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
     Marshaller<ShufflerParams> marshaller =
         Marshallers.getGenericJsonMarshaller(ShufflerParams.class);
@@ -214,6 +214,7 @@ public class ShufflerServletTest {
     ByteArrayInputStream bin = new ByteArrayInputStream(bytes.array());
 
     ShufflerServlet shufflerServlet = new ShufflerServlet();
+    shufflerServlet.setComponent(component);
     ShufflerParams readShufflerParams = shufflerServlet.readShufflerParams(bin);
     assertEquals(shufflerParams.getShufflerQueue(), readShufflerParams.getShufflerQueue());
     assertEquals(shufflerParams.getGcsBucket(), readShufflerParams.getGcsBucket());

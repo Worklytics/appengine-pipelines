@@ -48,6 +48,7 @@ import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.common.util.concurrent.Uninterruptibles;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.java.Log;
@@ -56,6 +57,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -82,7 +84,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   public static PipelineManager getInstance(AppEngineBackEnd.Options options) {
     MultiTenantComponent multiTenantComponent =  DaggerMultiTenantComponent.create();
-    return multiTenantComponent.clientComponent(new TenantModule(new AppEngineBackEnd(options))).pipelineManager();
+    return multiTenantComponent.clientComponent(new TenantModule(options)).pipelineManager();
   }
 
   public static PipelineManager getInstance() {
@@ -438,29 +440,19 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     // promise before the slot to hold the promise has been saved. We will try 5
     // times, sleeping 1, 2, 4, 8 seconds between attempts.
     int attempts = 0;
-    boolean interrupted = false;
-    try {
-      while (slot == null) {
-        attempts++;
-        try {
-          slot = backEnd.querySlot(key, false);
-        } catch (NoSuchObjectException e) {
-          if (attempts >= 5) {
-            throw new NoSuchObjectException("There is no promise with handle " + promiseHandle);
-          }
-          try {
-            Thread.sleep((long) Math.pow(2.0, attempts - 1) * 1000L);
-          } catch (InterruptedException f) {
-            interrupted = true;
-          }
+
+    while (slot == null) {
+      attempts++;
+      try {
+        slot = backEnd.querySlot(key, false);
+      } catch (NoSuchObjectException e) {
+        if (attempts >= 5) {
+          throw new NoSuchObjectException("There is no promise with handle " + promiseHandle);
         }
-      }
-    } finally {
-      // TODO(user): replace with Uninterruptibles#sleepUninterruptibly once we use guava
-      if (interrupted) {
-        Thread.currentThread().interrupt();
+        Uninterruptibles.sleepUninterruptibly(Duration.ofSeconds((long) Math.pow(2.0, attempts - 1)));
       }
     }
+
     Key generatorJobKey = slot.getGeneratorJobKey();
     if (null == generatorJobKey) {
       throw new RuntimeException(

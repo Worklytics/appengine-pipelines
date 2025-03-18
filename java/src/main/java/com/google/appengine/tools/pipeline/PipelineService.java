@@ -40,7 +40,7 @@ public interface PipelineService {
    */
   static PipelineService getInstance(AppEngineBackEnd.Options options) {
     MultiTenantComponent component = DaggerMultiTenantComponent.create();
-    TenantComponent clientComponent = component.clientComponent(new TenantModule(new AppEngineBackEnd(options)));
+    TenantComponent clientComponent = component.clientComponent(new TenantModule(options));
     return clientComponent.pipelineService();
   }
 

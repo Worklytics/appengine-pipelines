@@ -40,6 +40,7 @@ import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.java.Log;
 import org.apache.commons.codec.digest.DigestUtils;
 
@@ -70,6 +71,7 @@ import static java.util.concurrent.Executors.callable;
 @Log
 public class ShufflerServlet extends HttpServlet {
 
+  @Setter(onMethod_ = { @VisibleForTesting })
   JobRunServiceComponent component;
   RequestUtils requestUtils;
 
@@ -95,7 +97,9 @@ public class ShufflerServlet extends HttpServlet {
   @Override
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
-    component = DaggerJobRunServiceComponent.create();
+    if (component == null) {
+      component = DaggerJobRunServiceComponent.create();
+    }
     requestUtils = component.requestUtils();
   }
 

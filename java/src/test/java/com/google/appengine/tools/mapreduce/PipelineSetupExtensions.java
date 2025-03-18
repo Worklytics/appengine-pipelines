@@ -11,6 +11,8 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
+import com.google.appengine.tools.pipeline.testutil.DaggerJobRunServiceTestComponent;
+import com.google.appengine.tools.pipeline.testutil.JobRunServiceTestComponent;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 
@@ -46,7 +48,7 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
 
   DatastoreOptions datastoreOptions;
 
-  JobRunServiceComponent component;
+  JobRunServiceTestComponent component;
 
   enum ContextStoreKey {
     PIPELINE_SERVICE,
@@ -63,14 +65,14 @@ class PipelineComponentsExtension implements BeforeAllCallback, BeforeEachCallba
     PipelineRunner.class, ContextStoreKey.PIPELINE_MANAGER,
     PipelineService.class, ContextStoreKey.PIPELINE_SERVICE,
     AppEngineBackEnd.class, ContextStoreKey.APP_ENGINE_BACKEND,
-    JobRunServiceComponent.class, ContextStoreKey.JOB_RUN_SERVICE_COMPONENT,
+    JobRunServiceTestComponent.class, ContextStoreKey.JOB_RUN_SERVICE_COMPONENT,
     ShardedJobRunner.class, ContextStoreKey.SHARDED_JOB_RUNNER
     // PipelineServlet.class not supported
   );
 
   @Override
   public void beforeAll(ExtensionContext extensionContext) throws Exception {
-    component = DaggerJobRunServiceComponent.create();
+    component = DaggerJobRunServiceTestComponent.create();
   }
 
   @Override

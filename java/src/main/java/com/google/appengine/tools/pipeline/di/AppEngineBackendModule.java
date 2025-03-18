@@ -1,11 +1,5 @@
 package com.google.appengine.tools.pipeline.di;
 
-
-import com.google.appengine.tools.pipeline.PipelineOrchestrator;
-import com.google.appengine.tools.pipeline.PipelineRunner;
-import com.google.appengine.tools.pipeline.PipelineService;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
-import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
 import com.google.appengine.tools.pipeline.impl.backend.*;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
@@ -29,24 +23,14 @@ public class AppEngineBackendModule {
   @Provides
   @StepExecutionScoped
   @SneakyThrows
-  AppEngineBackEnd.Options appEngineBackEndOptions(PipelineBackEnd pipelineBackEnd) {
+  AppEngineBackEnd.Options appEngineBackEndOptions(AppEngineBackEnd pipelineBackEnd) {
     return pipelineBackEnd.getOptions().as(AppEngineBackEnd.Options.class);
-  }
-
-  @Provides @StepExecutionScoped
-  AppEngineBackEnd appEngineBackEnd(
-    Datastore datastore,
-                                    PipelineTaskQueue taskQueue,
-    AppEngineServicesService appEngineServicesService
-                                    ) {
-    return new AppEngineBackEnd(datastore, taskQueue, appEngineServicesService);
   }
 
   @Module
   interface Bindings {
 
-    @Binds @StepExecutionScoped
-    PipelineBackEnd pipelineBackEnd(AppEngineBackEnd appEngineBackEnd);
-
+    @Binds
+    PipelineBackEnd appEngineBackEnd(AppEngineBackEnd appEngineBackEnd);
   }
 }
