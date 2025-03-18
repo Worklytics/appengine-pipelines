@@ -20,7 +20,6 @@ import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
-import com.google.apphosting.api.ApiProxy;
 import lombok.AllArgsConstructor;
 
 import java.util.Enumeration;
@@ -93,8 +92,6 @@ public class TaskHandler {
        if (onQueue == null || onQueue.isEmpty()) {
          pipelineTask.getQueueSettings().setOnQueue(queueName);
        }
-       Map<String, Object> attributes = ApiProxy.getCurrentEnvironment().getAttributes();
-       attributes.put(TASK_QUEUE_NAME_HEADER, queueName);
     }
     return pipelineTask;
   }

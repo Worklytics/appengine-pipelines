@@ -14,7 +14,6 @@
 
 package com.google.appengine.tools.pipeline.impl.util;
 
-import com.google.appengine.api.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 
 import java.io.PrintWriter;
@@ -45,9 +44,6 @@ public class StringUtils {
   }
 
   public static String toString(Object x) {
-    if (x instanceof Key) {
-      return ((Key) x).getName();
-    }
     return x == null ? "null" : x.toString();
   }
 
