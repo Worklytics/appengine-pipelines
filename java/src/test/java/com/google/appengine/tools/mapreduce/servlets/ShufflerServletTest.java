@@ -143,8 +143,10 @@ public class ShufflerServletTest {
       datastore.getOptions().getHost());
 
     PipelineServlet pipelineServlet = new PipelineServlet();
+    pipelineServlet.setComponent(component);
     pipelineServlet.init();
     MapReduceServlet mapReduceServlet = new MapReduceServlet();
+    mapReduceServlet.setComponent(component);
     mapReduceServlet.init();
 
     TaskRunner.servletMap = new ImmutableMap.Builder<String, HttpServlet>()
