@@ -1,49 +1,31 @@
 package com.google.appengine.tools.pipeline.di;
 
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
-import com.google.appengine.tools.pipeline.*;
-import com.google.appengine.tools.pipeline.impl.PipelineManager;
-import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
-import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
-import dagger.Binds;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
+import com.google.cloud.datastore.DatastoreOptions;
+
 import dagger.Module;
 import dagger.Provides;
 import lombok.RequiredArgsConstructor;
 
+import javax.servlet.http.HttpServletRequest;
+
+/**
+ * essentially, request-scoped dependencies
+ */
 @RequiredArgsConstructor
 @Module(
   includes = {
-    StepExecutionModule.Bindings.class,
     AppEngineBackendModule.class,
+    PipelinesBindings.class
   }
 )
 public class StepExecutionModule {
 
-  private final PipelineBackEnd backend;
+  // this is really what 'scopes' the step; it's request-scoped
+  private final HttpServletRequest request;
 
   @Provides @StepExecutionScoped
-  public PipelineBackEnd pipelineBackEnd() {
-    return backend;
+  DatastoreOptions datastoreOptions(RequestUtils requestUtils) {
+    return requestUtils.buildDatastoreFromRequest(request);
   }
-
-  @Provides @StepExecutionScoped
-  public AppEngineServicesService appEngineServicesService() {
-    //hacky, but really it's aspect of the pipelineBackend
-    return backend.getServicesService();
-  }
-
-  @Module
-  interface Bindings {
-
-    @Binds
-    PipelineRunner pipelineRunner(PipelineManager pipelineManager);
-
-    @Binds
-    PipelineOrchestrator pipelineOrchestrator(PipelineManager pipelineManager);
-
-    @Binds
-    PipelineService pipelineService(PipelineServiceImpl pipelineService);
-  }
-
 }

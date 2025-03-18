@@ -18,6 +18,7 @@ import com.google.common.collect.Iterators;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.Serial;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -74,6 +75,7 @@ public class EndToEndTest extends EndToEndTestCase {
 
 
   private static class TestController1 extends TestController {
+    @Serial
     private static final long serialVersionUID = 8297824686146604329L;
 
     public TestController1(DatastoreOptions datastoreOptions, int expectedResult, PipelineService pipelineService) {

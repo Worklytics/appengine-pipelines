@@ -8,7 +8,7 @@
   <url>https://github.com/Worklytics/appengine-pipelines/</url>
   <!-- follow semver, with suggested guidance for versioning fork of OSS -->
   <!-- see https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.3+worklytics.5</version>
+  <version>0.3+worklytics.6</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -18,10 +18,10 @@
   </licenses>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <appengine.target.version>[2.0.4, 2.0.23)</appengine.target.version>
     <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
-    <dagger.version>2.51.1</dagger.version>
-    <lombok.version>1.18.34</lombok.version>
+    <dagger.version>2.55</dagger.version> <!-- 2.55+ adds support for injecting jakarta.inject.Provider -->
+    <lombok.version>1.18.36</lombok.version> <!-- only compile-time dependency -->
+    <appengine.target.version>[2.0.4, 2.0.33)</appengine.target.version> <!-- now only for tests -->
   </properties>
 
   <distributionManagement>
@@ -69,25 +69,6 @@
           </archive>
         </configuration>
       </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <version>3.0.0</version>
-        <executions>
-          <execution>
-            <id>add-test-source</id>
-            <phase>generate-test-sources</phase>
-            <goals>
-              <goal>add-test-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>example/src</source>
-              </sources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
     <resources>
       <resource>
@@ -120,11 +101,7 @@
 
   <dependencies>
     <!-- Compile/Runtime Dependencies -->
-    <dependency>
-      <groupId>com.google.appengine</groupId>
-      <artifactId>appengine-api-1.0-sdk</artifactId>
-        <version>${appengine.target.version}</version>
-    </dependency>
+
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-appengine-admin</artifactId>
@@ -234,6 +211,12 @@
 
 
     <!-- Test Dependencies -->
+    <dependency> <!-- we're still using the old, App Engine-tasks based fake task queue impl to run tests -->
+      <groupId>com.google.appengine</groupId>
+      <artifactId>appengine-api-1.0-sdk</artifactId>
+      <version>${appengine.target.version}</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>com.google.appengine</groupId>
       <artifactId>appengine-testing</artifactId>

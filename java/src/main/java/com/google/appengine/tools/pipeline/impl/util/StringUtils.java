@@ -14,7 +14,8 @@
 
 package com.google.appengine.tools.pipeline.impl.util;
 
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
+
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -76,8 +77,8 @@ public class StringUtils {
     return builder.toString();
   }
 
-  public static void logRetryMessage(Logger logger, Task task, int retryCount, Exception e) {
-    String message = "Will retry task: " + task + ". retryCount=" + retryCount;
+  public static void logRetryMessage(Logger logger, PipelineTask pipelineTask, Integer retryCount, Exception e) {
+    String message = "Will retry task: " + pipelineTask + ". retryCount=" + retryCount;
     if (e instanceof ConcurrentModificationException) {
       // Don't print stack trace in this case.
       logger.log(Level.INFO, message + " " + e.getMessage());

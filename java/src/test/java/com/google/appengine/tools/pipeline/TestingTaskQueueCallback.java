@@ -19,9 +19,8 @@ import com.google.appengine.api.urlfetch.URLFetchServicePb.URLFetchRequest;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig.DeferredTaskCallback;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
-import lombok.RequiredArgsConstructor;
 
 import java.net.URLDecoder;
 import java.util.Properties;
@@ -53,22 +52,25 @@ public class TestingTaskQueueCallback extends DeferredTaskCallback {
     for (URLFetchRequest.Header pbHeader : req.getHeaderList()) {
       String headerName = pbHeader.getKey();
       String headerValue = pbHeader.getValue();
-      if (TaskHandler.TASK_NAME_REQUEST_HEADER.equalsIgnoreCase(headerName)) {
+      if (TaskHandler.TASK_NAME_REQUEST_HEADER.equalsIgnoreCase(headerName)
+          || TaskHandler.TASK_NAME_REQUEST_LEGACY_HEADER.equalsIgnoreCase(headerName)) {
         taskName = headerValue;
-      } else if (TaskHandler.TASK_RETRY_COUNT_HEADER.equalsIgnoreCase(headerName)) {
+      } else if (TaskHandler.TASK_RETRY_COUNT_HEADER.equalsIgnoreCase(headerName)
+      || TaskHandler.TASK_RETRY_COUNT_LEGACY_HEADER.equalsIgnoreCase(headerName)) {
         try {
           retryCount = Integer.parseInt(headerValue);
         } catch (Exception e) {
           // ignore
         }
-      } else if (TaskHandler.TASK_QUEUE_NAME_HEADER.equalsIgnoreCase(headerName)) {
+      } else if (TaskHandler.TASK_QUEUE_NAME_HEADER.equalsIgnoreCase(headerName)
+      || TaskHandler.TASK_QUEUE_NAME_LEGACY_HEADER.equalsIgnoreCase(headerName)) {
         queueName = headerValue;
       }
     }
     String requestBody = req.getPayload().toStringUtf8();
     String[] params = requestBody.split("&");
     Properties properties = new Properties();
-    Task task = null;
+    PipelineTask pipelineTask = null;
     try {
       for (String param : params) {
         String[] pair = param.split("=");
@@ -77,13 +79,13 @@ public class TestingTaskQueueCallback extends DeferredTaskCallback {
         String decodedValue = URLDecoder.decode(value, "UTF8");
         properties.put(name, decodedValue);
       }
-      task = Task.fromProperties(taskName, properties);
-      if (queueName != null && task.getQueueSettings().getOnQueue() == null) {
-        task.getQueueSettings().setOnQueue(queueName);
+      pipelineTask = PipelineTask.fromProperties(taskName, properties);
+      if (queueName != null && pipelineTask.getQueueSettings().getOnQueue() == null) {
+        pipelineTask.getQueueSettings().setOnQueue(queueName);
       }
-      pipelineManager.processTask(task);
+      pipelineManager.processTask(pipelineTask);
     } catch (Exception e) {
-      StringUtils.logRetryMessage(logger, task, retryCount, e);
+      StringUtils.logRetryMessage(logger, pipelineTask, retryCount, e);
       return 500;
     }
     return 200;

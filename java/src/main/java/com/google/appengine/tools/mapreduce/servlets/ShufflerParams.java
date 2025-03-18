@@ -31,7 +31,7 @@ import java.util.Optional;
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-class ShufflerParams implements Serializable, GcpCredentialOptions {
+public class ShufflerParams implements Serializable, GcpCredentialOptions {
 
   @Serial
   private static final long serialVersionUID = 3L;

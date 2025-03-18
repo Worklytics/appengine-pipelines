@@ -12,10 +12,10 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-package com.google.appengine.tools.pipeline;
+package com.google.appengine.tools.pipeline.examples;
 
 
-import com.google.appengine.tools.pipeline.demo.GCDExample;
+import com.google.appengine.tools.pipeline.*;
 import lombok.RequiredArgsConstructor;
 
 /**

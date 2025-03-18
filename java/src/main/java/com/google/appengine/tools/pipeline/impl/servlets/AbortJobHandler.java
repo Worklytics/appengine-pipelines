@@ -54,7 +54,7 @@ public class AbortJobHandler {
 
     try {
       StepExecutionComponent stepExecutionComponent =
-        component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+        component.stepExecutionComponent(new StepExecutionModule(req));
       PipelineOrchestrator pipelineOrchestrator = stepExecutionComponent.pipelineOrchestrator();
       pipelineOrchestrator.cancelJob(rootJobHandle);
     } catch (NoSuchObjectException nsoe) {

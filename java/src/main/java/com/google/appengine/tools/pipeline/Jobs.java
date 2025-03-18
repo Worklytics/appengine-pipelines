@@ -17,9 +17,10 @@ package com.google.appengine.tools.pipeline;
 import static com.google.appengine.tools.pipeline.Job.immediate;
 import static com.google.appengine.tools.pipeline.Job.waitFor;
 
-import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
+import com.google.appengine.tools.pipeline.impl.tasks.DeletePipelineTask;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import lombok.NonNull;
@@ -27,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -148,6 +150,7 @@ public class Jobs {
   @Log
   private static class DeletePipelineJob<T> extends Job1<T, T> {
 
+    @Serial
     private static final long serialVersionUID = 2L;
 
     /**
@@ -164,52 +167,7 @@ public class Jobs {
     @SneakyThrows
     @Override
     public Value<T> run(T value) {
-
-      //something that can be serialized
-      PipelineBackEnd.Options options = getPipelineBackendOptions();
-
-      DeferredTask deleteRecordsTask = new DeferredTask() {
-        private static final long serialVersionUID = -7510918963650055768L;
-
-        @Override
-        public void run() {
-          //recover backend from serialized options; in theory, all we *should* need is datastoreOptions part
-          AppEngineBackEnd backend = new AppEngineBackEnd(options.as(AppEngineBackEnd.Options.class));
-
-          try {
-            log.info("Deleting pipeline: " + pipelineRunId);
-            backend.deletePipeline(pipelineRunId, false);
-            log.info("Deleted pipeline: " + pipelineRunId);
-          } catch (IllegalStateException e) {
-            log.info("Failed to delete pipeline: " + pipelineRunId);
-            // only dep on javax servlet
-            // how can we access request context otherwise
-            HttpServletRequest request = DeferredTaskContext.getCurrentRequest();
-            if (request != null) {
-              int attempts = request.getIntHeader("X-AppEngine-TaskExecutionCount");
-              if (attempts <= 5) {
-                log.info("Request to retry deferred task #" + attempts);
-                DeferredTaskContext.markForRetry();
-                return;
-              }
-            }
-            try {
-              backend.deletePipeline(pipelineRunId, true);
-              log.info("Force deleted pipeline: " + pipelineRunId);
-            } catch (Exception ex) {
-              log.log(Level.WARNING, "Failed to force delete pipeline: " + pipelineRunId, ex);
-            }
-          }
-        }
-      };
-
-      //NOTE: this MUST be async as long as this DeleteJob is called from within the same pipeline you're deleting
-      // (which as of 2024-05, is how this is always being used)
-      String queueName = Optional.ofNullable(getOnQueue()).orElse("default");
-      Queue queue = QueueFactory.getQueue(queueName);
-      queue.add(TaskOptions.Builder.withPayload(deleteRecordsTask).countdownMillis(delayMillis)
-          .retryOptions(RetryOptions.Builder.withMinBackoffSeconds(2).maxBackoffSeconds(20)));
-
+      getPipelineOrchestrator().deletePipelineAsync(pipelineRunId, delayMillis);
       return immediate(value);
     }
   }

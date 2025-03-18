@@ -44,10 +44,11 @@ import com.google.appengine.tools.pipeline.impl.tasks.FinalizeJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.HandleChildExceptionTask;
 import com.google.appengine.tools.pipeline.impl.tasks.HandleSlotFilledTask;
 import com.google.appengine.tools.pipeline.impl.tasks.RunJobTask;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.common.util.concurrent.Uninterruptibles;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.java.Log;
@@ -56,6 +57,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -82,7 +84,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   public static PipelineManager getInstance(AppEngineBackEnd.Options options) {
     MultiTenantComponent multiTenantComponent =  DaggerMultiTenantComponent.create();
-    return multiTenantComponent.clientComponent(new TenantModule(new AppEngineBackEnd(options))).pipelineManager();
+    return multiTenantComponent.clientComponent(new TenantModule(options)).pipelineManager();
   }
 
   public static PipelineManager getInstance() {
@@ -148,6 +150,17 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   @Override
   public boolean cleanupJob(ShardedJobRunId jobId) {
     return shardedJobRunner.cleanupJob(jobId);
+  }
+
+  @Override
+  public void deletePipelineAsync(@NonNull JobRunId pipelineRunId, @NonNull Long delayMillis) {
+    Key key = JobRecord.keyFromPipelineHandle(pipelineRunId);
+    DeletePipelineTask deletePipelineTask = new DeletePipelineTask(key, false, QueueSettings.builder().build());
+    deletePipelineTask.getQueueSettings().setDelayInSeconds(delayMillis / 1000);
+
+    //q: add retries? old one had 5 with 20s backoff; but tasks are auto-retried, right?
+
+    backEnd.enqueue(deletePipelineTask);
   }
 
   @Override
@@ -334,8 +347,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
       UpdateSpec updateSpec, QueueSettings queueSettings, Slot slot, Object value) {
     slot.fill(value);
     updateSpec.getNonTransactionalGroup().includeSlot(slot);
-    Task task = new HandleSlotFilledTask(slot.getKey(), queueSettings);
-    updateSpec.getFinalTransaction().registerTask(task);
+    PipelineTask pipelineTask = new HandleSlotFilledTask(slot.getKey(), queueSettings);
+    updateSpec.getFinalTransaction().registerTask(pipelineTask);
   }
 
   @Override
@@ -427,29 +440,19 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     // promise before the slot to hold the promise has been saved. We will try 5
     // times, sleeping 1, 2, 4, 8 seconds between attempts.
     int attempts = 0;
-    boolean interrupted = false;
-    try {
-      while (slot == null) {
-        attempts++;
-        try {
-          slot = backEnd.querySlot(key, false);
-        } catch (NoSuchObjectException e) {
-          if (attempts >= 5) {
-            throw new NoSuchObjectException("There is no promise with handle " + promiseHandle);
-          }
-          try {
-            Thread.sleep((long) Math.pow(2.0, attempts - 1) * 1000L);
-          } catch (InterruptedException f) {
-            interrupted = true;
-          }
+
+    while (slot == null) {
+      attempts++;
+      try {
+        slot = backEnd.querySlot(key, false);
+      } catch (NoSuchObjectException e) {
+        if (attempts >= 5) {
+          throw new NoSuchObjectException("There is no promise with handle " + promiseHandle);
         }
-      }
-    } finally {
-      // TODO(user): replace with Uninterruptibles#sleepUninterruptibly once we use guava
-      if (interrupted) {
-        Thread.currentThread().interrupt();
+        Uninterruptibles.sleepUninterruptibly(Duration.ofSeconds((long) Math.pow(2.0, attempts - 1)));
       }
     }
+
     Key generatorJobKey = slot.getGeneratorJobKey();
     if (null == generatorJobKey) {
       throw new RuntimeException(
@@ -527,28 +530,28 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   /**
    * Process an incoming task received from the App Engine task queue.
    *
-   * @param task The task to be processed.
+   * @param pipelineTask The task to be processed.
    *
    *
    */
-  public void processTask(Task task) {
-    log.finest("Processing task " + task);
+  public void processTask(PipelineTask pipelineTask) {
+    log.finest("Processing task " + pipelineTask);
     try {
-      switch (task.getType()) {
+      switch (pipelineTask.getType()) {
         case RUN_JOB:
-          runJob((RunJobTask) task);
+          runJob((RunJobTask) pipelineTask);
           break;
         case HANDLE_SLOT_FILLED:
-          handleSlotFilled((HandleSlotFilledTask) task);
+          handleSlotFilled((HandleSlotFilledTask) pipelineTask);
           break;
         case FINALIZE_JOB:
-          finalizeJob((FinalizeJobTask) task);
+          finalizeJob((FinalizeJobTask) pipelineTask);
           break;
         case CANCEL_JOB:
-          cancelJob((CancelJobTask) task);
+          cancelJob((CancelJobTask) pipelineTask);
           break;
         case DELETE_PIPELINE:
-          DeletePipelineTask deletePipelineTask = (DeletePipelineTask) task;
+          DeletePipelineTask deletePipelineTask = (DeletePipelineTask) pipelineTask;
           try {
             backEnd.deletePipeline(JobRunId.of(deletePipelineTask.getRootJobKey()), deletePipelineTask.shouldForce());
           } catch (Exception e) {
@@ -556,13 +559,13 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
           }
           break;
         case HANDLE_CHILD_EXCEPTION:
-          handleChildException((HandleChildExceptionTask) task);
+          handleChildException((HandleChildExceptionTask) pipelineTask);
           break;
         case DELAYED_SLOT_FILL:
-          handleDelayedSlotFill((DelayedSlotFillTask) task);
+          handleDelayedSlotFill((DelayedSlotFillTask) pipelineTask);
           break;
         default:
-          throw new IllegalArgumentException("Unrecognized task type: " + task.getType());
+          throw new IllegalArgumentException("Unrecognized task type: " + pipelineTask.getType());
       }
     } catch (AbandonTaskException ate) {
       // return 200;
@@ -933,10 +936,10 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
           cancelChildren(jobRecord, null);
           // current job doesn't have an error handler. So just delegate it to the
           // nearest ancestor that has one.
-          Task handleChildExceptionTask = new HandleChildExceptionTask(
+          PipelineTask handleChildExceptionPipelineTask = new HandleChildExceptionTask(
               jobRecord.getExceptionHandlingAncestorKey(), jobRecord.getKey(),
               jobRecord.getQueueSettings());
-          updateSpec.getFinalTransaction().registerTask(handleChildExceptionTask);
+          updateSpec.getFinalTransaction().registerTask(handleChildExceptionPipelineTask);
         } else {
           rootJobRecord.setState(State.STOPPED);
           rootJobRecord.setExceptionKey(exceptionKey);
@@ -1169,18 +1172,18 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
           Key jobKey = barrier.getJobKey();
           JobRecord jobRecord = queryJobOrAbandonTask(jobKey, InflationType.NONE);
           jobRecord.getQueueSettings().merge(hsfTask.getQueueSettings());
-          Task task;
+          PipelineTask pipelineTask;
           switch (barrier.getType()) {
             case RUN:
-              task = new RunJobTask(jobKey, jobRecord.getQueueSettings());
+              pipelineTask = new RunJobTask(jobKey, jobRecord.getQueueSettings());
               break;
             case FINALIZE:
-              task = new FinalizeJobTask(jobKey, jobRecord.getQueueSettings());
+              pipelineTask = new FinalizeJobTask(jobKey, jobRecord.getQueueSettings());
               break;
             default:
               throw new RuntimeException("Unknown barrier type " + barrier.getType());
           }
-          backEnd.enqueue(task);
+          backEnd.enqueue(pipelineTask);
         }
       }
     }

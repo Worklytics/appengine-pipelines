@@ -12,16 +12,19 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-package com.google.appengine.tools.pipeline;
+package com.google.appengine.tools.pipeline.examples;
 
 import static com.google.appengine.tools.pipeline.impl.util.GUIDGenerator.USE_SIMPLE_GUIDS_FOR_DEBUGGING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.google.appengine.tools.development.testing.LocalModulesServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
-import com.google.appengine.tools.pipeline.demo.UserGuideExamples.ComplexJob;
+import com.google.appengine.tools.pipeline.JobInfo;
+import com.google.appengine.tools.pipeline.JobRunId;
+import com.google.appengine.tools.pipeline.PipelineService;
+import com.google.appengine.tools.pipeline.TestingTaskQueueCallback;
+import com.google.appengine.tools.pipeline.examples.UserGuideExamples.ComplexJob;
 
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import org.junit.jupiter.api.AfterEach;
@@ -45,7 +48,7 @@ public class UserGuideTest {
     taskQueueConfig.setCallbackClass(TestingTaskQueueCallback.class);
     taskQueueConfig.setDisableAutoTaskExecution(false);
     taskQueueConfig.setShouldCopyApiProxyEnvironment(true);
-    helper = new LocalServiceTestHelper(taskQueueConfig, new LocalModulesServiceTestConfig());
+    helper = new LocalServiceTestHelper(taskQueueConfig);
   }
 
   @BeforeEach

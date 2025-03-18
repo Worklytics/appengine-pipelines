@@ -6,7 +6,7 @@ import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.tasks.RunJobTask;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 
 import org.junit.jupiter.api.AfterEach;
@@ -64,87 +64,87 @@ public class AppEngineTaskQueueTest {
 
   @Test
   public void testEnqueueSingleTask() {
-    Task task = createTask();
-    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(Collections.singletonList(task));
+    PipelineTask pipelineTask = createTask();
+    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(Collections.singletonList(pipelineTask));
 
     assertEquals(1, handles.size());
-    assertEquals(task.getName(), handles.get(0).getTaskName());
+    assertEquals(pipelineTask.getName(), handles.get(0).getTaskName());
 
     //behavior change; 2nd enqueue of same task now returns it again, even if duplicated
-    handles = queue.addToQueue(Collections.singletonList(task));
+    handles = queue.addToQueue(Collections.singletonList(pipelineTask));
     assertEquals(1, handles.size());
   }
 
   @Test
   public void testEnqueueBatchTasks() {
-    List<Task> tasks = new ArrayList<>(AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE);
+    List<PipelineTask> pipelineTasks = new ArrayList<>(AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE);
     for (int i = 0; i < AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE; i++) {
-      Task task = createTask();
-      tasks.add(task);
+      PipelineTask pipelineTask = createTask();
+      pipelineTasks.add(pipelineTask);
     }
-    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(tasks);
+    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(pipelineTasks);
     assertEquals(AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE, handles.size());
     for (int i = 0; i < AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE; i++) {
-      assertEquals(tasks.get(i).getName(), handles.get(i).getTaskName());
+      assertEquals(pipelineTasks.get(i).getName(), handles.get(i).getTaskName());
     }
 
-    handles = queue.addToQueue(tasks);
-    assertEquals(tasks.size(), handles.size());
+    handles = queue.addToQueue(pipelineTasks);
+    assertEquals(pipelineTasks.size(), handles.size());
   }
 
   @Test
   public void testEnqueueLargeBatchTasks() {
     int batchSize = AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE * 2 + 10;
-    List<Task> tasks = new ArrayList<>(batchSize);
+    List<PipelineTask> pipelineTasks = new ArrayList<>(batchSize);
     for (int i = 0; i < batchSize; i++) {
-      Task task = createTask();
-      tasks.add(task);
+      PipelineTask pipelineTask = createTask();
+      pipelineTasks.add(pipelineTask);
     }
-    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(tasks);
-    assertEquals(tasks.size(), handles.size());
-    for (int i = 0; i < tasks.size(); i++) {
-      assertEquals(tasks.get(i).getName(), handles.get(i).getTaskName());
+    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(pipelineTasks);
+    assertEquals(pipelineTasks.size(), handles.size());
+    for (int i = 0; i < pipelineTasks.size(); i++) {
+      assertEquals(pipelineTasks.get(i).getName(), handles.get(i).getTaskName());
     }
 
     // NOTE: this is behavior change from legacy GAE pipelines; it used to NOT return handles of anything that had be enqueued previously
-   handles = queue.addToQueue(tasks);
-    assertEquals(tasks.size(), handles.size());
-    for (int i = 0; i < tasks.size(); i++) {
-      assertEquals(tasks.get(i).getName(), handles.get(i).getTaskName());
+   handles = queue.addToQueue(pipelineTasks);
+    assertEquals(pipelineTasks.size(), handles.size());
+    for (int i = 0; i < pipelineTasks.size(); i++) {
+      assertEquals(pipelineTasks.get(i).getName(), handles.get(i).getTaskName());
     }
   }
 
   @Test
   public void testEnqueueBatchTwoStages() {
     int batchSize = AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE * 2;
-    List<Task> tasks = new ArrayList<>(batchSize);
+    List<PipelineTask> pipelineTasks = new ArrayList<>(batchSize);
     for (int i = 0; i < batchSize; i++) {
-      Task task = createTask();
-      tasks.add(task);
+      PipelineTask pipelineTask = createTask();
+      pipelineTasks.add(pipelineTask);
     }
 
     int firstBatchSize = AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE;
-    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(tasks.subList(0, firstBatchSize));
+    List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(pipelineTasks.subList(0, firstBatchSize));
 
     assertEquals(firstBatchSize, handles.size());
     for (int i = 0; i < firstBatchSize; i++) {
-      assertEquals(tasks.get(i).getName(), handles.get(i).getTaskName());
+      assertEquals(pipelineTasks.get(i).getName(), handles.get(i).getTaskName());
     }
 
-    handles = queue.addToQueue(tasks);
+    handles = queue.addToQueue(pipelineTasks);
 
-    assertEquals(tasks.size(), handles.size());
+    assertEquals(pipelineTasks.size(), handles.size());
     Set<String> names = handles.stream().map(PipelineTaskQueue.TaskReference::getTaskName).collect(Collectors.toCollection(HashSet::new));
-    for (int i = 0; i < tasks.size(); i++) {
-      names.remove(tasks.get(i).getName());
+    for (int i = 0; i < pipelineTasks.size(); i++) {
+      names.remove(pipelineTasks.get(i).getName());
     }
     assertEquals(0, names.size()); //everything in names has 1:1 match in tasks
   }
 
-  private Task createTask() {
+  private PipelineTask createTask() {
     String name = GUIDGenerator.nextGUID();
     Key key = Key.newBuilder("test-project", "testType", name).build();
-    Task task = new RunJobTask(key, new QueueSettings().setOnServiceVersion("m1"));
-    return task;
+    PipelineTask pipelineTask = new RunJobTask(key, QueueSettings.builder().onServiceVersion("m1").build());
+    return pipelineTask;
   }
 }

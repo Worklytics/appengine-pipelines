@@ -5,6 +5,8 @@ import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
@@ -48,9 +50,9 @@ class RequestUtilsTest {
     RequestUtils requestUtils = new RequestUtils();
     HttpServletRequest request = mock(HttpServletRequest.class);
 
-    PipelineBackEnd backend = requestUtils.buildBackendFromRequest(request);
+    DatastoreOptions datastore = requestUtils.buildDatastoreFromRequest(request);
 
-    assertEquals(backend.getOptions().as(AppEngineBackEnd.Options.class).getDatastoreOptions().getHost(), "http://localhost:8081");
+    assertEquals(datastore.getHost(), "http://localhost:8081");
   }
 
   @Test

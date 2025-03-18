@@ -41,7 +41,6 @@ import javax.inject.Singleton;
 public class JsonListHandler {
 
   final JobRunServiceComponent component;
-  final RequestUtils requestUtils;
 
   public static final String PATH_COMPONENT = "rpc/list";
   static final String CLASS_FILTER_PARAMETER = "class_path";
@@ -55,7 +54,7 @@ public class JsonListHandler {
     String limit = getParam(req, LIMIT_PARAMETER);
 
     StepExecutionComponent stepExecutionComponent =
-      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+      component.stepExecutionComponent(new StepExecutionModule(req));
     PipelineRunner pipelineManager = stepExecutionComponent.pipelineRunner();
 
     Pair<? extends Iterable<JobRecord>, String> pipelineRoots = pipelineManager.queryRootPipelines(

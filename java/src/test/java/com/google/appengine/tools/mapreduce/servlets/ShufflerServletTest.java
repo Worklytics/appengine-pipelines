@@ -143,8 +143,10 @@ public class ShufflerServletTest {
       datastore.getOptions().getHost());
 
     PipelineServlet pipelineServlet = new PipelineServlet();
+    pipelineServlet.setComponent(component);
     pipelineServlet.init();
     MapReduceServlet mapReduceServlet = new MapReduceServlet();
+    mapReduceServlet.setComponent(component);
     mapReduceServlet.init();
 
     TaskRunner.servletMap = new ImmutableMap.Builder<String, HttpServlet>()
@@ -206,13 +208,16 @@ public class ShufflerServletTest {
   }
 
   @Test
-  public void testJson() throws IOException {
+  public void testJson(JobRunServiceComponent component) throws IOException {
     ShufflerParams shufflerParams = createParams(storageIntegrationTestHelper.getBase64EncodedServiceAccountKey(), storageIntegrationTestHelper.getBucket(), 3, 2);
     Marshaller<ShufflerParams> marshaller =
         Marshallers.getGenericJsonMarshaller(ShufflerParams.class);
     ByteBuffer bytes = marshaller.toBytes(shufflerParams);
     ByteArrayInputStream bin = new ByteArrayInputStream(bytes.array());
-    ShufflerParams readShufflerParams = ShufflerServlet.readShufflerParams(bin);
+
+    ShufflerServlet shufflerServlet = new ShufflerServlet();
+    shufflerServlet.setComponent(component);
+    ShufflerParams readShufflerParams = shufflerServlet.readShufflerParams(bin);
     assertEquals(shufflerParams.getShufflerQueue(), readShufflerParams.getShufflerQueue());
     assertEquals(shufflerParams.getGcsBucket(), readShufflerParams.getGcsBucket());
     assertArrayEquals(shufflerParams.getInputFileNames(), readShufflerParams.getInputFileNames());

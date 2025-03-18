@@ -20,6 +20,7 @@ import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.servlets.StaticContentHandler;
 import com.google.common.collect.ImmutableMap;
 import lombok.AllArgsConstructor;
+import lombok.extern.java.Log;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,15 +35,14 @@ import javax.servlet.http.HttpServletResponse;
 import javax.inject.Inject;
 
 //TODO: not actually a servlet
+@Log
 @AllArgsConstructor(onConstructor_ = @Inject)
 public class MapReduceServletImpl {
-
 
   JobRunServiceComponent component;
   StatusHandler statusHandler;
   RequestUtils requestUtils;
 
-  private static final Logger log = Logger.getLogger(MapReduceServlet.class.getName());
   private static final Map<String, Resource> RESOURCES = ImmutableMap.<String, Resource>builder()
       .put("status", new Resource("/_ah/pipeline/list?class_path=" + MapReduceJob.class.getName()))
       .put("detail", new Resource("detail.html", "text/html"))
@@ -109,7 +109,7 @@ public class MapReduceServletImpl {
     String handler = getHandler(request);
 
     StepExecutionComponent stepExecutionComponent =
-      component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(request)));
+      component.stepExecutionComponent(new StepExecutionModule(request));
 
     if (handler.startsWith(CONTROLLER_PATH)) {
       if (!checkForTaskQueue(request, response)) {

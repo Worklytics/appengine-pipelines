@@ -73,7 +73,6 @@ public class EndToEndTest extends EndToEndTestCase {
 
   @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
     cloudStorageFileOutputOptions = GoogleCloudStorageFileOutput.BaseOptions.defaults()
       .withServiceAccountKey(getStorageTestHelper().getBase64EncodedServiceAccountKey())
       .withProjectId(getStorageTestHelper().getProjectId()); //prob not really needed ..

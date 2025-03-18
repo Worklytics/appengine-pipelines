@@ -3,8 +3,6 @@ package com.google.appengine.tools.pipeline.di;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
 import com.google.appengine.tools.pipeline.impl.backend.*;
-import com.google.appengine.v1.ServicesClient;
-import com.google.appengine.v1.VersionsClient;
 import com.google.cloud.datastore.Datastore;
 import dagger.Binds;
 import dagger.Module;
@@ -15,29 +13,22 @@ import lombok.SneakyThrows;
 @RequiredArgsConstructor
 @Module(
   includes = {
-    TenantModule.Bindings.class,
     TenantModule.AppEngineBackendModule.class,
+    AppEngineHostModule.class
   }
 )
 public class TenantModule {
 
-  private final PipelineBackEnd backend;
+  // just pass pipeline options instead?? prob.
+  private final AppEngineBackEnd.Options backendOptions;
 
-  @Provides
-  public PipelineBackEnd pipelineBackEnd() {
-    return backend;
-  }
-
-
-  @Module
-  interface Bindings {
-
-    @Binds
-    PipelineService pipelineService(PipelineServiceImpl pipelineService);
+  @Provides @TenantScoped
+  AppEngineBackEnd.Options provideBackendOptions() {
+    return backendOptions;
   }
 
   @Module(
-    includes = TenantModule.AppEngineBackendModule.Bindings.class
+    includes = AppEngineBackendModule.Bindings.class
   )
   public static class AppEngineBackendModule {
 
@@ -46,55 +37,23 @@ public class TenantModule {
       return options.getDatastoreOptions().getService();
     }
 
-    @Provides
-    @TenantScoped
-    @SneakyThrows
-    AppEngineBackEnd.Options appEngineBackEndOptions(PipelineBackEnd pipelineBackEnd) {
-      return pipelineBackEnd.getOptions().as(AppEngineBackEnd.Options.class);
-    }
-
-    @Provides @TenantScoped
-    AppEngineEnvironment appEngineEnvironment() {
-      return new AppEngineStandardGen2();
-    }
-
-    @Provides @TenantScoped
-    AppEngineTaskQueue appEngineTaskQueue() {
-      return new AppEngineTaskQueue();
-    }
-
-
-    @SneakyThrows
-    @Provides @TenantScoped
-    ServicesClient servicesClient() {
-      return ServicesClient.create();
-    }
-
-    @SneakyThrows
-    @Provides @TenantScoped
-    VersionsClient versionsClient() {
-      return VersionsClient.create();
-    }
-
-    @Provides @TenantScoped
+    @Provides  @TenantScoped
     AppEngineBackEnd appEngineBackEnd(
       AppEngineBackEnd.Options options,
-                                      AppEngineTaskQueue appEngineTaskQueue,
-      AppEngineServicesService appEngineServicesService) {
-      return new AppEngineBackEnd(
-        options.getDatastoreOptions().getService(),
-        appEngineTaskQueue,
-        appEngineServicesService);
+      PipelineTaskQueue pipelineTaskQueue,
+      AppEngineServicesService appEngineServicesService
+    ) {
+      return new AppEngineBackEnd(options.getDatastoreOptions().getService(), pipelineTaskQueue, appEngineServicesService);
     }
 
     @Module
     interface Bindings {
 
       @Binds
-      PipelineBackEnd.Options backendOptions(AppEngineBackEnd.Options options);
+      PipelineService pipelineService(PipelineServiceImpl pipelineService);
 
       @Binds
-      AppEngineServicesService appEngineServicesService(AppEngineServicesServiceImpl appEngineServicesService);
+      PipelineBackEnd appEngineBackEnd(AppEngineBackEnd appEngineBackEnd);
     }
   }
 }

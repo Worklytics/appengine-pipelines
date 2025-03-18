@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.google.appengine.tools.pipeline.testutil.FakeAppEngineEnvironment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,22 +13,11 @@ class AppEngineServicesServiceImplTest {
   @BeforeEach
   public void setup() {
     appEngineServicesServiceImpl = new AppEngineServicesServiceImpl(
-      new AppEngineEnvironment() {
-        @Override
-        public String getProjectId() {
-          return "test-project";
-        }
-
-        @Override
-        public String getService() {
-          return "default";
-        }
-
-        @Override
-        public String getVersion() {
-          return "v123";
-        }
-      },
+      FakeAppEngineEnvironment.builder()
+        .service("default")
+        .version("v123")
+        .projectId("test-project")
+        .build(),
       AppEngineServicesServiceImpl::getServicesClientProvider,
       AppEngineServicesServiceImpl::getVersionsClientProvider
     );

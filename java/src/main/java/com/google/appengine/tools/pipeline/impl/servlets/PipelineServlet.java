@@ -37,9 +37,7 @@ import lombok.Setter;
  * {@link StaticContentHandler} as appropriate
  *
  * @author rudominer@google.com (Mitch Rudominer)
- *
  */
-@SuppressWarnings("serial")
 public class PipelineServlet extends HttpServlet {
 
   public static final String BASE_URL_PROPERTY = "com.google.appengine.tools.pipeline.BASE_URL";
@@ -50,7 +48,9 @@ public class PipelineServlet extends HttpServlet {
   @Override
   public void init() throws ServletException {
     super.init();
-    component = DaggerJobRunServiceComponent.create();
+    if (this.component == null) {
+      component = DaggerJobRunServiceComponent.create();
+    }
   }
 
   @Override

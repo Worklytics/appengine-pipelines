@@ -1,16 +1,41 @@
 package com.google.appengine.tools.pipeline.impl;
 
+import lombok.*;
+
+import javax.annotation.Nullable;
+
 /**
- * Queue settings implementation.
+ * settings for how to asynchronously execute a task via a queue
  *
  * @author ozarov@google.com (Arie Ozarov)
  */
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Getter @Setter
+@ToString
 public final class QueueSettings implements Cloneable {
 
+  /**
+   * name of the service to run the task on
+   */
+  @Nullable
   private String onService;
+
+  /**
+   * version of the service to run the task on
+   */
   private String onServiceVersion;
+
+  /**
+   * name of the queue through which to enqueue the task
+   */
   private String onQueue;
-  private Long delay;
+
+  /**
+   * delay in seconds to set when enqueueing the task (eg, should not execute until *at least* this much time has passed
+   */
+  private Long delayInSeconds;
 
   /**
    * Merge will override any {@code null} setting with a matching setting from {@code other}.
@@ -27,42 +52,6 @@ public final class QueueSettings implements Cloneable {
     return this;
   }
 
-
-  public String getOnService() {
-    return this.onService;
-  }
-
-  public QueueSettings setOnService(String onService) {
-    this.onService = onService;
-    return this;
-  }
-
-  public QueueSettings setOnServiceVersion(String serviceVersion) {
-    this.onServiceVersion = serviceVersion;
-    return this;
-  }
-
-  public String getOnServiceVersion() {
-    return onServiceVersion;
-  }
-
-  public QueueSettings setOnQueue(String onQueue) {
-    this.onQueue = onQueue;
-    return this;
-  }
-
-  public String getOnQueue() {
-    return onQueue;
-  }
-
-  public void setDelayInSeconds(Long delay) {
-    this.delay = delay;
-  }
-
-  public Long getDelayInSeconds() {
-    return delay;
-  }
-
   @Override
   public QueueSettings clone() {
     try {
@@ -70,11 +59,5 @@ public final class QueueSettings implements Cloneable {
     } catch (CloneNotSupportedException e) {
       throw new RuntimeException("Should never happen", e);
     }
-  }
-
-  @Override
-  public String toString() {
-    return "QueueSettings[onService=" + onService + ", onServiceVersion="
-        + onServiceVersion + ", onQueue=" + onQueue + ", delayInSeconds=" + delay + "]";
   }
 }

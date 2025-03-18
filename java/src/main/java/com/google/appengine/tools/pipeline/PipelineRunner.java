@@ -9,7 +9,7 @@ import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
-import com.google.appengine.tools.pipeline.impl.tasks.Task;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.util.Pair;
 
 import java.util.List;
@@ -130,8 +130,8 @@ public interface PipelineRunner {
   /**
    * Process an incoming task received from the App Engine task queue.
    *
-   * @param task The task to be processed.
+   * @param pipelineTask The task to be processed.
    *
    */
-   void processTask(Task task);
+   void processTask(PipelineTask pipelineTask);
 }

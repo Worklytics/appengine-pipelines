@@ -53,7 +53,7 @@ public class JsonTreeHandler {
     JobRunId rootJobHandle = requestUtils.getRootPipelineId(req);
     try {
       StepExecutionComponent stepExecutionComponent =
-        component.stepExecutionComponent(new StepExecutionModule(requestUtils.buildBackendFromRequest(req)));
+        component.stepExecutionComponent(new StepExecutionModule(req));
       PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
 
       JobRecord jobInfo;

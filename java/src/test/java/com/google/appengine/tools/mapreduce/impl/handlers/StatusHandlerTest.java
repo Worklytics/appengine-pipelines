@@ -19,6 +19,7 @@ import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.Serial;
 import java.lang.reflect.Array;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,6 +38,8 @@ public class StatusHandlerTest extends EndToEndTestCase {
   @RequiredArgsConstructor
   private static final class DummyWorkerController
       extends ShardedJobController<TestTask> {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Getter @Setter
@@ -51,6 +54,7 @@ public class StatusHandlerTest extends EndToEndTestCase {
 
   @BeforeEach
   public void setUp(JobRunServiceComponent component) {
+    super.setUp(component);
     statusHandler = new StatusHandler(component, component.requestUtils());
   }
 
@@ -68,7 +72,6 @@ public class StatusHandlerTest extends EndToEndTestCase {
     getPipelineOrchestrator().startJob(jobId, ImmutableList.of(s1, s2), controller, settings);
     assertFalse(getPipelineOrchestrator().cleanupJob(jobId));
     executeTasksUntilEmpty();
-
 
     assertEquals(3, TestUtils.countDatastoreEntities(getDatastore()));
 
