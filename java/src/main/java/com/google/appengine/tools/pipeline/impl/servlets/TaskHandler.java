@@ -58,7 +58,7 @@ public class TaskHandler {
   public static final String TASK_RETRY_COUNT_LEGACY_HEADER = "X-AppEngine-TaskRetryCount";
   @Deprecated
   public static final String TASK_QUEUE_NAME_LEGACY_HEADER = "X-AppEngine-QueueName";
-  
+
   public static String handleTaskUrl() {
     return PipelineServlet.baseUrl() + PATH_COMPONENT;
   }

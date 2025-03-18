@@ -52,15 +52,18 @@ public class TestingTaskQueueCallback extends DeferredTaskCallback {
     for (URLFetchRequest.Header pbHeader : req.getHeaderList()) {
       String headerName = pbHeader.getKey();
       String headerValue = pbHeader.getValue();
-      if (TaskHandler.TASK_NAME_REQUEST_HEADER.equalsIgnoreCase(headerName)) {
+      if (TaskHandler.TASK_NAME_REQUEST_HEADER.equalsIgnoreCase(headerName)
+          || TaskHandler.TASK_NAME_REQUEST_LEGACY_HEADER.equalsIgnoreCase(headerName)) {
         taskName = headerValue;
-      } else if (TaskHandler.TASK_RETRY_COUNT_HEADER.equalsIgnoreCase(headerName)) {
+      } else if (TaskHandler.TASK_RETRY_COUNT_HEADER.equalsIgnoreCase(headerName)
+      || TaskHandler.TASK_RETRY_COUNT_LEGACY_HEADER.equalsIgnoreCase(headerName)) {
         try {
           retryCount = Integer.parseInt(headerValue);
         } catch (Exception e) {
           // ignore
         }
-      } else if (TaskHandler.TASK_QUEUE_NAME_HEADER.equalsIgnoreCase(headerName)) {
+      } else if (TaskHandler.TASK_QUEUE_NAME_HEADER.equalsIgnoreCase(headerName)
+      || TaskHandler.TASK_QUEUE_NAME_LEGACY_HEADER.equalsIgnoreCase(headerName)) {
         queueName = headerValue;
       }
     }

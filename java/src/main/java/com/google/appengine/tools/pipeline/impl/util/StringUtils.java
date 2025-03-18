@@ -77,7 +77,7 @@ public class StringUtils {
     return builder.toString();
   }
 
-  public static void logRetryMessage(Logger logger, PipelineTask pipelineTask, int retryCount, Exception e) {
+  public static void logRetryMessage(Logger logger, PipelineTask pipelineTask, Integer retryCount, Exception e) {
     String message = "Will retry task: " + pipelineTask + ". retryCount=" + retryCount;
     if (e instanceof ConcurrentModificationException) {
       // Don't print stack trace in this case.
