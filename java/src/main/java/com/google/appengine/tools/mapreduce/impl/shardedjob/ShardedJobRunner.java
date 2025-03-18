@@ -149,7 +149,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   @VisibleForTesting
   <T extends IncrementalTask> IncrementalTaskState<T> lookupTaskState(@NonNull Transaction tx, IncrementalTaskId taskId) {
-    return (IncrementalTaskState<T>) Optional.ofNullable(tx.get(IncrementalTaskState.Serializer.makeKey(tx.getDatastore(), taskId)))
+    return (IncrementalTaskState<T>) Optional.ofNullable(tx.get(IncrementalTaskState.makeKey(tx.getDatastore(), taskId)))
       .map(in -> IncrementalTaskState.Serializer.fromEntity(tx, in))
       .orElse(null);
   }
@@ -183,7 +183,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         int toRead = Math.min(TASK_LOOKUP_BATCH_SIZE, taskCount - lastCount);
         List<Key> keys = new ArrayList<>(toRead);
         for (int i = 0; i < toRead; i++, lastCount++) {
-          Key key = IncrementalTaskState.Serializer.makeKey(datastore, IncrementalTaskId.of(jobId, lastCount));
+          Key key = IncrementalTaskState.makeKey(datastore, IncrementalTaskId.of(jobId, lastCount));
           keys.add(key);
         }
         TreeMap<Integer, Entity> ordered = new TreeMap<>();
@@ -273,7 +273,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         if (jobState1.getActiveTaskCount() == 0 && jobState1.getStatus().isActive()) {
           jobState1.setStatus(new Status(DONE));
         }
-        tx.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState1));
+        tx.put(jobState1.toEntity(tx));
         tx.commit();
         return jobState1;
       } finally {
@@ -391,7 +391,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
                                                         IncrementalTaskState<T> taskState) {
     boolean locked = false;
     taskState.getLockInfo().lock();
-    Entity entity = IncrementalTaskState.Serializer.toEntity(tx, taskState);
+    Entity entity = taskState.toEntity(tx);
     try {
       tx.put(entity);
       locked = true;
@@ -678,11 +678,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
           private void writeTaskState(IncrementalTaskState<T> taskState,
                                       ShardRetryState<T> shardRetryState, Transaction tx) {
-            Entity taskStateEntity = IncrementalTaskState.Serializer.toEntity(tx, taskState);
+            Entity taskStateEntity = taskState.toEntity(tx);
             if (shardRetryState == null) {
               tx.put(taskStateEntity);
             } else {
-              Entity retryStateEntity = ShardRetryState.Serializer.toEntity(tx, shardRetryState);
+              Entity retryStateEntity = shardRetryState.toEntity(tx);
               tx.put(taskStateEntity, retryStateEntity);
             }
           }
@@ -724,8 +724,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
           }
           taskState = IncrementalTaskState.create(taskId, jobId, startTime, initialTask);
           ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
-          tx.put(IncrementalTaskState.Serializer.toEntity(tx, taskState),
-            ShardRetryState.Serializer.toEntity(tx, retryState));
+          tx.put(taskState.toEntity(tx),
+            retryState.toEntity(tx));
           tx.commit();
           scheduleWorkerTask(settings, taskState, null);
         } finally {
@@ -744,7 +744,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     try {
       ShardedJobStateImpl<T> existing = lookupJobState(tx, jobId);
       if (existing == null) {
-        tx.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState));
+        tx.put(jobState.toEntity(tx));
 
         log.info(jobId + ": Writing initial job state");
       } else {
@@ -775,7 +775,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       jobState.setStatus(new Status(DONE));
       Transaction tx = datastore.newTransaction();
       try {
-        tx.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState));
+        tx.put(jobState.toEntity(tx));
         tx.commit();
       } finally {
         rollbackIfActive(tx);
@@ -814,7 +814,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       return;
     }
     jobState.setStatus(status);
-    tx.put(ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, jobState));
+    tx.put(jobState.toEntity(tx));
   }
 
   private void rollbackIfActive(Transaction tx) {

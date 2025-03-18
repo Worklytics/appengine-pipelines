@@ -43,7 +43,7 @@ import javax.annotation.Nullable;
  * @author rudominer@google.com (Mitch Rudominer)
  */
 @Log
-public class Slot extends PipelineModelObject {
+public class Slot extends PipelineModelObject implements ExpiringDatastoreEntity {
 
   public static final String DATA_STORE_KIND = "pipeline-slot";
 
@@ -186,7 +186,7 @@ public class Slot extends PipelineModelObject {
   public String toString() {
     return "Slot[" + getKeyName(getKey()) + ", value=" + (serializedVersion != null ? "..." : value)
         + ", filled=" + filled + ", waitingOnMe=" + waitingOnMeKeys + ", parent="
-        + getKeyName(getGeneratorJobKey()) + ", guid=" + getGraphGuid() + "]";
+        + getKeyName(getGeneratorJobKey()) + ", guid=" + getGraphGUID() + "]";
   }
 
   public static Key key(String projectId,

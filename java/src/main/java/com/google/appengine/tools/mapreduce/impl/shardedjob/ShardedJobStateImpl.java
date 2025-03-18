@@ -5,6 +5,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil.serializeToDatastoreProperty;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.appengine.tools.pipeline.impl.model.ExpiringDatastoreEntity;
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
@@ -30,8 +31,11 @@ import java.util.Optional;
 @EqualsAndHashCode
 @Builder(access = AccessLevel.PRIVATE)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState {
+class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState, ExpiringDatastoreEntity {
 
+  static final String DATASTORE_KIND = "MR-ShardedJob";
+  
+  
   private final ShardedJobRunId shardedJobId;
   private final ShardedJobController<T> controller;
   private final ShardedJobSettings settings;
@@ -59,6 +63,9 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   @Builder.Default
   private int settingsValueShards = 0;
 
+  @Builder.ObtainVia(method = "defaultExpireAt")
+  @Getter @Setter
+  private Instant expireAt;
 
   public static <T extends IncrementalTask> ShardedJobStateImpl<T> create(
     @NonNull String project,
@@ -94,6 +101,30 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
       .build();
   }
 
+  Entity toEntity(@NonNull Transaction tx) {
+    Key key = ShardedJobSerializer.makeKey(tx.getDatastore(), getShardedJobId());
+    Entity.Builder jobState = Entity.newBuilder(key);
+
+    //avoid serialization issue; will fill on deserialization
+    getController().setPipelineService(null);
+    serializeToDatastoreProperty(tx, jobState, ShardedJobSerializer.CONTROLLER_PROPERTY, getController(), Optional.of(controllerValueShards));
+    serializeToDatastoreProperty(tx, jobState, ShardedJobSerializer.SETTINGS_PROPERTY, getSettings(), Optional.of(settingsValueShards));
+    serializeToDatastoreProperty(tx, jobState, ShardedJobSerializer.SHARDS_COMPLETED_PROPERTY, shardsCompleted, Optional.of(0)); // this is a BitSet, so assume will NEVER exceed blob limit (as that'd be nuts)
+    serializeToDatastoreProperty(tx, jobState, ShardedJobSerializer.STATUS_PROPERTY, getStatus(), Optional.of(statusValueShards));
+    jobState.set(ShardedJobSerializer.TOTAL_TASK_COUNT_PROPERTY, LongValue.newBuilder(getTotalTaskCount()).setExcludeFromIndexes(true).build());
+    jobState.set(ShardedJobSerializer.START_TIME_PROPERTY, ShardedJobSerializer.timestampBuilder(getStartTime()).setExcludeFromIndexes(true).build());
+
+    Instant mostRecentUpdate = Optional.ofNullable(getMostRecentUpdateTime()).orElse(Instant.now());
+
+    jobState.set(ShardedJobSerializer.MOST_RECENT_UPDATE_TIME_PROPERTY,
+        ShardedJobSerializer.timestampBuilder(mostRecentUpdate).setExcludeFromIndexes(true).build());
+    setMostRecentUpdateTime(mostRecentUpdate);
+
+    fillExpireAt(jobState);
+
+    return jobState.build();
+  }
+
 
   @Override
   public int getActiveTaskCount() {
@@ -103,8 +134,6 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   public void markShardCompleted(int shard) {
     shardsCompleted.set(shard);
   }
-
-
 
   @Override
   public String toString() {
@@ -117,7 +146,6 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
   }
 
   static class ShardedJobSerializer {
-    static final String ENTITY_KIND = "MR-ShardedJob";
 
     private static final String CONTROLLER_PROPERTY = "controller";
     private static final String START_TIME_PROPERTY = "startTime";
@@ -129,7 +157,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
 
     static Key makeKey(Datastore datastore, ShardedJobRunId jobId) {
       KeyFactory builder = datastore.newKeyFactory()
-        .setKind(ENTITY_KIND)
+        .setKind(DATASTORE_KIND)
         .setProjectId(jobId.getProject());
 
       // null implies default? unset certainly does, so we'll leave that
@@ -142,28 +170,6 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
         builder.setNamespace(jobId.getNamespace());
       }
       return builder.newKey(jobId.getJobId());
-    }
-
-    static Entity toEntity(@NonNull Transaction tx, ShardedJobStateImpl<?> in) {
-      Key key = makeKey(tx.getDatastore(), in.getShardedJobId());
-      Entity.Builder jobState = Entity.newBuilder(key);
-
-      //avoid serialization issue; will fill on deserialization
-      in.getController().setPipelineService(null);
-      serializeToDatastoreProperty(tx, jobState, CONTROLLER_PROPERTY, in.getController(), Optional.of(in.controllerValueShards));
-      serializeToDatastoreProperty(tx, jobState, SETTINGS_PROPERTY, in.getSettings(), Optional.of(in.settingsValueShards));
-      serializeToDatastoreProperty(tx, jobState, SHARDS_COMPLETED_PROPERTY, in.shardsCompleted, Optional.of(0)); // this is a BitSet, so assume will NEVER exceed blob limit (as that'd be nuts)
-      serializeToDatastoreProperty(tx, jobState, STATUS_PROPERTY, in.getStatus(), Optional.of(in.statusValueShards));
-      jobState.set(TOTAL_TASK_COUNT_PROPERTY, LongValue.newBuilder(in.getTotalTaskCount()).setExcludeFromIndexes(true).build());
-      jobState.set(START_TIME_PROPERTY, timestampBuilder(in.getStartTime()).setExcludeFromIndexes(true).build());
-
-      Instant mostRecentUpdate = Optional.ofNullable(in.getMostRecentUpdateTime()).orElse(Instant.now());
-
-      jobState.set(MOST_RECENT_UPDATE_TIME_PROPERTY,
-          timestampBuilder(mostRecentUpdate).setExcludeFromIndexes(true).build());
-      in.setMostRecentUpdateTime(mostRecentUpdate);
-
-      return jobState.build();
     }
 
     static TimestampValue.Builder timestampBuilder(Instant instant) {
@@ -180,7 +186,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
 
     static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(
       @NonNull Transaction tx, Entity in, boolean lenient) {
-      Preconditions.checkArgument(ENTITY_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
+      Preconditions.checkArgument(DATASTORE_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
 
       ShardedJobRunId jobId = ShardedJobRunId.of(in.getKey());
 
@@ -196,6 +202,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState 
         .statusValueShards(DatastoreSerializationUtil.shardsUsedToStore(in, STATUS_PROPERTY))
         .mostRecentUpdateTime(in.contains(MOST_RECENT_UPDATE_TIME_PROPERTY) ? from(in.getTimestamp(MOST_RECENT_UPDATE_TIME_PROPERTY)) : null)
         .shardsCompleted(DatastoreSerializationUtil.deserializeFromDatastoreProperty(tx, in, SHARDS_COMPLETED_PROPERTY))
+        .expireAt(ExpiringDatastoreEntity.getExpireAt(in))
         .build();
     }
   }

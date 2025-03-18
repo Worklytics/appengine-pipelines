@@ -32,7 +32,7 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
   public void testRoundTripJob() {
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
     Transaction tx = getDatastore().newTransaction();
-    Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, job);
+    Entity entity = job.toEntity(tx);
     tx.put(entity);
     tx.commit();
 
@@ -56,7 +56,7 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
   public void testExpectedFields() {
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
     Transaction tx = getDatastore().newTransaction();
-    Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, job);
+    Entity entity = job.toEntity(tx);
     assertEquals(10, entity.getLong("taskCount"));
     assertTrue(entity.contains("activeShards"));
     assertTrue(entity.contains("status"));
@@ -69,7 +69,7 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
   public void testFetchJobById() {
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
     Transaction tx = getDatastore().newTransaction();
-    Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, job);
+    Entity entity = job.toEntity(tx);
     tx.put(entity);
     tx.commit();
 
@@ -85,7 +85,7 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
   @Test
   public void testQueryByKind() {
     Query<Entity> query = Query.newEntityQueryBuilder()
-      .setKind(ShardedJobStateImpl.ShardedJobSerializer.ENTITY_KIND)
+      .setKind(ShardedJobStateImpl.DATASTORE_KIND)
       .build();
     Iterator<Entity> iterable = getDatastore().run(query);
     assertFalse(iterable.hasNext());
@@ -93,7 +93,7 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
 
     Transaction tx = getDatastore().newTransaction();
-    Entity entity = ShardedJobStateImpl.ShardedJobSerializer.toEntity(tx, job);
+    Entity entity = job.toEntity(tx);
     tx.put(entity);
     tx.commit();
 

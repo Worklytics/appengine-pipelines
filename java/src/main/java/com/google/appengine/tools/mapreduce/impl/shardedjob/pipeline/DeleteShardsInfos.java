@@ -45,7 +45,7 @@ public class DeleteShardsInfos extends Job0<Void> {
     Transaction tx = datastore.newTransaction();
     for (int i = start; i < end; i++) {
       IncrementalTaskId taskId = IncrementalTaskId.of(jobId, i);
-      addParentKeyToList(tx, toDelete, IncrementalTaskState.Serializer.makeKey(datastore, taskId));
+      addParentKeyToList(tx, toDelete, IncrementalTaskState.makeKey(datastore, taskId));
       addParentKeyToList(tx, toDelete, ShardRetryState.Serializer.makeKey(datastore, taskId));
     }
     RetryExecutor.call(

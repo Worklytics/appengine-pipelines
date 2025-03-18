@@ -52,7 +52,9 @@ import java.util.stream.Collectors;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
-public class JobRecord extends PipelineModelObject implements JobInfo {
+public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringDatastoreEntity {
+
+  public static final String DATA_STORE_KIND = "pipeline-job";
 
   //TODO: very hacky, probably need to have a factory that builds these, and extend there
   @VisibleForTesting
@@ -129,7 +131,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     FOR_OUTPUT;
   }
 
-  public static final String DATA_STORE_KIND = "pipeline-job";
+
   // Data store entity property names
   private static final String JOB_INSTANCE_PROPERTY = "jobInstance";
   private static final String RUN_BARRIER_PROPERTY = "runBarrier";
@@ -424,7 +426,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
     runBarrierKey = runBarrierInflated.getKey();
     finalizeBarrierInflated = new Barrier(Barrier.Type.FINALIZE, this);
     finalizeBarrierKey = finalizeBarrierInflated.getKey();
-    outputSlotInflated = new Slot(getRootJobKey(), getGeneratorJobKey(), getGraphGuid(), serializationStrategy);
+    outputSlotInflated = new Slot(getRootJobKey(), getGeneratorJobKey(), getGraphGUID(), serializationStrategy);
     // Initially we set the filler of the output slot to be this Job.
     // During finalize we may reset it to the filler of the finalize slot.
     outputSlotInflated.setSourceJobKey(getKey());
@@ -653,7 +655,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo {
         + runBarrierKey.getName() + ", finalizeBarrier=" + finalizeBarrierKey.getName()
         + ", outputSlot=" + outputSlotKey.getName() + ", rootJobDisplayName="
         + rootJobDisplayName + ", parent=" + getKeyName(getGeneratorJobKey()) + ", guid="
-        + getGraphGuid() + ", childGuid=" + childGraphGuid + "]";
+        + getGraphGUID() + ", childGuid=" + childGraphGuid + "]";
   }
 
   @VisibleForTesting

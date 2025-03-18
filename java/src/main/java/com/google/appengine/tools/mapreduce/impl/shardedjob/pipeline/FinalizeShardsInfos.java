@@ -10,6 +10,7 @@ import com.google.appengine.tools.pipeline.Value;
 import com.google.cloud.datastore.*;
 import lombok.RequiredArgsConstructor;
 
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.List;
 /**
@@ -18,6 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FinalizeShardsInfos extends Job0<Void> {
 
+  @Serial
   private static final long serialVersionUID = 1L;
 
   private final DatastoreOptions datastoreOptions;
@@ -40,7 +42,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
         final List<Key> toDelete = new ArrayList<>();
         for (int i = start; i < end; i++) {
           IncrementalTaskId taskId = IncrementalTaskId.of(jobId, i);
-          toFetch.add(IncrementalTaskState.Serializer.makeKey(datastore, taskId));
+          toFetch.add(IncrementalTaskState.makeKey(datastore, taskId));
           Key retryStateKey = ShardRetryState.Serializer.makeKey(datastore, taskId);
           toDelete.add(retryStateKey);
           for (Key key : DatastoreSerializationUtil.getShardedValueKeysFor(tx, retryStateKey, null)) {
@@ -58,7 +60,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
               IncrementalTaskState.Serializer.fromEntity(tx, entity, true);
             if (taskState.getTask() != null) {
               taskState.getTask().jobCompleted(status);
-              toUpdate.add(IncrementalTaskState.Serializer.toEntity(tx, taskState));
+              toUpdate.add(taskState.toEntity(tx));
             }
           }
         }
