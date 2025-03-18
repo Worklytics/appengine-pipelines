@@ -75,12 +75,11 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
             + " job, using 'default'");
         queue = DEFAULT_QUEUE_NAME;
       }
-      settings = MapReduceSettings.builder()
-        .projectId(settings.getProjectId())
-        .databaseId(settings.getDatabaseId())
-        .namespace(settings.getNamespace())
-        .workerQueueName(queue)
-        .build();
+      if (settings instanceof MapSettings) {
+        settings = ((MapSettings) settings).withWorkerQueueName(queue);
+      } else {
+        settings = ((MapReduceSettings) settings).withWorkerQueueName(queue);
+      }
     }
     ShardedJobRunId jobId = getShardedJobId();
     Context context = new BaseContext(jobId);

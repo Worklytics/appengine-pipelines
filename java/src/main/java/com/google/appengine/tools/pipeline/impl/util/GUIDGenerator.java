@@ -26,7 +26,7 @@ public class GUIDGenerator {
   private static AtomicInteger counter = new AtomicInteger();
 
   public static final String USE_SIMPLE_GUIDS_FOR_DEBUGGING =
-      "com.google.appengine.api.pipeline.use-simple-guids-for-debugging";
+      "com.google.appengine.tools.pipeline.use-simple-guids-for-debugging";
 
   public static synchronized String nextGUID() {
     if (Boolean.getBoolean(USE_SIMPLE_GUIDS_FOR_DEBUGGING)) {

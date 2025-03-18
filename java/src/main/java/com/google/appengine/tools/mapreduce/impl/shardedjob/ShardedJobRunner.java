@@ -390,6 +390,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
   private <T extends IncrementalTask> boolean lockShard(Transaction tx,
                                                         IncrementalTaskState<T> taskState, String operationId) {
     boolean locked = false;
+
+    taskState.getLockInfo().lock(operationId);
     Entity entity = taskState.toEntity(tx);
     taskState.getLockInfo().lock(operationId);
     try {

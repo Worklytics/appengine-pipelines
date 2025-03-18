@@ -128,8 +128,9 @@ public class MapReduceSettingsTest {
     assertEquals(6, mrSettings.getSortReadTimeMillis());
     assertEquals("queue1", mrSettings.getWorkerQueueName());
 
-    builder = MapReduceSettings.builder().module("m1");
-
+    builder = MapReduceSettings.builder()
+      .bucketName("app_default_bucket")
+      .module("m1");
     mrSettings = builder.build();
     assertEquals("m1", mrSettings.getModule());
   }

@@ -22,6 +22,7 @@ import java.io.Serializable;
 @ToString
 @RequiredArgsConstructor
 @Log
+@With
 @lombok.Builder(toBuilder = true)
 public class MapSettings implements ShardedJobAbstractSettings, Serializable {
 

@@ -43,7 +43,7 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
   @Getter
   Storage storage;
   @Getter
-  static String bucket;
+  String bucket;
   @Getter
   String projectId;
   @Getter
@@ -51,6 +51,13 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
 
   @Getter
   String base64EncodedServiceAccountKey;
+
+  public String getBucket() {
+    if (bucket == null) {
+      throw new IllegalStateException("CloudStorageIntegrationTestHelper not set up");
+    }
+    return bucket;
+  }
 
   @SneakyThrows
   @Override

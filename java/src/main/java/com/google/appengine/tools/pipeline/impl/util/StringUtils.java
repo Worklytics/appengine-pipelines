@@ -16,9 +16,9 @@ package com.google.appengine.tools.pipeline.impl.util;
 
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.charset.Charset;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.logging.Level;
@@ -31,8 +31,6 @@ import java.util.logging.Logger;
  */
 // TODO(user): consider depending and using guava instead.
 public class StringUtils {
-
-  public static final Charset UTF_8 = Charset.forName("UTF-8");
 
   public static String printStackTraceToString(Throwable t) {
     StringWriter sw = new StringWriter();
