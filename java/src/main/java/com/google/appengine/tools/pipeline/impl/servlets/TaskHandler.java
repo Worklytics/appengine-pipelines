@@ -23,7 +23,7 @@ import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import lombok.AllArgsConstructor;
 
 import java.util.Enumeration;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 import javax.servlet.ServletException;
@@ -46,10 +46,19 @@ public class TaskHandler {
   final JobRunServiceComponent component;
 
   public static final String PATH_COMPONENT = "handleTask";
-  public static final String TASK_NAME_REQUEST_HEADER = "X-AppEngine-TaskName";
-  public static final String TASK_RETRY_COUNT_HEADER = "X-AppEngine-TaskRetryCount";
-  public static final String TASK_QUEUE_NAME_HEADER = "X-AppEngine-QueueName";
 
+  public static final String TASK_NAME_REQUEST_HEADER = "X-CloudTasks-TaskName";
+  public static final String TASK_RETRY_COUNT_HEADER = "X-CloudTasks-TaskRetryCount";
+  public static final String TASK_QUEUE_NAME_HEADER = "X-CloudTasks-QueueName";
+
+  //legacy - GAE tasks env
+  @Deprecated
+  public static final String TASK_NAME_REQUEST_LEGACY_HEADER = "X-AppEngine-TaskName";
+  @Deprecated
+  public static final String TASK_RETRY_COUNT_LEGACY_HEADER = "X-AppEngine-TaskRetryCount";
+  @Deprecated
+  public static final String TASK_QUEUE_NAME_LEGACY_HEADER = "X-AppEngine-QueueName";
+  
   public static String handleTaskUrl() {
     return PipelineServlet.baseUrl() + PATH_COMPONENT;
   }
@@ -57,12 +66,11 @@ public class TaskHandler {
   public void doPost(HttpServletRequest req) throws ServletException {
     PipelineTask pipelineTask = reconstructTask(req);
 
-    int retryCount;
-    try {
-      retryCount = req.getIntHeader(TASK_RETRY_COUNT_HEADER);
-    } catch (NumberFormatException e) {
+    Integer retryCount = getTaskRetryCount(req);
+    if (retryCount == null) {
       retryCount = -1;
     }
+
     try {
       StepExecutionComponent stepExecutionComponent =
         component.stepExecutionComponent(new StepExecutionModule(req));
@@ -75,6 +83,23 @@ public class TaskHandler {
     }
   }
 
+  String getTaskName(HttpServletRequest req) {
+    return Optional.ofNullable(
+        req.getHeader(TASK_NAME_REQUEST_HEADER))
+      .orElseGet(() -> req.getHeader(TASK_NAME_REQUEST_LEGACY_HEADER));
+  }
+
+  String getQueueName(HttpServletRequest req) {
+    return Optional.ofNullable(
+        req.getHeader(TASK_QUEUE_NAME_HEADER))
+      .orElseGet(() -> req.getHeader(TASK_QUEUE_NAME_LEGACY_HEADER));
+  }
+
+  Integer getTaskRetryCount(HttpServletRequest req) {
+    return Optional.ofNullable(req.getIntHeader(TASK_RETRY_COUNT_HEADER))
+      .orElseGet(() -> req.getIntHeader(TASK_RETRY_COUNT_LEGACY_HEADER));
+  }
+
   private PipelineTask reconstructTask(HttpServletRequest request) {
     Properties properties = new Properties();
     Enumeration<?> paramNames = request.getParameterNames();
@@ -83,10 +108,10 @@ public class TaskHandler {
       String paramValue = request.getParameter(paramName);
       properties.setProperty(paramName, paramValue);
     }
-    String taskName = request.getHeader(TASK_NAME_REQUEST_HEADER);
+    String taskName = getTaskName(request);
     PipelineTask pipelineTask = PipelineTask.fromProperties(taskName, properties);
     pipelineTask.getQueueSettings().setDelayInSeconds(null);
-    String queueName = request.getHeader(TASK_QUEUE_NAME_HEADER);
+    String queueName = getQueueName(request);
     if (queueName != null && !queueName.isEmpty()) {
       String onQueue = pipelineTask.getQueueSettings().getOnQueue();
        if (onQueue == null || onQueue.isEmpty()) {
