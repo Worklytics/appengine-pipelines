@@ -12,10 +12,13 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-package com.google.appengine.tools.pipeline;
+package com.google.appengine.tools.pipeline.examples;
 
-import com.google.appengine.tools.pipeline.AsyncGCDExample.PrintGCDJob;
-import com.google.appengine.tools.pipeline.demo.GCDExample.GCDJob;
+import com.google.appengine.tools.pipeline.JobInfo;
+import com.google.appengine.tools.pipeline.JobRunId;
+import com.google.appengine.tools.pipeline.PipelineTest;
+import com.google.appengine.tools.pipeline.examples.AsyncGCDExample.PrintGCDJob;
+import com.google.appengine.tools.pipeline.examples.GCDExample.GCDJob;
 import com.google.apphosting.api.ApiProxy;
 import org.junit.jupiter.api.Test;
 

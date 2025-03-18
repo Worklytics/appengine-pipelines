@@ -11,13 +11,15 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
-package com.google.appengine.tools.pipeline.demo;
+package com.google.appengine.tools.pipeline.examples;
 
 import com.google.appengine.tools.pipeline.FutureValue;
 import com.google.appengine.tools.pipeline.Job1;
 import com.google.appengine.tools.pipeline.Job2;
 import com.google.appengine.tools.pipeline.Value;
 import com.google.appengine.tools.pipeline.util.Pair;
+
+import java.io.Serial;
 
 /**
  * An example for finding the GCD.
@@ -32,6 +34,7 @@ public class GCDExample {
    */
   public static class GCDJob extends Job2<Integer, Integer, Integer> {
 
+    @Serial
     private static final long serialVersionUID = -2829729586917167089L;
 
     @Override
@@ -60,6 +63,7 @@ public class GCDExample {
    */
   public static class EuclAlgJob extends Job1<Integer, Pair<Integer, Integer>> {
 
+    @Serial
     private static final long serialVersionUID = 6304492080329641948L;
 
     @Override
@@ -89,6 +93,7 @@ public class GCDExample {
    */
   public static class OrderIntsJob extends Job2<Pair<Integer, Integer>, Integer, Integer> {
 
+    @Serial
     private static final long serialVersionUID = -3625544267076808177L;
 
     @Override
@@ -105,6 +110,7 @@ public class GCDExample {
    * Given two integers b and a returns b - a.
    */
   public static class DiffJob extends Job2<Integer, Integer, Integer> {
+    @Serial
     private static final long serialVersionUID = -2102148459756486612L;
 
     @Override

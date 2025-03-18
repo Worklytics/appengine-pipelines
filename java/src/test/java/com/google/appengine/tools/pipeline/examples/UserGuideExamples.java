@@ -1,8 +1,10 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 
-package com.google.appengine.tools.pipeline.demo;
+package com.google.appengine.tools.pipeline.examples;
 
 import com.google.appengine.tools.pipeline.*;
+
+import java.io.Serial;
 
 /**
  * This class contains the example Pipelines from the User Guide
@@ -16,6 +18,7 @@ public class UserGuideExamples {
    */
   public static class ComplexJob extends Job3<Integer, Integer, Integer, Integer> {
 
+    @Serial
     private static final long serialVersionUID = -3659971121199420049L;
 
     @Override
@@ -35,6 +38,7 @@ public class UserGuideExamples {
    */
   public static class DiffJob extends Job2<Integer, Integer, Integer> {
 
+    @Serial
     private static final long serialVersionUID = -623601952335794286L;
 
     @Override
@@ -48,6 +52,7 @@ public class UserGuideExamples {
    */
   public static class MultJob extends Job2<Integer, Integer, Integer> {
 
+    @Serial
     private static final long serialVersionUID = -3272045240539122024L;
 
     @Override
@@ -61,6 +66,7 @@ public class UserGuideExamples {
    */
   public static class ExternalAgentJob extends Job1<Integer, String> {
 
+    @Serial
     private static final long serialVersionUID = -8312140484895836265L;
 
     @Override
@@ -116,6 +122,8 @@ public class UserGuideExamples {
    * An example for a generator job that creates 2 child jobs that run sequentially.
    */
   public static class ExampleWaitForJob extends Job0<Void> {
+
+    @Serial
     private static final long serialVersionUID = 2902489882639841399L;
 
     @Override
@@ -131,6 +139,7 @@ public class UserGuideExamples {
    */
   public static class JobA extends Job0<Void> {
 
+    @Serial
     private static final long serialVersionUID = 2566124209015132825L;
 
     @Override
@@ -145,6 +154,7 @@ public class UserGuideExamples {
    */
   public static class JobB extends Job0<Void> {
 
+    @Serial
     private static final long serialVersionUID = 8128100793415469657L;
 
     @Override

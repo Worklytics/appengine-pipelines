@@ -12,12 +12,13 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-package com.google.appengine.tools.pipeline.demo;
+package com.google.appengine.tools.pipeline.examples;
 
 import com.google.appengine.tools.pipeline.FutureValue;
 import com.google.appengine.tools.pipeline.Job1;
 import com.google.appengine.tools.pipeline.Value;
 
+import java.io.Serial;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,8 @@ public class LetterCountExample {
    */
   public static class LetterCounter extends Job1<SortedMap<Character, Integer>, String> {
 
+
+    @Serial
     private static final long serialVersionUID = -42446767578960124L;
 
     @Override
@@ -55,6 +58,7 @@ public class LetterCountExample {
    */
   public static class SingleWordCounterJob extends Job1<SortedMap<Character, Integer>, String> {
 
+    @Serial
     private static final long serialVersionUID = 3257449383642363412L;
 
     @Override
@@ -77,6 +81,8 @@ public class LetterCountExample {
   public static class CountCombinerJob extends
       Job1<SortedMap<Character, Integer>, List<SortedMap<Character, Integer>>> {
 
+
+    @Serial
     private static final long serialVersionUID = -142472702334430476L;
 
     @Override

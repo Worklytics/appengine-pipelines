@@ -12,10 +12,11 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-package com.google.appengine.tools.pipeline;
+package com.google.appengine.tools.pipeline.examples;
 
-import com.google.appengine.tools.pipeline.demo.LetterCountExample;
-import com.google.appengine.tools.pipeline.demo.LetterCountExample.LetterCounter;
+import com.google.appengine.tools.pipeline.JobRunId;
+import com.google.appengine.tools.pipeline.PipelineTest;
+import com.google.appengine.tools.pipeline.examples.LetterCountExample.LetterCounter;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map.Entry;
