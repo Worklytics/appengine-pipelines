@@ -120,11 +120,7 @@
 
   <dependencies>
     <!-- Compile/Runtime Dependencies -->
-    <dependency>
-      <groupId>com.google.appengine</groupId>
-      <artifactId>appengine-api-1.0-sdk</artifactId>
-        <version>${appengine.target.version}</version>
-    </dependency>
+
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-appengine-admin</artifactId>
@@ -234,6 +230,12 @@
 
 
     <!-- Test Dependencies -->
+    <dependency> <!-- we're still using the old, App Engine-tasks based fake task queue impl to run tests -->
+      <groupId>com.google.appengine</groupId>
+      <artifactId>appengine-api-1.0-sdk</artifactId>
+      <version>${appengine.target.version}</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>com.google.appengine</groupId>
       <artifactId>appengine-testing</artifactId>
