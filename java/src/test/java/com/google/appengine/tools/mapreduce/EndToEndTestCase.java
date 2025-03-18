@@ -55,11 +55,6 @@ public abstract class EndToEndTestCase {
           new LocalTaskQueueTestConfig().setDisableAutoTaskExecution(true));
   private LocalTaskQueue taskQueue;
 
-  /** Implement in sub-classes to set system environment properties for tests. */
-  protected Map<String, String> getEnvAttributes() throws Exception {
-    return null;
-  }
-
   @Getter @Setter(onMethod_ = @BeforeEach)
   Datastore datastore;
 
@@ -74,8 +69,8 @@ public abstract class EndToEndTestCase {
 
   // will this magically have right context?
   //TODO: get these from the component ? how
-  private PipelineServlet pipelineServlet = new PipelineServlet();
-  private MapReduceServlet mrServlet = new MapReduceServlet();
+  private PipelineServlet pipelineServlet;
+  private MapReduceServlet mrServlet;
 
   @Getter
   private CloudStorageIntegrationTestHelper storageTestHelper;
@@ -83,16 +78,15 @@ public abstract class EndToEndTestCase {
   @BeforeEach
   public void setUp(JobRunServiceComponent component) throws Exception {
     helper.setUp();
-    Map<String, String> envAttributes = getEnvAttributes();
-    if (envAttributes != null) {
-      LocalServiceTestHelper.getApiProxyLocal().appendProperties(envAttributes);
-    }
     taskQueue = LocalTaskQueueTestConfig.getLocalTaskQueue();
     // Creating files is not allowed in some test execution environments, so don't.
     storageTestHelper = new CloudStorageIntegrationTestHelper();
     storageTestHelper.setUp();
 
+    // in effect, this is the servlet container
+    pipelineServlet = new PipelineServlet();
     pipelineServlet.setComponent(component);
+    mrServlet = new MapReduceServlet();
     mrServlet.setComponent(component);
     pipelineServlet.init();
     mrServlet.init();
