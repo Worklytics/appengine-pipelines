@@ -19,6 +19,7 @@ import com.google.appengine.tools.pipeline.PipelineOrchestrator;
 import com.google.appengine.tools.pipeline.PipelineRunner;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.TestUtils;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.impl.servlets.PipelineServlet;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.testutil.JobRunServiceTestComponent;
@@ -80,7 +81,7 @@ public abstract class EndToEndTestCase {
   private CloudStorageIntegrationTestHelper storageTestHelper;
 
   @BeforeEach
-  public void setUp(JobRunServiceTestComponent component) throws Exception {
+  public void setUp(JobRunServiceComponent component) throws Exception {
     helper.setUp();
     Map<String, String> envAttributes = getEnvAttributes();
     if (envAttributes != null) {
