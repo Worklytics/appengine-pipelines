@@ -23,8 +23,10 @@ import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import lombok.AllArgsConstructor;
 
 import java.util.Enumeration;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.stream.Stream;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -96,8 +98,10 @@ public class TaskHandler {
   }
 
   Integer getTaskRetryCount(HttpServletRequest req) {
-    return Optional.ofNullable(req.getIntHeader(TASK_RETRY_COUNT_HEADER))
-      .orElseGet(() -> req.getIntHeader(TASK_RETRY_COUNT_LEGACY_HEADER));
+    return Stream.of(req.getHeader(TASK_RETRY_COUNT_HEADER),
+      req.getHeader(TASK_RETRY_COUNT_LEGACY_HEADER))
+      .filter(Objects::nonNull)
+      .findFirst().map(Integer::parseInt).orElse(null);
   }
 
   private PipelineTask reconstructTask(HttpServletRequest request) {
