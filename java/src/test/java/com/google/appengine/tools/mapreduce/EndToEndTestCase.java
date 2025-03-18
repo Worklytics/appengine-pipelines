@@ -28,6 +28,7 @@ import com.google.common.base.CharMatcher;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -75,8 +76,9 @@ public abstract class EndToEndTestCase {
   @Getter
   private CloudStorageIntegrationTestHelper storageTestHelper;
 
+  @SneakyThrows
   @BeforeEach
-  public void setUp(JobRunServiceComponent component) throws Exception {
+  public void setUp(JobRunServiceComponent component) {
     helper.setUp();
     taskQueue = LocalTaskQueueTestConfig.getLocalTaskQueue();
     // Creating files is not allowed in some test execution environments, so don't.

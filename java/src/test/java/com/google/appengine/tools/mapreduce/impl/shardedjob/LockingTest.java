@@ -38,19 +38,15 @@ public class LockingTest extends EndToEndTestCase {
     settings = ShardedJobSettings.builder().build();
   }
 
-  @Setter(onMethod_ = @BeforeEach)
-  AppEngineBackEnd appEngineBackend;
 
   @Getter
   @Setter(onMethod_ = @BeforeEach)
   ShardedJobRunner shardedJobRunner;
 
-
   /**
    * This class relies on a static member to block and to count so that it works across
    * serialization. Therefore it is invalid to construct more than one of these at a time.
    */
-  @SuppressWarnings("serial")
   private static class StaticBlockingTask extends TestTask {
 
     static AtomicInteger timesRun = new AtomicInteger(0);
