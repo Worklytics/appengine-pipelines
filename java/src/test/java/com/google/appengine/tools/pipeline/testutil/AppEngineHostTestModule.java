@@ -2,6 +2,7 @@ package com.google.appengine.tools.pipeline.testutil;
 
 import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.pipeline.impl.backend.*;
+import com.google.appengine.v1.ApplicationsClient;
 import com.google.appengine.v1.ServicesClient;
 import com.google.appengine.v1.VersionsClient;
 import com.google.cloud.datastore.DatastoreOptions;
@@ -37,6 +38,12 @@ public class AppEngineHostTestModule {
     return CloudTasksClient.create();
   }
 
+  @SneakyThrows
+  @Provides
+  ApplicationsClient applicationsClient() {
+    return ApplicationsClient.create();
+  }
+
   @Provides
   AppEngineEnvironment appEngineEnvironment() {
     return new AppEngineStandardGen2();
@@ -51,6 +58,11 @@ public class AppEngineHostTestModule {
     //before, test harness basically did this by overriding env vars via ApiProxy stuff; see LocalModulesServiceTestConfig
     if (isTestingContext()) {
       return new AppEngineServicesService() {
+        @Override
+        public String getLocation() {
+          return "us-central1";
+        }
+
         @Override
         public String getDefaultService() {
           return "default";

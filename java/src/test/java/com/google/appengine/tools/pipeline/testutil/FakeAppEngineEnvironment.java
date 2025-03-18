@@ -9,7 +9,6 @@ import lombok.Value;
 @Value
 public class FakeAppEngineEnvironment implements AppEngineEnvironment {
   String projectId;
-  String location;
   String service;
   String version;
 }

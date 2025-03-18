@@ -56,7 +56,6 @@ class CloudTasksTaskQueueIntegrationTest {
   void setUp() {
     AppEngineEnvironment environment = FakeAppEngineEnvironment.builder()
       .projectId(PROJECT_ID)
-      .location(LOCATION)
       .service(SERVICE)
       .version("fake-version")
       .build();

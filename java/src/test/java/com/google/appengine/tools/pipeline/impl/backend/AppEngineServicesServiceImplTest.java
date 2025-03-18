@@ -19,7 +19,8 @@ class AppEngineServicesServiceImplTest {
         .projectId("test-project")
         .build(),
       AppEngineServicesServiceImpl::getServicesClientProvider,
-      AppEngineServicesServiceImpl::getVersionsClientProvider
+      AppEngineServicesServiceImpl::getVersionsClientProvider,
+      AppEngineServicesServiceImpl::getApplicationsClientProvider
     );
   }
 
