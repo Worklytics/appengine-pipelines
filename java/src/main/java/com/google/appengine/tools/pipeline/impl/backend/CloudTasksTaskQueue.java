@@ -60,7 +60,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   }
 
   Collection<TaskReference> enqueue(String queue, Collection<TaskSpec> taskSpecs) {
-    QueueName queueName = QueueName.of(appEngineEnvironment.getProjectId(), appEngineEnvironment.getLocation(), queue);
+    QueueName queueName = QueueName.of(appEngineEnvironment.getProjectId(), appEngineServicesService.getLocation(), queue);
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
       return taskSpecs.parallelStream() //q: this safe? efficient?
         .map(taskSpec -> cloudTasksClient.createTask(queueName, toCloudTask(taskSpec)))
@@ -73,7 +73,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   public void deleteTasks(Collection<TaskReference> taskReferences) {
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
       taskReferences.parallelStream().forEach(taskReference -> {
-        TaskName taskName = TaskName.of(appEngineEnvironment.getProjectId(), appEngineEnvironment.getLocation(), taskReference.getQueue(), taskReference.getTaskName());
+        TaskName taskName = TaskName.of(appEngineEnvironment.getProjectId(), appEngineServicesService.getLocation(), taskReference.getQueue(), taskReference.getTaskName());
         cloudTasksClient.deleteTask(taskName);
       });
     }

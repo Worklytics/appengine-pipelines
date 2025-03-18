@@ -42,10 +42,12 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
 
   @Getter
   Storage storage;
-  @Getter
+
   String bucket;
+
   @Getter
   String projectId;
+
   @Getter
   Credentials credentials;
 

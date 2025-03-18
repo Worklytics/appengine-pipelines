@@ -39,6 +39,11 @@ public class AppEngineTaskQueueTest {
 
     appEngineServicesService = new AppEngineServicesService() {
       @Override
+      public String getLocation() {
+        return "us-central1";
+      }
+
+      @Override
       public String getDefaultService() {
         return "default";
       }

@@ -20,6 +20,10 @@ public class FakeAppEngineServicesService implements AppEngineServicesService {
   @Builder.Default
   String domain = "fakeappspot.fake";
 
+
+  @Builder.Default
+  String location = "us-central1";
+
   @Override
   public String getDefaultVersion(String service) {
     return version;

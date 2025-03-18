@@ -3,6 +3,11 @@ package com.google.appengine.tools.pipeline.impl.backend;
 public interface AppEngineServicesService {
 
   /**
+   * @return the locationId of the GAE app
+   */
+  String getLocation();
+
+  /**
    * TODO: look at this; I think it's more correctly the *current* service, which is what pipelines default to using if none is specified
    * so I think this method should be renamed to getCurrentService (or removed in favor of AppEngineEnvironment.getService)
    *

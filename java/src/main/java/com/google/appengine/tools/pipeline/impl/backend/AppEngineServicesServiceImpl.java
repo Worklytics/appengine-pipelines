@@ -27,21 +27,32 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
   private final Provider<ServicesClient>  servicesClientProvider;
   private final Provider<VersionsClient>  versionsClientProvider;
+  private final Provider<ApplicationsClient> applicationsClientProvider;
 
   private static final int MAX_API_CALL_ATTEMPTS = 3;
 
   @Inject
   AppEngineServicesServiceImpl(AppEngineEnvironment appEngineEnvironment,
                                Provider<ServicesClient> servicesClientProvider,
-                               Provider<VersionsClient> versionsClientProvider) {
+                               Provider<VersionsClient> versionsClientProvider,
+                               Provider<ApplicationsClient> applicationsClientProvider) {
     this.appEngineEnvironment = appEngineEnvironment;
     this.servicesClientProvider = servicesClientProvider;
     this.versionsClientProvider = versionsClientProvider;
+    this.applicationsClientProvider = applicationsClientProvider;
   }
 
   @SneakyThrows
   public static AppEngineServicesServiceImpl defaults() {
-    return new AppEngineServicesServiceImpl(new AppEngineStandardGen2(), AppEngineServicesServiceImpl::getServicesClientProvider, AppEngineServicesServiceImpl::getVersionsClientProvider);
+    return new AppEngineServicesServiceImpl(new AppEngineStandardGen2(), AppEngineServicesServiceImpl::getServicesClientProvider, AppEngineServicesServiceImpl::getVersionsClientProvider, AppEngineServicesServiceImpl::getApplicationsClientProvider);
+  }
+
+  static ApplicationsClient getApplicationsClientProvider() {
+    try {
+      return ApplicationsClient.create();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   static ServicesClient getServicesClientProvider() {
@@ -68,6 +79,11 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
           .maximumSize(10)
           .build();
 
+  // would only change on re-deployment
+  String location;
+
+
+
 
   @Override
   public String getDefaultService() {
@@ -85,6 +101,17 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   @Override
   public String getWorkerServiceHostName(@NonNull String service, @NonNull String version) {
     return hostnameCache.get(service + ":" + version, () -> getWorkerServiceHostNameInternal(service, version));
+  }
+
+  @Override
+  public String getLocation() {
+    if (location == null) {
+      try (ApplicationsClient applicationsClient = applicationsClientProvider.get()) {
+        Application application =applicationsClient.getApplication(appEngineEnvironment.getProjectId());
+        location = application.getLocationId();
+      }
+    }
+    return location;
   }
 
 
