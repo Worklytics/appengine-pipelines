@@ -6,9 +6,6 @@ import com.google.cloud.tasks.v2.CloudTasksClient;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-
 
 import javax.inject.Provider;
 import java.time.Instant;
@@ -44,7 +41,7 @@ class CloudTasksTaskQueueIntegrationTest {
   }
 
 
-  final String LOCATION = "us-central1";
+  final String LOCATION = "us-central";
 
   final String SERVICE = "fake-service";
 
@@ -116,6 +113,10 @@ class CloudTasksTaskQueueIntegrationTest {
     // we're ignoring already exists case, consistent with legacy behavior
     PipelineTaskQueue.TaskReference ref2 = cloudTasksTaskQueue.enqueue("default", spec);
     assertEquals(ref, ref2);
+
+    // mainly for cleanup
+    cloudTasksTaskQueue.deleteTasks(Collections.singletonList(ref));
   }
+
 
 }

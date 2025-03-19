@@ -3,17 +3,24 @@ package com.google.appengine.tools.pipeline.impl.backend;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 
+import com.google.cloud.location.ListLocationsRequest;
+import com.google.cloud.location.Location;
 import com.google.cloud.tasks.v2.*;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_QUEUE_NAME;
@@ -25,14 +32,21 @@ import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_Q
  * TODO: retries for transients + internal errors
  *
  */
-@AllArgsConstructor(onConstructor_ = @Inject)
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
+  @NonNull
   AppEngineEnvironment appEngineEnvironment;
 
+  @NonNull
   Provider<CloudTasksClient> cloudTasksClientProvider;
 
+  @NonNull
   AppEngineServicesService appEngineServicesService;
+
+  // GAE location -> Cloud Tasks location name
+  Cache<String, String> locationCache =
+          CacheBuilder.newBuilder().initialCapacity(1).build();
 
   @Override
   public TaskReference enqueue(PipelineTask pipelineTask) {
@@ -64,13 +78,34 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   }
 
   Collection<TaskReference> enqueue(@NonNull String queueName, Collection<TaskSpec> taskSpecs) {
-    QueueName queue = QueueName.of(appEngineEnvironment.getProjectId(), appEngineServicesService.getLocation(), queueName);
+    String queueLocation = cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation());
+    QueueName queue = QueueName.of(appEngineEnvironment.getProjectId(), queueLocation, queueName);
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
       return taskSpecs.parallelStream() //q: this safe? efficient?
         .map(taskSpec -> createIgnoringExisting(cloudTasksClient, queue, taskSpec))
         .map(task -> TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()))
         .collect(Collectors.toList());
     }
+  }
+
+
+  @SneakyThrows
+  String cloudTasksLocationFromAppEngineLocation(@NonNull String appEngineLocation) {
+    return locationCache.get(appEngineLocation, () -> {
+      try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
+        CloudTasksClient.ListLocationsPagedResponse locations =
+                cloudTasksClient.listLocations(ListLocationsRequest.newBuilder().
+                        setName("projects/" + appEngineEnvironment.getProjectId())
+                        .build());
+        // this is picking ~the first location in list in the GAE region  (eg, us-central --> us-central1)
+        // afaik, queues always end up here by default (we don't specify location in our queue.yaml)
+        // but in theory might be somewhere else ... so probably should have a CLOUD_TASK_QUEUE_LOCATION env var or something
+        // that would be taken in preference to doing this API call
+        Optional<Location> queueLocation =
+                locations.getPage().streamAll().filter(location -> location.getLocationId().startsWith(appEngineLocation)).findFirst();
+        return queueLocation.map(Location::getLocationId).orElseThrow(() -> new Error("No queue location matching " + appEngineLocation));
+      }
+    });
   }
 
 
@@ -88,7 +123,12 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   public void deleteTasks(Collection<TaskReference> taskReferences) {
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
       taskReferences.parallelStream().forEach(taskReference -> {
-        TaskName taskName = TaskName.of(appEngineEnvironment.getProjectId(), appEngineServicesService.getLocation(), taskReference.getQueue(), taskReference.getTaskName());
+        TaskName taskName = TaskName.newBuilder()
+                .setProject(appEngineEnvironment.getProjectId())
+                .setLocation(cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation()))
+                .setQueue(taskReference.getQueue())
+                .setTask(taskReference.getTaskName())
+                .build();
         cloudTasksClient.deleteTask(taskName);
       });
     }
