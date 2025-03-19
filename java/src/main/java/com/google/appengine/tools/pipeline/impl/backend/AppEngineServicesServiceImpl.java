@@ -4,23 +4,27 @@ import com.google.appengine.v1.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.protobuf.ServiceException;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
-import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 
-
+/**
+ *
+ * NOTE: uses guava caches, which should be thread-safe
+ * also caches the location of the app, with logic to make this thread-safe
+ *
+ * Ideally, this is a singleton, but actually marking it as such messes up the Dagger compile for some reason ...
+ *
+ * The module that binds this IS a singleton, so hopefully that makes this a singleton too in practice.
+ */
 @Log
 public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
@@ -81,7 +85,7 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
           .build();
 
   // would only change on re-deployment
-  String location;
+  volatile String location;
 
 
   @Override
@@ -105,15 +109,24 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   @Override
   public String getLocation() {
     if (location == null) {
-      try (ApplicationsClient applicationsClient = applicationsClientProvider.get()) {
-        Application application = applicationsClient.getApplication("apps/" + appEngineEnvironment.getProjectId());
-        location = application.getLocationId();
-      } catch (Throwable e) {
-        log.log(Level.SEVERE, "Failed to retrieve application location", e);
-        throw e;
+      synchronized (this) {
+        //double-check for thread safety
+        if (location == null) {
+          fillLocation();
+        }
       }
     }
     return location;
+  }
+
+  private synchronized void fillLocation() {
+    try (ApplicationsClient applicationsClient = applicationsClientProvider.get()) {
+      Application application = applicationsClient.getApplication("apps/" + appEngineEnvironment.getProjectId());
+      location = application.getLocationId();
+    } catch (Throwable e) {
+      log.log(Level.SEVERE, "Failed to retrieve application location", e);
+      throw e;
+    }
   }
 
 
