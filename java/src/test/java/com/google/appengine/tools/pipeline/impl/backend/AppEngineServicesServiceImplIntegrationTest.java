@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class AppEngineServicesServiceImplIntegrationTest {
 
   static final String INTEGRATION_TEST_PROJECT = "test-project";
-  static final String INTEGRATION_TEST_SERVICE = "ci-example-service";
+  static final String INTEGRATION_TEST_SERVICE = "default";
   static final String INTEGRATION_TEST_SERVICE_VERSION = "v1a";
 
   AppEngineEnvironment environment;
@@ -42,5 +42,11 @@ class AppEngineServicesServiceImplIntegrationTest {
   void getWorkerServiceHostName() {
     assertEquals(INTEGRATION_TEST_SERVICE_VERSION + "-dot-" + INTEGRATION_TEST_SERVICE + "-dot-" + INTEGRATION_TEST_PROJECT + ".uc.r.appspot.com",
       appEngineServicesServiceImpl.getWorkerServiceHostName(INTEGRATION_TEST_SERVICE, INTEGRATION_TEST_SERVICE_VERSION));
+  }
+
+  @Test
+  void getLocation() {
+    assertEquals("us-central",
+      appEngineServicesServiceImpl.getLocation());
   }
 }
