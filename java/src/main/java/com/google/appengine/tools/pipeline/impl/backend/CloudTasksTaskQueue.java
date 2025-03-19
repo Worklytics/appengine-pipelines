@@ -7,6 +7,8 @@ import com.google.cloud.tasks.v2.*;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import lombok.AllArgsConstructor;
+import lombok.NonNull;
+
 import javax.inject.Inject;
 import javax.inject.Provider;
 import java.net.URLEncoder;
@@ -61,13 +63,24 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
      .collect(Collectors.toList());
   }
 
-  Collection<TaskReference> enqueue(String queue, Collection<TaskSpec> taskSpecs) {
-    QueueName queueName = QueueName.of(appEngineEnvironment.getProjectId(), appEngineServicesService.getLocation(), queue);
+  Collection<TaskReference> enqueue(@NonNull String queueName, Collection<TaskSpec> taskSpecs) {
+    QueueName queue = QueueName.of(appEngineEnvironment.getProjectId(), appEngineServicesService.getLocation(), queueName);
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
       return taskSpecs.parallelStream() //q: this safe? efficient?
-        .map(taskSpec -> cloudTasksClient.createTask(queueName, toCloudTask(taskSpec)))
-        .map(task -> TaskReference.of(queue, TaskName.parse(task.getName()).getTask()))
+        .map(taskSpec -> createIgnoringExisting(cloudTasksClient, queue, taskSpec))
+        .map(task -> TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()))
         .collect(Collectors.toList());
+    }
+  }
+
+
+  private Task createIgnoringExisting(CloudTasksClient cloudTasksClient, QueueName queue, TaskSpec taskSpec) {
+    Task task = toCloudTask(queue, taskSpec);
+    try {
+      return cloudTasksClient.createTask(queue, task);
+    } catch (com.google.api.gax.rpc.AlreadyExistsException e) {
+      //ignore
+      return task;
     }
   }
 
@@ -81,11 +94,18 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     }
   }
 
-  Task toCloudTask(TaskSpec taskSpec) {
+  Task toCloudTask(QueueName queue, TaskSpec taskSpec) {
     Task.Builder builder = Task.newBuilder();
 
     Optional.ofNullable(taskSpec.getName())
-        .ifPresent(builder::setName);
+            .map(taskName -> TaskName.newBuilder()
+                   .setProject(queue.getProject())
+                    .setLocation(queue.getLocation())
+                    .setQueue(queue.getQueue())
+                    .setTask(taskName).build())
+             .map(TaskName::toString)
+            .ifPresent(builder::setName);
+
 
     Optional.ofNullable(taskSpec.getScheduledExecutionTime())
         .map(instant -> Timestamp.newBuilder()
