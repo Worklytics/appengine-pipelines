@@ -4,20 +4,16 @@ import com.google.appengine.v1.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.protobuf.ServiceException;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
-import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 
 
