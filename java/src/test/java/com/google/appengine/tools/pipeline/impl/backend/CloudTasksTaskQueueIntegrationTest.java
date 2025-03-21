@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.testutil.FakeAppEngineEnvironment;
 import com.google.appengine.tools.pipeline.testutil.FakeAppEngineServicesService;
 import com.google.cloud.tasks.v2.CloudTasksClient;
@@ -11,6 +12,7 @@ import javax.inject.Provider;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Properties;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -81,7 +83,7 @@ class CloudTasksTaskQueueIntegrationTest {
 
 
   @Test
-  void testEnqueueTask() {
+  void testEnqueueTaskSpec() {
     PipelineTaskQueue.TaskSpec spec = PipelineTaskQueue.TaskSpec.builder()
       .host(appEngineServicesService.getWorkerServiceHostName("fake-service", "fake-version"))
       .callbackPath("/fake-callback-path")
@@ -99,7 +101,7 @@ class CloudTasksTaskQueueIntegrationTest {
   }
 
   @Test
-  void testEnqueueTask_named() {
+  void testEnqueueTaskSpec_named() {
     String named = "named-" + UUID.randomUUID();
     PipelineTaskQueue.TaskSpec spec = PipelineTaskQueue.TaskSpec.builder()
       .name(named)
@@ -118,5 +120,5 @@ class CloudTasksTaskQueueIntegrationTest {
     cloudTasksTaskQueue.deleteTasks(Collections.singletonList(ref));
   }
 
-
+  //TODO: test enqueue(PIpelineTask) case ... it's just nasty bc abstract and kinda weird
 }
