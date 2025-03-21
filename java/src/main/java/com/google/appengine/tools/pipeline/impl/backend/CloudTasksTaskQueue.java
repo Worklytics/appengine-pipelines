@@ -70,7 +70,9 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
         .map(pipelineTask -> {
           String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
                   .orElseGet(appEngineServicesService::getDefaultService);
-          String host = appEngineServicesService.getWorkerServiceHostName(service, pipelineTask.getQueueSettings().getOnServiceVersion());
+          String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
+                  .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
+          String host = appEngineServicesService.getWorkerServiceHostName(service, version);
           return pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl());
         }).collect(Collectors.toList())))
      .flatMap(Collection::stream)
