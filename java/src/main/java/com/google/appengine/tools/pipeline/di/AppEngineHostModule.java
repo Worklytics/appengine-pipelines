@@ -23,6 +23,7 @@ public class AppEngineHostModule {
   // properties to control behavior, via JVM system properties or env vars (fallback)
   enum ConfigProperties {
     USE_LEGACY_QUEUES,
+    USE_LOCAL_SERVICE,
     ;
 
     public Optional<String> get() {
@@ -67,7 +68,7 @@ public class AppEngineHostModule {
   AppEngineServicesService appEngineServicesService(AppEngineServicesServiceImpl impl,
                                                     AppEngineEnvironment environment) {
     //before, test harness basically did this by overriding env vars via ApiProxy stuff; see LocalModulesServiceTestConfig
-    if (isTestingContext(environment)) {
+    if (isTestingContext(environment) || ConfigProperties.USE_LOCAL_SERVICE.getBoolean().orElse(false)) {
       return new AppEngineServicesService() {
         @Override
         public String getLocation() {
