@@ -22,6 +22,7 @@ import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.apphosting.api.ApiProxy;
+import com.google.cloud.datastore.Transaction;
 import com.google.common.base.Preconditions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
@@ -143,6 +144,12 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
   @Override
   public Collection<TaskReference> enqueue(final Collection<PipelineTask> pipelineTasks) {
+    return addToQueue(pipelineTasks);
+  }
+
+  @Override
+  public Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks) {
+    //TODO: try to fake the txn here; not implemented bc this implementation won't be used in prod
     return addToQueue(pipelineTasks);
   }
 

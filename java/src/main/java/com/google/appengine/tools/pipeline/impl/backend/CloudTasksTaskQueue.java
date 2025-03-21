@@ -3,6 +3,8 @@ package com.google.appengine.tools.pipeline.impl.backend;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Transaction;
 import com.google.cloud.location.ListLocationsRequest;
 import com.google.cloud.location.Location;
 import com.google.cloud.tasks.v2.*;
@@ -10,7 +12,6 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -20,10 +21,12 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_QUEUE_NAME;
 
@@ -62,23 +65,54 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
   @Override
   public Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks) {
+    return enqueue(pipelineTasks, false);
+  }
+
+  private Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks, boolean addDelay) {
+    //how can we fake a transaction here?
+    //  - add a delay, to give us time to delete tasks before they've executed in rollback case
+    //  - take the txn context
 
     Map<String, List<PipelineTask>> tasksByQueue = pipelineTasks.stream()
       .collect(Collectors.groupingBy(pipelineTask -> Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME)));
 
     /// probably could use parallelStream here, but in practice don't *really* expect to have multiple queues in the batch
    return tasksByQueue.entrySet().stream()
-      .map(e -> enqueue(e.getKey(), e.getValue().stream()
-        .map(pipelineTask -> {
-          String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
-                  .orElseGet(appEngineServicesService::getDefaultService);
-          String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
-                  .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
-          String host = appEngineServicesService.getWorkerServiceHostName(service, version);
-          return pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl());
-        }).collect(Collectors.toList())))
+      .map(tasksForQueue -> {
+        Stream<TaskSpec> specs = tasksForQueue.getValue().stream()
+                .map(pipelineTask -> {
+                  String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
+                          .orElseGet(appEngineServicesService::getDefaultService);
+                  String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
+                          .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
+                  String host = appEngineServicesService.getWorkerServiceHostName(service, version);
+                  return pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl());
+                });
+        if (addDelay) {
+            specs = specs.map(taskSpec -> ensureDelay(taskSpec, Duration.ofSeconds(10)));
+        }
+        return enqueue(tasksForQueue.getKey(), specs.collect(Collectors.toList()));
+      })
      .flatMap(Collection::stream)
      .collect(Collectors.toList());
+  }
+
+  @Override
+  public Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks) {
+    // ideas:
+    // - add txn id to param/header of the tasks, then check in works if it's actually been committed
+    // - add a delay to the tasks, so we have time to delete them before they execute
+    // - add UUID and a timestamp to a header in each task; worker picks that up and checks for it in the datastore??
+    
+    return enqueue(pipelineTasks, true);
+  }
+
+  private TaskSpec ensureDelay(TaskSpec taskSpec, Duration delay) {
+    if (taskSpec.getScheduledExecutionTime() == null || taskSpec.getScheduledExecutionTime().isBefore(Instant.now())) {
+      return taskSpec.withScheduledExecutionTime(Instant.now().plus(delay));
+    } else {
+      return taskSpec;
+    }
   }
 
   Collection<TaskReference> enqueue(@NonNull String queueName, Collection<TaskSpec> taskSpecs) {
