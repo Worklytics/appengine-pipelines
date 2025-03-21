@@ -39,7 +39,7 @@ class CloudTasksTaskQueueIntegrationTest {
 
     // hacky alternative to @EnabledIfEnvironmentVariable, which wasn't working with negative regex for me
     assumeTrue(!"test-project".equals(PROJECT_ID),
-      "Test disabled because GOOGLE_CLOUD_PROJECT iis 'test-project'");
+      "Test disabled because GOOGLE_CLOUD_PROJECT is 'test-project'");
   }
 
 
