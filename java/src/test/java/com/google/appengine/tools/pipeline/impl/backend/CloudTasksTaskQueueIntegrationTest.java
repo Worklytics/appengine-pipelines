@@ -120,6 +120,6 @@ class CloudTasksTaskQueueIntegrationTest {
     cloudTasksTaskQueue.deleteTasks(Collections.singletonList(ref));
   }
 
-  //TODO: test enqueue(PIpelineTask) case ... it's just nasty bc abstract and kinda weird
+  //TODO: test enqueue(PipelineTask) case ... it's just nasty bc abstract and kinda weird
   // issue with that is QueueSettings without queue, and without version
 }
