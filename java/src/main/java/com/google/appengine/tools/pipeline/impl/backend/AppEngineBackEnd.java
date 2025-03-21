@@ -225,10 +225,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
     return keys;
   }
-
-  //NOTE: queueSEttings, rootJobKey params were previously used for FanoutTaskRecords - a step no longer required.
-  private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
-      QueueSettings queueSettings, Key rootJobKey, Key jobKey, JobRecord.State... expectedStates) {
+  private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec, Key jobKey, JobRecord.State... expectedStates) {
     Transaction transaction = datastore.newTransaction();
     Collection<PipelineTaskQueue.TaskReference> taskReferences = null;
     try {
@@ -345,7 +342,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       tryFiveTimes(new Operation<Void>("save") {
         @Override
         public Void call() {
-          transactionallySaveAll(transactionSpec, queueSettings, updateSpec.getRootJobKey(), null);
+          transactionallySaveAll(transactionSpec, null);
           return null;
         }
       });
@@ -355,8 +352,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     tryFiveTimes(new Operation<Void>("save") {
       @Override
       public Void call() {
-        wasSaved.set(transactionallySaveAll(updateSpec.getFinalTransaction(), queueSettings,
-            updateSpec.getRootJobKey(), jobKey, expectedStates));
+        wasSaved.set(transactionallySaveAll(updateSpec.getFinalTransaction(), jobKey, expectedStates));
         return null;
       }
     });
