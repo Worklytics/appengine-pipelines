@@ -324,7 +324,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   @Override
   public boolean saveWithJobStateCheck(final UpdateSpec updateSpec,
-      final QueueSettings queueSettings, final Key jobKey,
+                                       final Key jobKey,
       final JobRecord.State... expectedStates) {
     tryFiveTimes(new Operation<Void>("save") {
       @Override
@@ -361,7 +361,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   @Override
   public void save(UpdateSpec updateSpec, QueueSettings queueSettings) {
-    saveWithJobStateCheck(updateSpec, queueSettings, null);
+    saveWithJobStateCheck(updateSpec, null);
   }
 
   @Override
