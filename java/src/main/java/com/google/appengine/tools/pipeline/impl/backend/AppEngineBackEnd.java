@@ -272,7 +272,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
             (UpdateSpec.TransactionWithTasks) transactionSpec;
-        taskReferences = taskQueue.enqueue(transactionWithTasks.getTasks());
+        taskReferences = taskQueue.enqueue(transaction, transactionWithTasks.getTasks());
       }
 
       // commit is AFTER enqueue, so if enqueuing fails, we don't commit

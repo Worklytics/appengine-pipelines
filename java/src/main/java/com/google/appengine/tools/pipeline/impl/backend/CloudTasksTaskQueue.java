@@ -101,9 +101,8 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   public Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks) {
     // ideas:
     // - add txn id to param/header of the tasks, then check in works if it's actually been committed
-    // - add a delay to the tasks, so we have time to delete them before they execute
+    // - add a delay to the tasks, so we have time to delete them before they execute - DONE
     // - add UUID and a timestamp to a header in each task; worker picks that up and checks for it in the datastore??
-    
     return enqueue(pipelineTasks, true);
   }
 

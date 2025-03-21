@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
+import com.google.cloud.datastore.Transaction;
 import lombok.*;
 
 import java.io.Serial;
@@ -121,6 +122,8 @@ public interface PipelineTaskQueue {
   TaskReference enqueue(String queueName, TaskSpec build);
 
   Collection<TaskReference> enqueue(final Collection<PipelineTask> pipelineTasks);
+
+  Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks);
 
   /**
    * deletes tasks from the queue, on best-efforts async basis.
