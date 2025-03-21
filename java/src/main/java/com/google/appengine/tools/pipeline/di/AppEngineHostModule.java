@@ -17,10 +17,22 @@ import java.util.Optional;
 /**
  * provides general dependencies for AppEngine environments, which aren't coupled to specific tenant
  */
-@Module(
-  includes = AppEngineHostModule.Bindings.class
-)
+@Module
 public class AppEngineHostModule {
+
+  // properties to control behavior, via JVM system properties or env vars (fallback)
+  enum ConfigProperties {
+    USE_LEGACY_QUEUES,
+    ;
+
+    public Optional<String> get() {
+      return Optional.ofNullable(System.getProperty(name(), System.getenv(name())));
+    }
+
+    public Optional<Boolean> getBoolean() {
+      return get().map(Boolean::parseBoolean);
+    }
+  }
 
   @SneakyThrows
   @Provides
@@ -82,14 +94,18 @@ public class AppEngineHostModule {
     }
   }
 
-  boolean isTestingContext(AppEngineEnvironment environment) {
-    return RequestUtils.LOCAL_GAE_PROJECT_ID.equals(environment.getProjectId()) || "test-project" .equals(environment.getProjectId());
+  @Provides
+  PipelineTaskQueue pipelineTaskQueue(AppEngineEnvironment environment,
+                                      CloudTasksTaskQueue cloudTasksTaskQueue,
+                                      AppEngineTaskQueue appEngineTaskQueue) {
+    if (isTestingContext(environment) || ConfigProperties.USE_LEGACY_QUEUES.getBoolean().orElse(false)) {
+      return appEngineTaskQueue;
+    } else {
+      return cloudTasksTaskQueue;
+    }
   }
 
-
-  @Module
-  interface Bindings {
-    @Binds
-    PipelineTaskQueue pipelineTaskQueue(CloudTasksTaskQueue taskQueue);
+  boolean isTestingContext(AppEngineEnvironment environment) {
+    return RequestUtils.LOCAL_GAE_PROJECT_ID.equals(environment.getProjectId()) || "test-project" .equals(environment.getProjectId());
   }
 }

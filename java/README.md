@@ -51,3 +51,7 @@ Your JAR will be in `java/target/`
  ```shell script
 mvn deploy
 ```
+
+### Development
+
+  - `USE_LEGACY_QUEUES` - set to use task queues via legacy GAE SDK instead of Cloud Tasks API client; useful for local development, to use locally emulated queues + GAE
