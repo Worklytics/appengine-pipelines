@@ -16,7 +16,6 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
-import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
 import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineObjects;
@@ -45,7 +44,7 @@ public interface PipelineBackEnd {
    * on the specification given in {@code UpdateSpec}. See the remarks at the
    * top of {@link UpdateSpec} for details.
    */
-  void save(UpdateSpec updateSpec, QueueSettings queueSettings);
+  void save(UpdateSpec updateSpec);
 
   /**
    * Saves an {@code UpdateSpec} to the data store, but transactionally checks
@@ -60,7 +59,7 @@ public interface PipelineBackEnd {
    * transaction will be aborted, and this method will return {@code false}.
    * @return {@code true} iff the transaction was applied successfully.
    */
-  boolean saveWithJobStateCheck(UpdateSpec updateSpec, QueueSettings queueSettings,
+  boolean saveWithJobStateCheck(UpdateSpec updateSpec,
                                 Key jobKey, JobRecord.State... expectedStates);
 
   /**

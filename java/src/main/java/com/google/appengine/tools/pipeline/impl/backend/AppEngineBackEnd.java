@@ -17,7 +17,6 @@ package com.google.appengine.tools.pipeline.impl.backend;
 import com.github.rholder.retry.*;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
-import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.*;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
@@ -360,7 +359,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   @Override
-  public void save(UpdateSpec updateSpec, QueueSettings queueSettings) {
+  public void save(UpdateSpec updateSpec) {
     saveWithJobStateCheck(updateSpec, null);
   }
 
