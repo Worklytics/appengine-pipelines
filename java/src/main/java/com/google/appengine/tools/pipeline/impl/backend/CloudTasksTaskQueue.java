@@ -14,6 +14,7 @@ import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -21,6 +22,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_QUEUE_NAME;
@@ -28,10 +30,10 @@ import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_Q
 /**
  * implementation of PipelineTaskQueue backed by Cloud Tasks
  *
- * TODO: what happens when tasks exists?
  * TODO: retries for transients + internal errors
  *
  */
+@Log
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
@@ -111,13 +113,33 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   }
 
 
+  private static final int MAX_ENQUEUE_ATTEMPTS = 3;
+
+  @SneakyThrows
   private Task createIgnoringExisting(CloudTasksClient cloudTasksClient, QueueName queue, TaskSpec taskSpec) {
+
     Task task = toCloudTask(queue, taskSpec);
-    try {
-      return cloudTasksClient.createTask(queue, task);
-    } catch (com.google.api.gax.rpc.AlreadyExistsException e) {
-      //ignore
-      return task;
+    int pastAttempts = 0;
+    Exception lastException = null;
+    do {
+      try {
+        return cloudTasksClient.createTask(queue, task);
+      } catch (com.google.api.gax.rpc.AlreadyExistsException e) {
+        // GAE-legacy version of the FW ignored this case. but I am not sure it's still safe to do so, now that enqueue is not transactional with the datastore writes
+        log.log(Level.WARNING, "CloudTasksTaskQueue task already exists for {0}", taskSpec.getName());
+        task = task.toBuilder().setName(taskSpec.getName() + "-" + pastAttempts).build();
+        lastException = e;
+      } catch (com.google.api.gax.rpc.UnavailableException |
+               com.google.api.gax.rpc.DeadlineExceededException |
+               com.google.api.gax.rpc.ResourceExhaustedException e) {
+        log.log(Level.WARNING, "Transient error occurred for {0}, retrying...", taskSpec.getName());
+        lastException = e;
+      }
+    } while (++pastAttempts < MAX_ENQUEUE_ATTEMPTS);
+    if (lastException == null) {
+      throw new Error("Retry logic failed");
+    } else {
+      throw lastException;
     }
   }
 

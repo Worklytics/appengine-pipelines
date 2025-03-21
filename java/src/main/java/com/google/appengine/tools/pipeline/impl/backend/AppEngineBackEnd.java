@@ -226,6 +226,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     return keys;
   }
 
+  //NOTE: queueSEttings, rootJobKey params were previously used for FanoutTaskRecords - a step no longer required.
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
       QueueSettings queueSettings, Key rootJobKey, Key jobKey, JobRecord.State... expectedStates) {
     Transaction transaction = datastore.newTransaction();
@@ -276,6 +277,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
       // commit is AFTER enqueue, so if enqueuing fails, we don't commit
       // then in 'finally' block, if we have to roll back the txn, we ALSO attempt to delete the tasks from the queue
+      // concern is what if enqueued tasks had names and already ran, then we might get into a bad state if those depended on stuff done elsewhere in the transaction
+      // 1) is there such a problematic case? perhaps nothing
       transaction.commit();
     } finally {
       if (transaction.isActive()) {

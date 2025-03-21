@@ -35,6 +35,7 @@ public interface PipelineTaskQueue {
    * represents specification of an async task invocation, prototypically via HTTP callback (webhook) via a 'queue'.
    *
    */
+  @With
   @Builder
   @Value
   class TaskSpec  implements Serializable {

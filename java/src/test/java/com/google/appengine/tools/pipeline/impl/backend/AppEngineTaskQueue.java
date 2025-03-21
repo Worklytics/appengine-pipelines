@@ -62,12 +62,6 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
   final String taskHandlerUrl;
 
-  public AppEngineTaskQueue() {
-    this.environment = new AppEngineStandardGen2();
-    this.servicesService = AppEngineServicesServiceImpl.defaults();
-    this.taskHandlerUrl = TaskHandler.handleTaskUrl();
-  }
-
   public AppEngineTaskQueue(AppEngineServicesService appEngineServicesService) {
     this.environment = new AppEngineStandardGen2();
     this.servicesService = appEngineServicesService;
@@ -98,18 +92,25 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     }
   }
 
+  static final int MAX_ENQUEUE_ATTEMPTS = 3;
+
   @Override
   public TaskReference enqueue(PipelineTask pipelineTask) {
     log.finest("Enqueueing: " + pipelineTask);
     TaskOptions taskOptions = toTaskOptions(pipelineTask);
     Queue queue = getQueue(pipelineTask.getQueueSettings().getOnQueue());
-    try {
-      TaskHandle handle = queue.add(taskOptions);
-      return taskHandleToReference(handle);
-    } catch (TaskAlreadyExistsException ignore) {
-      // ignore
-      return TaskReference.of(queue.getQueueName(), ignore.getTaskNames().get(0));
-    }
+    PipelineTaskQueue.TaskReference taskReference = null;
+    int pastAttempts = 0;
+    do {
+      try {
+        TaskHandle handle = queue.add(taskOptions);
+        taskReference = taskHandleToReference(handle);
+      } catch (TaskAlreadyExistsException ignore) {
+        taskOptions.taskName(pipelineTask.getTaskName() + "-" + pastAttempts);
+        log.log(Level.WARNING, "Pipeline framework failed to enqueue task bc already exists", ignore);
+      }
+    } while (taskReference == null && ++pastAttempts < MAX_ENQUEUE_ATTEMPTS);
+    return taskReference;
   }
 
   @Override
@@ -253,6 +254,9 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     addProperties(taskOptions, pipelineTask.toProperties());
     String taskName = pipelineTask.getName();
     if (null != taskName) {
+      // named tasks ARE used in the following cases ...
+      //handleSlotFilled_*
+      //runJob_*
       taskOptions.taskName(taskName);
     }
     return taskOptions;
