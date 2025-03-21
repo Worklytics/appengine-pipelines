@@ -12,6 +12,8 @@ import dagger.Module;
 import dagger.Provides;
 import lombok.SneakyThrows;
 
+import java.util.Optional;
+
 /**
  * provides general dependencies for AppEngine environments, which aren't coupled to specific tenant
  */
@@ -50,13 +52,10 @@ public class AppEngineHostModule {
   }
 
   @Provides
-  AppEngineServicesService appEngineServicesService(AppEngineServicesServiceImpl impl) {
-
-    // TODO: should probably inject AppEngineEnvironment, and get it from there
-
-
+  AppEngineServicesService appEngineServicesService(AppEngineServicesServiceImpl impl,
+                                                    AppEngineEnvironment environment) {
     //before, test harness basically did this by overriding env vars via ApiProxy stuff; see LocalModulesServiceTestConfig
-    if (isTestingContext()) {
+    if (isTestingContext(environment)) {
       return new AppEngineServicesService() {
         @Override
         public String getLocation() {
@@ -65,17 +64,17 @@ public class AppEngineHostModule {
 
         @Override
         public String getDefaultService() {
-          return "default";
+          return Optional.ofNullable(environment.getService()).orElse("default");
         }
 
         @Override
         public String getDefaultVersion(String service) {
-          return "1";
+          return Optional.ofNullable(environment.getVersion()).orElse("v1");
         }
 
         @Override
         public String getWorkerServiceHostName(String service, String version) {
-          return String.join(".", service, version, "localhost");
+          return "localhost";
         }
       };
     } else {
@@ -83,10 +82,10 @@ public class AppEngineHostModule {
     }
   }
 
-  boolean isTestingContext() {
-    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
-    return RequestUtils.LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId()) || "test-project" .equals(defaultInstance.getProjectId());
+  boolean isTestingContext(AppEngineEnvironment environment) {
+    return RequestUtils.LOCAL_GAE_PROJECT_ID.equals(environment.getProjectId()) || "test-project" .equals(environment.getProjectId());
   }
+
 
   @Module
   interface Bindings {

@@ -2,8 +2,6 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import lombok.extern.java.Log;
 
-import java.util.Optional;
-
 /**
  * "gen2" java runtimes, eg 11 (deprecated), 17, or 21 as of March 2025
  *
