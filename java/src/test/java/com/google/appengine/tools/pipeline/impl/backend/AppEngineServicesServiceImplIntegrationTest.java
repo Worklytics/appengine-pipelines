@@ -1,11 +1,13 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 
 /**
@@ -16,19 +18,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  *
  * and fill constants below with the values for the service you want to test against
  */
-@Disabled // enable if you want to run an integration test
 class AppEngineServicesServiceImplIntegrationTest {
 
-  static final String INTEGRATION_TEST_PROJECT = "test-project";
-  static final String INTEGRATION_TEST_SERVICE = "ci-example-service";
-  static final String INTEGRATION_TEST_SERVICE_VERSION = "v1a";
+  static final String PROJECT_ID = System.getenv("GOOGLE_CLOUD_PROJECT");
+
+  @BeforeAll
+  static void checkProjectIsSetAndNotATestValue() {
+    assumeTrue(PROJECT_ID != null,
+      "Test disabled because GOOGLE_CLOUD_PROJECT is not set");
+
+    // hacky alternative to @EnabledIfEnvironmentVariable, which wasn't working with negative regex for me
+    assumeTrue(!"test-project".equals(PROJECT_ID),
+      "Test disabled because GOOGLE_CLOUD_PROJECT iis 'test-project'");
+  }
+
+  static final String INTEGRATION_TEST_SERVICE = "jobs";
+  static final String INTEGRATION_TEST_SERVICE_VERSION = "v865a";
 
   AppEngineEnvironment environment;
   AppEngineServicesServiceImpl appEngineServicesServiceImpl;
 
   @BeforeEach
   public void setup() {
-    System.setProperty("GOOGLE_CLOUD_PROJECT",  INTEGRATION_TEST_PROJECT);
+    System.setProperty("GOOGLE_CLOUD_PROJECT",  PROJECT_ID);
     appEngineServicesServiceImpl = AppEngineServicesServiceImpl.defaults();
   }
 
@@ -40,7 +52,13 @@ class AppEngineServicesServiceImplIntegrationTest {
 
   @Test
   void getWorkerServiceHostName() {
-    assertEquals(INTEGRATION_TEST_SERVICE_VERSION + "-dot-" + INTEGRATION_TEST_SERVICE + "-dot-" + INTEGRATION_TEST_PROJECT + ".uc.r.appspot.com",
-      appEngineServicesServiceImpl.getWorkerServiceHostName(INTEGRATION_TEST_SERVICE, INTEGRATION_TEST_SERVICE_VERSION));
+    assertEquals(appEngineServicesServiceImpl.getDefaultVersion(INTEGRATION_TEST_SERVICE) + "-dot-" + INTEGRATION_TEST_SERVICE + "-dot-" + PROJECT_ID + ".uc.r.appspot.com",
+      appEngineServicesServiceImpl.getWorkerServiceHostName(INTEGRATION_TEST_SERVICE, appEngineServicesServiceImpl.getDefaultVersion(INTEGRATION_TEST_SERVICE)));
+  }
+
+  @Test
+  void getLocation() {
+    assertEquals("us-central",
+      appEngineServicesServiceImpl.getLocation());
   }
 }

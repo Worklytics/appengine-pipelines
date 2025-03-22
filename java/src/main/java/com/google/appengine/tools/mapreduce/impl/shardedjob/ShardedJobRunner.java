@@ -228,7 +228,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   @SneakyThrows
   private <T extends IncrementalTask> void scheduleWorkerTask(ShardedJobSettings settings,
-                                                              IncrementalTaskState<T> state, Long etaMillis) {
+                                                              IncrementalTaskState<T> state,
+                                                              Long etaMillis) {
 
 
     PipelineTaskQueue.TaskSpec.TaskSpecBuilder workerTaskSpec = PipelineTaskQueue.TaskSpec.builder()
@@ -363,28 +364,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
       }
       updateTask(tx, jobState, taskState, retryState, false);
     }
-  }
-
-  /**
-   * determines whether a given GAE request was completed by querying against Logs Service
-   * @param requestId
-   * @return whether request is known to have been completed
-   */
-  private static boolean wasRequestCompleted(String requestId) {
-    if (requestId != null) {
-      //previously, this checked against GAE LogService; this seems to no longer work as-expected
-      // and there does not appear to be any clear success after we move from Java8 --> Java11 anyways
-      // presumably, successor is Cloud Logging; neither REST or gRPC APIs provide any obvious way
-      // to query by "request id"
-      // @see https://cloud.google.com/logging/docs/apis
-      // an actual Logs Explorer query that does it is:
-      //   resource.type="gae_app" resource.labels.module_id="jobs"
-      //   protoPayload.requestId="60db8a4400ff06d6adcf87f2400001737e6576616c2d656e67696e00016a6f62733a7633393863000100"
-      // but this seems to be a BQ-powered search against partitioned log tables, not an efficient
-      // lookup by id
-      log.log(Level.INFO, "Check for whether request is completed no longer support; will assume it's not");
-    }
-    return false;
   }
 
   private <T extends IncrementalTask> boolean lockShard(Transaction tx,

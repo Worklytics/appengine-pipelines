@@ -129,7 +129,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     JobRecord jobRecord = registerNewJobRecord(updateSpec, settings, rootJobInstance, params);
     updateSpec.setRootJobKey(jobRecord.getRootJobKey());
     // Save the Pipeline model objects and enqueue the tasks that start the Pipeline executing.
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    backEnd.save(updateSpec);
     return JobRunId.of(jobRecord.getKey());
   }
 
@@ -377,7 +377,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     jobRecord.setState(State.STOPPED);
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     updateSpec.getOrCreateTransaction("stopJob").includeJob(jobRecord);
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    backEnd.save(updateSpec);
   }
 
   @Override
@@ -478,7 +478,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     }
     UpdateSpec updateSpec = new UpdateSpec(slot.getRootJobKey());
     registerSlotFilled(updateSpec, generatorJob.getQueueSettings(), slot, value);
-    backEnd.save(updateSpec, generatorJob.getQueueSettings());
+    backEnd.save(updateSpec);
   }
 
   @Override
@@ -711,7 +711,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     runBarrier.setReleased();
     UpdateSpec tempSpec = new UpdateSpec(rootJobKey);
     tempSpec.getOrCreateTransaction("releaseRunBarrier").includeBarrier(runBarrier);
-    backEnd.save(tempSpec, jobRecord.getQueueSettings());
+    backEnd.save(tempSpec);
 
     State jobState = jobRecord.getState();
     switch (jobState) {
@@ -763,7 +763,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     tempSpec = new UpdateSpec(jobRecord.getRootJobKey());
     tempSpec.getNonTransactionalGroup().includeJob(jobRecord);
     if (!backEnd.saveWithJobStateCheck(
-        tempSpec, jobRecord.getQueueSettings(), jobKey, State.WAITING_TO_RUN, State.RETRY)) {
+        tempSpec, jobKey, State.WAITING_TO_RUN, State.RETRY)) {
       log.info("Ignoring runJob request for job " + jobRecord + " which is not in a"
           + " WAITING_TO_RUN or a RETRY state");
       return;
@@ -813,7 +813,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     job.getUpdateSpec().getFinalTransaction().includeJob(jobRecord);
     job.getUpdateSpec().getFinalTransaction().includeBarrier(finalizeBarrier);
     backEnd.saveWithJobStateCheck(
-        job.getUpdateSpec(), jobRecord.getQueueSettings(), jobKey, State.WAITING_TO_RUN, State.RETRY);
+        job.getUpdateSpec(), jobKey, State.WAITING_TO_RUN, State.RETRY);
   }
 
   private void inject(Job<?> job) {
@@ -900,7 +900,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     if (jobRecord.isExceptionHandlerSpecified()) {
       executeExceptionHandler(updateSpec, jobRecord, new CancellationException(), true);
     }
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    backEnd.save(updateSpec);
   }
 
   private void handleExceptionDuringRun(JobRecord jobRecord, JobRecord rootJobRecord,
@@ -946,7 +946,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
           updateSpec.getNonTransactionalGroup().includeJob(rootJobRecord);
         }
       }
-      backEnd.save(updateSpec, jobRecord.getQueueSettings());
+      backEnd.save(updateSpec);
     } else {
       jobRecord.setState(State.RETRY);
       long backoffFactor = jobRecord.getBackoffFactor();
@@ -957,7 +957,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
           backoffSeconds * (long) Math.pow(backoffFactor, attemptNumber));
       updateSpec.getFinalTransaction().includeJob(jobRecord);
       updateSpec.getFinalTransaction().registerTask(task);
-      backEnd.saveWithJobStateCheck(updateSpec, jobRecord.getQueueSettings(), jobRecord.getKey(),
+      backEnd.saveWithJobStateCheck(updateSpec, jobRecord.getKey(),
           State.WAITING_TO_RUN, State.RETRY);
     }
   }
@@ -1015,7 +1015,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     UpdateSpec updateSpec = new UpdateSpec(rootJobKey);
     cancelChildren(jobRecord, failedChildKey);
     executeExceptionHandler(updateSpec, jobRecord, failedJobRecord.getException(), false);
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    backEnd.save(updateSpec);
   }
 
   /**
@@ -1069,7 +1069,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     finalizeBarrier.setReleased();
     UpdateSpec updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     updateSpec.getOrCreateTransaction("releaseFinalizeBarrier").includeBarrier(finalizeBarrier);
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    backEnd.save(updateSpec);
 
     updateSpec = new UpdateSpec(jobRecord.getRootJobKey());
     // Copy the finalize value to the output slot
@@ -1099,7 +1099,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     // Save the job and the output slot
     updateSpec.getNonTransactionalGroup().includeJob(jobRecord);
     updateSpec.getNonTransactionalGroup().includeSlot(outputSlot);
-    backEnd.save(updateSpec, jobRecord.getQueueSettings());
+    backEnd.save(updateSpec);
 
     // enqueue a HandleSlotFilled task
     HandleSlotFilledTask task =
@@ -1199,7 +1199,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     UpdateSpec updateSpec = new UpdateSpec(rootJobKey);
     slot.fill(null);
     updateSpec.getNonTransactionalGroup().includeSlot(slot);
-    backEnd.save(updateSpec, task.getQueueSettings());
+    backEnd.save(updateSpec);
     // re-reading Slot (in handleSlotFilled) is needed (to capture slot fill after this one)
     handleSlotFilled(new HandleSlotFilledTask(slotKey, task.getQueueSettings()));
   }

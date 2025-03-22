@@ -2,8 +2,8 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
+import com.google.cloud.datastore.Transaction;
 
-import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,6 +32,11 @@ public class InProcessTaskQueue implements PipelineTaskQueue {
   @Override
   public Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks) {
     return pipelineTasks.stream().map(this::enqueue).collect(Collectors.toCollection(LinkedList::new));
+  }
+
+  @Override
+  public Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks) {
+    return enqueue(pipelineTasks);
   }
 
   @Override

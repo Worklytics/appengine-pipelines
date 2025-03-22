@@ -17,7 +17,6 @@ package com.google.appengine.tools.pipeline.impl.backend;
 import com.github.rholder.retry.*;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
-import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.*;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
@@ -225,9 +224,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
     return keys;
   }
-
-  private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec,
-      QueueSettings queueSettings, Key rootJobKey, Key jobKey, JobRecord.State... expectedStates) {
+  private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec, Key jobKey, JobRecord.State... expectedStates) {
     Transaction transaction = datastore.newTransaction();
     Collection<PipelineTaskQueue.TaskReference> taskReferences = null;
     try {
@@ -271,11 +268,13 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
             (UpdateSpec.TransactionWithTasks) transactionSpec;
-        taskReferences = taskQueue.enqueue(transactionWithTasks.getTasks());
+        taskReferences = taskQueue.enqueue(transaction, transactionWithTasks.getTasks());
       }
 
       // commit is AFTER enqueue, so if enqueuing fails, we don't commit
       // then in 'finally' block, if we have to roll back the txn, we ALSO attempt to delete the tasks from the queue
+      // concern is what if enqueued tasks had names and already ran, then we might get into a bad state if those depended on stuff done elsewhere in the transaction
+      // 1) is there such a problematic case? perhaps nothing
       transaction.commit();
     } finally {
       if (transaction.isActive()) {
@@ -324,7 +323,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   @Override
   public boolean saveWithJobStateCheck(final UpdateSpec updateSpec,
-      final QueueSettings queueSettings, final Key jobKey,
+                                       final Key jobKey,
       final JobRecord.State... expectedStates) {
     tryFiveTimes(new Operation<Void>("save") {
       @Override
@@ -342,7 +341,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       tryFiveTimes(new Operation<Void>("save") {
         @Override
         public Void call() {
-          transactionallySaveAll(transactionSpec, queueSettings, updateSpec.getRootJobKey(), null);
+          transactionallySaveAll(transactionSpec, null);
           return null;
         }
       });
@@ -352,8 +351,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     tryFiveTimes(new Operation<Void>("save") {
       @Override
       public Void call() {
-        wasSaved.set(transactionallySaveAll(updateSpec.getFinalTransaction(), queueSettings,
-            updateSpec.getRootJobKey(), jobKey, expectedStates));
+        wasSaved.set(transactionallySaveAll(updateSpec.getFinalTransaction(), jobKey, expectedStates));
         return null;
       }
     });
@@ -361,8 +359,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   @Override
-  public void save(UpdateSpec updateSpec, QueueSettings queueSettings) {
-    saveWithJobStateCheck(updateSpec, queueSettings, null);
+  public void save(UpdateSpec updateSpec) {
+    saveWithJobStateCheck(updateSpec, null);
   }
 
   @Override
