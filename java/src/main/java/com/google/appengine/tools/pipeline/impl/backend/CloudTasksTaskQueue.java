@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 
@@ -171,6 +172,11 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     } while (++pastAttempts < MAX_ENQUEUE_ATTEMPTS);
     if (lastException == null) {
       throw new Error("Retry logic failed");
+    } else if (lastException instanceof com.google.api.gax.rpc.AlreadyExistsException) {
+      // avoid dead-end case, where all N variants of the task name are taken
+      // alternative is that we use timestamp or something in name on retry
+      log.log(Level.WARNING, "N versions of task name already taken, giving up for {0}; really would hope this doesn't happen in prod", taskSpec.getName());
+      return task;
     } else {
       throw lastException;
     }

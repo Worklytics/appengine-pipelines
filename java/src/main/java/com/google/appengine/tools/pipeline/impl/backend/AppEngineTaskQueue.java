@@ -111,6 +111,10 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
         log.log(Level.WARNING, "Pipeline framework failed to enqueue task bc already exists", ignore);
       }
     } while (taskReference == null && ++pastAttempts < MAX_ENQUEUE_ATTEMPTS);
+
+    // in case of multiple already-exists, fake the return with the first one (similar to legacy behavior)
+    taskReference = taskReference != null ? taskReference : TaskReference.of(queue.getQueueName(), pipelineTask.getTaskName());
+
     return taskReference;
   }
 
