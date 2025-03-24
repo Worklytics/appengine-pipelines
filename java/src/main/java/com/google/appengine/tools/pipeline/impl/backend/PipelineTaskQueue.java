@@ -22,6 +22,7 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.SortedMap;
 
 /**
@@ -119,7 +120,11 @@ public interface PipelineTaskQueue {
 
   TaskReference enqueue(PipelineTask pipelineTask);
 
-  TaskReference enqueue(String queueName, TaskSpec build);
+  default TaskReference enqueue(String queueName, TaskSpec taskSpec) {
+    return enqueue(queueName, Collections.singleton(taskSpec)).stream().findFirst().orElse(null);
+  }
+
+  Collection<TaskReference> enqueue(String queueName, Collection<TaskSpec> taskSpecs);
 
   Collection<TaskReference> enqueue(final Collection<PipelineTask> pipelineTasks);
 

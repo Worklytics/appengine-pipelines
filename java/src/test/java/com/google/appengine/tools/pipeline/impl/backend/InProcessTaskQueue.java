@@ -20,13 +20,17 @@ public class InProcessTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public TaskReference enqueue(String queueName, TaskSpec spec) {
+  public Collection<TaskReference> enqueue(String queueName, Collection<TaskSpec> taskSpecs) {
     if (!queues.containsKey(queueName)) {
       queues.put(queueName, new Stack<>());
     }
-    String taskName = Optional.ofNullable(spec.getName()).orElse(UUID.randomUUID().toString());
-    queues.get(queueName).push(spec);
-    return TaskReference.of(queueName, taskName);
+    List<TaskReference> taskReferences = new ArrayList<>();
+    for (TaskSpec spec : taskSpecs) {
+      String taskName = Optional.ofNullable(spec.getName()).orElse(UUID.randomUUID().toString());
+      queues.get(queueName).push(spec);
+      taskReferences.add(TaskReference.of(queueName, taskName));
+    }
+    return taskReferences;
   }
 
   @Override

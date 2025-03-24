@@ -60,11 +60,6 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public TaskReference enqueue(String queueName, TaskSpec build) {
-    return enqueue(queueName, List.of(build)).iterator().next();
-  }
-
-  @Override
   public Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks) {
     return enqueue(pipelineTasks, false);
   }
@@ -115,7 +110,8 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     }
   }
 
-  Collection<TaskReference> enqueue(@NonNull String queueName, Collection<TaskSpec> taskSpecs) {
+  @Override
+  public Collection<TaskReference> enqueue(@NonNull String queueName, Collection<TaskSpec> taskSpecs) {
     String queueLocation = cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation());
     QueueName queue = QueueName.of(appEngineEnvironment.getProjectId(), queueLocation, queueName);
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {

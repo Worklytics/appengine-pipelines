@@ -6,6 +6,7 @@ import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializat
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.pipeline.impl.model.ExpiringDatastoreEntity;
+import com.google.appengine.tools.txn.TxnWrapper;
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
@@ -199,9 +200,9 @@ public class IncrementalTaskState<T extends IncrementalTask> implements Expiring
       @NonNull Datastore datastore,
       Entity in,
       boolean lenient) {
-      Transaction txn = datastore.newTransaction();
-      IncrementalTaskState<T> state = fromEntity(txn, in, lenient);
-      txn.commit();
+      Transaction tx = datastore.newTransaction();
+      IncrementalTaskState<T> state = fromEntity(tx, in, lenient);
+      tx.commit();
       return state;
     }
 
