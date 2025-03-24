@@ -49,7 +49,10 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
   @SneakyThrows
   public static AppEngineServicesServiceImpl defaults() {
-    return new AppEngineServicesServiceImpl(new AppEngineStandardGen2(), AppEngineServicesServiceImpl::getServicesClientProvider, AppEngineServicesServiceImpl::getVersionsClientProvider, AppEngineServicesServiceImpl::getApplicationsClientProvider);
+    AppEngineServicesServiceImpl appEngineServicesService = new AppEngineServicesServiceImpl(new AppEngineStandardGen2(), AppEngineServicesServiceImpl::getServicesClientProvider, AppEngineServicesServiceImpl::getVersionsClientProvider, AppEngineServicesServiceImpl::getApplicationsClientProvider);
+    // prefill location before releasing the instance back
+    appEngineServicesService.getLocation();
+    return appEngineServicesService;
   }
 
   static ApplicationsClient getApplicationsClientProvider() {
