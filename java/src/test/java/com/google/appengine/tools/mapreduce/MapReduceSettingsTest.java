@@ -49,7 +49,7 @@ public class MapReduceSettingsTest {
     assertNull(mrSettings.getMaxSortMemory());
     assertEquals(DEFAULT_MERGE_FANIN, mrSettings.getMergeFanin());
     assertEquals(DEFAULT_MILLIS_PER_SLICE, mrSettings.getMillisPerSlice());
-    assertEquals(null, mrSettings.getModule());
+    assertNull(mrSettings.getModule());
     assertEquals(DEFAULT_SORT_BATCH_PER_EMIT_BYTES, mrSettings.getSortBatchPerEmitBytes());
     assertEquals(DEFAULT_SORT_READ_TIME_MILLIS, mrSettings.getSortReadTimeMillis());
     assertNull(mrSettings.getWorkerQueueName());
@@ -133,5 +133,12 @@ public class MapReduceSettingsTest {
       .module("m1");
     mrSettings = builder.build();
     assertEquals("m1", mrSettings.getModule());
+
+    builder = MapReduceSettings.builder()
+      .bucketName("app_default_bucket")
+      .maxSortMemory(null)
+      .module("m2");
+
+    assertNull(builder.build().getMaxSortMemory());
   }
 }
