@@ -30,6 +30,7 @@ import lombok.extern.java.Log;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -93,6 +94,7 @@ public class MiscPipelineTest extends PipelineTest {
 
   private static class StringToLong implements Function<String, Long>, Serializable {
 
+    @Serial
     private static final long serialVersionUID = -913828405842203610L;
 
     @Override

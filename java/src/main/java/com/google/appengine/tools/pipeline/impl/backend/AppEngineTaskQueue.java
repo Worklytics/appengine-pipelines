@@ -22,6 +22,7 @@ import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.apphosting.api.ApiProxy;
+import com.google.cloud.datastore.Transaction;
 import com.google.common.base.Preconditions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
@@ -62,12 +63,6 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
   final String taskHandlerUrl;
 
-  public AppEngineTaskQueue() {
-    this.environment = new AppEngineStandardGen2();
-    this.servicesService = AppEngineServicesServiceImpl.defaults();
-    this.taskHandlerUrl = TaskHandler.handleTaskUrl();
-  }
-
   public AppEngineTaskQueue(AppEngineServicesService appEngineServicesService) {
     this.environment = new AppEngineStandardGen2();
     this.servicesService = appEngineServicesService;
@@ -98,18 +93,30 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     }
   }
 
+  static final int MAX_ENQUEUE_ATTEMPTS = 3;
+
   @Override
   public TaskReference enqueue(PipelineTask pipelineTask) {
     log.finest("Enqueueing: " + pipelineTask);
     TaskOptions taskOptions = toTaskOptions(pipelineTask);
     Queue queue = getQueue(pipelineTask.getQueueSettings().getOnQueue());
-    try {
-      TaskHandle handle = queue.add(taskOptions);
-      return taskHandleToReference(handle);
-    } catch (TaskAlreadyExistsException ignore) {
-      // ignore
-      return TaskReference.of(queue.getQueueName(), ignore.getTaskNames().get(0));
-    }
+    PipelineTaskQueue.TaskReference taskReference = null;
+    int pastAttempts = 0;
+    do {
+      try {
+        TaskHandle handle = queue.add(taskOptions);
+        taskReference = taskHandleToReference(handle);
+      } catch (TaskAlreadyExistsException alreadyExistsException) {
+        //taskOptions.taskName(pipelineTask.getTaskName() + "-" + pastAttempts);
+        log.log(Level.WARNING, "Pipeline framework - task already exists", alreadyExistsException);
+        taskReference = TaskReference.of(queue.getQueueName(), pipelineTask.getTaskName());
+      }
+    } while (taskReference == null && ++pastAttempts < MAX_ENQUEUE_ATTEMPTS);
+
+    // in case of multiple already-exists, fake the return with the first one (similar to legacy behavior)
+    taskReference = taskReference != null ? taskReference : TaskReference.of(queue.getQueueName(), pipelineTask.getTaskName());
+
+    return taskReference;
   }
 
   @Override
@@ -142,6 +149,12 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
   @Override
   public Collection<TaskReference> enqueue(final Collection<PipelineTask> pipelineTasks) {
+    return addToQueue(pipelineTasks);
+  }
+
+  @Override
+  public Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks) {
+    //TODO: try to fake the txn here; not implemented bc this implementation won't be used in prod
     return addToQueue(pipelineTasks);
   }
 
@@ -253,6 +266,9 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     addProperties(taskOptions, pipelineTask.toProperties());
     String taskName = pipelineTask.getName();
     if (null != taskName) {
+      // named tasks ARE used in the following cases ...
+      //handleSlotFilled_*
+      //runJob_*
       taskOptions.taskName(taskName);
     }
     return taskOptions;
