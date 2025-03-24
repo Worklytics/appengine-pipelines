@@ -10,10 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.inject.Provider;
 import java.time.Instant;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -112,12 +109,12 @@ class CloudTasksTaskQueueIntegrationTest {
       .build();
     PipelineTaskQueue.TaskReference ref = cloudTasksTaskQueue.enqueue("default", spec);
 
-    // we're ignoring already exists case, consistent with legacy behavior
+    // no longer ignoring already exists, so this should have extra suffix
     PipelineTaskQueue.TaskReference ref2 = cloudTasksTaskQueue.enqueue("default", spec);
-    assertEquals(ref, ref2);
+    assertEquals(ref.getTaskName() + "-0", ref2.getTaskName());
 
     // mainly for cleanup
-    cloudTasksTaskQueue.deleteTasks(Collections.singletonList(ref));
+    cloudTasksTaskQueue.deleteTasks(Arrays.asList(ref, ref2));
   }
 
   //TODO: test enqueue(PipelineTask) case ... it's just nasty bc abstract and kinda weird
