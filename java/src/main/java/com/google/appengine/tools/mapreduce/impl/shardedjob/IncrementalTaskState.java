@@ -2,15 +2,11 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil.serializeToDatastoreProperty;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import com.google.appengine.tools.pipeline.impl.model.ExpiringDatastoreEntity;
-import com.google.appengine.tools.txn.TxnWrapper;
-import com.google.cloud.Timestamp;
-import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
+import com.google.appengine.tools.pipeline.impl.model.ExpiringDatastoreEntity;
+import com.google.cloud.Timestamp;
+import com.google.cloud.datastore.*;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import lombok.*;
@@ -18,6 +14,9 @@ import lombok.*;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Optional;
+
+import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil.serializeToDatastoreProperty;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Information about execution of an {@link IncrementalTask}.

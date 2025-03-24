@@ -1,10 +1,7 @@
 package com.google.appengine.tools.txn;
 
 
-import com.google.appengine.tools.mapreduce.RetryExecutor;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
-import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.cloud.datastore.Transaction;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.LinkedHashMultimap;

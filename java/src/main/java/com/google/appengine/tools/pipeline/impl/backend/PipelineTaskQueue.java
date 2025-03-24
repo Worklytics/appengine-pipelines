@@ -51,7 +51,6 @@ public interface PipelineTaskQueue {
     public enum Method {
       GET,
       POST,
-      ;
     }
 
     /**

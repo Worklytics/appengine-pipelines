@@ -15,7 +15,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.github.rholder.retry.*;
-
 import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;

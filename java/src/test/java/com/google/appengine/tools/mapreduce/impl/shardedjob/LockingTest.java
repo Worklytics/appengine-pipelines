@@ -1,20 +1,14 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.DONE;
-import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.RUNNING;
-import static org.junit.jupiter.api.Assertions.*;
-
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.txn.TxnWrapper;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 import com.google.cloud.datastore.Transaction;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.SettableFuture;
-
 import lombok.Getter;
 import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
@@ -24,6 +18,10 @@ import org.junit.jupiter.api.Test;
 import java.io.UnsupportedEncodingException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.DONE;
+import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.RUNNING;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests that locking prevents concurrent execution.

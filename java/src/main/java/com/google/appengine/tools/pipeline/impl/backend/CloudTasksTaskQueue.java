@@ -1,10 +1,7 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
-
-import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Transaction;
 import com.google.cloud.location.ListLocationsRequest;
 import com.google.cloud.location.Location;
@@ -24,7 +21,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
