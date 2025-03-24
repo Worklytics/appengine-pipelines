@@ -216,7 +216,10 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
 
     @Override
     public Builder maxSortMemory(Long maxSortMemory) {
-      Preconditions.checkArgument(maxSortMemory > -1L, "maxSortMemory cannot be negative");
+      if (maxSortMemory != null) {
+        Preconditions.checkArgument(maxSortMemory > -1L, "maxSortMemory cannot be negative");
+      }
+
       super.maxSortMemory(maxSortMemory);
       return this;
     }
