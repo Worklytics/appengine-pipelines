@@ -7,8 +7,8 @@ import lombok.extern.java.Log;
 import org.junit.jupiter.api.extension.*;
 
 import java.net.ConnectException;
-import java.time.Duration;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Junit5 extension to initialize local datastore emulator for tests
@@ -31,6 +31,8 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
       .setStoreOnDisk(false)  // can't reset if storing data disk
       .setConsistency(1.0)
       .build();
+    // Reduce noise in test logs
+    Logger.getLogger("com.google.cloud.datastore").setLevel(Level.WARNING);
     globalDatastoreHelper.start();
     log.info("Datastore emulator started on port : " + globalDatastoreHelper.getPort());
   }
