@@ -30,7 +30,8 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   private Duration ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ofSeconds(0);
 
-  private final Transaction dsTransaction;
+  // lazily open in getDsTransaction
+  private Transaction dsTransaction;
 
   private Stopwatch stopwatch;
 
@@ -42,9 +43,6 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   public PipelineBackendTransactionImpl(@NonNull Datastore datastore, @NonNull PipelineTaskQueue taskQueue) {
     this.datastore = datastore;
     this.taskQueue = taskQueue;
-    // open the transaction, given our use of this class, I wouldn't bother to lazily open this when used:
-    this.dsTransaction = datastore.newTransaction();
-    this.stopwatch = Stopwatch.createStarted();
     if (System.getProperty("GOOGLE_CLOUD_PROJECT") != null) {
       this.ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ofSeconds(10);
     }
@@ -63,7 +61,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     try {
       taskReferences.addAll(this.commitTasks());
       // returning void for simplicity, we never do anything with the response
-      return dsTransaction.commit();
+      return getDsTransaction().commit();
     } catch (Throwable t) {
       rollbackTasks();
       throw t;
@@ -74,7 +72,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   public void rollback() {
     try {
-      dsTransaction.rollback();
+      getDsTransaction().rollback();
       // two cases here that should be mutually exclusive, but deal together for simplicity:
       // 1. if it was never enqueued, just clear the tasks
       pendingTaskSpecsByQueue.clear();
@@ -87,7 +85,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   public void rollbackIfActive() {
     try {
-      if (dsTransaction.isActive()) {
+      if (getDsTransaction().isActive()) {
         log.log(Level.FINE, String.format("Transaction open for %s", stopwatch.elapsed(TimeUnit.MILLISECONDS)));
         this.rollback();
       }
@@ -98,77 +96,77 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   @Override
   public Entity get(Key var1) {
-    return dsTransaction.get(var1);
+    return getDsTransaction().get(var1);
   }
 
   @Override
   public Iterator<Entity> get(Key... var1) {
-    return dsTransaction.get(var1);
+    return getDsTransaction().get(var1);
   }
 
   @Override
   public List<Entity> fetch(Key... var1) {
-    return dsTransaction.fetch(var1);
+    return getDsTransaction().fetch(var1);
   }
 
   @Override
   public <T> QueryResults<T> run(Query<T> var1) {
-    return dsTransaction.run(var1);
+    return getDsTransaction().run(var1);
   }
 
   @Override
   public void delete(Key... var1) {
-    dsTransaction.delete(var1);
+    getDsTransaction().delete(var1);
   }
 
   @Override
   public Entity put(FullEntity<?> var1) {
-    return dsTransaction.put(var1);
+    return getDsTransaction().put(var1);
   }
 
   @Override
   public List<Entity> put(FullEntity<?>... var1) {
-    return dsTransaction.put(var1);
+    return getDsTransaction().put(var1);
   }
 
   @Override
   public boolean isActive() {
-    return dsTransaction.isActive();
+    return getDsTransaction().isActive();
   }
 
   @Override
   public <T> QueryResults<T> run(Query<T> query, ExplainOptions explainOptions) {
-    return dsTransaction.run(query, explainOptions);
+    return getDsTransaction().run(query, explainOptions);
   }
 
   @Override
   public void addWithDeferredIdAllocation(FullEntity<?>... fullEntities) {
-    dsTransaction.addWithDeferredIdAllocation(fullEntities);
+    getDsTransaction().addWithDeferredIdAllocation(fullEntities);
   }
 
   @Override
   public Entity add(FullEntity<?> fullEntity) {
-    return dsTransaction.add(fullEntity);
+    return getDsTransaction().add(fullEntity);
   }
 
   @Override
   public List<Entity> add(FullEntity<?>... fullEntities) {
-    return dsTransaction.add(fullEntities);
+    return getDsTransaction().add(fullEntities);
   }
 
   @Override
   public void update(Entity... entities) {
-    dsTransaction.update(entities);
+    getDsTransaction().update(entities);
   }
 
   @Override
   public void putWithDeferredIdAllocation(FullEntity<?>... fullEntities) {
-    dsTransaction.putWithDeferredIdAllocation(fullEntities);
+    getDsTransaction().putWithDeferredIdAllocation(fullEntities);
   }
 
   @Override
   public ByteString getTransactionId() {
-    return dsTransaction.getTransactionId();
+    return getDsTransaction().getTransactionId();
   }
 
   /** Transaction interface delegate end **/
@@ -185,10 +183,21 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   /** PipelineTaskQueue interface delegate **/
 
+  private synchronized Transaction getDsTransaction() {
+    if (this.dsTransaction == null) {
+      synchronized (this) {
+        if (this.dsTransaction == null) {
+          this.dsTransaction = datastore.newTransaction();
+          this.stopwatch = Stopwatch.createStarted();
+        }
+      }
+    }
+    return this.dsTransaction;
+  }
 
   private Collection<PipelineTaskQueue.TaskReference> commitTasks() {
     if (!pendingTaskSpecsByQueue.isEmpty()) {
-      Preconditions.checkState(dsTransaction.isActive());
+      Preconditions.checkState(getDsTransaction().isActive());
       //noinspection unchecked
       // pipeline specs
       List<PipelineTaskQueue.TaskReference> taskReferences = new ArrayList<>();
@@ -218,7 +227,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   @Override
   protected void finalize() throws Throwable {
     try {
-      if (this.dsTransaction.isActive()) {
+      if (this.getDsTransaction().isActive()) {
         log.log(Level.WARNING, new Throwable(), () -> "Finalizing PipelineBackendTransactionImpl w/o committing the transaction");
       }
     } finally {
