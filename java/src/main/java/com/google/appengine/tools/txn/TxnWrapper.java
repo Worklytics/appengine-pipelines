@@ -34,16 +34,15 @@ public class TxnWrapper {
 
   private final Collection<PipelineTaskQueue.TaskReference> taskReferences = new ArrayList<>();
 
-  public Transaction.Response commit() {
+  public void commit() {
     //noinspection unchecked
     try {
       taskReferences.addAll(this.commitTasks());
-      return dsTransaction.commit();
+      // returning void for simplicity, we never do anything with the response
+      dsTransaction.commit();
     } catch (Throwable t) {
       rollbackTasks();
       throw t;
-    } finally {
-      rollbackIfActive();
     }
   }
 
@@ -53,14 +52,17 @@ public class TxnWrapper {
 
   public void rollback() {
     dsTransaction.rollback();
+    // two cases here that should be mutually exclusive, but deal together for simplicity:
+    // 1. if it was never enqueued, just clear the tasks
     tasksByQueue.clear();
+    // 2. if anything was enqueued, delete it,
+    rollbackTasks();
   }
 
   public void rollbackIfActive() {
     try {
       if (dsTransaction.isActive()) {
         this.rollback();
-        rollbackTasks();
       }
     } catch (RuntimeException e) {
       log.log(Level.WARNING, "Rollback of transaction failed: ", e);
@@ -75,6 +77,8 @@ public class TxnWrapper {
       List<PipelineTaskQueue.TaskReference> taskReferences = new ArrayList<>();
       tasksByQueue.asMap()
         .forEach((queue, tasks) -> taskReferences.addAll(taskQueue.enqueue(queue, tasks)));
+      // all commited, clean tasks
+      tasksByQueue.clear();
       return taskReferences;
     } else {
       return Collections.emptyList();
