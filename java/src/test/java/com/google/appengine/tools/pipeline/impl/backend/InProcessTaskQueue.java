@@ -2,7 +2,8 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
-import com.google.cloud.datastore.Transaction;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -39,11 +40,6 @@ public class InProcessTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks) {
-    return enqueue(pipelineTasks);
-  }
-
-  @Override
   public void deleteTasks(Collection<TaskReference> taskReferences) {
     for (TaskReference taskReference : taskReferences) {
       if (queues.containsKey(taskReference.getQueue())) {
@@ -51,6 +47,16 @@ public class InProcessTaskQueue implements PipelineTaskQueue {
         queue.removeIf(task -> task.getName().equals(taskReference.getTaskName()));
       }
     }
+  }
+
+  @Override
+  public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
+    Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
+    pipelineTasks.forEach( pipelineTask -> {
+      String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse("default");
+      taskSpecs.put(queueName, pipelineTask.toTaskSpec("localhost", TaskHandler.handleTaskUrl()));
+    });
+    return taskSpecs;
   }
 
   /*

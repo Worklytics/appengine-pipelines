@@ -2,11 +2,14 @@ package com.google.appengine.tools.txn;
 
 
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
+import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.cloud.datastore.*;
+import com.google.cloud.datastore.models.ExplainOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
+import com.google.protobuf.ByteString;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
@@ -39,31 +42,29 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   @Getter(AccessLevel.PACKAGE)
   @VisibleForTesting
-  private final Multimap<String, PipelineTaskQueue.TaskSpec> tasksByQueue = LinkedHashMultimap.create();
+  private final Multimap<String, PipelineTaskQueue.TaskSpec> pendingTaskSpecsByQueue = LinkedHashMultimap.create();
 
   private final Collection<PipelineTaskQueue.TaskReference> taskReferences = new ArrayList<>();
 
-  public void commit() {
+  /** Transaction interface delegate **/
+
+  public Response commit() {
     //noinspection unchecked
     try {
       taskReferences.addAll(this.commitTasks());
       // returning void for simplicity, we never do anything with the response
-      dsTransaction.commit();
+      return dsTransaction.commit();
     } catch (Throwable t) {
       rollbackTasks();
       throw t;
     }
   }
 
-  public void enqueue(String queue, PipelineTaskQueue.TaskSpec task) {
-    tasksByQueue.put(queue, task);
-  }
-
   public void rollback() {
     dsTransaction.rollback();
     // two cases here that should be mutually exclusive, but deal together for simplicity:
     // 1. if it was never enqueued, just clear the tasks
-    tasksByQueue.clear();
+    pendingTaskSpecsByQueue.clear();
     // 2. if anything was enqueued, delete it,
     rollbackTasks();
   }
@@ -118,16 +119,69 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     return dsTransaction.isActive();
   }
 
+  @Override
+  public <T> QueryResults<T> run(Query<T> query, ExplainOptions explainOptions) {
+    return dsTransaction.run(query, explainOptions);
+  }
+
+  @Override
+  public void addWithDeferredIdAllocation(FullEntity<?>... fullEntities) {
+    dsTransaction.addWithDeferredIdAllocation(fullEntities);
+  }
+
+  @Override
+  public Entity add(FullEntity<?> fullEntity) {
+    return dsTransaction.add(fullEntity);
+  }
+
+  @Override
+  public List<Entity> add(FullEntity<?>... fullEntities) {
+    return dsTransaction.add(fullEntities);
+  }
+
+  @Override
+  public void update(Entity... entities) {
+    dsTransaction.update(entities);
+  }
+
+  @Override
+  public void putWithDeferredIdAllocation(FullEntity<?>... fullEntities) {
+    dsTransaction.putWithDeferredIdAllocation(fullEntities);
+  }
+
+  @Override
+  public ByteString getTransactionId() {
+    return dsTransaction.getTransactionId();
+  }
+
+  /** Transaction interface delegate end **/
+
+  @Override
+  public void enqueue(Collection<PipelineTask> pipelineTasks) {
+    pendingTaskSpecsByQueue.putAll(taskQueue.asTaskSpecs(pipelineTasks));
+  }
+
+  @Override
+  public void enqueue(String queueName, Collection<PipelineTaskQueue.TaskSpec> taskSpecs) {
+    pendingTaskSpecsByQueue.putAll(queueName, taskSpecs);
+  }
+
+  /** PipelineTaskQueue interface delegate **/
+
+
   private Collection<PipelineTaskQueue.TaskReference> commitTasks() {
-    if (!tasksByQueue.isEmpty()) {
+    if (!pendingTaskSpecsByQueue.isEmpty()) {
       Preconditions.checkState(dsTransaction.isActive());
       Preconditions.checkNotNull(taskQueue, "Missing PipelineTaskQueue: can't enqueue");
       //noinspection unchecked
+      // pipeline specs
       List<PipelineTaskQueue.TaskReference> taskReferences = new ArrayList<>();
-      tasksByQueue.asMap()
-        .forEach((queue, tasks) -> taskReferences.addAll(taskQueue.enqueue(queue, tasks)));
-      // all commited, clean tasks
-      tasksByQueue.clear();
+      pendingTaskSpecsByQueue.asMap()
+        .forEach((queue, tasks) -> {
+          tasks.stream().map(task -> task.withScheduledExecutionTime(task.getScheduledExecutionTime().plusSeconds(5))).toList();
+          taskReferences.addAll(taskQueue.enqueue(queue, tasks));
+        });
+      pendingTaskSpecsByQueue.clear();
       return taskReferences;
     } else {
       return Collections.emptyList();

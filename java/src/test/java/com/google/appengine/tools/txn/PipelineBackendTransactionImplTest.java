@@ -75,8 +75,8 @@ class PipelineBackendTransactionImplTest {
     PipelineTaskQueue.TaskSpec task = PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build();
     pipelineBackendTransaction.enqueue("queue1", task);
 
-    assertFalse(pipelineBackendTransaction.getTasksByQueue().isEmpty());
-    assertTrue(pipelineBackendTransaction.getTasksByQueue().containsEntry("queue1", task));
+    assertFalse(pipelineBackendTransaction.getPendingTaskSpecsByQueue().isEmpty());
+    assertTrue(pipelineBackendTransaction.getPendingTaskSpecsByQueue().containsEntry("queue1", task));
   }
 
   @Test
@@ -85,7 +85,7 @@ class PipelineBackendTransactionImplTest {
     pipelineBackendTransaction.rollback();
 
     verify(mockTransaction).rollback();
-    assertTrue(pipelineBackendTransaction.getTasksByQueue().isEmpty());
+    assertTrue(pipelineBackendTransaction.getPendingTaskSpecsByQueue().isEmpty());
   }
 
   @Test

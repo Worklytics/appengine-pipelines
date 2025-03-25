@@ -2,39 +2,33 @@ package com.google.appengine.tools.txn;
 
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
-import com.google.cloud.datastore.*;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.Transaction;
+import com.google.common.collect.Multimap;
 
 import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import java.util.Collections;
 
-public interface PipelineBackendTransaction {
+public interface PipelineBackendTransaction extends Transaction {
 
-  void commit();
-
-  void enqueue(String queue, PipelineTaskQueue.TaskSpec task);
-
-  void rollback();
-
+  /**
+   * Rolls back the transaction if still active (most likely was never closed by a commit that failed)
+   */
   void rollbackIfActive();
 
-  Entity get(Key var1);
+  /* Interface for queues needs to be a little different as can't return TaskReferences, but voids */
 
-  Iterator<Entity> get(Key... var1);
+  default void enqueue(PipelineTask pipelineTask) {
+    enqueue(Collections.singleton(pipelineTask));
+  }
 
-  List<Entity> fetch(Key... var1);
+  void enqueue(Collection<PipelineTask> pipelineTasks);
 
-  <T> QueryResults<T> run(Query<T> var1);
+  default void enqueue(String queueName, PipelineTaskQueue.TaskSpec taskSpec) {
+    enqueue(queueName, Collections.singleton(taskSpec));
+  }
 
-  void delete(Key... var1);
-
-  Entity put(FullEntity<?> var1);
-
-  List<Entity> put(FullEntity<?>... var1);
-
-  Datastore getDatastore();
-
-  boolean isActive();
+  void enqueue(String queueName, Collection<PipelineTaskQueue.TaskSpec> taskSpecs);
 
   static PipelineBackendTransaction newInstance(Datastore datastore, PipelineTaskQueue taskQueue) {
     return new PipelineBackendTransactionImpl(datastore, taskQueue);
@@ -54,6 +48,11 @@ public interface PipelineBackendTransaction {
   static PipelineBackendTransaction newInstance(Datastore datastore) {
     return new PipelineBackendTransactionImpl(datastore, new PipelineTaskQueue() {
       @Override
+      public TaskReference enqueue(String queueName, TaskSpec taskSpec) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
       public TaskReference enqueue(PipelineTask pipelineTask) {
         throw new UnsupportedOperationException();
       }
@@ -69,12 +68,13 @@ public interface PipelineBackendTransaction {
       }
 
       @Override
-      public Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks) {
+      public void deleteTasks(Collection<TaskReference> taskReferences) {
         throw new UnsupportedOperationException();
       }
 
       @Override
-      public void deleteTasks(Collection<TaskReference> taskReferences) {
+      public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
+        throw new UnsupportedOperationException();
       }
     });
   }

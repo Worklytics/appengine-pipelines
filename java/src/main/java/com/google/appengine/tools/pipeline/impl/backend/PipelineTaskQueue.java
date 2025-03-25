@@ -15,7 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
-import com.google.cloud.datastore.Transaction;
+import com.google.common.collect.Multimap;
 import lombok.*;
 
 import java.io.Serial;
@@ -117,7 +117,11 @@ public interface PipelineTaskQueue {
     String taskName;
   }
 
-  TaskReference enqueue(PipelineTask pipelineTask);
+  default TaskReference enqueue(PipelineTask pipelineTask) {
+    return enqueue(Collections.singleton(pipelineTask)).iterator().next();
+  }
+
+  Collection<TaskReference> enqueue(final Collection<PipelineTask> pipelineTasks);
 
   default TaskReference enqueue(String queueName, TaskSpec taskSpec) {
     return enqueue(queueName, Collections.singleton(taskSpec)).stream().findFirst().orElse(null);
@@ -125,9 +129,8 @@ public interface PipelineTaskQueue {
 
   Collection<TaskReference> enqueue(String queueName, Collection<TaskSpec> taskSpecs);
 
-  Collection<TaskReference> enqueue(final Collection<PipelineTask> pipelineTasks);
 
-  Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks);
+  Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks);
 
   /**
    * deletes tasks from the queue, on best-efforts async basis.
