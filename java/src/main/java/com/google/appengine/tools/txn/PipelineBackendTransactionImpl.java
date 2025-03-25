@@ -55,7 +55,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     }
   }
 
-  public void addTask(String queue, PipelineTaskQueue.TaskSpec task) {
+  public void enqueue(String queue, PipelineTaskQueue.TaskSpec task) {
     tasksByQueue.put(queue, task);
   }
 

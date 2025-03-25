@@ -12,7 +12,7 @@ public interface PipelineBackendTransaction {
 
   void commit();
 
-  void addTask(String queue, PipelineTaskQueue.TaskSpec task);
+  void enqueue(String queue, PipelineTaskQueue.TaskSpec task);
 
   void rollback();
 

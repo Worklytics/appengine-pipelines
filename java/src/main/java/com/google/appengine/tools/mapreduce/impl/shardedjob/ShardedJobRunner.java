@@ -232,7 +232,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     // alternatively, could refactor to move worker service/version stuff down into PipelineTaskQueue, rather than doing mapping to host here??
     controllerTaskSpec.host(getWorkerServiceHostName(settings));
 
-    tx.addTask(settings.getQueueName(), controllerTaskSpec.build());
+    tx.enqueue(settings.getQueueName(), controllerTaskSpec.build());
   }
 
   @SneakyThrows
@@ -257,7 +257,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       workerTaskSpec.scheduledExecutionTime(Instant.ofEpochMilli(etaMillis));
     }
 
-    tx.addTask(settings.getQueueName(), workerTaskSpec.build());
+    tx.enqueue(settings.getQueueName(), workerTaskSpec.build());
   }
 
   @Override
