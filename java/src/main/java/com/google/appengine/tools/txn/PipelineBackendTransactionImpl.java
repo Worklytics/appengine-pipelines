@@ -73,10 +73,6 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   public void rollback() {
     try {
       getDsTransaction().rollback();
-      // two cases here that should be mutually exclusive, but deal together for simplicity:
-      // 1. if it was never enqueued, just clear the tasks
-      pendingTaskSpecsByQueue.clear();
-      // 2. if anything was enqueued, delete it,
       rollbackTasks();
     } finally {
       log.log(Level.FINE, String.format("Transaction open for %s", stopwatch.elapsed(TimeUnit.MILLISECONDS)));
@@ -197,7 +193,6 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   private Collection<PipelineTaskQueue.TaskReference> commitTasks() {
     if (!pendingTaskSpecsByQueue.isEmpty()) {
-      Preconditions.checkState(getDsTransaction().isActive());
       //noinspection unchecked
       // pipeline specs
       List<PipelineTaskQueue.TaskReference> taskReferences = new ArrayList<>();
@@ -217,6 +212,10 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   }
 
   private void rollbackTasks() {
+    // two cases here that should be mutually exclusive, but deal together for simplicity:
+    // 1. if it was never enqueued, just clear the tasks
+    pendingTaskSpecsByQueue.clear();
+    // 2. if anything was enqueued, delete it,
     if (!taskReferences.isEmpty()) {
       taskQueue.deleteTasks(taskReferences);
       taskReferences.clear();
