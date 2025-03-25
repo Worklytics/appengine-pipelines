@@ -21,10 +21,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -114,11 +111,18 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   public Collection<TaskReference> enqueue(@NonNull String queueName, Collection<TaskSpec> taskSpecs) {
     String queueLocation = cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation());
     QueueName queue = QueueName.of(appEngineEnvironment.getProjectId(), queueLocation, queueName);
+    Collection<TaskReference> taskReferences = new ArrayList<>();
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
-      return taskSpecs.parallelStream() //q: this safe? efficient?
-        .map(taskSpec -> createIgnoringExisting(cloudTasksClient, queue, taskSpec))
-        .map(task -> TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()))
-        .collect(Collectors.toList());
+      for (TaskSpec taskSpec : taskSpecs) {
+        Task task = createIgnoringExisting(cloudTasksClient, queue, taskSpec);
+        taskReferences.add(TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()));
+      }
+      return taskReferences;
+    } catch (Exception e) {
+      // something went wrong - delete any task already created
+      log.log(Level.SEVERE, String.format("Task creation failed out of %d - deleting all", taskReferences.size()));
+      deleteTasks(taskReferences);
+      throw e;
     }
   }
 
