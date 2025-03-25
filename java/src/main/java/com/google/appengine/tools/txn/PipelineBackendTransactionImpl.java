@@ -59,6 +59,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   public Response commit() {
     //noinspection unchecked
     try {
+      log.info("commit transaction for " + Arrays.stream(Thread.currentThread().getStackTrace()).toList().get(2));
       taskReferences.addAll(this.commitTasks());
       // returning void for simplicity, we never do anything with the response
       return getDsTransaction().commit();
@@ -227,7 +228,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   protected void finalize() throws Throwable {
     try {
       if (this.getDsTransaction().isActive()) {
-        log.log(Level.WARNING, new Throwable(), () -> "Finalizing PipelineBackendTransactionImpl w/o committing the transaction");
+        log.log(Level.WARNING, String.format("Finalizing PipelineBackendTransactionImpl transaction open for %s", stopwatch.elapsed(TimeUnit.MILLISECONDS)));
       }
     } finally {
       super.finalize();
