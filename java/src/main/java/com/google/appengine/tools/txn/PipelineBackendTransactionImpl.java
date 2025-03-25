@@ -1,6 +1,7 @@
 package com.google.appengine.tools.txn;
 
 
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineStandardGen2;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.cloud.datastore.*;
@@ -28,7 +29,7 @@ import java.util.logging.Level;
 @Log
 public class PipelineBackendTransactionImpl implements PipelineBackendTransaction {
 
-  private Duration ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ofSeconds(0);
+  private Duration ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ofSeconds(10);
 
   // lazily open in getDsTransaction
   private Transaction dsTransaction;
@@ -43,8 +44,9 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   public PipelineBackendTransactionImpl(@NonNull Datastore datastore, @NonNull PipelineTaskQueue taskQueue) {
     this.datastore = datastore;
     this.taskQueue = taskQueue;
-    if (System.getProperty("GOOGLE_CLOUD_PROJECT") != null) {
-      this.ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ofSeconds(10);
+    if (System.getProperty("GAE_VERSION") != null) {
+      // presumably never set for tests - so this is equivalent to isTesting
+      this.ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ZERO;
     }
   }
 
