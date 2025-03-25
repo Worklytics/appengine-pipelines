@@ -115,19 +115,22 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public Collection<TaskReference> enqueue(@NonNull String queueName, Collection<TaskSpec> taskSpecs) {
+  public Collection<TaskReference> enqueue(@NonNull String queueName, final Collection<TaskSpec> taskSpecs) {
     String queueLocation = cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation());
     QueueName queue = QueueName.of(appEngineEnvironment.getProjectId(), queueLocation, queueName);
-    Collection<TaskReference> taskReferences = new ArrayList<>();
+
+    // synchronized to deal with parallel stream
+    Collection<TaskReference> taskReferences = Collections.synchronizedList(new ArrayList<>());
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
-      for (TaskSpec taskSpec : taskSpecs) {
-        Task task = createIgnoringExisting(cloudTasksClient, queue, taskSpec);
-        taskReferences.add(TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()));
-      }
+      taskSpecs.parallelStream()
+        .forEach(taskSpec -> {
+          Task task = createIgnoringExisting(cloudTasksClient, queue, taskSpec);
+          taskReferences.add(TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()));
+        });
       return taskReferences;
     } catch (Exception e) {
       // something went wrong - delete any task already created
-      log.log(Level.SEVERE, String.format("Task creation failed out of %d - deleting all", taskReferences.size()));
+      log.log(Level.SEVERE, String.format("Task creation failed out of %d - deleting anything already enqueued", taskReferences.size()));
       deleteTasks(taskReferences);
       throw e;
     }
