@@ -838,7 +838,15 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
     final Key jobKey = ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId);
 
-    RetryExecutor.call(FOREVER_RETRYER, callable(() -> datastore.delete(jobKey)));
+    RetryExecutor.call(FOREVER_RETRYER, callable(() -> {
+      PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, taskQueue);
+      try {
+        tx.delete(jobKey);
+        tx.commit();
+      } finally {
+        tx.rollbackIfActive();
+      }
+    } ));
     return true;
   }
 
