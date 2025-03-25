@@ -94,12 +94,18 @@ public class ShardedJobRunner implements ShardedJobHandler {
     this.datastore = datastore;
     this.appEngineServicesService = appEngineServicesService;
     this.taskQueue = taskQueue;
+    if (System.getProperty("GOOGLE_CLOUD_PROJECT") != null) {
+      // assume non testing environment
+      DELAY_MULTIPLIER = 5;
+    }
   }
 
+  private int DELAY_MULTIPLIER = 1;
+
   @Getter @Setter
-  private Duration controllerTaskDelay = Duration.ofSeconds(2);
+  private Duration controllerTaskDelay = Duration.ofSeconds(2).multipliedBy(DELAY_MULTIPLIER);
   @Getter @Setter
-  private Duration workerTaskDelay = Duration.ofSeconds(2);
+  private Duration workerTaskDelay = Duration.ofSeconds(2).multipliedBy(DELAY_MULTIPLIER);
   @Getter @Setter
   private Duration lockCheckTaskDelay = Duration.ofSeconds(60);
 
