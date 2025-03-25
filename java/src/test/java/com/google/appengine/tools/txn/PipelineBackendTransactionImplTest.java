@@ -97,15 +97,4 @@ class PipelineBackendTransactionImplTest {
     verify(mockTransaction).rollback();
   }
 
-  @Test
-  void of() {
-    PipelineBackendTransactionImpl pipelineBackendTransaction = new PipelineBackendTransactionImpl(mockDatastore, mockTaskQueue);
-    assertNotNull(pipelineBackendTransaction);
-    assertEquals(mockTransaction, pipelineBackendTransaction.getDsTransaction());
-  }
-
-  @Test
-  void getDsTransaction() {
-    assertEquals(mockTransaction, pipelineBackendTransaction.getDsTransaction());
-  }
 }

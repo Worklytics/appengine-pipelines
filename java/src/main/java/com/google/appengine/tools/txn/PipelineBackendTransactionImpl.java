@@ -7,6 +7,7 @@ import com.google.cloud.datastore.*;
 import com.google.cloud.datastore.models.ExplainOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
@@ -16,7 +17,9 @@ import lombok.NonNull;
 import lombok.extern.java.Log;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 /**
@@ -25,24 +28,25 @@ import java.util.logging.Level;
 @Log
 public class PipelineBackendTransactionImpl implements PipelineBackendTransaction {
 
-  private Duration ENQUEUE_DELAY_FOR_ROLLBACK = Duration.ofSeconds(1);
+  private Duration ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ofSeconds(0);
 
-  @NonNull
-  @Getter // should only be accessed when adding stuff to the txn
-  Transaction dsTransaction;
+  private final Transaction dsTransaction;
+
+  private Stopwatch stopwatch;
 
   @Getter
   final Datastore datastore;
 
   final PipelineTaskQueue taskQueue;
 
-  public PipelineBackendTransactionImpl(Datastore datastore, PipelineTaskQueue taskQueue) {
+  public PipelineBackendTransactionImpl(@NonNull Datastore datastore, @NonNull PipelineTaskQueue taskQueue) {
     this.datastore = datastore;
     this.taskQueue = taskQueue;
-    // open the transaction
+    // open the transaction, given our use of this class, I wouldn't bother to lazily open this when used:
     this.dsTransaction = datastore.newTransaction();
+    this.stopwatch = Stopwatch.createStarted();
     if (System.getProperty("GOOGLE_CLOUD_PROJECT") != null) {
-      this.ENQUEUE_DELAY_FOR_ROLLBACK = Duration.ofSeconds(1).multipliedBy(5);
+      this.ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ofSeconds(10);
     }
   }
 
@@ -63,21 +67,28 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     } catch (Throwable t) {
       rollbackTasks();
       throw t;
+    } finally {
+      log.log(Level.FINE, String.format("Transaction open for %s", stopwatch.elapsed(TimeUnit.MILLISECONDS)));
     }
   }
 
   public void rollback() {
-    dsTransaction.rollback();
-    // two cases here that should be mutually exclusive, but deal together for simplicity:
-    // 1. if it was never enqueued, just clear the tasks
-    pendingTaskSpecsByQueue.clear();
-    // 2. if anything was enqueued, delete it,
-    rollbackTasks();
+    try {
+      dsTransaction.rollback();
+      // two cases here that should be mutually exclusive, but deal together for simplicity:
+      // 1. if it was never enqueued, just clear the tasks
+      pendingTaskSpecsByQueue.clear();
+      // 2. if anything was enqueued, delete it,
+      rollbackTasks();
+    } finally {
+      log.log(Level.FINE, String.format("Transaction open for %s", stopwatch.elapsed(TimeUnit.MILLISECONDS)));
+    }
   }
 
   public void rollbackIfActive() {
     try {
       if (dsTransaction.isActive()) {
+        log.log(Level.FINE, String.format("Transaction open for %s", stopwatch.elapsed(TimeUnit.MILLISECONDS)));
         this.rollback();
       }
     } catch (RuntimeException e) {
@@ -178,7 +189,6 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   private Collection<PipelineTaskQueue.TaskReference> commitTasks() {
     if (!pendingTaskSpecsByQueue.isEmpty()) {
       Preconditions.checkState(dsTransaction.isActive());
-      Preconditions.checkNotNull(taskQueue, "Missing PipelineTaskQueue: can't enqueue");
       //noinspection unchecked
       // pipeline specs
       List<PipelineTaskQueue.TaskReference> taskReferences = new ArrayList<>();
@@ -186,7 +196,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
         .forEach((queue, tasks) -> {
           // PoC: we can deal with the delay here prior to commit
           Collection<PipelineTaskQueue.TaskSpec> delayedTasks = tasks.stream()
-            .map(task -> task.withScheduledExecutionTime(task.getScheduledExecutionTime().plus(ENQUEUE_DELAY_FOR_ROLLBACK)))
+            .map(task -> task.withScheduledExecutionTime(Optional.ofNullable(task.getScheduledExecutionTime()).orElse(Instant.now()).plus(ENQUEUE_DELAY_FOR_SAFER_ROLLBACK)))
             .toList();
           taskReferences.addAll(taskQueue.enqueue(queue, delayedTasks));
         });
@@ -199,7 +209,6 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   private void rollbackTasks() {
     if (!taskReferences.isEmpty()) {
-      Preconditions.checkNotNull(taskQueue, "Missing PipelineTaskQueue: can't delete tasks");
       taskQueue.deleteTasks(taskReferences);
       taskReferences.clear();
     }
