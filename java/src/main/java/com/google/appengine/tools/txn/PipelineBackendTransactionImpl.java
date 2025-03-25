@@ -2,7 +2,7 @@ package com.google.appengine.tools.txn;
 
 
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
-import com.google.cloud.datastore.Transaction;
+import com.google.cloud.datastore.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.LinkedHashMultimap;
@@ -10,27 +10,32 @@ import com.google.common.collect.Multimap;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 
 /**
  * Transaction wrapper class that aims to mimic cross-services transactions. In this case datastore-cloud tasks.
  */
 @Log
-@RequiredArgsConstructor(staticName = "of")
-public class PipelineBackendTransactionImpl {
+public class PipelineBackendTransactionImpl implements PipelineBackendTransaction {
 
   @NonNull
   @Getter // should only be accessed when adding stuff to the txn
   Transaction dsTransaction;
 
+  @Getter
+  final Datastore datastore;
+
   final PipelineTaskQueue taskQueue;
+
+  public PipelineBackendTransactionImpl(Datastore datastore, PipelineTaskQueue taskQueue) {
+    this.datastore = datastore;
+    this.taskQueue = taskQueue;
+    // open the transaction
+    this.dsTransaction = datastore.newTransaction();
+  }
 
   @Getter(AccessLevel.PACKAGE)
   @VisibleForTesting
@@ -73,6 +78,46 @@ public class PipelineBackendTransactionImpl {
     }
   }
 
+  @Override
+  public Entity get(Key var1) {
+    return dsTransaction.get(var1);
+  }
+
+  @Override
+  public Iterator<Entity> get(Key... var1) {
+    return dsTransaction.get(var1);
+  }
+
+  @Override
+  public List<Entity> fetch(Key... var1) {
+    return dsTransaction.fetch(var1);
+  }
+
+  @Override
+  public <T> QueryResults<T> run(Query<T> var1) {
+    return dsTransaction.run(var1);
+  }
+
+  @Override
+  public void delete(Key... var1) {
+    dsTransaction.delete(var1);
+  }
+
+  @Override
+  public Entity put(FullEntity<?> var1) {
+    return dsTransaction.put(var1);
+  }
+
+  @Override
+  public List<Entity> put(FullEntity<?>... var1) {
+    return dsTransaction.put(var1);
+  }
+
+  @Override
+  public boolean isActive() {
+    return dsTransaction.isActive();
+  }
+
   private Collection<PipelineTaskQueue.TaskReference> commitTasks() {
     if (!tasksByQueue.isEmpty()) {
       Preconditions.checkState(dsTransaction.isActive());
@@ -97,4 +142,15 @@ public class PipelineBackendTransactionImpl {
     }
   }
 
+
+  @Override
+  protected void finalize() throws Throwable {
+    try {
+      if (this.dsTransaction.isActive()) {
+        log.log(Level.WARNING, new Throwable(), () -> "Finalizing PipelineBackendTransactionImpl w/o committing the transaction");
+      }
+    } finally {
+      super.finalize();
+    }
+  }
 }

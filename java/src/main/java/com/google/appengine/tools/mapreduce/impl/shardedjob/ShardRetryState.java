@@ -8,6 +8,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
 import com.google.appengine.tools.pipeline.impl.model.ExpiringDatastoreEntity;
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
 import com.google.cloud.datastore.*;
 import com.google.common.primitives.Ints;
 import lombok.*;
@@ -56,7 +57,7 @@ public final class ShardRetryState<T extends IncrementalTask> implements Expirin
    * @param tx transaction
    * @return datastore entity
    */
-  public Entity toEntity(Transaction tx) {
+  public Entity toEntity(PipelineBackendTransaction tx) {
     Entity.Builder shardInfo = Entity.newBuilder(Serializer.makeKey(tx.getDatastore(), getTaskId()));
     int initialTaskShards = serializeToDatastoreProperty(tx, shardInfo, Serializer.INITIAL_TASK_PROPERTY, initialTask, Optional.of(initialTaskValueShards));
     this.setInitialTaskValueShards(initialTaskShards);
@@ -91,7 +92,7 @@ public final class ShardRetryState<T extends IncrementalTask> implements Expirin
       return Key.newBuilder(parent, DATASTORE_KIND, 1L).build();
     }
 
-    static <T extends IncrementalTask> ShardRetryState<T> fromEntity(Transaction tx, Entity in) {
+    static <T extends IncrementalTask> ShardRetryState<T> fromEntity(PipelineBackendTransaction tx, Entity in) {
       T initialTask = deserializeFromDatastoreProperty(tx, in, INITIAL_TASK_PROPERTY);
       int retryCount = Ints.checkedCast(in.getLong(RETRY_COUNT_PROPERTY));
       IncrementalTaskId taskId = IncrementalTaskId.parse(in.getString(TASK_ID_PROPERTY));

@@ -2,12 +2,10 @@
 
 package com.google.appengine.tools.mapreduce.impl.util;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.mapreduce.DatastoreExtension;
 
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
@@ -23,6 +21,8 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author ohler@google.com (Christian Ohler)
@@ -92,7 +92,7 @@ public class DatastoreSerializationUtilTest {
   public void testSerializeToDatastore(int size, int expectedShardCount) throws Exception {
     Value original = new Value(size);
 
-    Transaction tx = this.datastore.newTransaction();
+    PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(this.datastore);
     Key key = tx.getDatastore().newKeyFactory().setKind("mr-entity").newKey(1+size);
     Entity.Builder entity = Entity.newBuilder(key);
     int shards = DatastoreSerializationUtil.serializeToDatastoreProperty(tx, entity, "foo", original, Optional.of(0));
@@ -102,8 +102,9 @@ public class DatastoreSerializationUtilTest {
 
     //read back in new txn
     Entity fromDb = datastore.get(key);
-    Transaction readTx = datastore.newTransaction();
-    Serializable restored = DatastoreSerializationUtil.deserializeFromDatastoreProperty(readTx, fromDb, "foo");
+    assertFalse(tx.isActive());
+    tx = PipelineBackendTransaction.newInstance(this.datastore);
+    Serializable restored = DatastoreSerializationUtil.deserializeFromDatastoreProperty(tx, fromDb, "foo");
     assertEquals(original, restored);
   }
 }

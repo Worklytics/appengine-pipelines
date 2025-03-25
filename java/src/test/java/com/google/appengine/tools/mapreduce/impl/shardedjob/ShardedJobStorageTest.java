@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
 import com.google.cloud.datastore.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,12 +32,12 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
   @Test
   public void testRoundTripJob() {
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
-    Transaction tx = getDatastore().newTransaction();
+    PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(getDatastore());
     Entity entity = job.toEntity(tx);
     tx.put(entity);
     tx.commit();
 
-    Transaction readTx = getDatastore().newTransaction();
+    PipelineBackendTransaction readTx = PipelineBackendTransaction.newInstance(getDatastore());
 
     Entity readEntity = readTx.get(entity.getKey());
     assertEquals(entity, readEntity);
@@ -55,7 +56,7 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
   @Test
   public void testExpectedFields() {
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
-    Transaction tx = getDatastore().newTransaction();
+    PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(getDatastore());
     Entity entity = job.toEntity(tx);
     assertEquals(10, entity.getLong("taskCount"));
     assertTrue(entity.contains("activeShards"));
@@ -68,7 +69,7 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
   @Test
   public void testFetchJobById() {
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
-    Transaction tx = getDatastore().newTransaction();
+    PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(getDatastore());
     Entity entity = job.toEntity(tx);
     tx.put(entity);
     tx.commit();
@@ -92,7 +93,7 @@ public class ShardedJobStorageTest extends EndToEndTestCase {
 
     ShardedJobStateImpl<TestTask> job = createGenericJobState();
 
-    Transaction tx = getDatastore().newTransaction();
+    PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(getDatastore());
     Entity entity = job.toEntity(tx);
     tx.put(entity);
     tx.commit();

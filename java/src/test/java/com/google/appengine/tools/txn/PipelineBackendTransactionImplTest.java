@@ -1,6 +1,7 @@
 package com.google.appengine.tools.txn;
 
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
+import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Transaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import static org.mockito.Mockito.*;
 
 class PipelineBackendTransactionImplTest {
 
+  private Datastore mockDatastore;
   private Transaction mockTransaction;
   private PipelineTaskQueue mockTaskQueue;
   private PipelineBackendTransactionImpl pipelineBackendTransaction;
@@ -23,7 +25,9 @@ class PipelineBackendTransactionImplTest {
   void setUp() {
     mockTransaction = mock(Transaction.class);
     mockTaskQueue = mock(PipelineTaskQueue.class);
-    pipelineBackendTransaction = PipelineBackendTransactionImpl.of(mockTransaction, mockTaskQueue);
+    mockDatastore = mock(Datastore.class);
+    when(mockDatastore.newTransaction()).thenReturn(mockTransaction);
+    pipelineBackendTransaction = new PipelineBackendTransactionImpl(mockDatastore, mockTaskQueue);
   }
 
   @Test
@@ -95,7 +99,7 @@ class PipelineBackendTransactionImplTest {
 
   @Test
   void of() {
-    PipelineBackendTransactionImpl pipelineBackendTransaction = PipelineBackendTransactionImpl.of(mockTransaction, mockTaskQueue);
+    PipelineBackendTransactionImpl pipelineBackendTransaction = new PipelineBackendTransactionImpl(mockDatastore, mockTaskQueue);
     assertNotNull(pipelineBackendTransaction);
     assertEquals(mockTransaction, pipelineBackendTransaction.getDsTransaction());
   }

@@ -17,6 +17,7 @@
 package com.google.appengine.tools.mapreduce.impl.util;
 
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.CorruptDataException;
 import com.google.common.base.Function;
@@ -47,14 +48,14 @@ public class DatastoreSerializationUtil {
 
 
   public static <T extends Serializable> T deserializeFromDatastoreProperty(
-    Transaction tx, Entity entity, String property) {
+    PipelineBackendTransaction tx, Entity entity, String property) {
     return deserializeFromDatastoreProperty(tx, entity, property, false);
   }
 
   @SneakyThrows
   @SuppressWarnings("unchecked")
   public static <T extends Serializable> T deserializeFromDatastoreProperty(
-    Transaction tx, Entity entity, String property, boolean lenient) {
+    PipelineBackendTransaction tx, Entity entity, String property, boolean lenient) {
 
     try {
       byte[] bytes;
@@ -65,7 +66,7 @@ public class DatastoreSerializationUtil {
         List<KeyValue> keys = entity.getList(property);
 
         //NOTE: fetch() important here; unlike get(), fetch() will return null for missing entities AND return in order
-        List<Key> asKeys = keys.stream().map(KeyValue::get).collect(Collectors.toList());
+        List<Key> asKeys = keys.stream().map(KeyValue::get).toList();
         List<Entity> shards = tx.fetch(asKeys.toArray(new Key[0]));
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         for (int i = 0; i < shards.size(); i++) {
@@ -96,7 +97,7 @@ public class DatastoreSerializationUtil {
     }
   }
 
-  public static Iterable<Key> getShardedValueKeysFor(@NonNull Transaction tx, Key parent, String property) {
+  public static Iterable<Key> getShardedValueKeysFor(@NonNull PipelineBackendTransaction tx, Key parent, String property) {
     KeyQuery.Builder queryBuilder = Query.newKeyQueryBuilder()
       .setKind(SHARDED_VALUE_KIND);
 
@@ -130,7 +131,7 @@ public class DatastoreSerializationUtil {
    * @return number of shards used to store the value, if any
    */
   public static int serializeToDatastoreProperty(
-    Transaction tx, Entity.Builder entity, String property, Serializable value, Optional<Integer> priorVersionShards) {
+    PipelineBackendTransaction tx, Entity.Builder entity, String property, Serializable value, Optional<Integer> priorVersionShards) {
     byte[] bytes = serializeToByteArray(value);
 
     Key key = entity.build().getKey();

@@ -7,6 +7,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
 import com.google.cloud.datastore.*;
 import lombok.RequiredArgsConstructor;
 
@@ -35,7 +36,7 @@ public class FinalizeShardsInfos extends Job0<Void> {
     RetryExecutor.call(
       ShardedJobRunner.FOREVER_RETRYER,
       callable(() -> {
-        Transaction tx = datastore.newTransaction();
+        PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore);
 
         final List<Key> toFetch = new ArrayList<>(end - start);
         final List<Entity> toUpdate = new ArrayList<>();
