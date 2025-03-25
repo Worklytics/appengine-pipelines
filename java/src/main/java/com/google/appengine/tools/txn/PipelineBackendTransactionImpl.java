@@ -24,7 +24,7 @@ import java.util.logging.Level;
  */
 @Log
 @RequiredArgsConstructor(staticName = "of")
-public class TxnWrapper {
+public class PipelineBackendTransactionImpl {
 
   @NonNull
   @Getter // should only be accessed when adding stuff to the txn

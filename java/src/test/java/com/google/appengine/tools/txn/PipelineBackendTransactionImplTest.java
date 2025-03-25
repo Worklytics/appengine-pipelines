@@ -5,7 +5,6 @@ import com.google.cloud.datastore.Transaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
-import org.mockito.Mockito;
 
 import java.util.Collections;
 import java.util.List;
@@ -14,17 +13,17 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-class TxnWrapperTest {
+class PipelineBackendTransactionImplTest {
 
   private Transaction mockTransaction;
   private PipelineTaskQueue mockTaskQueue;
-  private TxnWrapper txnWrapper;
+  private PipelineBackendTransactionImpl pipelineBackendTransaction;
 
   @BeforeEach
   void setUp() {
     mockTransaction = mock(Transaction.class);
     mockTaskQueue = mock(PipelineTaskQueue.class);
-    txnWrapper = TxnWrapper.of(mockTransaction, mockTaskQueue);
+    pipelineBackendTransaction = PipelineBackendTransactionImpl.of(mockTransaction, mockTaskQueue);
   }
 
   @Test
@@ -32,8 +31,8 @@ class TxnWrapperTest {
     when(mockTransaction.isActive()).thenReturn(true);
     when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenReturn(Collections.emptyList());
 
-    txnWrapper.addTask("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
-    txnWrapper.commit();
+    pipelineBackendTransaction.addTask("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.commit();
 
     verify(mockTransaction).commit();
     verify(mockTaskQueue).enqueue(anyString(), anyCollection());
@@ -45,8 +44,8 @@ class TxnWrapperTest {
     Set<PipelineTaskQueue.TaskReference> taskReferences = Collections.singleton(PipelineTaskQueue.TaskReference.of("queue1", "task-ref"));
     when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenThrow(new RuntimeException("error enqueueing"));
 
-    txnWrapper.addTask("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
-    assertThrows(RuntimeException.class, () -> txnWrapper.commit());
+    pipelineBackendTransaction.addTask("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    assertThrows(RuntimeException.class, () -> pipelineBackendTransaction.commit());
 
     verify(mockTaskQueue).enqueue(anyString(), anyCollection());
   }
@@ -58,9 +57,9 @@ class TxnWrapperTest {
     when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenReturn(taskReferences);
     when(mockTransaction.commit()).thenThrow(new RuntimeException("error committing"));
 
-    txnWrapper.addTask("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.addTask("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
 
-    assertThrows(RuntimeException.class, () -> txnWrapper.commit());
+    assertThrows(RuntimeException.class, () -> pipelineBackendTransaction.commit());
 
     verify(mockTransaction, atMostOnce()).commit();
     verify(mockTaskQueue).enqueue(anyString(), anyCollection());
@@ -70,39 +69,39 @@ class TxnWrapperTest {
   @Test
   void addTask() {
     PipelineTaskQueue.TaskSpec task = PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build();
-    txnWrapper.addTask("queue1", task);
+    pipelineBackendTransaction.addTask("queue1", task);
 
-    assertFalse(txnWrapper.getTasksByQueue().isEmpty());
-    assertTrue(txnWrapper.getTasksByQueue().containsEntry("queue1", task));
+    assertFalse(pipelineBackendTransaction.getTasksByQueue().isEmpty());
+    assertTrue(pipelineBackendTransaction.getTasksByQueue().containsEntry("queue1", task));
   }
 
   @Test
   void rollback() {
-    txnWrapper.addTask("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
-    txnWrapper.rollback();
+    pipelineBackendTransaction.addTask("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.rollback();
 
     verify(mockTransaction).rollback();
-    assertTrue(txnWrapper.getTasksByQueue().isEmpty());
+    assertTrue(pipelineBackendTransaction.getTasksByQueue().isEmpty());
   }
 
   @Test
   void rollbackIfActive() {
     when(mockTransaction.isActive()).thenReturn(true);
 
-    txnWrapper.rollbackIfActive();
+    pipelineBackendTransaction.rollbackIfActive();
 
     verify(mockTransaction).rollback();
   }
 
   @Test
   void of() {
-    TxnWrapper txnWrapper = TxnWrapper.of(mockTransaction, mockTaskQueue);
-    assertNotNull(txnWrapper);
-    assertEquals(mockTransaction, txnWrapper.getDsTransaction());
+    PipelineBackendTransactionImpl pipelineBackendTransaction = PipelineBackendTransactionImpl.of(mockTransaction, mockTaskQueue);
+    assertNotNull(pipelineBackendTransaction);
+    assertEquals(mockTransaction, pipelineBackendTransaction.getDsTransaction());
   }
 
   @Test
   void getDsTransaction() {
-    assertEquals(mockTransaction, txnWrapper.getDsTransaction());
+    assertEquals(mockTransaction, pipelineBackendTransaction.getDsTransaction());
   }
 }

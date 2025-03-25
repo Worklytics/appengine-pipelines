@@ -3,7 +3,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
-import com.google.appengine.tools.txn.TxnWrapper;
+import com.google.appengine.tools.txn.PipelineBackendTransactionImpl;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
 import com.google.cloud.datastore.Transaction;
@@ -271,13 +271,13 @@ public class LockingTest extends EndToEndTestCase {
 
   private int getShardRetryCount(Transaction tx, final TaskStateInfo taskFromQueue)
       throws UnsupportedEncodingException {
-    TxnWrapper txnWrapper = TxnWrapper.of(tx, null);
-    return getShardedJobRunner().lookupShardRetryState(txnWrapper, getTaskId(taskFromQueue)).getRetryCount();
+    PipelineBackendTransactionImpl pipelineBackendTransaction = PipelineBackendTransactionImpl.of(tx, null);
+    return getShardedJobRunner().lookupShardRetryState(pipelineBackendTransaction, getTaskId(taskFromQueue)).getRetryCount();
   }
 
   private IncrementalTaskState<IncrementalTask> lookupTaskState(final TaskStateInfo taskFromQueue)
       throws UnsupportedEncodingException {
-    TxnWrapper txnWrapper = TxnWrapper.of(getDatastore().newTransaction(), null);
-    return getShardedJobRunner().lookupTaskState(txnWrapper, getTaskId(taskFromQueue));
+    PipelineBackendTransactionImpl pipelineBackendTransaction = PipelineBackendTransactionImpl.of(getDatastore().newTransaction(), null);
+    return getShardedJobRunner().lookupTaskState(pipelineBackendTransaction, getTaskId(taskFromQueue));
   }
 }
