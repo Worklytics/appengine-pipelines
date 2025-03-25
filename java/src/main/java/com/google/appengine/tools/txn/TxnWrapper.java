@@ -3,9 +3,11 @@ package com.google.appengine.tools.txn;
 
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.cloud.datastore.Transaction;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,8 @@ public class TxnWrapper {
 
   final PipelineTaskQueue taskQueue;
 
+  @Getter(AccessLevel.PACKAGE)
+  @VisibleForTesting
   private final Multimap<String, PipelineTaskQueue.TaskSpec> tasksByQueue = LinkedHashMultimap.create();
 
   private final Collection<PipelineTaskQueue.TaskReference> taskReferences = new ArrayList<>();
