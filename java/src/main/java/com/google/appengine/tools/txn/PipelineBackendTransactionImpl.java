@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.java.Log;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -23,6 +24,8 @@ import java.util.logging.Level;
  */
 @Log
 public class PipelineBackendTransactionImpl implements PipelineBackendTransaction {
+
+  private Duration ENQUEUE_DELAY_FOR_ROLLBACK = Duration.ofSeconds(1);
 
   @NonNull
   @Getter // should only be accessed when adding stuff to the txn
@@ -38,6 +41,9 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     this.taskQueue = taskQueue;
     // open the transaction
     this.dsTransaction = datastore.newTransaction();
+    if (System.getProperty("GOOGLE_CLOUD_PROJECT") != null) {
+      this.ENQUEUE_DELAY_FOR_ROLLBACK = Duration.ofSeconds(1).multipliedBy(5);
+    }
   }
 
   @Getter(AccessLevel.PACKAGE)
@@ -178,8 +184,11 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
       List<PipelineTaskQueue.TaskReference> taskReferences = new ArrayList<>();
       pendingTaskSpecsByQueue.asMap()
         .forEach((queue, tasks) -> {
-          tasks.stream().map(task -> task.withScheduledExecutionTime(task.getScheduledExecutionTime().plusSeconds(5))).toList();
-          taskReferences.addAll(taskQueue.enqueue(queue, tasks));
+          // PoC: we can deal with the delay here prior to commit
+          Collection<PipelineTaskQueue.TaskSpec> delayedTasks = tasks.stream()
+            .map(task -> task.withScheduledExecutionTime(task.getScheduledExecutionTime().plus(ENQUEUE_DELAY_FOR_ROLLBACK)))
+            .toList();
+          taskReferences.addAll(taskQueue.enqueue(queue, delayedTasks));
         });
       pendingTaskSpecsByQueue.clear();
       return taskReferences;
