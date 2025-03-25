@@ -200,7 +200,7 @@ public class IncrementalTaskState<T extends IncrementalTask> implements Expiring
       @NonNull Datastore datastore,
       Entity in,
       boolean lenient) {
-      PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, null);
+      PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore);
       IncrementalTaskState<T> state = fromEntity(tx, in, lenient);
       tx.commit();
       return state;
