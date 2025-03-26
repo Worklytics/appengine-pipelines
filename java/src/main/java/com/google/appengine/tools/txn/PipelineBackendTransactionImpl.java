@@ -81,14 +81,18 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   }
 
   public void rollbackIfActive() {
+    boolean shouldLog = false;
     try {
       if (getDsTransaction().isActive()) {
+        shouldLog = true;
         this.rollbackAllServices();
       }
     } catch (RuntimeException e) {
       log.log(Level.WARNING, "Rollback of transaction failed: ", e);
     } finally {
-      log.log(Level.WARNING, String.format("Transaction rollback bc still active - opened for %s", stopwatch.elapsed()));
+      if (shouldLog) {
+        log.log(Level.WARNING, String.format("Transaction rollback bc still active - opened for %s", stopwatch.elapsed()));
+      }
     }
   }
 
