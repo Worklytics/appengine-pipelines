@@ -1,13 +1,11 @@
 package com.google.appengine.tools.txn;
 
 
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineStandardGen2;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.cloud.datastore.*;
 import com.google.cloud.datastore.models.ExplainOptions;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
@@ -22,6 +20,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 /**
  * Transaction wrapper class that aims to mimic cross-services transactions. In this case datastore-cloud tasks.
@@ -61,7 +60,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   public Response commit() {
     //noinspection unchecked
     try {
-      log.info("commit transaction for " + Arrays.stream(Thread.currentThread().getStackTrace()).toList().get(2));
+      // log.info("commit transaction for " + Arrays.stream(Thread.currentThread().getStackTrace()).toList().get(2));
       taskReferences.addAll(this.commitTasks());
       // returning void for simplicity, we never do anything with the response
       return getDsTransaction().commit();
@@ -69,27 +68,27 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
       rollbackTasks();
       throw t;
     } finally {
-      log.log(Level.FINE, String.format("Transaction open for %s", stopwatch.elapsed(TimeUnit.MILLISECONDS)));
+      log.log(Level.FINE, String.format("Transaction commit %s- opened for %s", dsTransaction.getTransactionId().toStringUtf8(), stopwatch.elapsed()));
     }
   }
 
   public void rollback() {
     try {
-      getDsTransaction().rollback();
-      rollbackTasks();
+      rollbackAllServices();
     } finally {
-      log.log(Level.FINE, String.format("Transaction open for %s", stopwatch.elapsed(TimeUnit.MILLISECONDS)));
+      log.log(Level.WARNING, String.format("Transaction rollback - opened for %s", stopwatch.elapsed()));
     }
   }
 
   public void rollbackIfActive() {
     try {
       if (getDsTransaction().isActive()) {
-        log.log(Level.FINE, String.format("Transaction open for %s", stopwatch.elapsed(TimeUnit.MILLISECONDS)));
-        this.rollback();
+        this.rollbackAllServices();
       }
     } catch (RuntimeException e) {
       log.log(Level.WARNING, "Rollback of transaction failed: ", e);
+    } finally {
+      log.log(Level.WARNING, String.format("Transaction rollback bc still active - opened for %s", stopwatch.elapsed()));
     }
   }
 
@@ -220,16 +219,23 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     pendingTaskSpecsByQueue.clear();
     // 2. if anything was enqueued, delete it,
     if (!taskReferences.isEmpty()) {
+      log.log(Level.WARNING, String.format("Rollback enqueued %d tasks: %s", taskReferences.size(),
+              taskReferences.stream().map(PipelineTaskQueue.TaskReference::getTaskName).collect(Collectors.joining(","))));
       taskQueue.deleteTasks(taskReferences);
       taskReferences.clear();
     }
   }
 
+  private void rollbackAllServices() {
+    getDsTransaction().rollback();
+    rollbackTasks();
+  }
 
   @Override
   protected void finalize() throws Throwable {
     try {
       if (this.getDsTransaction().isActive()) {
+        // shouldn't happen, unless opening tnx just for read, just is kind of absurd in a strong consistency model
         log.log(Level.WARNING, String.format("Finalizing PipelineBackendTransactionImpl transaction open for %s", stopwatch.elapsed(TimeUnit.MILLISECONDS)));
       }
     } finally {
