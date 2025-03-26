@@ -107,6 +107,7 @@ public abstract class PipelineTest {
         .setCredentials(mock(Credentials.class))
         .build())
       .build(),
+      null,
       null);
   }
 

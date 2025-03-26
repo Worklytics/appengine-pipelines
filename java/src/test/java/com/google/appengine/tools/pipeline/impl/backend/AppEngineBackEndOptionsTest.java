@@ -56,7 +56,7 @@ class AppEngineBackEndOptionsTest {
     byte[] serialized = SerializationUtils.serialize(backend.getOptions());
 
     AppEngineBackEnd.Options deserialized = (AppEngineBackEnd.Options) SerializationUtils.deserialize(serialized);
-    AppEngineBackEnd fresh = new AppEngineBackEnd(deserialized, mock(PipelineTaskQueue.class));
+    AppEngineBackEnd fresh = new AppEngineBackEnd(deserialized, mock(PipelineTaskQueue.class), mock(AppEngineServicesService.class));
 
     assertEquals(
       backend.getOptions().as(AppEngineBackEnd.Options.class).getProjectId(),

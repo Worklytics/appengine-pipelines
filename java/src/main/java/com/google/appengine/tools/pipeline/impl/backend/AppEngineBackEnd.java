@@ -118,18 +118,10 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   @Getter
   private final AppEngineServicesService servicesService;
 
-  public AppEngineBackEnd(Options options, PipelineTaskQueue taskQueue) {
-    this(options.getDatastoreOptions().toBuilder().build().getService(), taskQueue);
+  // Only used in tests
+  public AppEngineBackEnd(Options options, PipelineTaskQueue taskQueue, AppEngineServicesService appEngineServicesService) {
+    this(options.getDatastoreOptions().toBuilder().build().getService(), taskQueue, appEngineServicesService);
   }
-
-  // datastore is configured per-tenant; other stuff is really 'global'
-  @SneakyThrows
-  public AppEngineBackEnd(Datastore datastore, PipelineTaskQueue taskQueue) {
-    this.datastore = datastore;
-    this.taskQueue = taskQueue;
-    this.servicesService = AppEngineServicesServiceImpl.defaults();
-  }
-
 
   @Builder
   @Value
