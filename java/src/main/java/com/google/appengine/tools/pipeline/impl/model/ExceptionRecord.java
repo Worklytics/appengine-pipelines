@@ -19,14 +19,17 @@ import com.google.cloud.datastore.BlobValue;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
+import lombok.extern.java.Log;
 
 import java.io.IOException;
+import java.util.logging.Level;
 
 /**
  * A datastore entity for storing information about job failure.
  *
  * @author maximf@google.com (Maxim Fateev)
  */
+@Log
 public class ExceptionRecord extends PipelineModelObject implements ExpiringDatastoreEntity {
 
   public static final String DATA_STORE_KIND = "pipeline-exception";
@@ -62,13 +65,26 @@ public class ExceptionRecord extends PipelineModelObject implements ExpiringData
 
   @Override
   public Entity toEntity() {
+    Entity.Builder entity = toProtoBuilder();
     try {
-      Entity.Builder entity = toProtoBuilder();
       byte[] serializedException = SerializationUtils.serialize(exception);
       entity.set(EXCEPTION_PROPERTY, BlobValue.newBuilder(Blob.copyFrom(serializedException)).setExcludeFromIndexes(true).build());
-      return entity.build();
+    } catch (java.io.NotSerializableException e) {
+      // let's not break the whole pipeline if the exception is not serializable
+      // log and create a new one that it is with enough information for us
+      log.log(Level.SEVERE, String.format("Key %s: failed to serialize exception: %s", getKey(), exception), e);
+      try {
+        Throwable t = new Throwable(String.format("%s: %s", exception.getClass().getName(), exception.getMessage()));
+        t.setStackTrace(exception.getStackTrace());
+        byte[] serializedException = SerializationUtils.serialize(t);
+        entity.set(EXCEPTION_PROPERTY, BlobValue.newBuilder(Blob.copyFrom(serializedException)).setExcludeFromIndexes(true).build());
+      } catch (IOException ex) {
+        // should never happen now
+        throw new RuntimeException("Failed to serialize exception for " + getKey(), ex);
+      }
     } catch (IOException e) {
       throw new RuntimeException("Failed to serialize exception for " + getKey(), e);
     }
+    return entity.build();
   }
 }
