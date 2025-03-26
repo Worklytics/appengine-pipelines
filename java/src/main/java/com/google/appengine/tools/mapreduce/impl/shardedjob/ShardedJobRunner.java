@@ -2,7 +2,8 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import com.github.rholder.retry.*;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.RetryUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
@@ -12,7 +13,10 @@ import com.google.appengine.tools.mapreduce.servlets.ShufflerParams;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
-import com.google.cloud.datastore.*;
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
@@ -22,8 +26,8 @@ import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.Uninterruptibles;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.SneakyThrows;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
@@ -31,7 +35,6 @@ import javax.inject.Provider;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-
 import java.util.logging.Level;
 import java.util.stream.Stream;
 
@@ -90,12 +93,18 @@ public class ShardedJobRunner implements ShardedJobHandler {
     this.datastore = datastore;
     this.appEngineServicesService = appEngineServicesService;
     this.taskQueue = taskQueue;
+    if (System.getProperty("GOOGLE_CLOUD_PROJECT") != null) {
+      // assume non testing environment
+      DELAY_MULTIPLIER = 5;
+    }
   }
 
+  private int DELAY_MULTIPLIER = 1;
+
   @Getter @Setter
-  private Duration controllerTaskDelay = Duration.ofSeconds(2);
+  private Duration controllerTaskDelay = Duration.ofSeconds(2).multipliedBy(DELAY_MULTIPLIER);
   @Getter @Setter
-  private Duration workerTaskDelay = Duration.ofSeconds(2);
+  private Duration workerTaskDelay = Duration.ofSeconds(2).multipliedBy(DELAY_MULTIPLIER);
   @Getter @Setter
   private Duration lockCheckTaskDelay = Duration.ofSeconds(60);
 
@@ -141,14 +150,14 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
 
-  private <T extends IncrementalTask> ShardedJobStateImpl<T> lookupJobState(@NonNull Transaction tx, ShardedJobRunId jobId) {
+  private <T extends IncrementalTask> ShardedJobStateImpl<T> lookupJobState(@NonNull PipelineBackendTransaction tx, ShardedJobRunId jobId) {
     return (ShardedJobStateImpl<T>) Optional.ofNullable(tx.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(tx.getDatastore(), jobId)))
       .map(in -> ShardedJobStateImpl.ShardedJobSerializer.fromEntity(tx, in))
       .orElse(null);
   }
 
   @VisibleForTesting
-  <T extends IncrementalTask> IncrementalTaskState<T> lookupTaskState(@NonNull Transaction tx, IncrementalTaskId taskId) {
+  <T extends IncrementalTask> IncrementalTaskState<T> lookupTaskState(@NonNull PipelineBackendTransaction tx, IncrementalTaskId taskId) {
     return (IncrementalTaskState<T>) Optional.ofNullable(tx.get(IncrementalTaskState.makeKey(tx.getDatastore(), taskId)))
       .map(in -> IncrementalTaskState.Serializer.fromEntity(tx, in))
       .orElse(null);
@@ -158,7 +167,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
 
   @VisibleForTesting
-  <T extends IncrementalTask> ShardRetryState<T> lookupShardRetryState(@NonNull Transaction tx, IncrementalTaskId taskId) {
+  <T extends IncrementalTask> ShardRetryState<T> lookupShardRetryState(@NonNull PipelineBackendTransaction tx, IncrementalTaskId taskId) {
     return (ShardRetryState<T>) Optional.ofNullable(tx.get(ShardRetryState.Serializer.makeKey(tx.getDatastore(), taskId)))
       .map(in -> ShardRetryState.Serializer.fromEntity(tx, in))
       .orElse(null);
@@ -209,7 +218,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   @SneakyThrows
   private void scheduleControllerTask(ShardedJobRunId jobId, IncrementalTaskId taskId,
-                                      ShardedJobSettings settings) {
+                                      ShardedJobSettings settings, PipelineBackendTransaction tx) {
 
     PipelineTaskQueue.TaskSpec.TaskSpecBuilder controllerTaskSpec = PipelineTaskQueue.TaskSpec.builder()
       .method(PipelineTaskQueue.TaskSpec.Method.POST)
@@ -223,13 +232,14 @@ public class ShardedJobRunner implements ShardedJobHandler {
     // alternatively, could refactor to move worker service/version stuff down into PipelineTaskQueue, rather than doing mapping to host here??
     controllerTaskSpec.host(getWorkerServiceHostName(settings));
 
-    taskQueue.enqueue(settings.getQueueName(), controllerTaskSpec.build());
+    tx.enqueue(settings.getQueueName(), controllerTaskSpec.build());
   }
 
   @SneakyThrows
   private <T extends IncrementalTask> void scheduleWorkerTask(ShardedJobSettings settings,
                                                               IncrementalTaskState<T> state,
-                                                              Long etaMillis) {
+                                                              Long etaMillis,
+                                                              PipelineBackendTransaction tx) {
 
 
     PipelineTaskQueue.TaskSpec.TaskSpecBuilder workerTaskSpec = PipelineTaskQueue.TaskSpec.builder()
@@ -247,7 +257,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       workerTaskSpec.scheduledExecutionTime(Instant.ofEpochMilli(etaMillis));
     }
 
-    taskQueue.enqueue(settings.getQueueName(), workerTaskSpec.build());
+    tx.enqueue(settings.getQueueName(), workerTaskSpec.build());
   }
 
   @Override
@@ -257,9 +267,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
     //below seems to FAIL bc of transaction connection - why!?!?
     ShardedJobStateImpl<?> jobState = RetryExecutor.call(FOREVER_RETRYER, () -> {
-      Transaction tx = getDatastore().newTransaction();
+      PipelineBackendTransaction txn = PipelineBackendTransaction.newInstance(getDatastore(), taskQueue);
       try {
-        ShardedJobStateImpl<?> jobState1 = lookupJobState(tx, jobId);
+        ShardedJobStateImpl<?> jobState1 = lookupJobState(txn, jobId);
         if (jobState1 == null) {
           return null;
         }
@@ -274,11 +284,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
         if (jobState1.getActiveTaskCount() == 0 && jobState1.getStatus().isActive()) {
           jobState1.setStatus(new Status(DONE));
         }
-        tx.put(jobState1.toEntity(tx));
-        tx.commit();
+        txn.put(jobState1.toEntity(txn));
+        txn.commit();
         return jobState1;
       } finally {
-        rollbackIfActive(tx);
+        txn.rollbackIfActive();
       }
     });
 
@@ -335,7 +345,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
   /**
    * Handle a locked slice case.
    */
-  private <T extends IncrementalTask> void handleLockHeld(Transaction tx, IncrementalTaskId taskId, ShardedJobStateImpl<T> jobState,
+  private <T extends IncrementalTask> void handleLockHeld(PipelineBackendTransaction tx, IncrementalTaskId taskId, ShardedJobStateImpl<T> jobState,
                                                           IncrementalTaskState<T> taskState) {
     long currentTime = System.currentTimeMillis();
     int sliceTimeoutMillis = jobState.getSettings().getSliceTimeoutMillis();
@@ -348,7 +358,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       // if lock was not expired AND not abandon reschedule in 1 minute.
       long eta = Math.min(lockExpiration, currentTime + getLockCheckTaskDelay().toMillis());
 
-      scheduleWorkerTask(jobState.getSettings(), taskState, eta);
+      scheduleWorkerTask(jobState.getSettings(), taskState, eta, tx);
       log.info("Lock for " + taskId + " is being held. Will retry after " + (eta - currentTime));
     } else {
       ShardRetryState<T> retryState;
@@ -366,13 +376,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
   }
 
-  private <T extends IncrementalTask> boolean lockShard(Transaction tx,
+  private <T extends IncrementalTask> boolean lockShard(PipelineBackendTransaction tx,
                                                         IncrementalTaskState<T> taskState, String operationId) {
     boolean locked = false;
 
     taskState.getLockInfo().lock(operationId);
     Entity entity = taskState.toEntity(tx);
-    taskState.getLockInfo().lock(operationId);
     try {
       tx.put(entity);
       locked = true;
@@ -389,7 +398,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     //acquire lock (allows this process to START potentially long-running work of task itself)
 
     RetryExecutor.<Void>call(FOREVER_RETRYER, () -> {
-      Transaction lockAcquisition = getDatastore().newTransaction();
+      PipelineBackendTransaction lockAcquisition = PipelineBackendTransaction.newInstance(getDatastore(), taskQueue);
       try {
         final ShardedJobStateImpl<? extends IncrementalTask> jobState = lookupJobState(lockAcquisition, jobId);
 
@@ -466,10 +475,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
           log.warning("Failed to acquire the lock, Will reschedule task for: " + taskState.getJobId()
             + " on slice " + taskState.getSequenceNumber());
           long eta = System.currentTimeMillis() + new Random().nextInt(5000) + 5000;
-          scheduleWorkerTask(jobState.getSettings(), taskState, eta);
+          scheduleWorkerTask(jobState.getSettings(), taskState, eta, lockAcquisition);
+          lockAcquisition.commit();
         }
       } finally {
-        rollbackIfActive(lockAcquisition);
+        lockAcquisition.rollbackIfActive();
       }
       return null;
     });
@@ -537,7 +547,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
         toThrow = new RuntimeException(t);
       }
       RetryExecutor.call(FOREVER_RETRYER, () -> {
-        Transaction postRunUpdate = getDatastore().newTransaction();
+        PipelineBackendTransaction postRunUpdate = PipelineBackendTransaction.newInstance(getDatastore(), taskQueue);
         try {
           ShardRetryState<T> retryState = null;
 
@@ -559,7 +569,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
           // TODO(user): consider what to do here when this fail (though options are limited)
           throw ex;
         } finally {
-          rollbackIfActive(postRunUpdate);
+          postRunUpdate.rollbackIfActive();
         }
         return null;
       });
@@ -569,8 +579,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   private <T extends IncrementalTask> ShardRetryState<T> handleSliceFailure(
-    Transaction tx, ShardedJobStateImpl<T> jobState,
-                                                                            IncrementalTaskState<T> taskState, RuntimeException ex, boolean failedDueToAbandonedLock) {
+    PipelineBackendTransaction tx,
+    ShardedJobStateImpl<T> jobState,
+    IncrementalTaskState<T> taskState,
+    RuntimeException ex,
+    boolean failedDueToAbandonedLock) {
+
     if (ex instanceof RecoverableException || taskState.getTask().allowSliceRetry(failedDueToAbandonedLock)) {
       int attempts = taskState.incrementAndGetRetryCount();
       if (attempts > jobState.getSettings().getMaxSliceRetries()){
@@ -586,9 +600,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
   }
 
   private <T extends IncrementalTask> ShardRetryState<T> handleShardFailure(
-    Transaction tx,
-                                                                            ShardedJobStateImpl<T> jobState,
-                                                                            IncrementalTaskState<T> taskState,
+      PipelineBackendTransaction tx,
+      ShardedJobStateImpl<T> jobState,
+      IncrementalTaskState<T> taskState,
       Exception ex) {
 
     ShardRetryState<T> retryState = lookupShardRetryState(tx, taskState.getTaskId());
@@ -607,7 +621,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
     return retryState;
   }
 
-  private <T extends IncrementalTask> void handleJobFailure(Transaction tx, IncrementalTaskState<T> taskState, Exception ex) {
+  private <T extends IncrementalTask> void handleJobFailure(PipelineBackendTransaction tx, IncrementalTaskState<T> taskState, Exception ex) {
     changeJobStatus(tx, taskState.getJobId(), new Status(ERROR, ex));
     taskState.setStatus(new Status(StatusCode.ERROR, ex));
     taskState.incrementAndGetRetryCount(); // trigger saving the last task instead of current
@@ -624,7 +638,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
    * @param aggressiveRetry how aggressively to retry update
    */
   private <T extends IncrementalTask> void updateTask(
-    final Transaction tx,
+    final PipelineBackendTransaction tx,
     final ShardedJobStateImpl<T> jobState,
     final IncrementalTaskState<T> taskState, /* Nullable */
     final ShardRetryState<T> shardRetryState,
@@ -658,7 +672,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
           }
 
           private void writeTaskState(IncrementalTaskState<T> taskState,
-                                      ShardRetryState<T> shardRetryState, Transaction tx) {
+                                      ShardRetryState<T> shardRetryState, PipelineBackendTransaction tx) {
             Entity taskStateEntity = taskState.toEntity(tx);
             if (shardRetryState == null) {
               tx.put(taskStateEntity);
@@ -669,14 +683,13 @@ public class ShardedJobRunner implements ShardedJobHandler {
           }
 
           private void scheduleTask(ShardedJobStateImpl<T> jobState,
-                                    IncrementalTaskState<T> taskState, Transaction tx) {
+                                    IncrementalTaskState<T> taskState, PipelineBackendTransaction tx) {
             if (taskState.getStatus().isActive()) {
               // this used to be transactional, but no longer is with new libraries; so enqueue with a little delay, in hope
               // that the transaction will be committed by the time the task is executed
-              scheduleWorkerTask(jobState.getSettings(), taskState, System.currentTimeMillis() + getWorkerTaskDelay().toMillis());
+              scheduleWorkerTask(jobState.getSettings(), taskState, System.currentTimeMillis() + getWorkerTaskDelay().toMillis(), tx);
             } else {
-              scheduleControllerTask(jobState.getShardedJobId(), taskState.getTaskId(),
-                jobState.getSettings());
+              scheduleControllerTask(jobState.getShardedJobId(), taskState.getTaskId(), jobState.getSettings(), tx);
             }
           }
         }));
@@ -696,7 +709,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
       // We should have way to inject the "shard-id" to the task.
       RetryExecutor.call(FOREVER_RETRYER, () -> {
         IncrementalTaskId taskId = IncrementalTaskId.of(jobId, finalTaskNumber);
-        Transaction tx = datastore.newTransaction();
+        PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, taskQueue);
         try {
           IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
           if (taskState != null) {
@@ -705,12 +718,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
           }
           taskState = IncrementalTaskState.create(taskId, jobId, startTime, initialTask);
           ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
-          tx.put(taskState.toEntity(tx),
-            retryState.toEntity(tx));
+          tx.put(taskState.toEntity(tx), retryState.toEntity(tx));
+          scheduleWorkerTask(settings, taskState, null, tx);
           tx.commit();
-          scheduleWorkerTask(settings, taskState, null);
         } finally {
-          rollbackIfActive(tx);
+          tx.rollbackIfActive();
         }
         return null;
       });
@@ -721,19 +733,18 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   private <T extends IncrementalTask> void writeInitialJobState(Datastore datastore, ShardedJobStateImpl<T> jobState) {
     ShardedJobRunId jobId = jobState.getShardedJobId();
-    Transaction tx = datastore.newTransaction();
+    PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, taskQueue);
     try {
       ShardedJobStateImpl<T> existing = lookupJobState(tx, jobId);
       if (existing == null) {
         tx.put(jobState.toEntity(tx));
-
         log.info(jobId + ": Writing initial job state");
       } else {
         log.info(jobId + ": Ignoring Attempt to reinitialize job state: " + existing);
       }
       tx.commit();
     } finally {
-      rollbackIfActive(tx);
+      tx.rollbackIfActive();
     }
   }
 
@@ -754,12 +765,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
     if (initialTasks.isEmpty()) {
       log.info(jobId + ": No tasks, immediately complete: " + controller);
       jobState.setStatus(new Status(DONE));
-      Transaction tx = datastore.newTransaction();
+      PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, taskQueue);
       try {
         tx.put(jobState.toEntity(tx));
         tx.commit();
       } finally {
-        rollbackIfActive(tx);
+        tx.rollbackIfActive();
       }
       controller.setPipelineService(pipelineServiceProvider.get());
       controller.completed(Collections.emptyIterator());
@@ -773,8 +784,7 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
   public ShardedJobState getJobState(ShardedJobRunId jobId) {
     Datastore datastore = getDatastore();
-    Transaction tx = datastore.newTransaction();
-
+    PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, taskQueue);
     try {
       ShardedJobState state = Optional.ofNullable(datastore.get(ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId)))
         .map(in -> ShardedJobStateImpl.ShardedJobSerializer.fromEntity(tx, in, true))
@@ -782,40 +792,30 @@ public class ShardedJobRunner implements ShardedJobHandler {
       tx.commit();
       return state;
     } finally {
-      rollbackIfActive(tx);
+      tx.rollbackIfActive();
     }
   }
 
-  private void changeJobStatus(Transaction tx, ShardedJobRunId jobId, Status status) {
+  private void changeJobStatus(PipelineBackendTransaction txn, ShardedJobRunId jobId, Status status) {
     log.info(jobId + ": Changing job status to " + status);
 
-    ShardedJobStateImpl<?> jobState = lookupJobState(tx, jobId);
+    ShardedJobStateImpl<?> jobState = lookupJobState(txn, jobId);
     if (jobState == null || !jobState.getStatus().isActive()) {
       log.info(jobId + ": Job not active, can't change its status: " + jobState);
       return;
     }
     jobState.setStatus(status);
-    tx.put(jobState.toEntity(tx));
-  }
-
-  private void rollbackIfActive(Transaction tx) {
-    try {
-      if (tx.isActive()) {
-        tx.rollback();
-      }
-    } catch (RuntimeException e) {
-      log.log(Level.WARNING, "Rollback of transaction failed: ", e);
-    }
+    txn.put(jobState.toEntity(txn));
   }
 
   public void abortJob(ShardedJobRunId jobId) {
     RetryExecutor.call(FOREVER_RETRYER, () -> {
-      Transaction tx = getDatastore().newTransaction();
+      PipelineBackendTransaction pipelineBackendTransaction = PipelineBackendTransaction.newInstance(getDatastore(), taskQueue);
       try {
-        changeJobStatus(tx, jobId, new Status(ABORTED));
-        tx.commit();
+        changeJobStatus(pipelineBackendTransaction, jobId, new Status(ABORTED));
+        pipelineBackendTransaction.commit();
       } finally {
-        rollbackIfActive(tx);
+        pipelineBackendTransaction.rollbackIfActive();
       }
       return null;
     });
@@ -823,8 +823,9 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
 
   public boolean cleanupJob(ShardedJobRunId jobId) {
-    Transaction txn = datastore.newTransaction();
-    ShardedJobStateImpl<?> jobState = lookupJobState(txn, jobId);
+    PipelineBackendTransaction pipelineBackendTransaction = PipelineBackendTransaction.newInstance(getDatastore(), taskQueue);
+    ShardedJobStateImpl<?> jobState = lookupJobState(pipelineBackendTransaction, jobId);
+    pipelineBackendTransaction.commit(); // just to close the tnx
     if (jobState == null) {
       return true;
     }
@@ -837,7 +838,15 @@ public class ShardedJobRunner implements ShardedJobHandler {
     }
     final Key jobKey = ShardedJobStateImpl.ShardedJobSerializer.makeKey(datastore, jobId);
 
-    RetryExecutor.call(FOREVER_RETRYER, callable(() -> datastore.delete(jobKey)));
+    RetryExecutor.call(FOREVER_RETRYER, callable(() -> {
+      PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, taskQueue);
+      try {
+        tx.delete(jobKey);
+        tx.commit();
+      } finally {
+        tx.rollbackIfActive();
+      }
+    } ));
     return true;
   }
 

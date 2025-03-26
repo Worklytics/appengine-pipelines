@@ -6,6 +6,7 @@ import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializat
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.pipeline.impl.model.ExpiringDatastoreEntity;
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
@@ -101,7 +102,7 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState,
       .build();
   }
 
-  Entity toEntity(@NonNull Transaction tx) {
+  Entity toEntity(@NonNull PipelineBackendTransaction tx) {
     Key key = ShardedJobSerializer.makeKey(tx.getDatastore(), getShardedJobId());
     Entity.Builder jobState = Entity.newBuilder(key);
 
@@ -180,12 +181,12 @@ class ShardedJobStateImpl<T extends IncrementalTask> implements ShardedJobState,
       return timestamp.toDate().toInstant();
     }
 
-    static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(@NonNull Transaction tx, Entity in) {
+    static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(@NonNull PipelineBackendTransaction tx, Entity in) {
       return fromEntity(tx, in, false);
     }
 
     static <T extends IncrementalTask> ShardedJobStateImpl<T> fromEntity(
-      @NonNull Transaction tx, Entity in, boolean lenient) {
+      @NonNull PipelineBackendTransaction tx, Entity in, boolean lenient) {
       Preconditions.checkArgument(DATASTORE_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);
 
       ShardedJobRunId jobId = ShardedJobRunId.of(in.getKey());

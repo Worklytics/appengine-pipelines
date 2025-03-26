@@ -1,16 +1,14 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
-
-import com.google.cloud.datastore.Entity;
-import com.google.cloud.datastore.Transaction;
 import com.google.cloud.location.ListLocationsRequest;
 import com.google.cloud.location.Location;
 import com.google.cloud.tasks.v2.*;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import lombok.NonNull;
@@ -60,13 +58,23 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public TaskReference enqueue(String queueName, TaskSpec build) {
-    return enqueue(queueName, List.of(build)).iterator().next();
+  public Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks) {
+    return enqueue(pipelineTasks, false);
   }
 
   @Override
-  public Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks) {
-    return enqueue(pipelineTasks, false);
+  public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
+    Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
+    pipelineTasks.forEach(pipelineTask -> {
+        String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
+          .orElseGet(appEngineServicesService::getDefaultService);
+        String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
+          .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
+        String host = appEngineServicesService.getWorkerServiceHostName(service, version);
+        String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME);
+        taskSpecs.put(queueName, pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl()));
+    });
+    return taskSpecs;
   }
 
   private Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks, boolean addDelay) {
@@ -98,15 +106,6 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
      .collect(Collectors.toList());
   }
 
-  @Override
-  public Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks) {
-    // ideas:
-    // - add txn id to param/header of the tasks, then check in works if it's actually been committed
-    // - add a delay to the tasks, so we have time to delete them before they execute - DONE
-    // - add UUID and a timestamp to a header in each task; worker picks that up and checks for it in the datastore??
-    return enqueue(pipelineTasks, true);
-  }
-
   private TaskSpec ensureDelay(TaskSpec taskSpec, Duration delay) {
     if (taskSpec.getScheduledExecutionTime() == null || taskSpec.getScheduledExecutionTime().isBefore(Instant.now())) {
       return taskSpec.withScheduledExecutionTime(Instant.now().plus(delay));
@@ -115,14 +114,25 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     }
   }
 
-  Collection<TaskReference> enqueue(@NonNull String queueName, Collection<TaskSpec> taskSpecs) {
+  @Override
+  public Collection<TaskReference> enqueue(@NonNull String queueName, final Collection<TaskSpec> taskSpecs) {
     String queueLocation = cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation());
     QueueName queue = QueueName.of(appEngineEnvironment.getProjectId(), queueLocation, queueName);
+
+    // synchronized to deal with parallel stream
+    Collection<TaskReference> taskReferences = Collections.synchronizedList(new ArrayList<>());
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
-      return taskSpecs.parallelStream() //q: this safe? efficient?
-        .map(taskSpec -> createIgnoringExisting(cloudTasksClient, queue, taskSpec))
-        .map(task -> TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()))
-        .collect(Collectors.toList());
+      taskSpecs.parallelStream()
+        .forEach(taskSpec -> {
+          Task task = createIgnoringExisting(cloudTasksClient, queue, taskSpec);
+          taskReferences.add(TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()));
+        });
+      return taskReferences;
+    } catch (Exception e) {
+      // something went wrong - delete any task already created
+      log.log(Level.SEVERE, String.format("Task creation failed out of %d - deleting anything already enqueued", taskReferences.size()));
+      deleteTasks(taskReferences);
+      throw e;
     }
   }
 

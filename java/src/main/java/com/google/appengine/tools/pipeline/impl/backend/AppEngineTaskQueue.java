@@ -15,15 +15,15 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.github.rholder.retry.*;
-
 import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.apphosting.api.ApiProxy;
-import com.google.cloud.datastore.Transaction;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
@@ -119,20 +119,24 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     return taskReference;
   }
 
+  //q: why single case has retries, but the bulk case does not?
   @Override
-  public TaskReference enqueue(String queueName, TaskSpec build) {
-    log.finest("Enqueueing: " + build);
-    TaskOptions taskOptions = toTaskOptions(build);
+  public Collection<TaskReference> enqueue(String queueName, Collection<TaskSpec> taskSpecs) {
+    log.finest("Enqueueing: " + taskSpecs.size() + " tasks");
+    List<TaskOptions> taskOptionsList = taskSpecs.stream().map(this::toTaskOptions).toList();
     Queue queue = getQueue(queueName);
-    try {
-      TaskHandle handle = queue.add(taskOptions);
-      return taskHandleToReference(handle);
-    } catch (TaskAlreadyExistsException ignore) {
-      // ignore
-      return TaskReference.of(queue.getQueueName(), ignore.getTaskNames().get(0));
+    List<TaskReference> taskReferences = new ArrayList<>();
+    for (TaskOptions taskOptions : taskOptionsList) {
+      try {
+        TaskHandle handle = queue.add(taskOptions);
+        taskReferences.add(taskHandleToReference(handle));
+      } catch (TaskAlreadyExistsException ignore) {
+        // ignore
+        taskReferences.add(TaskReference.of(queue.getQueueName(), ignore.getTaskNames().get(0)));
+      }
     }
+    return taskReferences;
   }
-
 
   private static Queue getQueue(String queueName) {
     if (queueName == null) {
@@ -153,9 +157,14 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks) {
-    //TODO: try to fake the txn here; not implemented bc this implementation won't be used in prod
-    return addToQueue(pipelineTasks);
+  public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
+    Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
+    pipelineTasks.forEach( pipelineTask -> {
+      String versionHostname = getVersionHostname(pipelineTask.getQueueSettings());
+      String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse("default");
+      taskSpecs.put(queueName, pipelineTask.toTaskSpec(versionHostname, taskHandlerUrl));
+    });
+    return taskSpecs;
   }
 
   TaskReference taskHandleToReference(TaskHandle taskHandle) {
@@ -183,11 +192,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
         taskOptions.etaMillis(now.toEpochMilli() + Duration.ofSeconds(30) .toMillis());
       }
 
-      List<TaskOptions> taskOptionsList = queueNameToTaskOptions.get(queueName);
-      if (taskOptionsList == null) {
-        taskOptionsList = new ArrayList<>();
-        queueNameToTaskOptions.put(queueName, taskOptionsList);
-      }
+      List<TaskOptions> taskOptionsList = queueNameToTaskOptions.computeIfAbsent(queueName, k -> new ArrayList<>());
       taskOptionsList.add(taskOptions);
     }
     for (Map.Entry<String, List<TaskOptions>> entry : queueNameToTaskOptions.entrySet()) {
@@ -235,6 +240,27 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
     TaskOptions taskOptions = TaskOptions.Builder.withUrl(taskHandlerUrl);
 
+    String versionHostname = getVersionHostname(queueSettings);
+
+    taskOptions.header("Host", versionHostname);
+
+    Long delayInSeconds = queueSettings.getDelayInSeconds();
+    if (null != delayInSeconds) {
+      taskOptions.countdownMillis(delayInSeconds * 1000L);
+      queueSettings.setDelayInSeconds(null);
+    }
+    addProperties(taskOptions, pipelineTask.toProperties());
+    String taskName = pipelineTask.getName();
+    if (null != taskName) {
+      // named tasks ARE used in the following cases ...
+      //handleSlotFilled_*
+      //runJob_*
+      taskOptions.taskName(taskName);
+    }
+    return taskOptions;
+  }
+
+  private String getVersionHostname(QueueSettings queueSettings) {
     String versionHostname;
 
     //annoyingly, guava Retryer throws Exceptions, rather than RuntimeExceptions
@@ -255,23 +281,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     } catch (RetryException e) {
       throw new RuntimeException(e);
     }
-
-    taskOptions.header("Host", versionHostname);
-
-    Long delayInSeconds = queueSettings.getDelayInSeconds();
-    if (null != delayInSeconds) {
-      taskOptions.countdownMillis(delayInSeconds * 1000L);
-      queueSettings.setDelayInSeconds(null);
-    }
-    addProperties(taskOptions, pipelineTask.toProperties());
-    String taskName = pipelineTask.getName();
-    if (null != taskName) {
-      // named tasks ARE used in the following cases ...
-      //handleSlotFilled_*
-      //runJob_*
-      taskOptions.taskName(taskName);
-    }
-    return taskOptions;
+    return versionHostname;
   }
 
   private TaskOptions toTaskOptions(TaskSpec spec) {

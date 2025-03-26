@@ -2,7 +2,8 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
-import com.google.cloud.datastore.Transaction;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -20,23 +21,22 @@ public class InProcessTaskQueue implements PipelineTaskQueue {
   }
 
   @Override
-  public TaskReference enqueue(String queueName, TaskSpec spec) {
+  public Collection<TaskReference> enqueue(String queueName, Collection<TaskSpec> taskSpecs) {
     if (!queues.containsKey(queueName)) {
       queues.put(queueName, new Stack<>());
     }
-    String taskName = Optional.ofNullable(spec.getName()).orElse(UUID.randomUUID().toString());
-    queues.get(queueName).push(spec);
-    return TaskReference.of(queueName, taskName);
+    List<TaskReference> taskReferences = new ArrayList<>();
+    for (TaskSpec spec : taskSpecs) {
+      String taskName = Optional.ofNullable(spec.getName()).orElse(UUID.randomUUID().toString());
+      queues.get(queueName).push(spec);
+      taskReferences.add(TaskReference.of(queueName, taskName));
+    }
+    return taskReferences;
   }
 
   @Override
   public Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks) {
     return pipelineTasks.stream().map(this::enqueue).collect(Collectors.toCollection(LinkedList::new));
-  }
-
-  @Override
-  public Collection<TaskReference> enqueue(Transaction txn, Collection<PipelineTask> pipelineTasks) {
-    return enqueue(pipelineTasks);
   }
 
   @Override
@@ -47,6 +47,16 @@ public class InProcessTaskQueue implements PipelineTaskQueue {
         queue.removeIf(task -> task.getName().equals(taskReference.getTaskName()));
       }
     }
+  }
+
+  @Override
+  public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
+    Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
+    pipelineTasks.forEach( pipelineTask -> {
+      String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse("default");
+      taskSpecs.put(queueName, pipelineTask.toTaskSpec("localhost", TaskHandler.handleTaskUrl()));
+    });
+    return taskSpecs;
   }
 
   /*

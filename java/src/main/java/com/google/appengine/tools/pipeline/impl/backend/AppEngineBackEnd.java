@@ -22,6 +22,7 @@ import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import com.google.appengine.tools.pipeline.impl.util.TestUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.*;
@@ -189,7 +190,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
 
   // transactional save all
-  private void saveAll(Transaction txn, UpdateSpec.Group group) {
+  private void saveAll(PipelineBackendTransaction txn, UpdateSpec.Group group) {
     putAll(txn, group.getBarriers());
     putAll(txn, group.getJobs());
     putAll(txn, group.getSlots());
@@ -225,8 +226,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     return keys;
   }
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec, Key jobKey, JobRecord.State... expectedStates) {
-    Transaction transaction = datastore.newTransaction();
-    Collection<PipelineTaskQueue.TaskReference> taskReferences = null;
+    PipelineBackendTransaction transaction = PipelineBackendTransaction.newInstance(datastore, taskQueue);
+
     try {
       if (jobKey != null && expectedStates != null) {
         Entity entity = null;
@@ -268,7 +269,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
         UpdateSpec.TransactionWithTasks transactionWithTasks =
             (UpdateSpec.TransactionWithTasks) transactionSpec;
-        taskReferences = taskQueue.enqueue(transaction, transactionWithTasks.getTasks());
+        transaction.enqueue(transactionWithTasks.getTasks());
       }
 
       // commit is AFTER enqueue, so if enqueuing fails, we don't commit
@@ -277,17 +278,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       // 1) is there such a problematic case? perhaps nothing
       transaction.commit();
     } finally {
-      if (transaction.isActive()) {
-        transaction.rollback();
-        int tasksToDelete = taskReferences == null ? 0 : taskReferences.size();
-        log.warning("Transaction rolled back. " + tasksToDelete + " tasks to be deleted.");
-
-        if (taskReferences != null) {
-          // commiting the transaction failed; let's ALSO delete the tasks that were enqueued,
-          // to more closely replicate the previous transactional behavior
-          taskQueue.deleteTasks(taskReferences);
-        }
-      }
+      transaction.rollbackIfActive();
     }
     return true;
   }

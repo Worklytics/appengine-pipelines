@@ -1,19 +1,14 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.DONE;
-import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.RUNNING;
-import static org.junit.jupiter.api.Assertions.*;
-
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo.TaskStateInfo;
 import com.google.appengine.tools.mapreduce.EndToEndTestCase;
 import com.google.appengine.tools.mapreduce.PipelineSetupExtensions;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
 import com.google.apphosting.api.ApiProxy;
 import com.google.apphosting.api.ApiProxy.Environment;
-import com.google.cloud.datastore.Transaction;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.SettableFuture;
-
 import lombok.Getter;
 import lombok.Setter;
 import org.junit.jupiter.api.AfterEach;
@@ -23,6 +18,10 @@ import org.junit.jupiter.api.Test;
 import java.io.UnsupportedEncodingException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.DONE;
+import static com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode.RUNNING;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests that locking prevents concurrent execution.
@@ -194,7 +193,8 @@ public class LockingTest extends EndToEndTestCase {
 
     //Run task
     final TaskStateInfo taskFromQueue = grabNextTaskFromQueue(queueName);
-    assertEquals(0, getShardRetryCount(getDatastore().newTransaction(), taskFromQueue));
+    PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(getDatastore());
+    assertEquals(0, getShardRetryCount(tx, taskFromQueue));
     SettableFuture<Void> result = runInNewThread(taskFromQueue);
     assertEquals(1, StaticBlockingTask.timesRun.get());
     ShardedJobState state = getPipelineRunner().getJobState(jobId);
@@ -202,11 +202,19 @@ public class LockingTest extends EndToEndTestCase {
     assertEquals(1, state.getActiveTaskCount());
     assertEquals(1, state.getTotalTaskCount());
     assertEquals(0, getTasks(queueName).size(), "Something was left in the queue");
-    assertEquals(0, getShardRetryCount(getDatastore().newTransaction(), taskFromQueue));
+
+    tx.commit();
+    assertFalse(tx.isActive());
+    tx = PipelineBackendTransaction.newInstance(getDatastore());
+    assertEquals(0, getShardRetryCount(tx, taskFromQueue));
 
     //Duplicate task
     executeTask(jobId.getJobId(), taskFromQueue); //Should not block because will not execute run.
-    assertEquals(1, getShardRetryCount(getDatastore().newTransaction(), taskFromQueue));
+
+    tx.commit();
+    assertFalse(tx.isActive());
+    tx = PipelineBackendTransaction.newInstance(getDatastore());
+    assertEquals(1, getShardRetryCount(tx, taskFromQueue));
     state = getPipelineRunner().getJobState(jobId);
     assertEquals(new Status(RUNNING), state.getStatus());
     assertEquals(1, state.getActiveTaskCount());
@@ -270,13 +278,16 @@ public class LockingTest extends EndToEndTestCase {
   }
 
 
-  private int getShardRetryCount(Transaction tx, final TaskStateInfo taskFromQueue)
+  @VisibleForTesting
+  private int getShardRetryCount(PipelineBackendTransaction tx, final TaskStateInfo taskFromQueue)
       throws UnsupportedEncodingException {
     return getShardedJobRunner().lookupShardRetryState(tx, getTaskId(taskFromQueue)).getRetryCount();
   }
 
+  @VisibleForTesting
   private IncrementalTaskState<IncrementalTask> lookupTaskState(final TaskStateInfo taskFromQueue)
       throws UnsupportedEncodingException {
-    return getShardedJobRunner().lookupTaskState(getDatastore().newTransaction(), getTaskId(taskFromQueue));
+    PipelineBackendTransaction pipelineBackendTransaction = PipelineBackendTransaction.newInstance(getDatastore());
+    return getShardedJobRunner().lookupTaskState(pipelineBackendTransaction, getTaskId(taskFromQueue));
   }
 }

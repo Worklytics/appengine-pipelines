@@ -2,14 +2,12 @@
 
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
-import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil.serializeToDatastoreProperty;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import com.google.appengine.tools.pipeline.impl.model.ExpiringDatastoreEntity;
-import com.google.cloud.Timestamp;
-import com.google.cloud.datastore.*;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status.StatusCode;
 import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
+import com.google.appengine.tools.pipeline.impl.model.ExpiringDatastoreEntity;
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
+import com.google.cloud.Timestamp;
+import com.google.cloud.datastore.*;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import lombok.*;
@@ -17,6 +15,9 @@ import lombok.*;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Optional;
+
+import static com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil.serializeToDatastoreProperty;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Information about execution of an {@link IncrementalTask}.
@@ -158,7 +159,7 @@ public class IncrementalTaskState<T extends IncrementalTask> implements Expiring
   private static final String NEXT_TASK_PROPERTY = "nextTask";
   private static final String STATUS_PROPERTY = "status";
 
-  public Entity toEntity(Transaction tx) {
+  public Entity toEntity(PipelineBackendTransaction tx) {
     Key key = makeKey(tx.getDatastore(), this.getTaskId());
     Entity.Builder taskState = Entity.newBuilder(key);
     taskState.set(JOB_ID_PROPERTY, this.getJobId().asEncodedString());
@@ -191,7 +192,7 @@ public class IncrementalTaskState<T extends IncrementalTask> implements Expiring
     static final String SHARD_INFO_ENTITY_KIND = DATASTORE_KIND + "-ShardInfo";
 
 
-    public static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(Transaction tx, Entity in) {
+    public static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(PipelineBackendTransaction tx, Entity in) {
       return fromEntity(tx, in, false);
     }
 
@@ -199,14 +200,14 @@ public class IncrementalTaskState<T extends IncrementalTask> implements Expiring
       @NonNull Datastore datastore,
       Entity in,
       boolean lenient) {
-      Transaction txn = datastore.newTransaction();
-      IncrementalTaskState<T> state = fromEntity(txn, in, lenient);
-      txn.commit();
+      PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore);
+      IncrementalTaskState<T> state = fromEntity(tx, in, lenient);
+      tx.commit();
       return state;
     }
 
     public static <T extends IncrementalTask> IncrementalTaskState<T> fromEntity(
-        @NonNull Transaction tx,
+        @NonNull PipelineBackendTransaction tx,
         Entity in,
         boolean lenient) {
       Preconditions.checkArgument(DATASTORE_KIND.equals(in.getKey().getKind()), "Unexpected kind: %s", in);

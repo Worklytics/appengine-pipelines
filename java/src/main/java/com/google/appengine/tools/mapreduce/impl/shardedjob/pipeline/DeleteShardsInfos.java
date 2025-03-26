@@ -1,20 +1,21 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
-import static java.util.concurrent.Executors.callable;
-
 import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.Value;
+import com.google.appengine.tools.txn.PipelineBackendTransaction;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.Transaction;
 import lombok.RequiredArgsConstructor;
 
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.List;
+
+import static java.util.concurrent.Executors.callable;
 
 /**
  * A pipeline job to delete persistent data for a range of shards of a sharded job.
@@ -22,6 +23,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DeleteShardsInfos extends Job0<Void> {
 
+  @Serial
   private static final long serialVersionUID = -4342214189527672009L;
 
   private final DatastoreOptions datastoreOptions;
@@ -30,7 +32,7 @@ public class DeleteShardsInfos extends Job0<Void> {
   private final int end;
 
 
-  private static void addParentKeyToList(Transaction tx, List<Key> list, Key parent) {
+  private static void addParentKeyToList(PipelineBackendTransaction tx, List<Key> list, Key parent) {
     for (Key child : DatastoreSerializationUtil.getShardedValueKeysFor(tx, parent, null)) {
       list.add(child);
     }
@@ -42,7 +44,7 @@ public class DeleteShardsInfos extends Job0<Void> {
     Datastore datastore = datastoreOptions.toBuilder().build().getService();
     final List<Key> toDelete = new ArrayList<>((end - start) * 2);
 
-    Transaction tx = datastore.newTransaction();
+    PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore);
     for (int i = start; i < end; i++) {
       IncrementalTaskId taskId = IncrementalTaskId.of(jobId, i);
       addParentKeyToList(tx, toDelete, IncrementalTaskState.makeKey(datastore, taskId));
