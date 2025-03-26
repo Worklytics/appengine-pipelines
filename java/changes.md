@@ -1,5 +1,8 @@
 ## Change Log
 
+### 0.3+worklytics.7 (March 2025)
+ - Handle cross-services transactionality
+ - Fixes: serialization
 
 ### 0.3+worklytics.2
  - all job/promise handles format has changed; should not be used with any existing jobs
