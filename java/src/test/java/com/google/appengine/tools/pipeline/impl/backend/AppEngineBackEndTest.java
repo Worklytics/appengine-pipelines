@@ -26,7 +26,7 @@ public class AppEngineBackEndTest {
 
   @BeforeEach
   void setUp(Datastore datastore) {
-    appEngineBackEnd = new AppEngineBackEnd(datastore, mock(PipelineTaskQueue.class));
+    appEngineBackEnd = new AppEngineBackEnd(datastore, mock(PipelineTaskQueue.class), mock(AppEngineServicesService.class));
 
     root = Key.newBuilder(datastore.getOptions().getProjectId(), "JOb", "test-kind", datastore.getOptions().getDatabaseId()).build();
     generator = Key.newBuilder(datastore.getOptions().getProjectId(), "JOb", "test-kind", datastore.getOptions().getDatabaseId()).build();
