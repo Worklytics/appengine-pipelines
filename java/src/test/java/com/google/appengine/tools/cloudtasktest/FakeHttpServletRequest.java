@@ -20,15 +20,15 @@ import com.google.common.base.Ascii;
 import com.google.common.base.Function;
 import com.google.common.base.Splitter;
 import com.google.common.collect.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import javax.servlet.*;
 import javax.servlet.http.*;
 
 import java.io.*;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.nio.charset.Charset;
 import java.security.Principal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -47,12 +47,20 @@ public class FakeHttpServletRequest implements HttpServletRequest {
   private final Map<String, String> headers = Maps.newHashMap();
   private final ListMultimap<String, String> parameters = LinkedListMultimap.create();
   private final Map<String, Cookie> cookies = new LinkedHashMap<>();
+
+  @Getter @Setter
   private String hostName = "localhost";
+
+  @Getter @Setter
   private int port = 443;
   private String contextPath = "";
   private String servletPath = "";
   private String pathInfo;
-  private String method;
+
+  @Getter @Setter
+  private String method = "GET";
+
+  @Getter @Setter
   protected String contentType;
 
   // used by POST methods
@@ -74,39 +82,6 @@ public class FakeHttpServletRequest implements HttpServletRequest {
 
   public FakeHttpServletRequest(String hostName, int port) {
     constructor(hostName, port, "", "", null);
-  }
-
-  public FakeHttpServletRequest(String urlStr) {
-    URL url;
-    try {
-      url = new URL(urlStr);
-    } catch (MalformedURLException e) {
-      throw new RuntimeException(e);
-    }
-    String contextPath;
-    String servletPath;
-    String path = url.getPath();
-    if (path.length() <= 1) {
-      // path must be either empty string or "/"
-      contextPath = path;
-      servletPath = null;
-    } else {
-      // Look for the second slash which separates the servlet path from the
-      // context path. e.g. "/foo/bar"
-      int secondSlash = path.indexOf("/", 1);
-      if (secondSlash < 0) {
-        // No second slash
-        contextPath = path;
-        servletPath = null;
-      } else {
-        contextPath = path.substring(0, secondSlash);
-        servletPath = path.substring(secondSlash);
-      }
-    }
-    int port = url.getPort();
-    // Call constructor() instead of this() because the later is only allowed
-    // at the beginning of a constructor
-    constructor(url.getHost(), port, contextPath, servletPath, url.getQuery());
   }
 
   /**
@@ -608,14 +583,6 @@ public class FakeHttpServletRequest implements HttpServletRequest {
     }
   }
 
-  public void setHostName(String hostName) {
-    this.hostName = hostName;
-  }
-
-  public void setPort(int port) {
-    this.port = port;
-  }
-
   /*
    * Set a header on this request.
    * Note that if the header implies other attributes of the request
@@ -651,18 +618,6 @@ public class FakeHttpServletRequest implements HttpServletRequest {
 
   private void addToHeaderMap(String name, String value) {
     headers.put(Ascii.toLowerCase(name), value);
-  }
-
-  /**
-   * Associates a set of cookies with this fake request.
-   *
-   * @param cookies the cookies associated with this request.
-   */
-  public void setCookies(Cookie... cookies) {
-    for (Cookie cookie : cookies) {
-      addToCookieMap(cookie);
-    }
-    setCookieHeader();
   }
 
   /**
@@ -702,10 +657,6 @@ public class FakeHttpServletRequest implements HttpServletRequest {
     parameters.put(key, value);
   }
 
-  public void setMethod(String name) {
-    method = name;
-  }
-
   void setSerletPath(String servletPath) {
     this.servletPath = servletPath;
   }
@@ -720,49 +671,5 @@ public class FakeHttpServletRequest implements HttpServletRequest {
     } else {
       this.pathInfo = pathInfo;
     }
-  }
-
-  /**
-   * Specify the mock POST data.
-   *
-   * @param postString the mock post data
-   * @param encoding format with which to encode mock post data
-   */
-  public void setPostData(String postString, Charset encoding) throws UnsupportedEncodingException {
-    setPostData(postString, encoding.name());
-  }
-
-  /**
-   * Specify the mock POST data.
-   *
-   * @param postString the mock post data
-   * @param encoding format with which to encode mock post data
-   */
-  public void setPostData(String postString, String encoding) throws UnsupportedEncodingException {
-    setPostData(postString.getBytes(encoding));
-    characterEncoding = encoding;
-  }
-
-  /**
-   * Specify the mock POST data in raw binary format.
-   *
-   * <p>This implicitly sets character encoding to not specified.
-   *
-   * @param data the mock post data; this is owned by the caller, so modifications made after this
-   *     call will show up when the post data is read
-   */
-  public void setPostData(byte[] data) {
-    bodyData = data;
-    characterEncoding = null;
-    setMethod(METHOD_POST);
-  }
-
-  /**
-   * Sets the content type.
-   *
-   * @param contentType of the request.
-   */
-  public void setContentType(String contentType) {
-    this.contentType = contentType;
   }
 }

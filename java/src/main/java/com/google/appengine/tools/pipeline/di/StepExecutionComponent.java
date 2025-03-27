@@ -8,6 +8,12 @@ import com.google.appengine.tools.pipeline.impl.PipelineManager;
 
 import dagger.Subcomponent;
 
+/**
+ * objects marked with this scope will live for lifetime of a step-execution
+ * (in our GAE fw context, this happens to be async via task queues that callback via webhooks; but that's an implementation detail)
+ *
+ * see {@link StepExecutionScoped}
+ */
 @StepExecutionScoped
 @Subcomponent(
   modules = {
