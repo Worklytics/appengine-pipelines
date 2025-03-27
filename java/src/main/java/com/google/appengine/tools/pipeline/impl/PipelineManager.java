@@ -62,6 +62,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
@@ -1087,12 +1088,14 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     if (1 != numFinalizeArguments) {
       // let's assume the first argument is valid, log and move on
       log.severe(String.format("Expected 1 argument but got %d. key: %s", numFinalizeArguments, finalizeBarrier.getJobKey().toString()));
-      log.severe(String.format("Argument list: %s", finalizeArguments.stream().map( o -> "%s: %s".formatted(o.getClass(), o.toString())).collect(Collectors.joining(","))));
+      log.severe(String.format("Argument list: %s", finalizeArguments.stream()
+        .map( o -> (o == null) ? "null" : "%s: %s".formatted(o.getClass(), o.toString()))
+        .collect(Collectors.joining(","))));
       //throw new RuntimeException(
       //    "Internal logic error: numFinalizeArguments=" + numFinalizeArguments);
       // this should now happen, is this coming from multiple tasks being executed?
       // wait for the last known added slot
-      finalizeValue = Iterables.getLast(finalizeArguments);
+      finalizeValue = Iterables.getLast(finalizeArguments.stream().filter(Objects::nonNull).toList());
     } else {
       // normal scenario
       finalizeValue = finalizeArguments.get(0);
