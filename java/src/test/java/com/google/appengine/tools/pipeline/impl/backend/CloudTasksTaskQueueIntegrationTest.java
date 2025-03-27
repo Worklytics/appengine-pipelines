@@ -1,6 +1,5 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.testutil.FakeAppEngineEnvironment;
 import com.google.appengine.tools.pipeline.testutil.FakeAppEngineServicesService;
 import com.google.cloud.tasks.v2.CloudTasksClient;
@@ -76,6 +75,12 @@ class CloudTasksTaskQueueIntegrationTest {
 
       cloudTasksTaskQueue =
         new CloudTasksTaskQueue(environment, cloudTasksClientProvider, appEngineServicesService);
+  }
+
+  @Test
+  void queueLocation() {
+    String location = cloudTasksTaskQueue.getQueueLocation();
+    assertEquals(LOCATION + "1", location);
   }
 
 
