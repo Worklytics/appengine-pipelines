@@ -220,10 +220,13 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   private void rollbackTasks() {
     // two cases here that should be mutually exclusive, but deal together for simplicity:
     // 1. if it was never enqueued, just clear the tasks
-    pendingTaskSpecsByQueue.clear();
+    if (!pendingTaskSpecsByQueue.isEmpty()) {
+      log.log(Level.WARNING, String.format("Rollback never enqueued %d tasks", pendingTaskSpecsByQueue.asMap().values().stream().map(Collection::size).reduce(Integer::sum).orElse(-1)));
+      pendingTaskSpecsByQueue.clear();
+    }
     // 2. if anything was enqueued, delete it,
     if (!taskReferences.isEmpty()) {
-      log.log(Level.WARNING, String.format("Rollback enqueued %d tasks: %s", taskReferences.size(),
+      log.log(Level.WARNING, String.format("Rollback already enqueued %d tasks: %s", taskReferences.size(),
               taskReferences.stream().map(PipelineTaskQueue.TaskReference::getTaskName).collect(Collectors.joining(","))));
       taskQueue.deleteTasks(taskReferences);
       taskReferences.clear();

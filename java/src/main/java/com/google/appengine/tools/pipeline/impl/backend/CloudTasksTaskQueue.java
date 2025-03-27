@@ -9,6 +9,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import lombok.NonNull;
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -179,11 +181,10 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
                com.google.api.gax.rpc.ResourceExhaustedException e) {
         log.log(Level.WARNING, "Transient error occurred for {0}, retrying...", taskSpec.getName());
         lastException = e;
+        Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
       }
     } while (++pastAttempts < MAX_ENQUEUE_ATTEMPTS);
-    if (lastException == null) {
-      throw new Error("Retry logic failed");
-    } else if (lastException instanceof com.google.api.gax.rpc.AlreadyExistsException) {
+    if (lastException instanceof com.google.api.gax.rpc.AlreadyExistsException) {
       // avoid dead-end case, where all N variants of the task name are taken
       // alternative is that we use timestamp or something in name on retry
       log.log(Level.WARNING, "N versions of task name already taken, giving up for {0}; really would hope this doesn't happen in prod", taskSpec.getName());
@@ -198,13 +199,33 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
       taskReferences.parallelStream().forEach(taskReference -> {
         TaskName taskName = TaskName.newBuilder()
-                .setProject(appEngineEnvironment.getProjectId())
-                .setLocation(cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation()))
-                .setQueue(taskReference.getQueue())
-                .setTask(taskReference.getTaskName())
-                .build();
-        cloudTasksClient.deleteTask(taskName);
+          .setProject(appEngineEnvironment.getProjectId())
+          .setLocation(cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation()))
+          .setQueue(taskReference.getQueue())
+          .setTask(taskReference.getTaskName())
+          .build();
+        int attempts = 0;
+        boolean retry = false;
+        Throwable throwable = null;
+        do {
+          attempts++;
+          try {
+            cloudTasksClient.deleteTask(taskName);
+          } catch (com.google.api.gax.rpc.NotFoundException ignored) {
+            log.log(Level.WARNING, "Tried to delete task {0} but already gone", taskReference.getTaskName());
+          } catch (Throwable t) {
+            // retry on any other case, waiting a bit
+            retry = true;
+            throwable = t;
+            Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+          }
+        } while (retry && attempts < MAX_ENQUEUE_ATTEMPTS);
+        if (attempts >= MAX_ENQUEUE_ATTEMPTS) {
+          log.log(Level.SEVERE, throwable, () -> "Tried to delete task but failed");
+        }
       });
+    } catch (Throwable t) {
+      log.log(Level.WARNING, t, () -> "Deleting tasks, ignoring");
     }
   }
 
