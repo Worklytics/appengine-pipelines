@@ -185,10 +185,11 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
           .setTask(taskReference.getTaskName())
           .build();
         int attempts = 0;
-        boolean retry = false;
+        boolean retry;
         Throwable throwable = null;
         do {
           attempts++;
+          retry = false;
           try {
             cloudTasksClient.deleteTask(taskName);
           } catch (com.google.api.gax.rpc.NotFoundException ignored) {
