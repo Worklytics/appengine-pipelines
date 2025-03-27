@@ -251,4 +251,17 @@
     </dependency>
 
   </dependencies>
+
+  <profiles>
+    <profile>
+      <id>ci</id>
+      <properties>
+        <surefire.forkCount>1.5C</surefire.forkCount>
+        <surefire.useUnlimitedThreads>true</surefire.useUnlimitedThreads>
+        <surefire.reuseForks>true</surefire.reuseForks>
+        <surefire.parallel>classes</surefire.parallel> <!-- all -->
+        <useIncrementalCompilation>false</useIncrementalCompilation>
+      </properties>
+    </profile>
+  </profiles>
 </project>
