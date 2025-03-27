@@ -139,13 +139,19 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
         taskSpec = taskSpec.withName(taskSpec.getName()+ "-" + pastAttempts);
         task = toCloudTask(queue, taskSpec);
         lastException = e;
-      } catch (com.google.api.gax.rpc.UnavailableException |
-               com.google.api.gax.rpc.DeadlineExceededException |
-               com.google.api.gax.rpc.ResourceExhaustedException e) {
-        log.log(Level.WARNING, "Transient error occurred for {0}, retrying...", taskSpec.getName());
+      } catch (Exception e) {
+        String msg;
+        if (e instanceof com.google.api.gax.rpc.UnavailableException ||
+            e instanceof com.google.api.gax.rpc.DeadlineExceededException |
+            e instanceof com.google.api.gax.rpc.ResourceExhaustedException) {
+          msg = String.format("CloudTasksTaskQueue task creation failed for %s, appears transient. Retrying...", taskSpec.getName());
+        } else {
+          msg = String.format("CloudTasksTaskQueue task creation failed for %s. Retrying... ", taskSpec.getName());
+        }
+        log.log(Level.WARNING, e, () -> msg);
         lastException = e;
-        Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
       }
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     } while (++pastAttempts < MAX_ENQUEUE_ATTEMPTS);
     if (lastException instanceof com.google.api.gax.rpc.AlreadyExistsException) {
       // avoid dead-end case, where all N variants of the task name are taken
