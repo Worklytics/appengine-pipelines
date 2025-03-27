@@ -11,6 +11,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import lombok.NonNull;
@@ -22,9 +23,8 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -64,7 +64,25 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
   @Override
   public Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks) {
-    return enqueue(pipelineTasks, false);
+    Map<String, List<PipelineTask>> tasksByQueue = pipelineTasks.stream()
+      .collect(Collectors.groupingBy(pipelineTask -> Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME)));
+
+    /// probably could use parallelStream here, but in practice don't *really* expect to have multiple queues in the batch
+    return tasksByQueue.entrySet().stream()
+      .map(tasksForQueue -> {
+        Stream<TaskSpec> specs = tasksForQueue.getValue().stream()
+          .map(pipelineTask -> {
+            String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
+              .orElseGet(appEngineServicesService::getDefaultService);
+            String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
+              .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
+            String host = appEngineServicesService.getWorkerServiceHostName(service, version);
+            return pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl());
+          });
+        return enqueue(tasksForQueue.getKey(), specs.collect(Collectors.toList()));
+      })
+      .flatMap(Collection::stream)
+      .collect(Collectors.toList());
   }
 
   @Override
@@ -80,40 +98,6 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
         taskSpecs.put(queueName, pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl()));
     });
     return taskSpecs;
-  }
-
-  private Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks, boolean addDelay) {
-
-    Map<String, List<PipelineTask>> tasksByQueue = pipelineTasks.stream()
-      .collect(Collectors.groupingBy(pipelineTask -> Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME)));
-
-    /// probably could use parallelStream here, but in practice don't *really* expect to have multiple queues in the batch
-   return tasksByQueue.entrySet().stream()
-      .map(tasksForQueue -> {
-        Stream<TaskSpec> specs = tasksForQueue.getValue().stream()
-                .map(pipelineTask -> {
-                  String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
-                          .orElseGet(appEngineServicesService::getDefaultService);
-                  String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
-                          .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
-                  String host = appEngineServicesService.getWorkerServiceHostName(service, version);
-                  return pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl());
-                });
-        if (addDelay) {
-            specs = specs.map(taskSpec -> ensureDelay(taskSpec, Duration.ofSeconds(10)));
-        }
-        return enqueue(tasksForQueue.getKey(), specs.collect(Collectors.toList()));
-      })
-     .flatMap(Collection::stream)
-     .collect(Collectors.toList());
-  }
-
-  private TaskSpec ensureDelay(TaskSpec taskSpec, Duration delay) {
-    if (taskSpec.getScheduledExecutionTime() == null || taskSpec.getScheduledExecutionTime().isBefore(Instant.now())) {
-      return taskSpec.withScheduledExecutionTime(Instant.now().plus(delay));
-    } else {
-      return taskSpec;
-    }
   }
 
   @Override
@@ -145,7 +129,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
     Task task = toCloudTask(queue, taskSpec);
     int pastAttempts = 0;
-    Exception lastException = null;
+    Exception lastException;
     do {
       try {
         return cloudTasksClient.createTask(queue, task);
@@ -155,16 +139,21 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
         taskSpec = taskSpec.withName(taskSpec.getName()+ "-" + pastAttempts);
         task = toCloudTask(queue, taskSpec);
         lastException = e;
-      } catch (com.google.api.gax.rpc.UnavailableException |
-               com.google.api.gax.rpc.DeadlineExceededException |
-               com.google.api.gax.rpc.ResourceExhaustedException e) {
-        log.log(Level.WARNING, "Transient error occurred for {0}, retrying...", taskSpec.getName());
+      } catch (Exception e) {
+        String msg;
+        if (e instanceof com.google.api.gax.rpc.UnavailableException ||
+            e instanceof com.google.api.gax.rpc.DeadlineExceededException |
+            e instanceof com.google.api.gax.rpc.ResourceExhaustedException) {
+          msg = String.format("CloudTasksTaskQueue task creation failed for %s, appears transient. Retrying...", taskSpec.getName());
+        } else {
+          msg = String.format("CloudTasksTaskQueue task creation failed for %s. Retrying... ", taskSpec.getName());
+        }
+        log.log(Level.WARNING, e, () -> msg);
         lastException = e;
       }
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     } while (++pastAttempts < MAX_ENQUEUE_ATTEMPTS);
-    if (lastException == null) {
-      throw new Error("Retry logic failed");
-    } else if (lastException instanceof com.google.api.gax.rpc.AlreadyExistsException) {
+    if (lastException instanceof com.google.api.gax.rpc.AlreadyExistsException) {
       // avoid dead-end case, where all N variants of the task name are taken
       // alternative is that we use timestamp or something in name on retry
       log.log(Level.WARNING, "N versions of task name already taken, giving up for {0}; really would hope this doesn't happen in prod", taskSpec.getName());
@@ -179,13 +168,34 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
       taskReferences.parallelStream().forEach(taskReference -> {
         TaskName taskName = TaskName.newBuilder()
-                .setProject(appEngineEnvironment.getProjectId())
-                .setLocation(getQueueLocation())
-                .setQueue(taskReference.getQueue())
-                .setTask(taskReference.getTaskName())
-                .build();
-        cloudTasksClient.deleteTask(taskName);
+          .setProject(appEngineEnvironment.getProjectId())
+          .setLocation(cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation()))
+          .setQueue(taskReference.getQueue())
+          .setTask(taskReference.getTaskName())
+          .build();
+        int attempts = 0;
+        boolean retry;
+        Throwable throwable = null;
+        do {
+          attempts++;
+          retry = false;
+          try {
+            cloudTasksClient.deleteTask(taskName);
+          } catch (com.google.api.gax.rpc.NotFoundException ignored) {
+            log.log(Level.WARNING, "Tried to delete task {0} but already gone", taskReference.getTaskName());
+          } catch (Throwable t) {
+            // retry on any other case, waiting a bit
+            retry = true;
+            throwable = t;
+            Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+          }
+        } while (retry && attempts < MAX_ENQUEUE_ATTEMPTS);
+        if (attempts >= MAX_ENQUEUE_ATTEMPTS) {
+          log.log(Level.SEVERE, throwable, () -> "Tried to delete task but failed");
+        }
       });
+    } catch (Throwable t) {
+      log.log(Level.WARNING, t, () -> "Deleting tasks, ignoring");
     }
   }
 
