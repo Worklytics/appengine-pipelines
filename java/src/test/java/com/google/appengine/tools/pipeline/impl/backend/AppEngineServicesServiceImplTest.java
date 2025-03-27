@@ -43,4 +43,12 @@ class AppEngineServicesServiceImplTest {
     assertEquals("v5",
       appEngineServicesServiceImpl.getDefaultVersion("non-default"));
   }
+
+  @Test
+  void getPreconfiguredHost() {
+    System.setProperty(AppEngineServicesServiceImpl.ConfigProperty.GAE_SERVICE_HOST_SUFFIX.name(), "appspot.com");
+    String host = appEngineServicesServiceImpl.getWorkerServiceHostName("default", "v123");
+    assertEquals("v123-dot-default-dot-test-project.appspot.com", host);
+    System.clearProperty(AppEngineServicesServiceImpl.ConfigProperty.GAE_SERVICE_HOST_SUFFIX.name());
+  }
 }
