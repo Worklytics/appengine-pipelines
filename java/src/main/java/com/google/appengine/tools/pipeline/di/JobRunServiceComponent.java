@@ -12,6 +12,7 @@ import com.google.cloud.datastore.DatastoreOptions;
 import dagger.Component;
 import dagger.Module;
 import dagger.Provides;
+import dagger.Subcomponent;
 import lombok.SneakyThrows;
 
 import javax.inject.Singleton;
@@ -32,7 +33,6 @@ import javax.inject.Singleton;
 public interface JobRunServiceComponent {
 
   StepExecutionComponent stepExecutionComponent(StepExecutionModule stepExecutionModule);
-
   RequestUtils requestUtils();
 
   TaskHandler taskHandler();

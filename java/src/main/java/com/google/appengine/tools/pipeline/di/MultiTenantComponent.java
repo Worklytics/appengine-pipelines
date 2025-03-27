@@ -5,9 +5,12 @@ import dagger.Component;
 import javax.inject.Singleton;
 
 @Singleton // expect exactly one of these per process
-@Component
+@Component(
+  modules = {
+    AppEngineHostModule.class,
+  }
+)
 public interface MultiTenantComponent {
 
-  TenantComponent clientComponent(TenantModule clientModule);
-
+  TenantComponent clientComponent(TenantModule module);
 }

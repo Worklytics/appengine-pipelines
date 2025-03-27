@@ -1,6 +1,5 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
-import com.google.appengine.tools.pipeline.util.ConfigProperty;
 import com.google.appengine.v1.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
@@ -11,6 +10,7 @@ import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
@@ -27,6 +27,7 @@ import java.util.logging.Level;
  *
  * The module that binds this IS a singleton, so hopefully that makes this a singleton too in practice.
  */
+@Singleton
 @Log
 public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
@@ -39,10 +40,7 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
      * Usage of this is to save API calls to get service hostnames, as in practice are deterministic.
      */
     GAE_SERVICE_HOST_SUFFIX,
-
     ;
-
-
   }
 
 
@@ -54,6 +52,9 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
   private static final int MAX_API_CALL_ATTEMPTS = 3;
 
+  @VisibleForTesting
+  public static int instanceCount = 0;
+
   @Inject
   AppEngineServicesServiceImpl(
                                AppEngineEnvironment appEngineEnvironment,
@@ -64,6 +65,10 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
     this.servicesClientProvider = servicesClientProvider;
     this.versionsClientProvider = versionsClientProvider;
     this.applicationsClientProvider = applicationsClientProvider;
+    instanceCount++;
+    if (instanceCount > 1) {
+      log.warning("Multiple instances of AppEngineServicesServiceImpl created, this is not expected");
+    }
   }
 
   @SneakyThrows

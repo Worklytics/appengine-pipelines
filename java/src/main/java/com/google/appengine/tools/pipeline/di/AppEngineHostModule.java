@@ -12,6 +12,7 @@ import dagger.Module;
 import dagger.Provides;
 import lombok.SneakyThrows;
 
+import javax.inject.Singleton;
 import java.util.Optional;
 
 /**
@@ -36,35 +37,35 @@ public class AppEngineHostModule {
   }
 
   @SneakyThrows
-  @Provides
+  @Provides @Singleton
   ServicesClient servicesClient() {
     return ServicesClient.create();
   }
 
   @SneakyThrows
-  @Provides
+  @Provides @Singleton
   VersionsClient versionsClient() {
     return VersionsClient.create();
   }
 
   @SneakyThrows
-  @Provides
+  @Provides @Singleton
   ApplicationsClient applicationsClient() {
     return ApplicationsClient.create();
   }
 
   @SneakyThrows
-  @Provides
+  @Provides @Singleton
   CloudTasksClient cloudTasksClient() {
     return CloudTasksClient.create();
   }
 
-  @Provides
+  @Provides @Singleton
   AppEngineEnvironment appEngineEnvironment() {
     return new AppEngineStandardGen2();
   }
 
-  @Provides
+  @Provides @Singleton
   AppEngineServicesService appEngineServicesService(AppEngineServicesServiceImpl impl,
                                                     AppEngineEnvironment environment) {
     //before, test harness basically did this by overriding env vars via ApiProxy stuff; see LocalModulesServiceTestConfig
@@ -95,7 +96,7 @@ public class AppEngineHostModule {
     }
   }
 
-  @Provides
+  @Provides @Singleton
   PipelineTaskQueue pipelineTaskQueue(AppEngineEnvironment environment,
                                       CloudTasksTaskQueue cloudTasksTaskQueue,
                                       AppEngineTaskQueue appEngineTaskQueue) {

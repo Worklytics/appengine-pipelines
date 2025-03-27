@@ -30,7 +30,7 @@ public class AppEngineBackendModule {
   @Module
   interface Bindings {
 
-    @Binds
+    @Binds @StepExecutionScoped
     PipelineBackEnd appEngineBackEnd(AppEngineBackEnd appEngineBackEnd);
   }
 }
