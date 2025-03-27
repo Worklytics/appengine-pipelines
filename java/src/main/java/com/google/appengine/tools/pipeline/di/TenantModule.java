@@ -14,7 +14,6 @@ import lombok.SneakyThrows;
 @Module(
   includes = {
     TenantModule.AppEngineBackendModule.class,
-    AppEngineHostModule.class
   }
 )
 public class TenantModule {
@@ -49,10 +48,10 @@ public class TenantModule {
     @Module
     interface Bindings {
 
-      @Binds
+      @Binds @TenantScoped
       PipelineService pipelineService(PipelineServiceImpl pipelineService);
 
-      @Binds
+      @Binds @TenantScoped
       PipelineBackEnd appEngineBackEnd(AppEngineBackEnd appEngineBackEnd);
     }
   }

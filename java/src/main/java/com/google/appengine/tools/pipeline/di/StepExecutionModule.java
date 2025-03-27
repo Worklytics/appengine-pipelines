@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 /**
  * essentially, request-scoped dependencies
  */
+@StepExecutionScoped
 @RequiredArgsConstructor
 @Module(
   includes = {

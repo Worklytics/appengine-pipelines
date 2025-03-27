@@ -11,12 +11,12 @@ import dagger.Module;
 @Module
 public interface PipelinesBindings {
 
-  @Binds
+  @Binds @StepExecutionScoped
   PipelineService pipelineService(PipelineServiceImpl impl);
 
-  @Binds
+  @Binds @StepExecutionScoped
   PipelineRunner pipelineRunner(PipelineManager impl);
 
-  @Binds
+  @Binds @StepExecutionScoped
   PipelineOrchestrator pipelineOrchestrator(PipelineManager impl);
 }
