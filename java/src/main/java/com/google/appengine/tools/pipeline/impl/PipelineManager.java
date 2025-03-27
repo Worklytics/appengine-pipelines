@@ -48,6 +48,7 @@ import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Uninterruptibles;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
@@ -1082,14 +1083,20 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     // Copy the finalize value to the output slot
     List<Object> finalizeArguments = finalizeBarrier.buildArgumentList();
     int numFinalizeArguments = finalizeArguments.size();
+    Object finalizeValue;
     if (1 != numFinalizeArguments) {
       // let's assume the first argument is valid, log and move on
       log.severe(String.format("Expected 1 argument but got %d. key: %s", numFinalizeArguments, finalizeBarrier.getJobKey().toString()));
       log.severe(String.format("Argument list: %s", finalizeArguments.stream().map( o -> "%s: %s".formatted(o.getClass(), o.toString())).collect(Collectors.joining(","))));
       //throw new RuntimeException(
       //    "Internal logic error: numFinalizeArguments=" + numFinalizeArguments);
+      // this should now happen, is this coming from multiple tasks being executed?
+      // wait for the last known added slot
+      finalizeValue = Iterables.getLast(finalizeArguments);
+    } else {
+      // normal scenario
+      finalizeValue = finalizeArguments.get(0);
     }
-    Object finalizeValue = finalizeArguments.get(0);
     log.finest("Finalizing " + jobRecord + " with value=" + finalizeValue);
     outputSlot.fill(finalizeValue);
 
