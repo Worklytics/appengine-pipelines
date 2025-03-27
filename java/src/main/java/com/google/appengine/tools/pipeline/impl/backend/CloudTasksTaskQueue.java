@@ -21,8 +21,6 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -61,7 +59,25 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
   @Override
   public Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks) {
-    return enqueue(pipelineTasks, false);
+    Map<String, List<PipelineTask>> tasksByQueue = pipelineTasks.stream()
+      .collect(Collectors.groupingBy(pipelineTask -> Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME)));
+
+    /// probably could use parallelStream here, but in practice don't *really* expect to have multiple queues in the batch
+    return tasksByQueue.entrySet().stream()
+      .map(tasksForQueue -> {
+        Stream<TaskSpec> specs = tasksForQueue.getValue().stream()
+          .map(pipelineTask -> {
+            String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
+              .orElseGet(appEngineServicesService::getDefaultService);
+            String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
+              .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
+            String host = appEngineServicesService.getWorkerServiceHostName(service, version);
+            return pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl());
+          });
+        return enqueue(tasksForQueue.getKey(), specs.collect(Collectors.toList()));
+      })
+      .flatMap(Collection::stream)
+      .collect(Collectors.toList());
   }
 
   @Override
@@ -79,42 +95,6 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     return taskSpecs;
   }
 
-  private Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks, boolean addDelay) {
-    //how can we fake a transaction here?
-    //  - add a delay, to give us time to delete tasks before they've executed in rollback case
-    //  - take the txn context
-
-    Map<String, List<PipelineTask>> tasksByQueue = pipelineTasks.stream()
-      .collect(Collectors.groupingBy(pipelineTask -> Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME)));
-
-    /// probably could use parallelStream here, but in practice don't *really* expect to have multiple queues in the batch
-   return tasksByQueue.entrySet().stream()
-      .map(tasksForQueue -> {
-        Stream<TaskSpec> specs = tasksForQueue.getValue().stream()
-                .map(pipelineTask -> {
-                  String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
-                          .orElseGet(appEngineServicesService::getDefaultService);
-                  String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
-                          .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
-                  String host = appEngineServicesService.getWorkerServiceHostName(service, version);
-                  return pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl());
-                });
-        if (addDelay) {
-            specs = specs.map(taskSpec -> ensureDelay(taskSpec, Duration.ofSeconds(10)));
-        }
-        return enqueue(tasksForQueue.getKey(), specs.collect(Collectors.toList()));
-      })
-     .flatMap(Collection::stream)
-     .collect(Collectors.toList());
-  }
-
-  private TaskSpec ensureDelay(TaskSpec taskSpec, Duration delay) {
-    if (taskSpec.getScheduledExecutionTime() == null || taskSpec.getScheduledExecutionTime().isBefore(Instant.now())) {
-      return taskSpec.withScheduledExecutionTime(Instant.now().plus(delay));
-    } else {
-      return taskSpec;
-    }
-  }
 
   @Override
   public Collection<TaskReference> enqueue(@NonNull String queueName, final Collection<TaskSpec> taskSpecs) {
@@ -166,7 +146,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
     Task task = toCloudTask(queue, taskSpec);
     int pastAttempts = 0;
-    Exception lastException = null;
+    Exception lastException;
     do {
       try {
         return cloudTasksClient.createTask(queue, task);
