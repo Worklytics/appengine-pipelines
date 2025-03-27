@@ -56,3 +56,5 @@ mvn deploy
 
   - `USE_LEGACY_QUEUES` - set to use task queues via legacy GAE SDK instead of Cloud Tasks API client; useful for local development, to use locally emulated queues + GAE
   - `USE_LOCAL_SERVICE` - to assume that this and all services is running as `default`/`v1` on `localhost`; atm, used for setting target of enqueued tasks
+  - `GAE_SERVICE_HOST_SUFFIX` - if provided, used instead of doing AppEngine Admin API lookup to determine the service host suffix; in practice, this doesn't change so no point in doing API calls
+  - `CLOUDTASKS_QUEUE_LOCATION` - if provided, used instead of doing lookup against AppEngine Admin API to determine queue locations; useful bc always known at deployment time, so no need to lookup dynamically

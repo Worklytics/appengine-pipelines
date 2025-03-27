@@ -77,6 +77,12 @@ class CloudTasksTaskQueueIntegrationTest {
         new CloudTasksTaskQueue(environment, cloudTasksClientProvider, appEngineServicesService);
   }
 
+  @Test
+  void queueLocation() {
+    String location = cloudTasksTaskQueue.getQueueLocation();
+    assertEquals(LOCATION + "1", location);
+  }
+
 
   @Test
   void testEnqueueTaskSpec() {

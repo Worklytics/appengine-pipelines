@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.google.appengine.tools.pipeline.util.ConfigProperty;
 import com.google.appengine.v1.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
@@ -10,7 +11,6 @@ import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
-import javax.swing.text.html.Option;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
@@ -30,7 +30,7 @@ import java.util.logging.Level;
 @Log
 public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
-  enum ConfigProperty{
+  enum ConfigProperty implements com.google.appengine.tools.pipeline.util.ConfigProperty {
 
     /**
      * If set, we assume that all services follow the convention:
@@ -43,13 +43,6 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
     ;
 
 
-    String getValue() {
-      return System.getProperty(name(), System.getenv(name()));
-    }
-
-    Optional<String> getValueOptional() {
-      return Optional.ofNullable(getValue());
-    }
   }
 
 
@@ -129,7 +122,7 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   @SneakyThrows
   @Override
   public String getWorkerServiceHostName(@NonNull String service, @NonNull String version) {
-    return ConfigProperty.GAE_SERVICE_HOST_SUFFIX.getValueOptional()
+    return ConfigProperty.GAE_SERVICE_HOST_SUFFIX.getValue()
             .map(suffix -> String.format("%s-dot-%s-dot-%s.%s", version, service, appEngineEnvironment.getProjectId(), suffix))
             .orElseGet(() -> {
               try {

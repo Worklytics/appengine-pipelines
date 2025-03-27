@@ -45,9 +45,10 @@ public class CloudTasksTaskQueueTest {
 
   @Test
   public void queueLocation_systemProperty() {
-    System.setProperty(CloudTasksTaskQueue.ConfigProperty.CLOUDTASKS_QUEUE_LOCATION.name(), "us-central1");
+    // something more exotic here, to ensure we haven't accidentally hardcoded somewhere
+    System.setProperty(CloudTasksTaskQueue.ConfigProperty.CLOUDTASKS_QUEUE_LOCATION.name(), "us-west2");
 
-    assertEquals("us-central1", cloudTasksTaskQueue.getQueueLocation());
+    assertEquals("us-west2", cloudTasksTaskQueue.getQueueLocation());
 
     System.clearProperty(CloudTasksTaskQueue.ConfigProperty.CLOUDTASKS_QUEUE_LOCATION.name());
   }
