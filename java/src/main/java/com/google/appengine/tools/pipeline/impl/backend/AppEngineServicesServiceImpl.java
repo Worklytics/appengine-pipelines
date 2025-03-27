@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.google.appengine.tools.pipeline.util.ConfigProperty;
 import com.google.appengine.v1.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 
 /**
@@ -28,6 +30,22 @@ import java.util.logging.Level;
 @Log
 public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
+  enum ConfigProperty implements com.google.appengine.tools.pipeline.util.ConfigProperty {
+
+    /**
+     * If set, we assume that all services follow the convention:
+     *   {version}-dot-{service}-dot-{project}.{GAE_SERVICE_HOST_SUFFIX}
+     *
+     * Usage of this is to save API calls to get service hostnames, as in practice are deterministic.
+     */
+    GAE_SERVICE_HOST_SUFFIX,
+
+    ;
+
+
+  }
+
+
   private final AppEngineEnvironment appEngineEnvironment;
 
   private final Provider<ServicesClient>  servicesClientProvider;
@@ -37,7 +55,8 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   private static final int MAX_API_CALL_ATTEMPTS = 3;
 
   @Inject
-  AppEngineServicesServiceImpl(AppEngineEnvironment appEngineEnvironment,
+  AppEngineServicesServiceImpl(
+                               AppEngineEnvironment appEngineEnvironment,
                                Provider<ServicesClient> servicesClientProvider,
                                Provider<VersionsClient> versionsClientProvider,
                                Provider<ApplicationsClient> applicationsClientProvider) {
@@ -103,7 +122,15 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   @SneakyThrows
   @Override
   public String getWorkerServiceHostName(@NonNull String service, @NonNull String version) {
-    return hostnameCache.get(service + ":" + version, () -> getWorkerServiceHostNameInternal(service, version));
+    return ConfigProperty.GAE_SERVICE_HOST_SUFFIX.getValue()
+            .map(suffix -> String.format("%s-dot-%s-dot-%s.%s", version, service, appEngineEnvironment.getProjectId(), suffix))
+            .orElseGet(() -> {
+              try {
+                return hostnameCache.get(service + ":" + version, () -> getWorkerServiceHostNameInternal(service, version));
+              } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+              }
+            });
   }
 
   @Override

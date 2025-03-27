@@ -2,9 +2,11 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
+import com.google.appengine.tools.pipeline.util.ConfigProperty;
 import com.google.cloud.location.ListLocationsRequest;
 import com.google.cloud.location.Location;
 import com.google.cloud.tasks.v2.*;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.HashMultimap;
@@ -32,12 +34,15 @@ import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_Q
 /**
  * implementation of PipelineTaskQueue backed by Cloud Tasks
  *
- * TODO: retries for transients + internal errors
- *
  */
 @Log
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class CloudTasksTaskQueue implements PipelineTaskQueue {
+
+  enum ConfigProperty implements com.google.appengine.tools.pipeline.util.ConfigProperty {
+    CLOUDTASKS_QUEUE_LOCATION,
+    ;
+  }
 
   @NonNull
   AppEngineEnvironment appEngineEnvironment;
@@ -78,9 +83,6 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   }
 
   private Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks, boolean addDelay) {
-    //how can we fake a transaction here?
-    //  - add a delay, to give us time to delete tasks before they've executed in rollback case
-    //  - take the txn context
 
     Map<String, List<PipelineTask>> tasksByQueue = pipelineTasks.stream()
       .collect(Collectors.groupingBy(pipelineTask -> Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME)));
@@ -116,8 +118,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
   @Override
   public Collection<TaskReference> enqueue(@NonNull String queueName, final Collection<TaskSpec> taskSpecs) {
-    String queueLocation = cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation());
-    QueueName queue = QueueName.of(appEngineEnvironment.getProjectId(), queueLocation, queueName);
+    QueueName queue = QueueName.of(appEngineEnvironment.getProjectId(), getQueueLocation(), queueName);
 
     // synchronized to deal with parallel stream
     Collection<TaskReference> taskReferences = Collections.synchronizedList(new ArrayList<>());
@@ -134,26 +135,6 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
       deleteTasks(taskReferences);
       throw e;
     }
-  }
-
-
-  @SneakyThrows
-  String cloudTasksLocationFromAppEngineLocation(@NonNull String appEngineLocation) {
-    return locationCache.get(appEngineLocation, () -> {
-      try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
-        CloudTasksClient.ListLocationsPagedResponse locations =
-                cloudTasksClient.listLocations(ListLocationsRequest.newBuilder().
-                        setName("projects/" + appEngineEnvironment.getProjectId())
-                        .build());
-        // this is picking ~the first location in list in the GAE region  (eg, us-central --> us-central1)
-        // afaik, queues always end up here by default (we don't specify location in our queue.yaml)
-        // but in theory might be somewhere else ... so probably should have a CLOUD_TASK_QUEUE_LOCATION env var or something
-        // that would be taken in preference to doing this API call
-        Optional<Location> queueLocation =
-                locations.getPage().streamAll().filter(location -> location.getLocationId().startsWith(appEngineLocation)).findFirst();
-        return queueLocation.map(Location::getLocationId).orElseThrow(() -> new Error("No queue location matching " + appEngineLocation));
-      }
-    });
   }
 
 
@@ -199,7 +180,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
       taskReferences.parallelStream().forEach(taskReference -> {
         TaskName taskName = TaskName.newBuilder()
                 .setProject(appEngineEnvironment.getProjectId())
-                .setLocation(cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation()))
+                .setLocation(getQueueLocation())
                 .setQueue(taskReference.getQueue())
                 .setTask(taskReference.getTaskName())
                 .build();
@@ -251,4 +232,30 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
     return builder.build();
   }
+
+  @VisibleForTesting
+  String getQueueLocation() {
+    return ConfigProperty.CLOUDTASKS_QUEUE_LOCATION.getValue()
+      .orElseGet(() -> cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation()));
+  }
+
+  @SneakyThrows
+  String cloudTasksLocationFromAppEngineLocation(@NonNull String appEngineLocation) {
+    return locationCache.get(appEngineLocation, () -> {
+      try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
+        CloudTasksClient.ListLocationsPagedResponse locations =
+          cloudTasksClient.listLocations(ListLocationsRequest.newBuilder().
+            setName("projects/" + appEngineEnvironment.getProjectId())
+            .build());
+        // this is picking ~the first location in list in the GAE region  (eg, us-central --> us-central1)
+        // afaik, queues always end up here by default (we don't specify location in our queue.yaml)
+        // but in theory might be somewhere else ... so probably should have a CLOUD_TASK_QUEUE_LOCATION env var or something
+        // that would be taken in preference to doing this API call
+        Optional<Location> queueLocation =
+          locations.getPage().streamAll().filter(location -> location.getLocationId().startsWith(appEngineLocation)).findFirst();
+        return queueLocation.map(Location::getLocationId).orElseThrow(() -> new Error("No queue location matching " + appEngineLocation));
+      }
+    });
+  }
+
 }
