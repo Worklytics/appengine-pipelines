@@ -26,16 +26,14 @@ class JobRunServiceComponentTest {
     PipelineService serviceB = requestScopedComponent.pipelineService();
     assertEquals(1, AppEngineServicesServiceImpl.instanceCount);
 
-    // ensure that the same PipelineService for all requests
-    assertEquals(serviceA, serviceB);
+    assertSame(serviceA, serviceB, "pipelineServices instances for given job-step execution (request)");
 
-    // different request
+    // different step execution
     StepExecutionComponent requestScopedComponent2 = component.stepExecutionComponent(new StepExecutionModule(new FakeHttpServletRequest()));
 
     PipelineService serviceC = requestScopedComponent2.pipelineService();
-     assertNotEquals(serviceA, serviceC);
+    assertNotSame(serviceA, serviceC, "pipelineServices instances for different job-step execution (request) should be different");
     assertEquals(1, AppEngineServicesServiceImpl.instanceCount);
-
   }
 
 }
