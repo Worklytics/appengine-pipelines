@@ -37,25 +37,25 @@ public class AppEngineHostModule {
   }
 
   @SneakyThrows
-  @Provides @Singleton
+  @Provides
   ServicesClient servicesClient() {
     return ServicesClient.create();
   }
 
   @SneakyThrows
-  @Provides @Singleton
+  @Provides
   VersionsClient versionsClient() {
     return VersionsClient.create();
   }
 
   @SneakyThrows
-  @Provides @Singleton
+  @Provides
   ApplicationsClient applicationsClient() {
     return ApplicationsClient.create();
   }
 
   @SneakyThrows
-  @Provides @Singleton
+  @Provides
   CloudTasksClient cloudTasksClient() {
     return CloudTasksClient.create();
   }
