@@ -18,6 +18,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponentContainer;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.common.annotations.VisibleForTesting;
@@ -49,7 +50,7 @@ public class PipelineServlet extends HttpServlet {
   public void init() throws ServletException {
     super.init();
     if (this.component == null) {
-      component = DaggerJobRunServiceComponent.create();
+      component = JobRunServiceComponentContainer.getInstance();
     }
   }
 
