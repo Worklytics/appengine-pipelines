@@ -118,7 +118,7 @@ public class InProcessMapReduce<I, K, V, O, R> {
     List<? extends OutputWriter<KeyValue<K, V>>> writers = output.createWriters(inputs.size());
     for (int shard = 0; shard < inputs.size(); shard++) {
       WorkerShardTask<I, KeyValue<K, V>, MapperContext<K, V>> task =
-        new MapShardTask<>(getId(), shard, inputs.size(), inputs.get(shard), getCopyOfMapper(), writers.get(shard), Long.MAX_VALUE);
+        new MapShardTask<>(getId(), shard, inputs.size(), inputs.get(shard), getCopyOfMapper(), writers.get(shard), Long.MAX_VALUE, WorkerShardTask.WorkerRunSettings.defaults());
       tasks.add(task);
     }
     final Counters counters = new CountersImpl();
@@ -206,7 +206,7 @@ public class InProcessMapReduce<I, K, V, O, R> {
     for (int shard = 0; shard < outputs.size(); shard++) {
       WorkerShardTask<KeyValue<K, Iterator<V>>, O, ReducerContext<O>> task =
           new ReduceShardTask<>(id, shard, outputs.size(), getReducerInputReader(inputs.get(shard)),
-              getCopyOfReducer(), outputs.get(shard), Long.MAX_VALUE);
+              getCopyOfReducer(), outputs.get(shard), Long.MAX_VALUE, WorkerShardTask.WorkerRunSettings.defaults());
       tasks.add(task);
     }
     final Counters counters = new CountersImpl();

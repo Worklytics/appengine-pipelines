@@ -42,7 +42,7 @@ public class SortShardTask extends WorkerShardTask<KeyValue<ByteBuffer, ByteBuff
                        InputReader<KeyValue<ByteBuffer, ByteBuffer>> in, SortWorker worker,
                        OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> out, int sortReadTimeMillis) {
     super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, SORT_CALLS,
-        SORT_WALLTIME_MILLIS));
+        SORT_WALLTIME_MILLIS), WorkerShardTask.WorkerRunSettings.defaults());
     this.sortReadTimeMillis = sortReadTimeMillis;
     this.in = checkNotNull(in, "Null in");
     this.out = checkNotNull(out, "Null out");

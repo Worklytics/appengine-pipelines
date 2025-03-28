@@ -28,7 +28,6 @@ import java.io.Serial;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_QUEUE_NAME;
 
@@ -100,7 +99,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
         ImmutableList.builder();
     for (int i = 0; i < readers.size(); i++) {
       mapTasks.add(new MapOnlyShardTask<>(jobId, i, readers.size(), readers.get(i),
-          specification.getMapper(), writers.get(i), settings.getMillisPerSlice()));
+          specification.getMapper(), writers.get(i), settings.getMillisPerSlice(), settings.getWorkerRunSettings()));
     }
     ShardedJobSettings shardedJobSettings = ShardedJobSettings.from(getPipelineService(), settings, getShardedJobId(), getPipelineRunId());
     PromisedValue<ResultAndStatus<R>> resultAndStatus = newPromise();

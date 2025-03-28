@@ -47,7 +47,6 @@ jobs:
                    "com.google.appengine.tools.mapreduce.impl.**",
                    "com.google.appengine.tools.mapreduce.inputs.**",
                    "com.google.appengine.tools.mapreduce.outputs.**",
-                   "com.google.appengine.tools.mapreduce.servlets.**",
                    "com.google.appengine.tools.mapreduce.*Test",
                    "com.google.appengine.tools.pipeline.**" ]
     steps:
