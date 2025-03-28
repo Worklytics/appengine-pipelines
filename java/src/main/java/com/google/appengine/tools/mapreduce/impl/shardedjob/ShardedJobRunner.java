@@ -703,6 +703,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
     log.info(jobId + ": Creating " + initialTasks.size() + " tasks");
     int taskNumber = 0;
     for (T initialTask : initialTasks) {
+      //each distinct entity group; see: com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskStateTest.hasNoParent
+
       final int finalTaskNumber = taskNumber++;
       // TODO(user): shardId (as known to WorkerShardTask) and taskId happen to be the same
       // number, just because they are created in the same order and happen to use their ordinal.
@@ -731,12 +733,6 @@ public class ShardedJobRunner implements ShardedJobHandler {
         }
         return null;
       });
-      // sleep to avoid contention on the same entity group while creating tasks
-      // NO!! each task is its own entity group, so this is not needed
-      // see: com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskStateTest.hasNoParent
-      // and then RetryState has the IncrementTaskState as its parent
-      // Uninterruptibles.sleepUninterruptibly(Duration.ofSeconds(1));
-
     }
   }
 

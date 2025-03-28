@@ -80,7 +80,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     }
   }
 
-  public void rollbackIfActive() {
+  public boolean rollbackIfActive() {
     boolean shouldLog = false;
     try {
       if (getDsTransaction().isActive()) {
@@ -94,6 +94,7 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
         log.log(Level.WARNING, String.format("Transaction rollback bc still active - opened for %s", stopwatch.elapsed()));
       }
     }
+    return shouldLog;
   }
 
   @Override
