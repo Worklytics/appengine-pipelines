@@ -18,6 +18,7 @@ import lombok.NonNull;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 
 /**
  * @author ohler@google.com (Christian Ohler)
@@ -28,6 +29,7 @@ import java.io.ObjectInputStream;
  */
 public class MapShardTask<I, K, V> extends WorkerShardTask<I, KeyValue<K, V>, MapperContext<K, V>> {
 
+  @Serial
   private static final long serialVersionUID = 978040803132974582L;
 
   private Mapper<I, K, V> mapper;
@@ -43,9 +45,10 @@ public class MapShardTask<I, K, V> extends WorkerShardTask<I, KeyValue<K, V>, Ma
                       @NonNull InputReader<I> in,
                       @NonNull Mapper<I, K, V> mapper,
                       @NonNull OutputWriter<KeyValue<K, V>> out,
-                      long millisPerSlice) {
+                      long millisPerSlice,
+                      WorkerRunSettings workerRunSettings) {
     super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, MAPPER_CALLS,
-        MAPPER_WALLTIME_MILLIS));
+        MAPPER_WALLTIME_MILLIS), workerRunSettings  );
     this.in = in;
     this.out = out;
     this.mapper = mapper;
@@ -66,6 +69,7 @@ public class MapShardTask<I, K, V> extends WorkerShardTask<I, KeyValue<K, V>, Ma
   @Override
   protected boolean shouldCheckpoint(long timeElapsed) {
     return timeElapsed >= millisPerSlice;
+
   }
 
   @Override

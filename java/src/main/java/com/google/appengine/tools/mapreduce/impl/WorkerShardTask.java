@@ -12,12 +12,19 @@ import com.google.appengine.tools.mapreduce.impl.handlers.MemoryLimiter;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.JobFailureException;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.RecoverableException;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardFailureException;
+import com.google.appengine.tools.pipeline.util.MemUsage;
 import com.google.common.base.Stopwatch;
+import lombok.Builder;
+import lombok.Value;
+import lombok.With;
+import lombok.extern.java.Log;
 
 import java.io.IOException;
+import java.io.Serial;
+import java.io.Serializable;
+import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Base class for the specific MR stage workers.
@@ -29,25 +36,55 @@ import java.util.logging.Logger;
  * @param <O> type of output values produced by the worker
  * @param <C> type of context required by the worker
  */
+@Log
 public abstract class WorkerShardTask<I, O, C extends WorkerContext<O>> implements
     IncrementalTaskWithContext {
 
-  private static final Logger log = Logger.getLogger(WorkerShardTask.class.getName());
+  @With
+  @Builder
+  @Value
+  public static class WorkerRunSettings implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * limit, as a percent, to consider as "high" memory usage. Worker will check against this
+     * value after each item of work, and checkpoint if it is exceeded.
+     */
+    @Builder.Default
+    Double highMemoryUsagePercent = MemUsage.DEFAULT_THRESHOLD;
+
+    public static WorkerRunSettings defaults() {
+      return WorkerRunSettings.builder().build();
+    }
+  }
+
+  @Serial
   private static final long serialVersionUID = 992552712402490981L;
+
   protected static final MemoryLimiter LIMITER = new MemoryLimiter();
 
+  private WorkerRunSettings runSettings;
+
+  //state
   private transient Stopwatch overallStopwatch;
   private transient Stopwatch inputStopwatch;
   private transient Stopwatch workerStopwatch;
   protected transient Long claimedMemory; // Assigned in prepare
-
   private final IncrementalTaskContext context;
   private boolean inputExhausted = false;
   private boolean isFirstSlice = true;
   private boolean wasFinalized;
 
-  protected WorkerShardTask(IncrementalTaskContext context) {
+
+
+  // transient; really a dependency that should be filled
+  private transient MemUsage memUsage;
+
+  protected WorkerShardTask(IncrementalTaskContext context, WorkerRunSettings workerRunSettings) {
     this.context = context;
+    this.runSettings = workerRunSettings == null ? WorkerRunSettings.defaults() : workerRunSettings;
   }
 
   @Override
@@ -76,6 +113,12 @@ public abstract class WorkerShardTask<I, O, C extends WorkerContext<O>> implemen
   @Override
   public void run() {
     try {
+      if (runSettings == null) { //transitional; deals with legacy serialized versions
+        runSettings = WorkerRunSettings.builder().build();
+      }
+      if (memUsage == null) {
+        memUsage = MemUsage.builder().threshold(runSettings.getHighMemoryUsagePercent()).build();
+      }
       beginSlice();
     } catch (JobFailureException | RecoverableException | ShardFailureException ex) {
       throw ex;
@@ -123,10 +166,10 @@ public abstract class WorkerShardTask<I, O, C extends WorkerContext<O>> implemen
         // individuals try~catch in the callWorker implementations.
         callWorker(next);
         workerStopwatch.stop();
-      } while (!shouldCheckpoint(overallStopwatch.elapsed(MILLISECONDS)));
+      } while (!shouldCheckpoint(overallStopwatch.elapsed(MILLISECONDS)) && !memUsage.isMemoryUsageHigh());
     } finally {
       log.info("Ending slice after " + itemsRead + " items read and calling the worker "
-          + workerCalls + " times");
+          + workerCalls + " times; memory usage: " + memUsage.getMemoryUsage() + "MB");
     }
     overallStopwatch.stop();
     log.info("Ending slice, inputExhausted=" + inputExhausted + ", overallStopwatch="
@@ -202,6 +245,10 @@ public abstract class WorkerShardTask<I, O, C extends WorkerContext<O>> implemen
 
   /**
    * @return true iff a checkpoint should be performed.
+   *
+   * TODO: this is essentially the same code in all implementations; could move up here, and @Override only in the exception case
+   *
+   * --only problem with that is pulling an 'executionTimeLimit' up to here
    */
   protected abstract boolean shouldCheckpoint(long timeElapsed);
   protected abstract long estimateMemoryRequirement();

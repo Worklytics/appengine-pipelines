@@ -52,7 +52,7 @@ public final class MemoryLimiter {
       acquired = amountRemaining.tryAcquire(neededForRequest, TIME_TO_WAIT, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new RejectRequestException("Was interupted", e);
+      throw new RejectRequestException("Was interrupted", e);
     }
     int remaining = amountRemaining.availablePermits();
     if (acquired) {

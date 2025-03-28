@@ -220,7 +220,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           ImmutableList.builder();
       for (int i = 0; i < readers.size(); i++) {
         mapTasks.add(new MapShardTask<>(getShardedJobId(), i, readers.size(), readers.get(i),
-            mrSpec.getMapper(), writers.get(i), settings.getMillisPerSlice()));
+            mrSpec.getMapper(), writers.get(i), settings.getMillisPerSlice(), settings.getWorkerRunSettings()));
       }
       ShardedJobSettings shardedJobSettings =
         ShardedJobSettings.from(getPipelineService(), settings, getShardedJobId(), getPipelineRunId());
@@ -357,6 +357,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   static class MergeJob extends
       Job1<MapReduceResult<FilesByShard>, MapReduceResult<FilesByShard>> implements MRStage {
 
+    @Serial
     private static final long serialVersionUID = 2L;
 
     // We don't need the CountersImpl part of the MapResult input here but we
@@ -542,7 +543,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
           reduceTasks = ImmutableList.builder();
       for (int i = 0; i < readers.size(); i++) {
         reduceTasks.add(new ReduceShardTask<>(getShardedJobId(), i, readers.size(), readers.get(i),
-            mrSpec.getReducer(), writers.get(i), settings.getMillisPerSlice()));
+            mrSpec.getReducer(), writers.get(i), settings.getMillisPerSlice(), settings.getWorkerRunSettings()));
       }
       ShardedJobSettings shardedJobSettings =
           ShardedJobSettings.from(getPipelineService(), settings, getShardedJobId(), getPipelineRunId());

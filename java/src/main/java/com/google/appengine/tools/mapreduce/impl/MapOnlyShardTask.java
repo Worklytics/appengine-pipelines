@@ -13,9 +13,11 @@ import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.Worker;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
+import lombok.NonNull;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 
 /**
  * @param <I> type of input values consumed by this mapper
@@ -23,6 +25,7 @@ import java.io.ObjectInputStream;
  */
 public class MapOnlyShardTask<I, O> extends WorkerShardTask<I, O, MapOnlyMapperContext<O>> {
 
+  @Serial
   private static final long serialVersionUID = 7235772804361681386L;
 
   private MapOnlyMapper<I, O> mapper;
@@ -32,13 +35,19 @@ public class MapOnlyShardTask<I, O> extends WorkerShardTask<I, O, MapOnlyMapperC
 
   private transient MapOnlyMapperContextImpl<O> context;
 
-  public MapOnlyShardTask(ShardedJobRunId mrJobId, int shardNumber, int shardCount, InputReader<I> in,
-                          MapOnlyMapper<I, O> mapper, OutputWriter<O> out, long millisPerSlice) {
+  public MapOnlyShardTask(ShardedJobRunId mrJobId,
+                          int shardNumber,
+                          int shardCount,
+                          @NonNull InputReader<I> in,
+                          @NonNull MapOnlyMapper<I, O> mapper,
+                          @NonNull OutputWriter<O> out,
+                          long millisPerSlice,
+                          WorkerRunSettings workerRunSettings) {
     super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, MAPPER_CALLS,
-        MAPPER_WALLTIME_MILLIS));
-    this.in = checkNotNull(in, "Null in");
-    this.out = checkNotNull(out, "Null out");
-    this.mapper = checkNotNull(mapper, "Null mapper");
+        MAPPER_WALLTIME_MILLIS), workerRunSettings);
+    this.in = in;
+    this.out = out;
+    this.mapper = mapper;
     this.millisPerSlice = millisPerSlice;
     fillContext();
   }
