@@ -14,12 +14,9 @@
 
 package com.google.appengine.tools.mapreduce.servlets;
 
-import com.github.rholder.retry.RetryerBuilder;
-import com.github.rholder.retry.StopStrategies;
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
-import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLevelDbInput;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.inputs.UnmarshallingInput;
@@ -73,8 +70,6 @@ public class ShufflerServlet extends HttpServlet {
 
   @Setter(onMethod_ = { @VisibleForTesting })
   JobRunServiceComponent component;
-  RequestUtils requestUtils;
-
   @Serial
   private static final long serialVersionUID = 2L;
 
@@ -82,25 +77,12 @@ public class ShufflerServlet extends HttpServlet {
 
   private static final int MAX_VALUES_COUNT = 10000;
 
-  private static  RetryerBuilder getRetryerBuilder() {
-    return RetryerBuilder.newBuilder()
-      .retryIfException((e) ->
-        e instanceof Exception
-          && !(e instanceof IllegalArgumentException)
-      )
-      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
-      .withStopStrategy(StopStrategies.stopAfterAttempt(10))
-      .withRetryListener(RetryUtils.logRetry(log, ShufflerServlet.class.getName()));
-  }
-
-
   @Override
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
     if (component == null) {
       component = DaggerJobRunServiceComponent.create();
     }
-    requestUtils = component.requestUtils();
   }
 
   @RequiredArgsConstructor
@@ -121,7 +103,6 @@ public class ShufflerServlet extends HttpServlet {
           new MapReduceJob<>(createSpec(), createSettings());
 
       FutureValue<MapReduceResult<GoogleCloudStorageFileSet>> result = futureCall(shuffleStageJob);
-
 
       // Take action once the shuffle stage is complete.
       return futureCall(new Complete(shufflerParams, this.getJobRunId()), result, maxAttempts(10));
@@ -261,9 +242,6 @@ public class ShufflerServlet extends HttpServlet {
     }
     if (params.getOutputDir().contains("\n")) {
       throw new IllegalArgumentException("OutputDir may not contain a newline");
-    }
-    if (params.getGcsBucket() == null) {
-      throw new IllegalArgumentException("GcsBucket parameter is mandatory");
     }
     if (params.getCallbackService() == null || params.getCallbackVersion() == null) {
       throw new IllegalArgumentException(
