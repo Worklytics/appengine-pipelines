@@ -732,7 +732,11 @@ public class ShardedJobRunner implements ShardedJobHandler {
         return null;
       });
       // sleep to avoid contention on the same entity group while creating tasks
-      Uninterruptibles.sleepUninterruptibly(Duration.ofSeconds(1));
+      // NO!! each task is its own entity group, so this is not needed
+      // see: com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskStateTest.hasNoParent
+      // and then RetryState has the IncrementTaskState as its parent
+      // Uninterruptibles.sleepUninterruptibly(Duration.ofSeconds(1));
+
     }
   }
 
