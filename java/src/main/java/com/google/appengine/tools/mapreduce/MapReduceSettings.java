@@ -2,7 +2,7 @@
 
 package com.google.appengine.tools.mapreduce;
 
-import com.google.cloud.datastore.DatastoreOptions;
+import com.google.appengine.tools.pipeline.util.MemUsage;
 import com.google.common.base.Preconditions;
 
 import lombok.Getter;
@@ -13,7 +13,6 @@ import lombok.extern.java.Log;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.Optional;
 
 /**
  * Settings that affect how a MapReduce is executed. May affect performance and resource usage, but
@@ -162,6 +161,14 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
    */
   @lombok.Builder.Default
   private int mergeFanin = DEFAULT_MERGE_FANIN;
+
+  /**
+   * Threshold for high memory usage. If the memory usage is above this threshold, the worker will proactively
+   * checkpoint.
+   *
+   */
+  @lombok.Builder.Default
+  private final Double workerHighMemUsagePercent = MemUsage.DEFAULT_THRESHOLD;
 
   /**
    * credentials to use when accessing storage for sort/shuffle phases of this MR j

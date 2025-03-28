@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce;
 
+import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.cloud.datastore.DatastoreOptions;
 
@@ -13,7 +14,6 @@ import java.util.Optional;
  * this is common to *multiple* runs of the job (eg, if it's run multiple times, this is generally always the same)
  */
 public interface ShardedJobAbstractSettings {
-
 
   String getDatastoreHost();
 
@@ -37,6 +37,7 @@ public interface ShardedJobAbstractSettings {
 
   double getSliceTimeoutRatio();
 
+  Double getWorkerHighMemUsagePercent();
 
   default JobSetting[] toJobSettings(JobSetting... extra) {
     JobSetting[] settings = new JobSetting[3 + extra.length];
@@ -55,5 +56,9 @@ public interface ShardedJobAbstractSettings {
     Optional.ofNullable(getDatabaseId()).ifPresent(optionsBuilder::setDatabaseId);
     Optional.ofNullable(getNamespace()).ifPresent(optionsBuilder::setNamespace);
     return optionsBuilder.build();
+  }
+
+  default WorkerShardTask.WorkerRunSettings getWorkerRunSettings() {
+    return WorkerShardTask.WorkerRunSettings.defaults().withHighMemoryUsagePercent(getWorkerHighMemUsagePercent());
   }
 }

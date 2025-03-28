@@ -41,7 +41,7 @@ public class MergeShardTask extends WorkerShardTask<KeyValue<ByteBuffer, Iterato
                         InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>> in,
                         OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> out, int sortReadTimeMillis) {
     super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, MERGE_CALLS,
-        MERGE_WALLTIME_MILLIS));
+        MERGE_WALLTIME_MILLIS), WorkerShardTask.WorkerRunSettings.defaults());
     this.sortReadTimeMillis = sortReadTimeMillis;
     this.in = checkNotNull(in, "Null in");
     this.out = checkNotNull(out, "Null out");

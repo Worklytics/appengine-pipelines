@@ -4,6 +4,7 @@ package com.google.appengine.tools.mapreduce;
 
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
+import com.google.appengine.tools.pipeline.util.MemUsage;
 import com.google.common.base.Preconditions;
 import lombok.*;
 import lombok.extern.java.Log;
@@ -103,6 +104,15 @@ public class MapSettings implements ShardedJobAbstractSettings, Serializable {
    */
   @lombok.Builder.Default
   private final double sliceTimeoutRatio = DEFAULT_SLICE_TIMEOUT_RATIO;
+
+
+  /**
+   * Threshold for high memory usage. If the memory usage is above this threshold, the worker will proactively
+   * checkpoint.
+   *
+   */
+  @lombok.Builder.Default
+  private final Double workerHighMemUsagePercent = MemUsage.DEFAULT_THRESHOLD;
 
   /**
    * The number of times a Shard can fail before it gives up and fails the whole job.

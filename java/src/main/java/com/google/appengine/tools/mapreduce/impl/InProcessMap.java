@@ -75,7 +75,7 @@ public class InProcessMap<I, O, R> {
     for (int shard = 0; shard < readers.size(); shard++) {
       WorkerShardTask<I, O, MapOnlyMapperContext<O>> task = new MapOnlyShardTask<>(
           id, shard, readers.size(), readers.get(shard), getCopyOfMapper(), writers.get(shard),
-          Long.MAX_VALUE);
+          Long.MAX_VALUE, WorkerShardTask.WorkerRunSettings.defaults());
       tasks.add(task);
     }
     final Counters counters = new CountersImpl();

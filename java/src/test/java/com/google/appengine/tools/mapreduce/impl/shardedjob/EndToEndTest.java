@@ -13,7 +13,6 @@ import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.TestUtils;
 import com.google.cloud.datastore.*;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
