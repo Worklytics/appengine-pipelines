@@ -36,4 +36,20 @@ class JobRunServiceComponentTest {
     assertEquals(1, AppEngineServicesServiceImpl.instanceCount);
   }
 
+
+  @Test
+  public void testJobRunServiceComponent_servletReuse() {
+    JobRunServiceComponent component = DaggerJobRunServiceComponent.create();
+
+    JobRunServiceComponent component2 = DaggerJobRunServiceComponent.create();
+
+    assertNotSame(component, component2, "jobRunServiceComponent from create() expected not the same");
+
+    JobRunServiceComponent component3 = JobRunServiceComponentContainer.getInstance();
+
+    JobRunServiceComponent component4 = JobRunServiceComponentContainer.getInstance();
+
+    assertSame(component3, component4, "jobRunServiceComponent via container expected the same");
+  }
+
 }
