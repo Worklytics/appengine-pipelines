@@ -113,11 +113,11 @@ public abstract class WorkerShardTask<I, O, C extends WorkerContext<O>> implemen
   @Override
   public void run() {
     try {
+      if (runSettings == null) { //transitional; deals with legacy serialized versions
+        runSettings = WorkerRunSettings.builder().build();
+      }
       if (memUsage == null) {
         memUsage = MemUsage.builder().threshold(runSettings.getHighMemoryUsagePercent()).build();
-      }
-      if (runSettings == null) { //transitional; deals with legacy serialized verions
-        runSettings = WorkerRunSettings.builder().build();
       }
       beginSlice();
     } catch (JobFailureException | RecoverableException | ShardFailureException ex) {
