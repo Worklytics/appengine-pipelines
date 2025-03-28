@@ -14,7 +14,7 @@ public interface PipelineBackendTransaction extends Transaction {
   /**
    * Rolls back the transaction if still active (most likely was never closed by a commit that failed)
    */
-  void rollbackIfActive();
+  boolean rollbackIfActive();
 
   /* Interface for queues needs to be a little different as can't return TaskReferences, but voids */
 

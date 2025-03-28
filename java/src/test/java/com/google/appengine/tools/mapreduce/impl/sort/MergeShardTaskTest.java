@@ -8,6 +8,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
 import org.junit.jupiter.api.Test;
 
+import java.io.Serial;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -18,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class MergeShardTaskTest {
 
   static class MockInputReader extends InputReader<KeyValue<ByteBuffer, Iterator<ByteBuffer>>> {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Override
@@ -27,6 +29,7 @@ public class MergeShardTaskTest {
   }
 
   static class MockOutputWriter extends OutputWriter<KeyValue<ByteBuffer, List<ByteBuffer>>> {
+    @Serial
     private static final long serialVersionUID = 1L;
     List<Integer> written = new ArrayList<>();
 
