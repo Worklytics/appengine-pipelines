@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.logging.Level;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.google.appengine.tools.mapreduce.RetryUtils.SYMBOLIC_FOREVER;
@@ -701,22 +702,27 @@ public class ShardedJobRunner implements ShardedJobHandler {
                                                        List<? extends T> initialTasks,
                                                        Instant startTime) {
     log.info(jobId + ": Creating " + initialTasks.size() + " tasks");
-    int taskNumber = 0;
-    for (T initialTask : initialTasks) {
+
+    // NOTE: could probably parallelize this, but causes tests to fail due to threading issues atm
+    IntStream.range(0, initialTasks.size()).forEach(taskNumber -> {
+      T initialTask = initialTasks.get(taskNumber);
+      IncrementalTaskId taskId = IncrementalTaskId.of(jobId, taskNumber);
       //each distinct entity group; see: com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskStateTest.hasNoParent
 
-      final int finalTaskNumber = taskNumber++;
       // TODO(user): shardId (as known to WorkerShardTask) and taskId happen to be the same
       // number, just because they are created in the same order and happen to use their ordinal.
       // We should have way to inject the "shard-id" to the task.
       RetryExecutor.call(FOREVER_RETRYER, () -> {
-        IncrementalTaskId taskId = IncrementalTaskId.of(jobId, finalTaskNumber);
         PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, taskQueue);
         try {
           IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
           if (taskState != null) {
-            //shouldn't be possible unless we're entering loop to create initial tasks AGAIN
-            log.warning(jobId + ": Task already exists: " + taskState + "; will enqueue another attempt at it, so that may be a problem");
+            // shouldn't be possible unless we're entering loop to create initial tasks AGAIN, which could only happen on a 2nd StartJob with same
+            // ID, right??
+            log.warning(jobId + ": Initial task already exists: " + taskState);
+
+            // prob safe to re-enqueue here, but bc enqueue happens before writing to datastore is committed, shouldn't be possible to be here
+            // if initialTask hasn't been enqueued at least once
           } else {
             //usual case
             taskState = IncrementalTaskState.create(taskId, jobId, startTime, initialTask);
@@ -724,33 +730,34 @@ public class ShardedJobRunner implements ShardedJobHandler {
 
             // since we should be in case where taskState does not exist, use add() to throw error if it does
             tx.add(taskState.toEntity(tx), retryState.toEntity(tx));
+            scheduleWorkerTask(settings, taskState, null, tx);
           }
-          // possible that we're scheduling the task again, but better than NEVER scheduling it, right??
-          scheduleWorkerTask(settings, taskState, null, tx);
           tx.commit();
         } finally {
           tx.rollbackIfActive();
         }
         return null;
       });
-    }
+    });
   }
 
+  @SneakyThrows
   private <T extends IncrementalTask> void writeInitialJobState(Datastore datastore, ShardedJobStateImpl<T> jobState) {
     ShardedJobRunId jobId = jobState.getShardedJobId();
-    PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, taskQueue);
-    try {
-      ShardedJobStateImpl<T> existing = lookupJobState(tx, jobId);
-      if (existing == null) {
-        tx.put(jobState.toEntity(tx));
-        log.info(jobId + ": Writing initial job state");
-      } else {
-        log.info(jobId + ": Ignoring Attempt to reinitialize job state: " + existing);
-      }
-      tx.commit();
-    } finally {
-      tx.rollbackIfActive();
-    }
+    RetryExecutor.call( FOREVER_RETRYER, ()-> {
+        PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, taskQueue);
+        try {
+          tx.add(jobState.toEntity(tx));
+          log.info(jobId + ": wrote initial job state");
+          tx.commit();
+        } catch (RuntimeException e) {
+          log.log(Level.WARNING, "Failed to write initial job state for " + jobId, e);
+          throw e;
+        } finally {
+          tx.rollbackIfActive();
+        }
+      return null;
+    });
   }
 
   public <T extends IncrementalTask> void startJob(final ShardedJobRunId jobId, List<? extends T> initialTasks,
