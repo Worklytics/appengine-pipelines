@@ -15,6 +15,7 @@ import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.appengine.tools.txn.PipelineBackendTransaction;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreException;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
 import com.google.common.annotations.VisibleForTesting;
@@ -715,30 +716,41 @@ public class ShardedJobRunner implements ShardedJobHandler {
       RetryExecutor.call(FOREVER_RETRYER, () -> {
         PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore, taskQueue);
         try {
-          IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
-          if (taskState != null) {
+          IncrementalTaskState<T> taskState = IncrementalTaskState.create(taskId, jobId, startTime, initialTask);
+          ShardRetryState < T > retryState = ShardRetryState.createFor(taskState);
+
+          // since we should be in case where taskState does not exist, use add() to throw error if it does
+          tx.add(taskState.toEntity(tx), retryState.toEntity(tx));
+          scheduleWorkerTask(settings, taskState, null, tx);
+          tx.commit();
+        } catch (DatastoreException e) {
+          if (isEntityAlreadyExists(e)) {
             // shouldn't be possible unless we're entering loop to create initial tasks AGAIN, which could only happen on a 2nd StartJob with same
             // ID, right??
-            log.warning(jobId + ": Initial task already exists: " + taskState);
 
-            // prob safe to re-enqueue here, but bc enqueue happens before writing to datastore is committed, shouldn't be possible to be here
-            // if initialTask hasn't been enqueued at least once
+            // write should be transactional, so existence of either taskState or retryState implies existence of both
+            log.warning(jobId + ": Initial task already exists: " + taskId );
           } else {
-            //usual case
-            taskState = IncrementalTaskState.create(taskId, jobId, startTime, initialTask);
-            ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
-
-            // since we should be in case where taskState does not exist, use add() to throw error if it does
-            tx.add(taskState.toEntity(tx), retryState.toEntity(tx));
-            scheduleWorkerTask(settings, taskState, null, tx);
+            throw e;
           }
-          tx.commit();
         } finally {
           tx.rollbackIfActive();
         }
         return null;
       });
     });
+  }
+
+  /**
+   * determine semantics of the exception
+   *
+   * https://cloud.google.com/datastore/docs/concepts/errors#Error_Codes
+   *
+   * @param e
+   * @return
+   */
+  boolean isEntityAlreadyExists(DatastoreException e) {
+    return Objects.equals("ALREADY_EXISTS", e.getReason());
   }
 
   @SneakyThrows
@@ -750,9 +762,12 @@ public class ShardedJobRunner implements ShardedJobHandler {
           tx.add(jobState.toEntity(tx));
           log.info(jobId + ": wrote initial job state");
           tx.commit();
-        } catch (RuntimeException e) {
-          log.log(Level.WARNING, "Failed to write initial job state for " + jobId, e);
-          throw e;
+        } catch (DatastoreException e) {
+          if (isEntityAlreadyExists(e)) {
+            log.info(jobId + ": Initial job state already exists, left unchanged.");
+          } else {
+            throw e;
+          }
         } finally {
           tx.rollbackIfActive();
         }
