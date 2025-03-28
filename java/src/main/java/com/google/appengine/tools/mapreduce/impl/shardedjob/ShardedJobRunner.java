@@ -713,12 +713,17 @@ public class ShardedJobRunner implements ShardedJobHandler {
         try {
           IncrementalTaskState<T> taskState = lookupTaskState(tx, taskId);
           if (taskState != null) {
-            log.info(jobId + ": Task already exists: " + taskState);
-            return null;
+            //shouldn't be possible unless we're entering loop to create initial tasks AGAIN
+            log.warning(jobId + ": Task already exists: " + taskState + "; will enqueue another attempt at it, so that may be a problem");
+          } else {
+            //usual case
+            taskState = IncrementalTaskState.create(taskId, jobId, startTime, initialTask);
+            ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
+
+            // since we should be in case where taskState does not exist, use add() to throw error if it does
+            tx.add(taskState.toEntity(tx), retryState.toEntity(tx));
           }
-          taskState = IncrementalTaskState.create(taskId, jobId, startTime, initialTask);
-          ShardRetryState<T> retryState = ShardRetryState.createFor(taskState);
-          tx.put(taskState.toEntity(tx), retryState.toEntity(tx));
+          // possible that we're scheduling the task again, but better than NEVER scheduling it, right??
           scheduleWorkerTask(settings, taskState, null, tx);
           tx.commit();
         } finally {
