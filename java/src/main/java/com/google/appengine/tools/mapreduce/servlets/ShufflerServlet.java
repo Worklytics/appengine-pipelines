@@ -29,10 +29,7 @@ import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageLevelDbOut
 import com.google.appengine.tools.mapreduce.outputs.MarshallingOutput;
 import com.google.appengine.tools.mapreduce.reducers.IdentityReducer;
 import com.google.appengine.tools.pipeline.*;
-import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
-import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
-import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
-import com.google.appengine.tools.pipeline.di.StepExecutionModule;
+import com.google.appengine.tools.pipeline.di.*;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobInfo;
@@ -98,7 +95,7 @@ public class ShufflerServlet extends HttpServlet {
   public void init(ServletConfig config) throws ServletException {
     super.init(config);
     if (component == null) {
-      component = DaggerJobRunServiceComponent.create();
+      component = JobRunServiceComponentContainer.getInstance();
     }
     requestUtils = component.requestUtils();
   }

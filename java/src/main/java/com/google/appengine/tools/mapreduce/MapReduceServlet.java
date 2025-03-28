@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.Serial;
 import java.util.logging.Level;
 
+import com.google.appengine.tools.pipeline.di.JobRunServiceComponentContainer;
 import com.google.common.annotations.VisibleForTesting;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -70,7 +71,7 @@ public class MapReduceServlet extends HttpServlet {
   public void init() throws ServletException {
     super.init();
     if (this.component == null) {
-      component = DaggerJobRunServiceComponent.create();
+      component = JobRunServiceComponentContainer.getInstance();
     }
   }
 
