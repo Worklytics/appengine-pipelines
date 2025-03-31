@@ -2,6 +2,7 @@
 
 package com.google.appengine.tools.mapreduce;
 
+import com.google.api.client.util.IOUtils;
 import com.google.appengine.tools.mapreduce.impl.BaseContext;
 import com.google.appengine.tools.mapreduce.impl.CountersImpl;
 import com.google.appengine.tools.mapreduce.impl.FilesByShard;
@@ -31,6 +32,7 @@ import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
+import com.google.appengine.tools.pipeline.util.CloseUtils;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.storage.*;
@@ -138,23 +140,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
     throw new UnsupportedOperationException("Use PipelineOrchestrator:start");
   }
 
-  private static void verifyBucketIsWritable(MapReduceSettings settings) {
-   Storage client = GcpCredentialOptions.getStorageClient(settings);
-    BlobId blobId = BlobId.of(settings.getBucketName(), UUID.randomUUID() + ".tmp");
-    if (client.get(blobId) != null) {
-      log.warning("File '" + blobId.getName() + "' exists. Skipping bucket write test.");
-      return;
-    }
-    try {
-      client.create(BlobInfo.newBuilder(blobId).build(), "Delete me!".getBytes(StandardCharsets.UTF_8));
-    } catch (StorageException e) {
-      throw new IllegalArgumentException("Bucket " + settings.getBucketName() + " is not writeable; MR job needs to write it for sort/shuffle phase of job", e);
-    } finally {
-      client.delete(blobId);
-    }
-  }
-
-  /**
+    /**
    * The pipeline job to execute the Map stage of the MapReduce. (For all shards)
    */
   @RequiredArgsConstructor

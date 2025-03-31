@@ -5,6 +5,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.InputReader;
+import com.google.appengine.tools.pipeline.util.CloseUtils;
 import com.google.auth.Credentials;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.storage.Storage;
@@ -40,7 +41,7 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
   private Options options;
 
   private transient LineInputStream in;
-  private transient Storage client;
+  private transient volatile Storage client;
 
 
   GoogleCloudStorageLineInputReader(GcsFilename file, long startOffset, long endOffset,
@@ -50,9 +51,13 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
 
   protected Storage getClient() throws IOException {
     if (client == null) {
-      //TODO: set retry param (GCS_RETRY_PARAMETERS)
-      //TODO: set User-Agent to "App Engine MR"?
-      client = GcpCredentialOptions.getStorageClient(this.options);
+      synchronized (this) {
+        if (client == null) {
+          //TODO: set retry param (GCS_RETRY_PARAMETERS)
+          //TODO: set User-Agent to "App Engine MR"?
+          client = GcpCredentialOptions.getStorageClient(this.options);
+        }
+      }
     }
     return client;
   }
@@ -120,6 +125,7 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
     offset += in.getBytesCount();
     in.close();
     in = null;
+    CloseUtils.close(getClient());
   }
 
   @Override

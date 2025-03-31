@@ -30,9 +30,7 @@ public class DeleteFilesJob extends Job1<Void, List<GcsFilename>> {
    */
   @Override
   public Value<Void> run(List<GcsFilename> files) throws Exception {
-    Storage storage = GcpCredentialOptions.getStorageClient(credentialOptions);
-    try {
-
+    try (Storage storage = GcpCredentialOptions.getStorageClient(credentialOptions)) {
       files.stream().map(GcsFilename::asBlobId)
         .map(blobId -> {
           boolean r = storage.delete(blobId);

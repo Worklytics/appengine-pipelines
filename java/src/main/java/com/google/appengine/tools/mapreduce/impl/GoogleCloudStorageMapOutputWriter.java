@@ -7,6 +7,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.appengine.tools.mapreduce.*;
 import com.google.appengine.tools.mapreduce.outputs.*;
+import com.google.appengine.tools.pipeline.util.CloseUtils;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.*;
 import com.google.common.base.Preconditions;
@@ -103,7 +104,7 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
     private static final String MAX_FILES_PER_COMPOSE = "com.google.appengine.tools.mapreduce.impl"
         + ".GoogleCloudStorageMapOutputWriter.MAX_FILES_PER_COMPOSE";
     @ToString.Exclude
-    private transient Storage client;
+    private transient volatile Storage client;
 
     private static final long MEMORY_REQUIRED = MapReduceConstants.DEFAULT_IO_BUFFER_SIZE * 2;
 
@@ -141,7 +142,11 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
       if (client == null) {
         //TODO: set retry param (GCS_RETRY_PARAMETERS)
         //TODO: set User-Agent to "App Engine MR"?
-        client = GcpCredentialOptions.getStorageClient(this.options);
+        synchronized (this) {
+          if (client == null) {
+            client = GcpCredentialOptions.getStorageClient(this.options);
+          }
+        }
       }
       return client;
     }
@@ -210,6 +215,7 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
         sliceParts.add(sliceBlob.getBlobId().getName());
         channel = null;
       }
+      CloseUtils.close(getClient());
     }
 
     @Override
@@ -222,6 +228,7 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
       if (!compositeParts.isEmpty()) {
         compose(compositeParts, getFileName(fileCount++));
       }
+      CloseUtils.close(getClient());
     }
 
     private String generateTempFileName() {

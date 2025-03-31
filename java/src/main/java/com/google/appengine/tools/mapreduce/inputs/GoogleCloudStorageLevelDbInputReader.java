@@ -27,7 +27,7 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   // The length of the file being read; -1 if unknown.
   private long length = -1;
 
-  private transient Storage client;
+  private transient volatile Storage client;
 
 
   /**
@@ -40,9 +40,13 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
 
   protected Storage getClient() throws IOException {
     if (client == null) {
-      //TODO: set retry param (GCS_RETRY_PARAMETERS)
-      //TODO: set User-Agent to "App Engine MR"?
-      client = GcpCredentialOptions.getStorageClient(this.options);
+      synchronized (this) {
+        if (client == null) {
+          //TODO: set retry param (GCS_RETRY_PARAMETERS)
+          //TODO: set User-Agent to "App Engine MR"?
+          client = StorageOptions.getDefaultInstance().getService();
+        }
+      }
     }
     return client;
   }
@@ -55,22 +59,26 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
 
   @Override
   public Double getProgress() {
-    if (length == -1) {
-      Blob blob = null;
-      try {
-        blob = getClient().get(file.asBlobId());
-      } catch (StorageException | IOException e) {
-        // It is just an estimate so it's probably not worth throwing.
+    try (Storage client = getClient()) {
+      if (length == -1) {
+        Blob blob = null;
+        try {
+          blob = getClient().get(file.asBlobId());
+        } catch (StorageException | IOException e) {
+          // It is just an estimate so it's probably not worth throwing.
+        }
+        if (blob == null) {
+          return null;
+        }
+        length = blob.getSize();
       }
-      if (blob == null) {
+      if (length == 0f) {
         return null;
       }
-      length = blob.getSize();
+      return getBytesRead() / (double) length;
+    } catch (Throwable ignored) {
+      // closing - presumably
     }
-    if (length == 0f) {
-      return null;
-    }
-    return getBytesRead() / (double) length;
   }
 
   @Override

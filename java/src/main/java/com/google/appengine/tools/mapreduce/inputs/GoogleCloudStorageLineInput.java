@@ -76,14 +76,13 @@ public class GoogleCloudStorageLineInput extends Input<byte[]> {
 
   @Override
   public List<? extends InputReader<byte[]>> createReaders() throws IOException {
-    Storage client = GcpCredentialOptions.getStorageClient(this.options);
-    try {
+    try (Storage client = GcpCredentialOptions.getStorageClient(this.options)) {
       Blob blob = client.get(file.asBlobId());
       if (blob == null) {
         throw new RuntimeException("File does not exist: " + file);
       }
       return split(file, blob.getSize(), shardCount);
-    } catch (StorageException e) {
+    } catch (Exception e) {
       throw new RuntimeException("Unable to read file metadata: " + file, e);
     }
   }
