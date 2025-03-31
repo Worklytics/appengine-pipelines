@@ -128,6 +128,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   private Task createIgnoringExisting(CloudTasksClient cloudTasksClient, QueueName queue, TaskSpec taskSpec) {
 
     Task task = toCloudTask(queue, taskSpec);
+    String originalName = taskSpec.getName();
     int pastAttempts = 0;
     Exception lastException;
     do {
@@ -136,7 +137,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
       } catch (com.google.api.gax.rpc.AlreadyExistsException e) {
         // GAE-legacy version of the FW ignored this case. but I am not sure it's still safe to do so, now that enqueue is not transactional with the datastore writes
         log.log(Level.WARNING, "CloudTasksTaskQueue task already exists for {0}", taskSpec.getName());
-        taskSpec = taskSpec.withName(taskSpec.getName()+ "-" + pastAttempts);
+        taskSpec = taskSpec.withName(originalName + "-" + pastAttempts);
         task = toCloudTask(queue, taskSpec);
         lastException = e;
       } catch (Exception e) {
