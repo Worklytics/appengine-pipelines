@@ -85,7 +85,7 @@ public class TestingTaskQueueCallback extends DeferredTaskCallback {
       }
       pipelineManager.processTask(pipelineTask);
     } catch (Exception e) {
-      StringUtils.logRetryMessage(logger, pipelineTask, retryCount, e);
+      TaskHandler.logRetryMessage(logger, pipelineTask, retryCount, e);
       return 500;
     }
     return 200;
