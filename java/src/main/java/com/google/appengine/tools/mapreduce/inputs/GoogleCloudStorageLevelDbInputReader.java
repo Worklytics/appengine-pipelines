@@ -43,15 +43,11 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
     this(file, GoogleCloudStorageLineInput.BaseOptions.defaults().withBufferSize(bufferSize));
   }
 
-  protected Storage getClient() {
+  private Storage getClient() {
     if (client == null) {
-      synchronized (this) {
-        if (client == null) {
-          //TODO: set retry param (GCS_RETRY_PARAMETERS)
-          //TODO: set User-Agent to "App Engine MR"?
-          client = StorageOptions.getDefaultInstance().getService();
-        }
-      }
+        //TODO: set retry param (GCS_RETRY_PARAMETERS)
+        //TODO: set User-Agent to "App Engine MR"?
+        client = StorageOptions.getDefaultInstance().getService();
     }
     return client;
   }
@@ -64,27 +60,22 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
 
   @Override
   public Double getProgress() {
-    try {
-      if (length == -1) {
-        Blob blob = null;
-        try {
-          blob = getClient().get(file.asBlobId());
-        } catch (StorageException e) {
-          // It is just an estimate so it's probably not worth throwing.
-        }
-        if (blob == null) {
-          return null;
-        }
-        length = blob.getSize();
+    if (length == -1) {
+      Blob blob = null;
+      try {
+        blob = getClient().get(file.asBlobId());
+      } catch (StorageException e) {
+        // It is just an estimate so it's probably not worth throwing.
       }
-      if (length == 0f) {
+      if (blob == null) {
         return null;
       }
-      return getBytesRead() / (double) length;
-    } catch (Throwable ignored) {
-      // closing - presumably
+      length = blob.getSize();
     }
-    return null;
+    if (length == 0f) {
+      return null;
+    }
+    return getBytesRead() / (double) length;
   }
 
   @Override
