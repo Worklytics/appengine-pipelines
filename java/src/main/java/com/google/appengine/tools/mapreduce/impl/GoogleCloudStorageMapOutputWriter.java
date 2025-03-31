@@ -215,7 +215,7 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
         sliceParts.add(sliceBlob.getBlobId().getName());
         channel = null;
       }
-      CloseUtils.closeQuietly(getClient());
+      resetClient();
     }
 
     @Override
@@ -228,7 +228,12 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
       if (!compositeParts.isEmpty()) {
         compose(compositeParts, getFileName(fileCount++));
       }
+      resetClient();
+    }
+
+    private void resetClient() {
       CloseUtils.closeQuietly(getClient());
+      this.client = null;
     }
 
     private String generateTempFileName() {

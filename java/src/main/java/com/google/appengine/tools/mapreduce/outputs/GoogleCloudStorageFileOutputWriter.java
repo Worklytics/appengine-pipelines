@@ -78,14 +78,14 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
     for (BlobId id : toDelete) {
       try {
         getClient().delete(id);
-      } catch (StorageException | IOException ex) {
+      } catch (StorageException ex) {
         logger.log(Level.WARNING, "Could not cleanup temporary file " + id.getName(), ex);
       }
     }
     toDelete.clear();
   }
 
-  protected Storage getClient() throws IOException {
+  protected Storage getClient() {
     if (client == null) {
       synchronized (this) {
         if (client == null) {
@@ -97,6 +97,11 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
 
     }
     return client;
+  }
+
+  private void resetClient() {
+    CloseUtils.closeQuietly(getClient());
+    this.client = null;
   }
 
   @Override
@@ -161,7 +166,7 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
   @Override
   public void endSlice() throws IOException {
     sliceChannel.close();
-    CloseUtils.closeQuietly(getClient());
+    resetClient();
   }
 
   @Override
@@ -188,7 +193,7 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
     toDelete.add(shardBlobId);
     shardBlobId = null;
     sliceChannel = null;
-    CloseUtils.closeQuietly(getClient());
+    resetClient();
   }
 
   //final location that this output writer will write to

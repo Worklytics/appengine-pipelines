@@ -43,7 +43,7 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
     this(file, GoogleCloudStorageLineInput.BaseOptions.defaults().withBufferSize(bufferSize));
   }
 
-  protected Storage getClient() throws IOException {
+  protected Storage getClient() {
     if (client == null) {
       synchronized (this) {
         if (client == null) {
@@ -89,7 +89,7 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
 
   @Override
   public void endSlice() throws IOException {
-    CloseUtils.closeQuietly(getClient());
+    resetClient();
     super.endSlice();
   }
 
@@ -103,5 +103,10 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   @Override
   public long estimateMemoryRequirement() {
     return LevelDbConstants.BLOCK_SIZE + options.getBufferSize() * 2; // Double buffered
+  }
+
+  private void resetClient() {
+    CloseUtils.closeQuietly(getClient());
+    this.client = null;
   }
 }

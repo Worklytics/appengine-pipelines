@@ -124,7 +124,12 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
     offset += in.getBytesCount();
     CloseUtils.closeQuietly(in);
     in = null;
+    resetClient();
+  }
+
+  private void resetClient() {
     CloseUtils.closeQuietly(getClient());
+    this.client = null;
   }
 
   @Override
