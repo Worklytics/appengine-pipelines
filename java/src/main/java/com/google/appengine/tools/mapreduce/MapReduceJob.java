@@ -2,40 +2,20 @@
 
 package com.google.appengine.tools.mapreduce;
 
-import com.google.api.client.util.IOUtils;
-import com.google.appengine.tools.mapreduce.impl.BaseContext;
-import com.google.appengine.tools.mapreduce.impl.CountersImpl;
-import com.google.appengine.tools.mapreduce.impl.FilesByShard;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageMapOutput;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageMergeInput;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageMergeOutput;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageReduceInput;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageSortInput;
-import com.google.appengine.tools.mapreduce.impl.GoogleCloudStorageSortOutput;
-import com.google.appengine.tools.mapreduce.impl.HashingSharder;
-import com.google.appengine.tools.mapreduce.impl.MapShardTask;
-import com.google.appengine.tools.mapreduce.impl.ReduceShardTask;
-import com.google.appengine.tools.mapreduce.impl.WorkerController;
-import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
+import com.google.appengine.tools.mapreduce.impl.*;
 import com.google.appengine.tools.mapreduce.impl.pipeline.CleanupPipelineJob;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
-import com.google.appengine.tools.mapreduce.impl.sort.MergeContext;
-import com.google.appengine.tools.mapreduce.impl.sort.MergeShardTask;
-import com.google.appengine.tools.mapreduce.impl.sort.SortContext;
-import com.google.appengine.tools.mapreduce.impl.sort.SortShardTask;
-import com.google.appengine.tools.mapreduce.impl.sort.SortWorker;
+import com.google.appengine.tools.mapreduce.impl.sort.*;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
-import com.google.appengine.tools.pipeline.util.CloseUtils;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
-import com.google.cloud.storage.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -49,7 +29,6 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.io.Serial;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
@@ -146,6 +125,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   @RequiredArgsConstructor
   static class MapJob<I, K, V> extends Job0<MapReduceResult<FilesByShard>> implements MRStage {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Getter
@@ -241,6 +221,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   static class SortJob extends Job1<
       MapReduceResult<FilesByShard>,
       MapReduceResult<FilesByShard>> implements MRStage {
+    @Serial
     private static final long serialVersionUID = 1L;
     // We don't need the CountersImpl part of the MapResult input here but we
     // accept it to avoid needing an adapter job to connect this job to MapJob's result.
@@ -481,6 +462,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   static class ReduceJob<K, V, O, R> extends Job1<MapReduceResult<R>,
       MapReduceResult<FilesByShard>> implements MRStage {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Getter
@@ -555,6 +537,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   @RequiredArgsConstructor
   static class Cleanup extends Job1<Void, MapReduceResult<FilesByShard>> {
 
+    @Serial
     private static final long serialVersionUID = 4559443543355672948L;
 
     @NonNull

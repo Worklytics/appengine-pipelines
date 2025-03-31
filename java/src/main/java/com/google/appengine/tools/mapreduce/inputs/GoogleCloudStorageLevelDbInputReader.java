@@ -1,14 +1,18 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
+import com.google.appengine.tools.pipeline.util.CloseUtils;
 import com.google.cloud.ReadChannel;
-import com.google.cloud.storage.*;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
+import com.google.cloud.storage.StorageOptions;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.nio.channels.ReadableByteChannel;
 
 @RequiredArgsConstructor
@@ -17,6 +21,7 @@ import java.nio.channels.ReadableByteChannel;
  */
 public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputReader {
 
+  @Serial
   private static final long serialVersionUID = 2L;
 
   @NonNull
@@ -63,8 +68,8 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
       if (length == -1) {
         Blob blob = null;
         try {
-          blob = getClient().get(file.asBlobId());
-        } catch (StorageException | IOException e) {
+          blob = client.get(file.asBlobId());
+        } catch (StorageException e) {
           // It is just an estimate so it's probably not worth throwing.
         }
         if (blob == null) {
@@ -79,6 +84,13 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
     } catch (Throwable ignored) {
       // closing - presumably
     }
+    return null;
+  }
+
+  @Override
+  public void endSlice() throws IOException {
+    CloseUtils.close(getClient());
+    super.endSlice();
   }
 
   @Override

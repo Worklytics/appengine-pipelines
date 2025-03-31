@@ -1,12 +1,10 @@
 package com.google.appengine.tools.mapreduce.impl;
 
-import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.DEFAULT_IO_BUFFER_SIZE;
-import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.MAP_OUTPUT_MIME_TYPE;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-
 import com.google.appengine.tools.mapreduce.*;
-import com.google.appengine.tools.mapreduce.outputs.*;
+import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
+import com.google.appengine.tools.mapreduce.outputs.LevelDbOutputWriter;
+import com.google.appengine.tools.mapreduce.outputs.MarshallingOutputWriter;
+import com.google.appengine.tools.mapreduce.outputs.ShardingOutputWriter;
 import com.google.appengine.tools.pipeline.util.CloseUtils;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.*;
@@ -16,16 +14,15 @@ import lombok.NonNull;
 import lombok.ToString;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.DEFAULT_IO_BUFFER_SIZE;
+import static com.google.appengine.tools.mapreduce.impl.MapReduceConstants.MAP_OUTPUT_MIME_TYPE;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An {@link OutputWriter} that is used by the map stage and writes bytes to GCS,
@@ -40,6 +37,7 @@ import java.util.logging.Logger;
 public class GoogleCloudStorageMapOutputWriter<K, V>
     extends ShardingOutputWriter<K, V, GoogleCloudStorageMapOutputWriter.MapOutputWriter<K, V>> {
 
+  @Serial
   private static final long serialVersionUID = 739934506831898405L;
   private static final Logger logger =
       Logger.getLogger(GoogleCloudStorageMapOutputWriter.class.getName());
@@ -82,6 +80,7 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
 
   static class MapOutputWriter<K, V> extends MarshallingOutputWriter<KeyValue<K, V>> {
 
+    @Serial
     private static final long serialVersionUID = 6056683766896574858L;
     private final GcsFileOutputWriter gcsWriter;
 
@@ -98,6 +97,7 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
   @ToString
   private static class GcsFileOutputWriter extends OutputWriter<ByteBuffer> {
 
+    @Serial
     private static final long serialVersionUID = 2L;
     private static final String MAX_COMPONENTS_PER_COMPOSE = "com.google.appengine.tools.mapreduce"
         + ".impl.GoogleCloudStorageMapOutputWriter.MAX_COMPONENTS_PER_COMPOSE";
@@ -211,7 +211,7 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
     @Override
     public void endSlice() throws IOException {
       if (channel != null) {
-        channel.close();
+        CloseUtils.close(channel);
         sliceParts.add(sliceBlob.getBlobId().getName());
         channel = null;
       }

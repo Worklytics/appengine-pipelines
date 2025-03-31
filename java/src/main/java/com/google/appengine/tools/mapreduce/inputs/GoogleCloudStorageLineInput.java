@@ -1,16 +1,11 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.Input;
 import com.google.appengine.tools.mapreduce.InputReader;
-import com.google.auth.Credentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageException;
-import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Preconditions;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,9 +13,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.With;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * CloudStorageLineInput shards files in Cloud Storage on separator boundaries.
@@ -30,6 +27,7 @@ public class GoogleCloudStorageLineInput extends Input<byte[]> {
 
   private static final long MIN_SHARD_SIZE = 1024L;
 
+  @Serial
   private static final long serialVersionUID = 2L;
 
   private final GcsFilename file;
@@ -50,6 +48,7 @@ public class GoogleCloudStorageLineInput extends Input<byte[]> {
   @Builder
   public static class BaseOptions implements GoogleCloudStorageLineInput.Options {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Builder.Default
