@@ -63,7 +63,7 @@ public class MapSettingsTest {
   @Test
   public void testDefaultSettings() {
     MapSettings mrSettings = MapSettings.builder().build();
-    assertNull(mrSettings.getModule());
+    assertNull(mrSettings.getService());
     assertNull(mrSettings.getWorkerQueueName());
     assertEquals(DEFAULT_BASE_URL, mrSettings.getBaseUrl());
     assertEquals(DEFAULT_MILLIS_PER_SLICE, mrSettings.getMillisPerSlice());
@@ -110,7 +110,7 @@ public class MapSettingsTest {
     assertEquals(0, settings.getMaxSliceRetries());
     builder.module("m1");
     settings = builder.build();
-    assertEquals("m1", settings.getModule());
+    assertEquals("m1", settings.getService());
   }
 
   @Test
@@ -124,7 +124,7 @@ public class MapSettingsTest {
         .workerQueueName("good-queue")
         .build();
     settings = settings.toBuilder().build();
-    assertEquals("m", settings.getModule());
+    assertEquals("m", settings.getService());
     assertEquals("url", settings.getBaseUrl());
     assertEquals(10, settings.getMaxShardRetries());
     assertEquals(20, settings.getMaxSliceRetries());

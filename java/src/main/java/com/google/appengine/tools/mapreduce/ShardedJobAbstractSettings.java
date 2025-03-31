@@ -25,7 +25,7 @@ public interface ShardedJobAbstractSettings {
 
   String getBaseUrl();
 
-  String getModule();
+  String getService();
 
   String getWorkerQueueName();
 
@@ -41,7 +41,7 @@ public interface ShardedJobAbstractSettings {
 
   default JobSetting[] toJobSettings(JobSetting... extra) {
     JobSetting[] settings = new JobSetting[3 + extra.length];
-    settings[0] = new JobSetting.OnService(getModule());
+    settings[0] = new JobSetting.OnService(getService());
     settings[1] = new JobSetting.OnQueue(getWorkerQueueName());
     settings[2] = new JobSetting.DatastoreNamespace(getNamespace());
     System.arraycopy(extra, 0, settings, 3, extra.length);

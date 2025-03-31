@@ -67,7 +67,7 @@ public final class ShardedJobSettings implements Serializable {
 
   public static ShardedJobSettings from(PipelineService pipelineService,
                                         ShardedJobAbstractSettings abstractSettings, ShardedJobRunId shardedJobRunId, JobRunId pipelineRunId) {
-    String module = abstractSettings.getModule();
+    String module = abstractSettings.getService();
     if (module == null) {
       module = pipelineService.getDefaultWorkerService();
     }
