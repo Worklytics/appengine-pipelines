@@ -65,11 +65,10 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   @Override
   public Double getProgress() {
     try {
-      Storage client = getClient();
       if (length == -1) {
         Blob blob = null;
         try {
-          blob = client.get(file.asBlobId());
+          blob = getClient().get(file.asBlobId());
         } catch (StorageException e) {
           // It is just an estimate so it's probably not worth throwing.
         }
