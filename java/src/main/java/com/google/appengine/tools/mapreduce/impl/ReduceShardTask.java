@@ -18,6 +18,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.Status;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 import java.util.Iterator;
 
 /**
@@ -30,6 +31,7 @@ import java.util.Iterator;
 public class ReduceShardTask<K, V, O>
     extends WorkerShardTask<KeyValue<K, Iterator<V>>, O, ReducerContext<O>> {
 
+  @Serial
   private static final long serialVersionUID = 874429568286446321L;
 
   private Reducer<K, V, O> reducer;
@@ -41,9 +43,8 @@ public class ReduceShardTask<K, V, O>
 
   public ReduceShardTask(ShardedJobRunId mrJobId, int shardNumber, int shardCount,
                          InputReader<KeyValue<K, Iterator<V>>> in, Reducer<K, V, O> reducer, OutputWriter<O> out,
-                         long millisPerSlice) {
-    super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, REDUCER_CALLS,
-        REDUCER_WALLTIME_MILLIS));
+                         long millisPerSlice, WorkerRunSettings workerRunSettings) {
+    super(new IncrementalTaskContext(mrJobId, shardNumber, shardCount, REDUCER_CALLS, REDUCER_WALLTIME_MILLIS), workerRunSettings);
     this.in = checkNotNull(in, "Null in");
     this.out = checkNotNull(out, "Null out");
     this.reducer = checkNotNull(reducer, "Null reducer");
