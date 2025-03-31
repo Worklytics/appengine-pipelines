@@ -22,6 +22,8 @@ import com.google.appengine.tools.pipeline.impl.model.JobRecord;
 import com.google.appengine.tools.pipeline.impl.model.PipelineModelObject;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -64,21 +66,17 @@ import java.util.Set;
  */
 public class UpdateSpec {
 
-  private Group nonTransactionalGroup = new Group();
-  private Map<String, Transaction> transactions = new HashMap<>(10);
-  private TransactionWithTasks finalTransaction = new TransactionWithTasks();
+  @Getter
+  final private Group nonTransactionalGroup = new Group();
+  final private Map<String, Transaction> transactions = new HashMap<>(10);
+  @Getter
+  final private TransactionWithTasks finalTransaction = new TransactionWithTasks();
+  @Setter
+  @Getter
   private Key rootJobKey;
 
   public UpdateSpec(Key rootJobKey) {
     this.rootJobKey = rootJobKey;
-  }
-
-  public void setRootJobKey(Key rootJobKey) {
-    this.rootJobKey = rootJobKey;
-  }
-
-  public Key getRootJobKey() {
-    return rootJobKey;
   }
 
   public Transaction getOrCreateTransaction(String transactionName) {
@@ -94,14 +92,6 @@ public class UpdateSpec {
   // transaction (Barrier) and for that we don't need the transaction.
   public Collection<Transaction> getTransactions() {
     return transactions.values();
-  }
-
-  public TransactionWithTasks getFinalTransaction() {
-    return finalTransaction;
-  }
-
-  public Group getNonTransactionalGroup() {
-    return nonTransactionalGroup;
   }
 
   /**
@@ -121,11 +111,11 @@ public class UpdateSpec {
   public static class Group {
     private static final int INITIAL_SIZE = 20;
 
-    private Map<Key, JobRecord> jobMap = new HashMap<>(INITIAL_SIZE);
-    private Map<Key, Barrier> barrierMap = new HashMap<>(INITIAL_SIZE);
-    private Map<Key, Slot> slotMap = new HashMap<>(INITIAL_SIZE);
-    private Map<Key, JobInstanceRecord> jobInstanceMap = new HashMap<>(INITIAL_SIZE);
-    private Map<Key, ExceptionRecord> failureMap = new HashMap<>(INITIAL_SIZE);
+    private final Map<Key, JobRecord> jobMap = new HashMap<>(INITIAL_SIZE);
+    private final Map<Key, Barrier> barrierMap = new HashMap<>(INITIAL_SIZE);
+    private final Map<Key, Slot> slotMap = new HashMap<>(INITIAL_SIZE);
+    private final Map<Key, JobInstanceRecord> jobInstanceMap = new HashMap<>(INITIAL_SIZE);
+    private final Map<Key, ExceptionRecord> failureMap = new HashMap<>(INITIAL_SIZE);
 
     private static <E extends PipelineModelObject> void put(Map<Key, E> map, E object) {
       map.put(object.getKey(), object);
@@ -201,7 +191,7 @@ public class UpdateSpec {
    *
    * @author rudominer@google.com (Mitch Rudominer)
    */
-  public class TransactionWithTasks extends Transaction {
+  public static class TransactionWithTasks extends Transaction {
     private static final int INITIAL_SIZE = 20;
     private final Set<PipelineTask> pipelineTaskSet = new HashSet<>(INITIAL_SIZE);
 
