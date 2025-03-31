@@ -58,7 +58,7 @@ public class MapReduceSettingsTest {
   @Test
   public void testNonDefaultSettings() {
     MapReduceSettings.MapReduceSettingsBuilder builder = MapReduceSettings.builder();
-    builder.module("m");
+    builder.service("m");
     builder = builder.baseUrl("base-url");
     builder = builder.bucketName("bucket");
     try {
@@ -130,14 +130,14 @@ public class MapReduceSettingsTest {
 
     builder = MapReduceSettings.builder()
       .bucketName("app_default_bucket")
-      .module("m1");
+      .service("m1");
     mrSettings = builder.build();
     assertEquals("m1", mrSettings.getService());
 
     builder = MapReduceSettings.builder()
       .bucketName("app_default_bucket")
       .maxSortMemory(null)
-      .module("m2");
+      .service("m2");
 
     assertNull(builder.build().getMaxSortMemory());
   }
