@@ -122,9 +122,9 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
   @Override
   public void endSlice() throws IOException {
     offset += in.getBytesCount();
-    CloseUtils.close(in);
+    CloseUtils.closeQuietly(in);
     in = null;
-    CloseUtils.close(getClient());
+    CloseUtils.closeQuietly(getClient());
   }
 
   @Override

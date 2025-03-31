@@ -89,7 +89,7 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
 
   @Override
   public void endSlice() throws IOException {
-    CloseUtils.close(getClient());
+    CloseUtils.closeQuietly(getClient());
     super.endSlice();
   }
 

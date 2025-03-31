@@ -106,7 +106,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
    */
   @Override
   public void endShard() throws IOException {
-    CloseUtils.close(in);
+    CloseUtils.closeQuietly(in);
   }
 
   @SneakyThrows
@@ -163,7 +163,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
         channelState = null;
       }
 
-      CloseUtils.close(in);
+      CloseUtils.closeQuietly(in);
       in = null;
     }
   }

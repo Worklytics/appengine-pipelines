@@ -211,11 +211,11 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
     @Override
     public void endSlice() throws IOException {
       if (channel != null) {
-        CloseUtils.close(channel);
+        CloseUtils.closeQuietly(channel);
         sliceParts.add(sliceBlob.getBlobId().getName());
         channel = null;
       }
-      CloseUtils.close(getClient());
+      CloseUtils.closeQuietly(getClient());
     }
 
     @Override
@@ -228,7 +228,7 @@ public class GoogleCloudStorageMapOutputWriter<K, V>
       if (!compositeParts.isEmpty()) {
         compose(compositeParts, getFileName(fileCount++));
       }
-      CloseUtils.close(getClient());
+      CloseUtils.closeQuietly(getClient());
     }
 
     private String generateTempFileName() {

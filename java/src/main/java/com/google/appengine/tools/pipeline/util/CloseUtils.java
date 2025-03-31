@@ -6,7 +6,7 @@ import java.io.IOException;
 
 public class CloseUtils {
 
-  public static void close(@Nullable Closeable closeable) {
+  public static void closeQuietly(@Nullable Closeable closeable) {
     if (closeable != null) {
       try {
         closeable.close();
@@ -16,7 +16,7 @@ public class CloseUtils {
     }
   }
 
-  public static void close(@Nullable AutoCloseable closeable) {
+  public static void closeQuietly(@Nullable AutoCloseable closeable) {
     if (closeable != null) {
       try {
         closeable.close();
