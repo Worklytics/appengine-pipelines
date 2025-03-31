@@ -115,7 +115,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   private final Datastore datastore;
   private final PipelineTaskQueue taskQueue;
-  @Getter
   private final AppEngineServicesService servicesService;
 
   // Only used in tests
