@@ -1095,10 +1095,13 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
       //    "Internal logic error: numFinalizeArguments=" + numFinalizeArguments);
       // this should now happen, is this coming from multiple tasks being executed?
       // wait for the last known added slot
-      finalizeValue = Iterables.getLast(finalizeArguments.stream().filter(Objects::nonNull).toList());
+      finalizeValue = Iterables.getLast(finalizeArguments.stream().filter(Objects::nonNull).toList(), null);
     } else {
       // normal scenario
       finalizeValue = finalizeArguments.get(0);
+    }
+    if (finalizeValue == null ) {
+      log.warning("No finalize value found for key: " + jobRecord.getRootJobKey() + ", key: " + finalizeBarrier.getJobKey().toString() + " - is this legit?");
     }
     log.finest("Finalizing " + jobRecord + " with value=" + finalizeValue);
     outputSlot.fill(finalizeValue);
