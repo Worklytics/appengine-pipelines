@@ -190,7 +190,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   /**
-   * non-transactional save all
+   * non-transactional save all; retries internally (see tryFiveTimes)
+   *
    * @param group
    * @throws DatastoreException if any datastore failure
    * @return generated keys, if any
@@ -209,10 +210,15 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     final int MAX_BATCH_SIZE = 500; // limit from Datastore API
     int batchIndex = 0;
     do {
-      Batch batch = datastore.newBatch();
-      int batchOffset = batchIndex * MAX_BATCH_SIZE;
-      putAll(batch, toSave.subList(batchOffset, batchOffset + Math.min(MAX_BATCH_SIZE, toSave.size() - batchOffset)));
-      keys.addAll(batch.submit().getGeneratedKeys());
+      final int batchOffset = batchIndex * MAX_BATCH_SIZE;
+      keys.addAll(tryFiveTimes(new Operation<List<Key>>("batchSave") {
+        @Override
+        public List<Key> call() throws Exception {
+          Batch batch = datastore.newBatch();
+          putAll(batch, toSave.subList(batchOffset, batchOffset +Math.min(MAX_BATCH_SIZE, toSave.size() -batchOffset)));
+          return batch.submit().getGeneratedKeys();
+        }
+      }));
     } while (++batchIndex * MAX_BATCH_SIZE < toSave.size());
 
     return keys;
@@ -281,22 +287,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     private final String name;
   }
 
-  private <R> R tryFiveTimes(final Operation<R> operation) {
-    try {
-      return withDefaults(RetryerBuilder.<R>newBuilder()).call(operation);
-    } catch (ExecutionException e) {
-      logger.log(Level.INFO, "Non-retryable exception during " + operation.getName(), e.getCause());
-      throw new RuntimeException(e.getCause());
-    } catch (RetryException e) {
-      if (e.getCause() instanceof RuntimeException) {
-        logger.info(e.getCause().getMessage() + " during " + operation.getName()
-            + " throwing after multiple attempts ");
-        throw (RuntimeException) e.getCause();
-      } else {
-        throw new RuntimeException(e);
-      }
-    }
-  }
+
 
   @Override
   public PipelineTaskQueue.TaskReference enqueue(PipelineTask pipelineTask) {
@@ -307,13 +298,10 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   public boolean saveWithJobStateCheck(final UpdateSpec updateSpec,
                                        final Key jobKey,
       final JobRecord.State... expectedStates) {
-    tryFiveTimes(new Operation<Void>("save") {
-      @Override
-      public Void call() {
-        saveAll(updateSpec.getNonTransactionalGroup());
-        return null;
-      }
-    });
+
+    //q: do this in a thread, so parallel with the other datastore saves??
+    saveAll(updateSpec.getNonTransactionalGroup());
+
     // TODO(user): Replace this with plug-able hooks that could be used by tests,
     // if needed could be restricted to package-scoped tests.
     // If a unit test requests us to do so, fail here.
@@ -754,5 +742,22 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     deleteAll(Barrier.DATA_STORE_KIND, pipelineKey);
     deleteAll(JobInstanceRecord.DATA_STORE_KIND, pipelineKey);
     deleteAll(FanoutTaskRecord.DATA_STORE_KIND, pipelineKey);
+  }
+
+  private <R> R tryFiveTimes(final Operation<R> operation) {
+    try {
+      return withDefaults(RetryerBuilder.<R>newBuilder()).call(operation);
+    } catch (ExecutionException e) {
+      logger.log(Level.INFO, "Non-retryable exception during " + operation.getName(), e.getCause());
+      throw new RuntimeException(e.getCause());
+    } catch (RetryException e) {
+      if (e.getCause() instanceof RuntimeException) {
+        logger.info(e.getCause().getMessage() + " during " + operation.getName()
+          + " throwing after multiple attempts ");
+        throw (RuntimeException) e.getCause();
+      } else {
+        throw new RuntimeException(e);
+      }
+    }
   }
 }
