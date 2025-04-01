@@ -71,10 +71,8 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
       .map(tasksForQueue -> {
         Stream<TaskSpec> specs = tasksForQueue.getValue().stream()
           .map(pipelineTask -> {
-            String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
-              .orElseGet(appEngineServicesService::getDefaultService);
-            String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
-              .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
+            String service = getServiceForTask(pipelineTask);
+            String version = getServiceVersionsForTask(pipelineTask, service);
             String host = appEngineServicesService.getWorkerServiceHostName(service, version);
             return pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl());
           });
@@ -88,16 +86,16 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
     Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
     pipelineTasks.forEach(pipelineTask -> {
-        String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
-          .orElseGet(appEngineServicesService::getDefaultService);
-        String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
-          .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
+        String service = getServiceForTask(pipelineTask);
+        String version = getServiceVersionsForTask(pipelineTask, service);
         String host = appEngineServicesService.getWorkerServiceHostName(service, version);
         String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME);
         taskSpecs.put(queueName, pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl()));
     });
     return taskSpecs;
   }
+
+
 
   @Override
   public Collection<TaskReference> enqueue(@NonNull String queueName, final Collection<TaskSpec> taskSpecs) {
@@ -228,6 +226,8 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     AppEngineHttpRequest.Builder callbackRequest = AppEngineHttpRequest.newBuilder()
       .putAllHeaders(taskSpec.getHeaders());
 
+    //callbackRequest.putHeaders("Host", taskSpec.getHost());
+
     if (taskSpec.getMethod() == TaskSpec.Method.POST) {
       callbackRequest.setHttpMethod(HttpMethod.POST);
       callbackRequest.putHeaders("Content-Type", "application/x-www-form-urlencoded");
@@ -268,6 +268,16 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
         return queueLocation.map(Location::getLocationId).orElseThrow(() -> new Error("No queue location matching " + appEngineLocation));
       }
     });
+  }
+
+  String getServiceForTask(PipelineTask pipelineTask) {
+    return Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
+      .orElseGet(appEngineServicesService::getDefaultService);
+  }
+
+  String getServiceVersionsForTask(PipelineTask pipelineTask, @NonNull String service) {
+    return Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
+      .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
   }
 
 }
