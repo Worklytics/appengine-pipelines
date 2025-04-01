@@ -40,9 +40,7 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -633,32 +631,42 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     });
   }
 
+  //NOTE: just for the pipelines UX
   @Override
   public PipelineObjects queryFullPipeline(final Key rootJobKey) {
-    final Map<Key, JobRecord> jobs = new HashMap<>();
-    final Map<Key, Slot> slots = new HashMap<>();
-    final Map<Key, Barrier> barriers = new HashMap<>();
-    final Map<Key, JobInstanceRecord> jobInstanceRecords = new HashMap<>();
-    final Map<Key, ExceptionRecord> failureRecords = new HashMap<>();
 
-    //TODO: parallelize these all
-    for (Entity entity : queryAll(Barrier.DATA_STORE_KIND, rootJobKey)) {
-      barriers.put(entity.getKey(), new Barrier(entity));
-    }
-    for (Entity entity : queryAll(Slot.DATA_STORE_KIND, rootJobKey)) {
-      slots.put(entity.getKey(), new Slot(entity, this, true));
-    }
-    for (Entity entity : queryAll(JobRecord.DATA_STORE_KIND, rootJobKey)) {
-      jobs.put(entity.getKey(), new JobRecord(entity));
-    }
-    for (Entity entity : queryAll(JobInstanceRecord.DATA_STORE_KIND, rootJobKey)) {
-      jobInstanceRecords.put(entity.getKey(), new JobInstanceRecord(entity, getSerializationStrategy()));
-    }
-    for (Entity entity : queryAll(ExceptionRecord.DATA_STORE_KIND, rootJobKey)) {
-      failureRecords.put(entity.getKey(), new ExceptionRecord(entity));
-    }
-    return new PipelineObjects(
-        rootJobKey, jobs, slots, barriers, jobInstanceRecords, failureRecords);
+    ExecutorService executor = Executors.newFixedThreadPool(5);
+
+    CompletableFuture<Map<Key, JobRecord>> jobs = CompletableFuture.supplyAsync(() ->
+      queryAll(JobRecord.DATA_STORE_KIND, rootJobKey).stream()
+        .map(entity -> new JobRecord(entity))
+        .collect(Collectors.toMap(PipelineModelObject::getKey, Function.identity())), executor);
+
+    CompletableFuture<Map<Key, Barrier>> barriers = CompletableFuture.supplyAsync(() ->
+      queryAll(Barrier.DATA_STORE_KIND, rootJobKey).stream()
+        .map(entity -> new Barrier(entity))
+        .collect(Collectors.toMap(PipelineModelObject::getKey, Function.identity())), executor);
+
+    CompletableFuture<Map<Key, Slot>> slots = CompletableFuture.supplyAsync(() ->
+      queryAll(Slot.DATA_STORE_KIND, rootJobKey).stream()
+        .map(entity -> new Slot(entity, this, true))
+        .collect(Collectors.toMap(PipelineModelObject::getKey, Function.identity())), executor);
+
+    CompletableFuture<Map<Key, JobInstanceRecord>> jobInstances = CompletableFuture.supplyAsync(() ->
+      queryAll(JobInstanceRecord.DATA_STORE_KIND, rootJobKey).stream()
+        .map(entity -> new JobInstanceRecord(entity, getSerializationStrategy()))
+        .collect(Collectors.toMap(PipelineModelObject::getKey, Function.identity())), executor);
+
+    CompletableFuture<Map<Key, ExceptionRecord>> exceptions = CompletableFuture.supplyAsync(() ->
+      queryAll(ExceptionRecord.DATA_STORE_KIND, rootJobKey).stream()
+        .map(entity -> new ExceptionRecord(entity))
+        .collect(Collectors.toMap(PipelineModelObject::getKey, Function.identity())), executor);
+
+    PipelineObjects objects = new PipelineObjects(
+      rootJobKey, jobs.join(), slots.join(), barriers.join(), jobInstances.join(), exceptions.join());
+    executor.shutdown();
+    return objects;
+
   }
 
   private void deleteAll(final String kind, final Key rootJobKey) {
