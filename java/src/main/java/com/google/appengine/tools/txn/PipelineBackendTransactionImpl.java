@@ -64,10 +64,12 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   public Response commit() {
     //noinspection unchecked
     try {
+      Response dsResponse = getDsTransaction().commit();
       // log.info("commit transaction for " + Arrays.stream(Thread.currentThread().getStackTrace()).toList().get(2));
+      // we see more Datastore errors (contention / ) than cloud tasks enqueue errors (barely none)
+      // let's only commit if the datastore txn went through
       taskReferences.addAll(this.commitTasks());
-      // returning void for simplicity, we never do anything with the response
-      return getDsTransaction().commit();
+      return dsResponse;
     } catch (Throwable t) {
       rollbackTasks();
       throw t;
