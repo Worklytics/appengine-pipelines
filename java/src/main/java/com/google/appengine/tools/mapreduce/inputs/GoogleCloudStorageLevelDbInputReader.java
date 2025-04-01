@@ -3,12 +3,16 @@ package com.google.appengine.tools.mapreduce.inputs;
 import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
+import com.google.appengine.tools.pipeline.util.CloseUtils;
 import com.google.cloud.ReadChannel;
-import com.google.cloud.storage.*;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.nio.channels.ReadableByteChannel;
 
 @RequiredArgsConstructor
@@ -17,6 +21,7 @@ import java.nio.channels.ReadableByteChannel;
  */
 public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputReader {
 
+  @Serial
   private static final long serialVersionUID = 2L;
 
   @NonNull
@@ -27,7 +32,7 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   // The length of the file being read; -1 if unknown.
   private long length = -1;
 
-  private transient Storage client;
+  private transient volatile Storage client;
 
 
   /**
@@ -38,11 +43,14 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
     this(file, GoogleCloudStorageLineInput.BaseOptions.defaults().withBufferSize(bufferSize));
   }
 
-  protected Storage getClient() throws IOException {
+  private Storage getClient() {
     if (client == null) {
-      //TODO: set retry param (GCS_RETRY_PARAMETERS)
-      //TODO: set User-Agent to "App Engine MR"?
-      client = GcpCredentialOptions.getStorageClient(this.options);
+        synchronized (this) {
+          if (client == null) {
+            //TODO: set retry param (GCS_RETRY_PARAMETERS)
+            //TODO: set User-Agent to "App Engine MR"?
+            client = GcpCredentialOptions.getStorageClient(this.options);          }
+        }
     }
     return client;
   }
@@ -59,7 +67,7 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
       Blob blob = null;
       try {
         blob = getClient().get(file.asBlobId());
-      } catch (StorageException | IOException e) {
+      } catch (StorageException e) {
         // It is just an estimate so it's probably not worth throwing.
       }
       if (blob == null) {
@@ -74,7 +82,13 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   }
 
   @Override
-  public ReadableByteChannel createReadableByteChannel() throws IOException {
+  public void endSlice() throws IOException {
+    resetClient();
+    super.endSlice();
+  }
+
+  @Override
+  public ReadableByteChannel createReadableByteChannel() {
     ReadChannel reader = getClient().reader(file.asBlobId());
     reader.setChunkSize(options.getBufferSize());
     return reader;
@@ -83,5 +97,10 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   @Override
   public long estimateMemoryRequirement() {
     return LevelDbConstants.BLOCK_SIZE + options.getBufferSize() * 2; // Double buffered
+  }
+
+  private void resetClient() {
+    CloseUtils.closeQuietly(getClient());
+    this.client = null;
   }
 }

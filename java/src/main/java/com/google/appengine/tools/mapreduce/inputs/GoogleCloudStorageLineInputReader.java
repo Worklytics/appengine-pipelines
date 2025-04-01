@@ -1,29 +1,29 @@
 package com.google.appengine.tools.mapreduce.inputs;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.InputReader;
-import com.google.auth.Credentials;
+import com.google.appengine.tools.pipeline.util.CloseUtils;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.util.NoSuchElementException;
-import java.util.Optional;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * CloudStorageLineInputReader reads files from Cloud Storage one line at a time.
  *
  */
 class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
+  @Serial
   private static final long serialVersionUID = 2L;
 
   public interface Options extends Serializable, GcpCredentialOptions {
@@ -40,7 +40,7 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
   private Options options;
 
   private transient LineInputStream in;
-  private transient Storage client;
+  private transient volatile Storage client;
 
 
   GoogleCloudStorageLineInputReader(GcsFilename file, long startOffset, long endOffset,
@@ -48,11 +48,15 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
     this(file, startOffset, endOffset, separator, GoogleCloudStorageLineInput.BaseOptions.defaults());
   }
 
-  protected Storage getClient() throws IOException {
+  protected Storage getClient() {
     if (client == null) {
-      //TODO: set retry param (GCS_RETRY_PARAMETERS)
-      //TODO: set User-Agent to "App Engine MR"?
-      client = GcpCredentialOptions.getStorageClient(this.options);
+      synchronized (this) {
+        if (client == null) {
+          //TODO: set retry param (GCS_RETRY_PARAMETERS)
+          //TODO: set User-Agent to "App Engine MR"?
+          client = GcpCredentialOptions.getStorageClient(this.options);
+        }
+      }
     }
     return client;
   }
@@ -118,8 +122,14 @@ class GoogleCloudStorageLineInputReader extends InputReader<byte[]> {
   @Override
   public void endSlice() throws IOException {
     offset += in.getBytesCount();
-    in.close();
+    CloseUtils.closeQuietly(in);
     in = null;
+    resetClient();
+  }
+
+  private void resetClient() {
+    CloseUtils.closeQuietly(getClient());
+    this.client = null;
   }
 
   @Override

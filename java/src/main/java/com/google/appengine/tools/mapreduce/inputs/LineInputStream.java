@@ -18,10 +18,7 @@ package com.google.appengine.tools.mapreduce.inputs;
 
 import com.google.common.io.CountingInputStream;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,7 +29,7 @@ import java.util.logging.Logger;
  * For internal use only. User code cannot safely depend on this class.
  *
  */
-class LineInputStream {
+class LineInputStream implements Closeable {
 
   private static final Logger log = Logger.getLogger(LineInputStream.class.getName());
   private static final int INITIAL_BUFFER_SIZE = 10000;
