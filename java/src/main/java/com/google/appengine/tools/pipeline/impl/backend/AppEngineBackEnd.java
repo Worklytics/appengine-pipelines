@@ -46,7 +46,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import static com.google.appengine.tools.pipeline.impl.model.JobRecord.IS_ROOT_JOB_PROPERTY;
@@ -106,8 +105,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
               .build();
 
   }
-
-  private static final Logger logger = Logger.getLogger(AppEngineBackEnd.class.getName());
 
   // @see https://cloud.google.com/datastore/docs/concepts/limits
   // actually, 1,048,572 bytes
@@ -211,7 +208,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     int batchIndex = 0;
     do {
       final int batchOffset = batchIndex * MAX_BATCH_SIZE;
-      keys.addAll(tryFiveTimes(new Operation<List<Key>>("batchSave") {
+      keys.addAll(attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<List<Key>>("batchSave") {
         @Override
         public List<Key> call() throws Exception {
           Batch batch = datastore.newBatch();
@@ -256,7 +253,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
           }
         }
         if (!stateIsExpected) {
-          logger.info("Job " + jobRecord + " is not in one of the expected states: "
+          log.info("Job " + jobRecord + " is not in one of the expected states: "
               + Arrays.asList(expectedStates)
               + " and so transactionallySaveAll() will not continue.");
           return false;
@@ -308,7 +305,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     throwHereForTesting(TestUtils.BREAK_AppEngineBackEnd_saveWithJobStateCheck_beforeFinalTransaction);
 
     for (final UpdateSpec.Transaction transactionSpec : updateSpec.getTransactions()) {
-      tryFiveTimes(new Operation<Void>("save") {
+      attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<Void>("save") {
         @Override
         public Void call() {
           transactionallySaveAll(transactionSpec, null);
@@ -318,7 +315,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     }
 
     final AtomicBoolean wasSaved = new AtomicBoolean(true);
-    tryFiveTimes(new Operation<Void>("save") {
+    attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<Void>("save") {
       @Override
       public Void call() {
         wasSaved.set(transactionallySaveAll(updateSpec.getFinalTransaction(), jobKey, expectedStates));
@@ -363,7 +360,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       default:
     }
     jobRecord.inflate(runBarrier, finalizeBarrier, outputSlot, jobInstanceRecord, failureRecord);
-    logger.finest("Query returned: " + jobRecord);
+    log.finest("Query returned: " + jobRecord);
     return jobRecord;
   }
 
@@ -379,7 +376,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       barriers.add(barrier);
       inflateBarriers(barriers);
     }
-    logger.finest("Querying returned: " + barrier);
+    log.finest("Querying returned: " + barrier);
     return barrier;
   }
 
@@ -454,7 +451,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         offset = limit;
         shardedValues.add(new ShardedValue(model, shardId++, chunk).toEntity());
       }
-      return tryFiveTimes(new Operation<List<Key>>("serializeValue") {
+      return attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<List<Key>>("serializeValue") {
         @Override
         public List<Key> call() {
           Transaction tx = datastore.newTransaction();
@@ -506,7 +503,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   private Map<Key, Entity> getEntities(String logString, final Collection<Key> keys) {
-    Map<Key, Entity> result = tryFiveTimes(new Operation<>(logString) {
+    Map<Key, Entity> result = attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<>(logString) {
       @Override
       public Map<Key, Entity> call() {
         //NOTE: this read is strongly consistent now, bc backed by Firestore in Datastore-mode; this library was
@@ -527,7 +524,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   private Entity getEntity(String logString, final Key key) throws NoSuchObjectException {
-    Entity entity = tryFiveTimes(new Operation<>("getEntity_" + logString) {
+    Entity entity = attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<>("getEntity_" + logString) {
       @Override
       public Entity call() throws Exception {
         return datastore.get(key);
@@ -541,7 +538,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   public List<Entity> queryAll(final String kind, final Key rootJobKey) {
-    return tryFiveTimes(new Operation<>("queryFullPipeline") {
+    return attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<>("queryFullPipeline") {
       @Override
       public List<Entity> call() {
         EntityQuery.Builder query = Query.newEntityQueryBuilder()
@@ -586,8 +583,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     if (cursor != null) {
       query.setStartCursor(Cursor.fromUrlSafe(cursor));
     }
-    return tryFiveTimes(
-        new Operation<>("queryRootPipelines") {
+    return attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<>("queryRootPipelines") {
           @Override
           public Pair<? extends Iterable<JobRecord>, String> call() {
             QueryResults<Entity> entities = datastore.run(query.build());
@@ -609,7 +605,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   @Override
   public Set<String> getRootPipelinesDisplayName() {
 
-    return tryFiveTimes(new Operation<>("getRootPipelinesDisplayName") {
+    return attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<>("getRootPipelinesDisplayName") {
       @Override
       public Set<String> call() {
         ProjectionEntityQuery.Builder query = Query.newProjectionEntityQueryBuilder()
@@ -666,8 +662,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   private void deleteAll(final String kind, final Key rootJobKey) {
-    logger.info("Deleting all " + kind + " with rootJobKey=" + rootJobKey);
-    tryFiveTimes(new Operation<Void>("delete") {
+    log.info("Deleting all " + kind + " with rootJobKey=" + rootJobKey);
+    attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<Void>("delete") {
       @Override
       public Void call() {
         int batchesToAttempt = 5;
@@ -686,7 +682,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
           keys = Streams.stream(queryResults)
             .toList();
           if (!keys.isEmpty()) {
-            logger.info("Deleting " + keys.size() + " " + kind + "s with rootJobKey=" + rootJobKey);
+            log.info("Deleting " + keys.size() + " " + kind + "s with rootJobKey=" + rootJobKey);
             Batch batch = datastore.newBatch();
             keys.forEach(batch::delete);
             batch.submit();
@@ -744,16 +740,16 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     deleteAll(FanoutTaskRecord.DATA_STORE_KIND, pipelineKey);
   }
 
-  private <R> R tryFiveTimes(final Operation<R> operation) {
+  private <R> R attemptWithRetries(Retryer<R> retryer, final Operation<R> operation) {
     try {
-      return withDefaults(RetryerBuilder.<R>newBuilder()).call(operation);
+      return retryer.call(operation);
     } catch (ExecutionException e) {
-      logger.log(Level.INFO, "Non-retryable exception during " + operation.getName(), e.getCause());
+      log.log(Level.WARNING, "Non-retryable exception during " + operation.getName(), e.getCause());
       throw new RuntimeException(e.getCause());
     } catch (RetryException e) {
       if (e.getCause() instanceof RuntimeException) {
-        logger.info(e.getCause().getMessage() + " during " + operation.getName()
-          + " throwing after multiple attempts ");
+        log.warning(e.getCause().getMessage() + " during " + operation.getName()
+          + " throwing after 5 multiple attempts ");
         throw (RuntimeException) e.getCause();
       } else {
         throw new RuntimeException(e);
