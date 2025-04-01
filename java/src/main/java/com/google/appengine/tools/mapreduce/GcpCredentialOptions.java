@@ -44,7 +44,7 @@ public interface GcpCredentialOptions {
   }
   static Optional<Credentials> determineCredentials(@Nullable GcpCredentialOptions gcpCredentialOptions) {
     return Optional.ofNullable(gcpCredentialOptions)
-      .map(gcp -> gcp.getServiceAccountCredentials()).orElse(Optional.empty())
-      .map(c -> (Credentials) c);
+      .flatMap(GcpCredentialOptions::getServiceAccountCredentials)
+      .map(c -> c);
   }
 }

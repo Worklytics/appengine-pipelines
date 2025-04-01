@@ -8,6 +8,7 @@ import com.google.appengine.tools.mapreduce.impl.util.Crc32c;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants.RecordType;
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
+import com.google.appengine.tools.pipeline.util.CloseUtils;
 import com.google.cloud.Restorable;
 import com.google.cloud.RestorableState;
 import com.google.common.annotations.VisibleForTesting;
@@ -105,9 +106,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
    */
   @Override
   public void endShard() throws IOException {
-    if (in != null) {
-      in.close();
-    }
+    CloseUtils.closeQuietly(in);
   }
 
   @SneakyThrows
@@ -164,11 +163,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
         channelState = null;
       }
 
-      try {
-        in.close();
-      } catch (IOException e) {
-        // failed to close ... don't really care
-      }
+      CloseUtils.closeQuietly(in);
       in = null;
     }
   }

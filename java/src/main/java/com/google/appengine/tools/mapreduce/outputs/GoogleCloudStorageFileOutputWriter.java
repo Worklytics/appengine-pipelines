@@ -7,6 +7,7 @@ import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.OutputWriter;
 import com.google.appengine.tools.mapreduce.impl.MapReduceConstants;
+import com.google.appengine.tools.pipeline.util.CloseUtils;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.*;
@@ -51,7 +52,7 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
   @NonNull private final Options options;
 
   @ToString.Exclude
-  private transient Storage client;
+  private transient volatile Storage client;
   // working location for this writer; temporary location to which it's writing, while in progress
   private BlobId shardBlobId;
   // working location for this slice for this writer, if any; to which it's writing while in pgroess
@@ -77,29 +78,30 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
     for (BlobId id : toDelete) {
       try {
         getClient().delete(id);
-      } catch (StorageException | IOException ex) {
+      } catch (StorageException ex) {
         logger.log(Level.WARNING, "Could not cleanup temporary file " + id.getName(), ex);
       }
     }
     toDelete.clear();
   }
 
-
-
-  protected Storage getClient() throws IOException {
+  protected Storage getClient() {
     if (client == null) {
-      //TODO: set retry param (GCS_RETRY_PARAMETERS)
-      //TODO: set User-Agent to "App Engine MR"?
-      if (this.options.getServiceAccountCredentials().isPresent()) {
-        client = StorageOptions.newBuilder()
-          .setCredentials(this.options.getServiceAccountCredentials().get())
-          .setProjectId(this.options.getProjectId())
-          .build().getService();
-      } else {
-        client = StorageOptions.getDefaultInstance().getService();
+      synchronized (this) {
+        if (client == null) {
+          //TODO: set retry param (GCS_RETRY_PARAMETERS)
+          //TODO: set User-Agent to "App Engine MR"?
+          client = GcpCredentialOptions.getStorageClient(options);
+        }
       }
+
     }
     return client;
+  }
+
+  private void resetClient() {
+    CloseUtils.closeQuietly(getClient());
+    this.client = null;
   }
 
   @Override
@@ -164,6 +166,7 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
   @Override
   public void endSlice() throws IOException {
     sliceChannel.close();
+    resetClient();
   }
 
   @Override
@@ -190,6 +193,7 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
     toDelete.add(shardBlobId);
     shardBlobId = null;
     sliceChannel = null;
+    resetClient();
   }
 
   //final location that this output writer will write to
