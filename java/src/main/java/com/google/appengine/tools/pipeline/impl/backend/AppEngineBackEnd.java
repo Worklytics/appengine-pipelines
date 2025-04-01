@@ -745,7 +745,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     deleteAll(ShardedValue.DATA_STORE_KIND, pipelineKey);
     deleteAll(Barrier.DATA_STORE_KIND, pipelineKey);
     deleteAll(JobInstanceRecord.DATA_STORE_KIND, pipelineKey);
-    deleteAll(FanoutTaskRecord.DATA_STORE_KIND, pipelineKey);
   }
 
   private <R> R attemptWithRetries(Retryer<R> retryer, final Operation<R> operation) {
