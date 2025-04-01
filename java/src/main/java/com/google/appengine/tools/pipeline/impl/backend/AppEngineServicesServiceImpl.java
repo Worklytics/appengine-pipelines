@@ -40,6 +40,12 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
      * Usage of this is to save API calls to get service hostnames, as in practice are deterministic.
      */
     GAE_SERVICE_HOST_SUFFIX,
+
+
+    /**
+     * If set, we use this service to run the pipeline tasks/workers by default.
+     */
+    DEFAULT_PIPELINES_SERVICE,
     ;
   }
 
@@ -114,13 +120,14 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
   @Override
   public String getDefaultService() {
-    return appEngineEnvironment.getService();
+    return ConfigProperty.DEFAULT_PIPELINES_SERVICE.getValue()
+      .orElseGet(appEngineEnvironment::getService);
   }
 
   @Override
   @SneakyThrows
   public String getDefaultVersion(String service) {
-    final String nonNullService = Optional.ofNullable(service).orElse(appEngineEnvironment.getService());
+    final String nonNullService = Optional.ofNullable(service).orElseGet(this::getDefaultService);
     return defaultVersionCache.get(nonNullService, () -> getDefaultVersionInternal(nonNullService));
   }
 

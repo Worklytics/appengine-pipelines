@@ -524,16 +524,6 @@ public abstract class Job<E> implements Serializable {
   }
 
   /**
-   * Constructs a new {@code JobSetting.OnBackend}. This method is only
-   * syntactic sugar. {@code onBackend(x)} is equivalent to
-   * {@code new JobSetting.OnBackend(x)}.
-   */
-  @Deprecated //will remove in v0.5; use onService instead
-  public static JobSetting.OnBackend onBackend(String backend) {
-    return new JobSetting.OnBackend(backend);
-  }
-
-  /**
    * Constructs a new {@code JobSetting.OnService}. This method is only
    * syntactic sugar. {@code onService(x)} is equivalent to
    * {@code new JobSetting.OnService(x)}.

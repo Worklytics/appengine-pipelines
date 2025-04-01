@@ -37,8 +37,6 @@ public interface PipelineBackEnd {
 
   Options getOptions();
 
-  AppEngineServicesService getServicesService();
-
   /**
    * Saves entities to the data store and enqueues tasks to the task queue based
    * on the specification given in {@code UpdateSpec}. See the remarks at the

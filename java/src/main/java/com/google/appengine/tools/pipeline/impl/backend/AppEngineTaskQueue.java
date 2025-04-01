@@ -160,9 +160,8 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
     Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
     pipelineTasks.forEach( pipelineTask -> {
-      String versionHostname = getVersionHostname(pipelineTask.getQueueSettings());
       String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse("default");
-      taskSpecs.put(queueName, pipelineTask.toTaskSpec(versionHostname, taskHandlerUrl));
+      taskSpecs.put(queueName, pipelineTask.toTaskSpec(servicesService, taskHandlerUrl));
     });
     return taskSpecs;
   }
@@ -294,9 +293,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     spec.getHeaders().forEach(taskOptions::header);
     spec.getParams().forEach(taskOptions::param);
 
-    Preconditions.checkArgument(spec.getHost() != null, "Host must be set");
-
-    taskOptions.header("Host", spec.getHost());
+    taskOptions.header("Host", servicesService.getWorkerServiceHostName(spec.getService(), spec.getVersion()));
 
     return taskOptions;
   }

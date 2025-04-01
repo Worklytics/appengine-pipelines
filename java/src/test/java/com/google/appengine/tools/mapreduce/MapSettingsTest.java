@@ -56,14 +56,14 @@ public class MapSettingsTest {
     this.pipelineService = mock(PipelineService.class);
     when(pipelineService.getDefaultWorkerService()).thenReturn("default");
     when(pipelineService.getCurrentVersion(eq("default"))).thenReturn("1");
-    when(pipelineService.getCurrentVersion(eq("module1"))).thenReturn("v1");
-    when(pipelineService.getCurrentVersion(eq("module2"))).thenReturn("v2");
+    when(pipelineService.getCurrentVersion(eq("service1"))).thenReturn("v1");
+    when(pipelineService.getCurrentVersion(eq("service2"))).thenReturn("v2");
   }
 
   @Test
   public void testDefaultSettings() {
     MapSettings mrSettings = MapSettings.builder().build();
-    assertNull(mrSettings.getModule());
+    assertNull(mrSettings.getService());
     assertNull(mrSettings.getWorkerQueueName());
     assertEquals(DEFAULT_BASE_URL, mrSettings.getBaseUrl());
     assertEquals(DEFAULT_MILLIS_PER_SLICE, mrSettings.getMillisPerSlice());
@@ -76,7 +76,7 @@ public class MapSettingsTest {
   public void testNonDefaultSettings() {
     MapSettings.MapSettingsBuilder builder = MapSettings.builder();
 
-    builder.module("m").build();
+    builder.service("m").build();
 
     builder.workerQueueName("queue1");
     builder.baseUrl("base-url");
@@ -108,15 +108,15 @@ public class MapSettingsTest {
     assertEquals(10, settings.getMillisPerSlice());
     assertEquals(1, settings.getMaxShardRetries());
     assertEquals(0, settings.getMaxSliceRetries());
-    builder.module("m1");
+    builder.service("m1");
     settings = builder.build();
-    assertEquals("m1", settings.getModule());
+    assertEquals("m1", settings.getService());
   }
 
   @Test
   public void testBuilderWithSettings() {
     MapSettings settings = MapSettings.builder()
-        .module("m")
+        .service("m")
         .baseUrl("url")
         .maxShardRetries(10)
         .maxSliceRetries(20)
@@ -124,7 +124,7 @@ public class MapSettingsTest {
         .workerQueueName("good-queue")
         .build();
     settings = settings.toBuilder().build();
-    assertEquals("m", settings.getModule());
+    assertEquals("m", settings.getService());
     assertEquals("url", settings.getBaseUrl());
     assertEquals(10, settings.getMaxShardRetries());
     assertEquals(20, settings.getMaxSliceRetries());
@@ -153,18 +153,18 @@ public class MapSettingsTest {
     assertEquals(settings.getMaxSliceRetries(), sjSettings.getMaxSliceRetries());
 
 
-    settings = settings.toBuilder().module("module1").build();
+    settings = settings.toBuilder().service("service1").build();
     sjSettings = ShardedJobSettings.from(pipelineService, settings, shardedJobId, pipelineRunId);
-    assertEquals("module1", sjSettings.getModule());
+    assertEquals("service1", sjSettings.getModule());
     assertEquals("v1", sjSettings.getVersion());
 
 
-    settings = settings.toBuilder().module("default").build();
+    settings = settings.toBuilder().service("default").build();
 
     when(pipelineService.getDefaultWorkerService()).thenReturn("default");
     when(pipelineService.getCurrentVersion(eq("default"))).thenReturn("2");
-    when(pipelineService.getCurrentVersion(eq("module1"))).thenReturn("v1");
-    when(pipelineService.getCurrentVersion(eq("module2"))).thenReturn("v2");
+    when(pipelineService.getCurrentVersion(eq("service1"))).thenReturn("v1");
+    when(pipelineService.getCurrentVersion(eq("service2"))).thenReturn("v2");
 
       sjSettings = ShardedJobSettings.from(pipelineService, settings, shardedJobId, pipelineRunId);
       assertEquals("default", sjSettings.getModule());
@@ -183,7 +183,7 @@ public class MapSettingsTest {
     MapSettings mrSettings = MapSettings.builder().workerQueueName("queue1").build();
     verifyPipelineSettings(mrSettings.toJobSettings(), new ServiceValidator(null), new QueueValidator("queue1"));
 
-    mrSettings =MapSettings.builder().module("m1").build();
+    mrSettings =MapSettings.builder().service("m1").build();
     verifyPipelineSettings(mrSettings.toJobSettings(new StatusConsoleUrl("u1")), new ServiceValidator("m1"),
         new QueueValidator(null), new StatusConsoleValidator("u1"));
   }

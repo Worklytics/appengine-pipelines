@@ -227,11 +227,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .param(JOB_ID_PARAM, jobId.asEncodedString())
       .scheduledExecutionTime(Instant.now().plus(getControllerTaskDelay()));
 
-
-    // used to be sent generically as value of a 'Host' header; I think this is clearer as usually expected
-    // alternatively, could refactor to move worker service/version stuff down into PipelineTaskQueue, rather than doing mapping to host here??
-    controllerTaskSpec.host(getWorkerServiceHostName(settings));
-
+    controllerTaskSpec.service(settings.getModule());
+    controllerTaskSpec.version(settings.getVersion());
     tx.enqueue(settings.getQueueName(), controllerTaskSpec.build());
   }
 
@@ -249,9 +246,8 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .param(JOB_ID_PARAM, state.getJobId().asEncodedString())
       .param(SEQUENCE_NUMBER_PARAM, String.valueOf(state.getSequenceNumber()));
 
-    // used to be sent generically as value of a 'Host' header; I think this is clearer as usually expected
-    // alternatively, could refactor to move worker service/version stuff down into PipelineTaskQueue, rather than doing mapping to host here??
-    workerTaskSpec.host(getWorkerServiceHostName(settings));
+    workerTaskSpec.service(settings.getModule());
+    workerTaskSpec.version(settings.getVersion());
 
     if (etaMillis != null) {
       workerTaskSpec.scheduledExecutionTime(Instant.ofEpochMilli(etaMillis));

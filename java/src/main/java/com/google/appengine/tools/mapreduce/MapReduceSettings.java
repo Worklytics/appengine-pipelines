@@ -30,7 +30,7 @@ import java.io.Serializable;
 public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstractSettings, Serializable {
 
   @Serial
-  private static final long serialVersionUID = 610088354289299175L;
+  private static final long serialVersionUID = 1L;
 
   public static final int DEFAULT_MAP_FANOUT = 32;
   public static final int DEFAULT_SORT_BATCH_PER_EMIT_BYTES = 32 * 1024;
@@ -67,13 +67,12 @@ public class MapReduceSettings implements GcpCredentialOptions, ShardedJobAbstra
   private final String baseUrl = MapSettings.DEFAULT_BASE_URL;
 
   /**
-   * The Module (Service) that the job will run on.
-   *
-   * If this is not set or {@code null}, it will run on the current module (service).
+   * Specifies the Service (module) that the job will run on.
+   * If this is not set or {@code null}, it will run on one specficed in env var, or the current service.
    *
    * in appengine gen2, these are called services
    */
-  private final String module;
+  private final String service;
 
   /**
    * The TaskQueue that will be used to queue the job's tasks.
