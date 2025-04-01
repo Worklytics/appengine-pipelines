@@ -2,6 +2,7 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
+import com.google.appengine.tools.pipeline.testutil.FakeAppEngineServicesService;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
@@ -17,7 +18,7 @@ public class InProcessTaskQueue implements PipelineTaskQueue {
   @Override
   public TaskReference enqueue(PipelineTask pipelineTask) {
     String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse("default");
-    return enqueue(queueName, pipelineTask.toTaskSpec("localhost", TaskHandler.handleTaskUrl()));
+    return enqueue(queueName, pipelineTask.toTaskSpec(FakeAppEngineServicesService.builder().defaultService("service").version("1").build(), TaskHandler.handleTaskUrl()));
   }
 
   @Override
@@ -54,7 +55,7 @@ public class InProcessTaskQueue implements PipelineTaskQueue {
     Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
     pipelineTasks.forEach( pipelineTask -> {
       String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse("default");
-      taskSpecs.put(queueName, pipelineTask.toTaskSpec("localhost", TaskHandler.handleTaskUrl()));
+      taskSpecs.put(queueName, pipelineTask.toTaskSpec(FakeAppEngineServicesService.builder().defaultService("service").version("1").build(), TaskHandler.handleTaskUrl()));
     });
     return taskSpecs;
   }

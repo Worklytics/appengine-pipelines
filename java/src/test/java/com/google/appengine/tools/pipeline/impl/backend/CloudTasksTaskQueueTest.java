@@ -58,18 +58,15 @@ public class CloudTasksTaskQueueTest {
     System.clearProperty(CloudTasksTaskQueue.ConfigProperty.CLOUDTASKS_QUEUE_LOCATION.name());
   }
 
-
   @Test
   public void taskSpec() {
     Task task = cloudTasksTaskQueue.toCloudTask(QueueName.of("test-project", "us-central", "test-queue"),
       CloudTasksTaskQueue.TaskSpec.builder()
-        .host("test-host")
         .method(CloudTasksTaskQueue.TaskSpec.Method.GET)
         .callbackPath("/test/path")
         .headers(ImmutableMap.of("key", "value"))
         .build());
 
-    assertEquals("test-host", task.getAppEngineHttpRequest().getHeaders().get("Host"));
     assertEquals(HttpMethod.GET, task.getAppEngineHttpRequest().getHttpMethod());
     assertEquals("/test/path?", task.getAppEngineHttpRequest().getRelativeUri());
     assertTrue( task.getAppEngineHttpRequest().getHeadersMap().containsKey("key"));

@@ -71,10 +71,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
       .map(tasksForQueue -> {
         Stream<TaskSpec> specs = tasksForQueue.getValue().stream()
           .map(pipelineTask -> {
-            String service = getServiceForTask(pipelineTask);
-            String version = getServiceVersionsForTask(pipelineTask, service);
-            String host = appEngineServicesService.getWorkerServiceHostName(service, version);
-            return pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl());
+            return pipelineTask.toTaskSpec(appEngineServicesService, TaskHandler.handleTaskUrl());
           });
         return enqueue(tasksForQueue.getKey(), specs.collect(Collectors.toList()));
       })
@@ -85,12 +82,10 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   @Override
   public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
     Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
-    pipelineTasks.forEach(pipelineTask -> {
-        String service = getServiceForTask(pipelineTask);
-        String version = getServiceVersionsForTask(pipelineTask, service);
-        String host = appEngineServicesService.getWorkerServiceHostName(service, version);
+    pipelineTasks
+      .forEach(pipelineTask -> {
         String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME);
-        taskSpecs.put(queueName, pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl()));
+        taskSpecs.put(queueName, pipelineTask.toTaskSpec(appEngineServicesService, TaskHandler.handleTaskUrl()));
     });
     return taskSpecs;
   }
@@ -163,16 +158,22 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     }
   }
 
+  @VisibleForTesting
+  TaskName fromReference(TaskReference taskReference) {
+    return TaskName.newBuilder()
+      .setProject(appEngineEnvironment.getProjectId())
+      .setLocation(cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation()))
+      .setQueue(taskReference.getQueue())
+      .setTask(taskReference.getTaskName())
+      .build();
+  }
+
+
   @Override
   public void deleteTasks(Collection<TaskReference> taskReferences) {
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
-      taskReferences.parallelStream().forEach(taskReference -> {
-        TaskName taskName = TaskName.newBuilder()
-          .setProject(appEngineEnvironment.getProjectId())
-          .setLocation(cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation()))
-          .setQueue(taskReference.getQueue())
-          .setTask(taskReference.getTaskName())
-          .build();
+      taskReferences.stream()
+        .map(this::fromReference).forEach(taskName -> {
         int attempts = 0;
         boolean retry;
         Throwable throwable = null;
@@ -182,7 +183,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
           try {
             cloudTasksClient.deleteTask(taskName);
           } catch (com.google.api.gax.rpc.NotFoundException ignored) {
-            log.log(Level.WARNING, "Tried to delete task {0} but already gone", taskReference.getTaskName());
+            log.log(Level.WARNING, "Tried to delete task {0} but already gone", taskName);
           } catch (Throwable t) {
             // retry on any other case, waiting a bit
             retry = true;
@@ -226,7 +227,12 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     AppEngineHttpRequest.Builder callbackRequest = AppEngineHttpRequest.newBuilder()
       .putAllHeaders(taskSpec.getHeaders());
 
-    callbackRequest.putHeaders("Host", taskSpec.getHost());
+    callbackRequest.setAppEngineRouting(AppEngineRouting.newBuilder()
+      .setService("jobs")
+      .setVersion("v871a"));
+
+
+    //  .ifPresent(callbackRequest::setAppEngineRouting);
 
     if (taskSpec.getMethod() == TaskSpec.Method.POST) {
       callbackRequest.setHttpMethod(HttpMethod.POST);
@@ -270,14 +276,6 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     });
   }
 
-  String getServiceForTask(PipelineTask pipelineTask) {
-    return Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
-      .orElseGet(appEngineServicesService::getDefaultService);
-  }
 
-  String getServiceVersionsForTask(PipelineTask pipelineTask, @NonNull String service) {
-    return Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
-      .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
-  }
 
 }
