@@ -97,6 +97,7 @@ class CloudTasksTaskQueueIntegrationTest {
       .build();
     PipelineTaskQueue.TaskReference ref = cloudTasksTaskQueue.enqueue("default", spec);
 
+    // retrieve task from CloudTasks API, to check that it was routed as expected
     try {
       CloudTasksClient client = cloudTasksClientProvider.get();
       Task task = client.getTask(cloudTasksTaskQueue.fromReference(ref));
