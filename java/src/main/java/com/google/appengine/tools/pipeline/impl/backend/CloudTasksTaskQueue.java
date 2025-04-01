@@ -226,7 +226,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     AppEngineHttpRequest.Builder callbackRequest = AppEngineHttpRequest.newBuilder()
       .putAllHeaders(taskSpec.getHeaders());
 
-    //callbackRequest.putHeaders("Host", taskSpec.getHost());
+    callbackRequest.putHeaders("Host", taskSpec.getHost());
 
     if (taskSpec.getMethod() == TaskSpec.Method.POST) {
       callbackRequest.setHttpMethod(HttpMethod.POST);
