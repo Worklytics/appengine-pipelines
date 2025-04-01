@@ -21,8 +21,10 @@ import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import lombok.AllArgsConstructor;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -68,17 +70,20 @@ public class TaskHandler {
   public void doPost(HttpServletRequest req) throws ServletException {
     PipelineTask pipelineTask = reconstructTask(req);
 
-    Integer retryCount = getTaskRetryCount(req);
-    if (retryCount == null) {
-      retryCount = -1;
-    }
+    Integer retryCount = Optional.ofNullable(getTaskRetryCount(req)).orElse(-1);
 
     try {
       StepExecutionComponent stepExecutionComponent =
         component.stepExecutionComponent(new StepExecutionModule(req));
       PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
 
+      Stopwatch stopwatch = Stopwatch.createStarted();
       pipelineRunner.processTask(pipelineTask);
+      stopwatch.stop();
+      if (stopwatch.elapsed().compareTo(Duration.ofMinutes(8)) >= 0) {
+        log.log(Level.WARNING, "Task long time to process: " + stopwatch.elapsed() + " " + pipelineTask);
+      }
+
     } catch (RuntimeException e) {
       logRetryMessage(log, pipelineTask, retryCount, e);
       throw new ServletException(e);

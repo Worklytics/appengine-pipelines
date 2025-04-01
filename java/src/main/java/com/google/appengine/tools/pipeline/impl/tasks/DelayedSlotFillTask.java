@@ -17,6 +17,7 @@ package com.google.appengine.tools.pipeline.impl.tasks;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.model.Slot;
+import lombok.ToString;
 
 import java.util.Properties;
 
@@ -26,6 +27,7 @@ import java.util.Properties;
  *
  * @author maximf@google.com (Maxim Fateev)
  */
+@ToString
 public class DelayedSlotFillTask extends ObjRefTask {
 
   private static final String ROOT_JOB_KEY_PARAM = "rootJobKey";

@@ -16,6 +16,7 @@ package com.google.appengine.tools.pipeline.impl.tasks;
 
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import lombok.ToString;
 
 import java.util.Properties;
 
@@ -25,6 +26,7 @@ import java.util.Properties;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@ToString
 public class DeletePipelineTask extends ObjRefTask {
 
   /**
