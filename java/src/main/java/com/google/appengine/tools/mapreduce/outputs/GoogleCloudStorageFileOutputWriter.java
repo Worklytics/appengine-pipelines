@@ -91,14 +91,7 @@ public class GoogleCloudStorageFileOutputWriter extends OutputWriter<ByteBuffer>
         if (client == null) {
           //TODO: set retry param (GCS_RETRY_PARAMETERS)
           //TODO: set User-Agent to "App Engine MR"?
-          if (this.options.getServiceAccountCredentials().isPresent()) {
-            client = StorageOptions.newBuilder()
-              .setCredentials(this.options.getServiceAccountCredentials().get())
-              .setProjectId(this.options.getProjectId())
-              .build().getService();
-          } else {
-            client = StorageOptions.getDefaultInstance().getService();
-          }
+          client = GcpCredentialOptions.getStorageClient(options);
         }
       }
 

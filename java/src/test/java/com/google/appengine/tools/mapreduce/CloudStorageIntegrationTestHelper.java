@@ -118,5 +118,17 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
   @Deprecated //attach delete to global runtime shutdown
   @Override
   public void tearDown() {
+    //delete bucket at shutdown
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      try {
+        RemoteStorageHelper.forceDelete(storage, bucket, 5, TimeUnit.SECONDS);
+      } catch (Throwable e) {
+        Logger.getAnonymousLogger().log(Level.WARNING, "Failed to cleanup bucket: " + bucket);
+      }
+      try {
+        storage.close();
+      } catch (Exception ignored) {
+      }
+    }));
   }
 }
