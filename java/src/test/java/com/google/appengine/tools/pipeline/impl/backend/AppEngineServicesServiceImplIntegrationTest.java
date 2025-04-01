@@ -22,6 +22,10 @@ class AppEngineServicesServiceImplIntegrationTest {
 
   static final String PROJECT_ID = System.getenv("GOOGLE_CLOUD_PROJECT");
 
+  // NOTE: update these values to match your project's set-up
+  static final String INTEGRATION_TEST_SERVICE = "pipelines";
+  static final String INTEGRATION_TEST_SERVICE_VERSION = "1";
+
   @BeforeAll
   static void checkProjectIsSetAndNotATestValue() {
     assumeTrue(PROJECT_ID != null,
@@ -32,8 +36,7 @@ class AppEngineServicesServiceImplIntegrationTest {
       "Test disabled because GOOGLE_CLOUD_PROJECT iis 'test-project'");
   }
 
-  static final String INTEGRATION_TEST_SERVICE = "jobs";
-  static final String INTEGRATION_TEST_SERVICE_VERSION = "v865a";
+
 
   AppEngineEnvironment environment;
   AppEngineServicesServiceImpl appEngineServicesServiceImpl;

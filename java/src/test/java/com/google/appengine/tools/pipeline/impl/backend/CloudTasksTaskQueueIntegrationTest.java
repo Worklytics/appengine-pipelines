@@ -3,6 +3,7 @@ package com.google.appengine.tools.pipeline.impl.backend;
 import com.google.appengine.tools.pipeline.testutil.FakeAppEngineEnvironment;
 import com.google.appengine.tools.pipeline.testutil.FakeAppEngineServicesService;
 import com.google.cloud.tasks.v2.CloudTasksClient;
+import com.google.cloud.tasks.v2.Task;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,12 @@ class CloudTasksTaskQueueIntegrationTest {
 
   static final String PROJECT_ID = System.getenv("GOOGLE_CLOUD_PROJECT");
 
+  // NOTE: you should customize these values to match your project's set-up
+  final String LOCATION = "us-central";
+  final String SERVICE = "pipelines";
+  final String VERSION = "1";
+  final String DOMAIN = "uc.r.appspot.com";
+
   @BeforeAll
   static void checkProjectIsSetAndNotATestValue() {
     assumeTrue(PROJECT_ID != null,
@@ -38,18 +45,13 @@ class CloudTasksTaskQueueIntegrationTest {
       "Test disabled because GOOGLE_CLOUD_PROJECT is 'test-project'");
   }
 
-
-  final String LOCATION = "us-central";
-
-  final String SERVICE = "fake-service";
-
   CloudTasksTaskQueue cloudTasksTaskQueue;
 
   AppEngineServicesService appEngineServicesService = FakeAppEngineServicesService.builder()
     .project(PROJECT_ID)
     .defaultService(SERVICE)
-    .version("fake-version")
-    .domain("fake-domain")
+    .version(VERSION)
+    .domain(DOMAIN)
     .location(LOCATION)
     .build();
 
@@ -70,7 +72,7 @@ class CloudTasksTaskQueueIntegrationTest {
     AppEngineEnvironment environment = FakeAppEngineEnvironment.builder()
       .projectId(PROJECT_ID)
       .service(SERVICE)
-      .version("fake-version")
+      .version(VERSION)
       .build();
 
       cloudTasksTaskQueue =
@@ -87,14 +89,24 @@ class CloudTasksTaskQueueIntegrationTest {
   @Test
   void testEnqueueTaskSpec() {
     PipelineTaskQueue.TaskSpec spec = PipelineTaskQueue.TaskSpec.builder()
-      .host(appEngineServicesService.getWorkerServiceHostName("fake-service", "fake-version"))
+      .service(SERVICE)
+      .version(VERSION)
       .callbackPath("/fake-callback-path")
       .param("a", "value")
       .scheduledExecutionTime(Instant.now().plusSeconds(60))
       .build();
     PipelineTaskQueue.TaskReference ref = cloudTasksTaskQueue.enqueue("default", spec);
 
-    cloudTasksTaskQueue.deleteTasks(Collections.singletonList(ref));
+    // retrieve task from CloudTasks API, to check that it was routed as expected
+    try {
+      CloudTasksClient client = cloudTasksClientProvider.get();
+      Task task = client.getTask(cloudTasksTaskQueue.fromReference(ref));
+      assertEquals(String.join(".", VERSION, SERVICE, PROJECT_ID, DOMAIN), // when comes back via CloudTasks api, has '.' instead of '-dot-'
+        task.getAppEngineHttpRequest().getAppEngineRouting().getHost());
+    } finally {
+      // cleanup
+      cloudTasksTaskQueue.deleteTasks(Collections.singletonList(ref));
+    }
 
     //multiple
     Collection<PipelineTaskQueue.TaskReference> refs = cloudTasksTaskQueue.enqueue("default", Collections.nCopies(10, spec));
@@ -107,7 +119,6 @@ class CloudTasksTaskQueueIntegrationTest {
     String named = "named-" + UUID.randomUUID();
     PipelineTaskQueue.TaskSpec spec = PipelineTaskQueue.TaskSpec.builder()
       .name(named)
-      .host(appEngineServicesService.getWorkerServiceHostName("fake-service", "fake-version"))
       .callbackPath("/fake-callback-path")
       .param("a", "value")
       .scheduledExecutionTime(Instant.now().plusSeconds(60))

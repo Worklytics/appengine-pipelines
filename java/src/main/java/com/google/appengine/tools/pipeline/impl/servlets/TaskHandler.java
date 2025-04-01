@@ -20,12 +20,12 @@ import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
+import com.google.common.annotations.VisibleForTesting;
 import lombok.AllArgsConstructor;
 
-import java.util.Enumeration;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import javax.servlet.ServletException;
@@ -80,7 +80,7 @@ public class TaskHandler {
 
       pipelineRunner.processTask(pipelineTask);
     } catch (RuntimeException e) {
-      StringUtils.logRetryMessage(log, pipelineTask, retryCount, e);
+      logRetryMessage(log, pipelineTask, retryCount, e);
       throw new ServletException(e);
     }
   }
@@ -123,5 +123,16 @@ public class TaskHandler {
        }
     }
     return pipelineTask;
+  }
+
+  @VisibleForTesting
+  public static void logRetryMessage(Logger logger, PipelineTask pipelineTask, Integer retryCount, Exception e) {
+    String message = "Will retry task: " + pipelineTask + ". retryCount=" + retryCount;
+    if (e instanceof ConcurrentModificationException) {
+      // Don't print stack trace in this case.
+      logger.log(Level.WARNING, message + " " + e.getMessage());
+    } else {
+      logger.log(Level.WARNING, message, e);
+    }
   }
 }

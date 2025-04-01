@@ -2,7 +2,6 @@ package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
-import com.google.appengine.tools.pipeline.util.ConfigProperty;
 import com.google.cloud.location.ListLocationsRequest;
 import com.google.cloud.location.Location;
 import com.google.cloud.tasks.v2.*;
@@ -72,12 +71,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
       .map(tasksForQueue -> {
         Stream<TaskSpec> specs = tasksForQueue.getValue().stream()
           .map(pipelineTask -> {
-            String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
-              .orElseGet(appEngineServicesService::getDefaultService);
-            String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
-              .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
-            String host = appEngineServicesService.getWorkerServiceHostName(service, version);
-            return pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl());
+            return pipelineTask.toTaskSpec(appEngineServicesService, TaskHandler.handleTaskUrl());
           });
         return enqueue(tasksForQueue.getKey(), specs.collect(Collectors.toList()));
       })
@@ -88,17 +82,15 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   @Override
   public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
     Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
-    pipelineTasks.forEach(pipelineTask -> {
-        String service = Optional.ofNullable(pipelineTask.getQueueSettings().getOnService())
-          .orElseGet(appEngineServicesService::getDefaultService);
-        String version = Optional.ofNullable(pipelineTask.getQueueSettings().getOnServiceVersion())
-          .orElseGet(() -> appEngineServicesService.getDefaultVersion(service));
-        String host = appEngineServicesService.getWorkerServiceHostName(service, version);
+    pipelineTasks
+      .forEach(pipelineTask -> {
         String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME);
-        taskSpecs.put(queueName, pipelineTask.toTaskSpec(host, TaskHandler.handleTaskUrl()));
+        taskSpecs.put(queueName, pipelineTask.toTaskSpec(appEngineServicesService, TaskHandler.handleTaskUrl()));
     });
     return taskSpecs;
   }
+
+
 
   @Override
   public Collection<TaskReference> enqueue(@NonNull String queueName, final Collection<TaskSpec> taskSpecs) {
@@ -109,7 +101,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
       taskSpecs.parallelStream()
         .forEach(taskSpec -> {
-          Task task = createIgnoringExisting(cloudTasksClient, queue, taskSpec);
+          Task task = createTask(cloudTasksClient, queue, taskSpec);
           taskReferences.add(TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()));
         });
       return taskReferences;
@@ -125,18 +117,21 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   private static final int MAX_ENQUEUE_ATTEMPTS = 3;
 
   @SneakyThrows
-  private Task createIgnoringExisting(CloudTasksClient cloudTasksClient, QueueName queue, TaskSpec taskSpec) {
+  private Task createTask(CloudTasksClient cloudTasksClient, QueueName queue, TaskSpec taskSpec) {
 
     Task task = toCloudTask(queue, taskSpec);
+    String originalName = taskSpec.getName();
     int pastAttempts = 0;
     Exception lastException;
     do {
       try {
         return cloudTasksClient.createTask(queue, task);
       } catch (com.google.api.gax.rpc.AlreadyExistsException e) {
+        // as of 2025-03-31, have observed this to be quite rare
+
         // GAE-legacy version of the FW ignored this case. but I am not sure it's still safe to do so, now that enqueue is not transactional with the datastore writes
         log.log(Level.WARNING, "CloudTasksTaskQueue task already exists for {0}", taskSpec.getName());
-        taskSpec = taskSpec.withName(taskSpec.getName()+ "-" + pastAttempts);
+        taskSpec = taskSpec.withName(originalName + "-" + pastAttempts);
         task = toCloudTask(queue, taskSpec);
         lastException = e;
       } catch (Exception e) {
@@ -163,16 +158,22 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     }
   }
 
+  @VisibleForTesting
+  TaskName fromReference(TaskReference taskReference) {
+    return TaskName.newBuilder()
+      .setProject(appEngineEnvironment.getProjectId())
+      .setLocation(cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation()))
+      .setQueue(taskReference.getQueue())
+      .setTask(taskReference.getTaskName())
+      .build();
+  }
+
+
   @Override
   public void deleteTasks(Collection<TaskReference> taskReferences) {
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
-      taskReferences.parallelStream().forEach(taskReference -> {
-        TaskName taskName = TaskName.newBuilder()
-          .setProject(appEngineEnvironment.getProjectId())
-          .setLocation(cloudTasksLocationFromAppEngineLocation(appEngineServicesService.getLocation()))
-          .setQueue(taskReference.getQueue())
-          .setTask(taskReference.getTaskName())
-          .build();
+      taskReferences.stream()
+        .map(this::fromReference).forEach(taskName -> {
         int attempts = 0;
         boolean retry;
         Throwable throwable = null;
@@ -182,7 +183,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
           try {
             cloudTasksClient.deleteTask(taskName);
           } catch (com.google.api.gax.rpc.NotFoundException ignored) {
-            log.log(Level.WARNING, "Tried to delete task {0} but already gone", taskReference.getTaskName());
+            log.log(Level.WARNING, "Tried to delete task {0} but already gone", taskName);
           } catch (Throwable t) {
             // retry on any other case, waiting a bit
             retry = true;
@@ -226,6 +227,13 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     AppEngineHttpRequest.Builder callbackRequest = AppEngineHttpRequest.newBuilder()
       .putAllHeaders(taskSpec.getHeaders());
 
+    callbackRequest.setAppEngineRouting(AppEngineRouting.newBuilder()
+      .setService("jobs")
+      .setVersion("v871a"));
+
+
+    //  .ifPresent(callbackRequest::setAppEngineRouting);
+
     if (taskSpec.getMethod() == TaskSpec.Method.POST) {
       callbackRequest.setHttpMethod(HttpMethod.POST);
       callbackRequest.putHeaders("Content-Type", "application/x-www-form-urlencoded");
@@ -267,5 +275,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
       }
     });
   }
+
+
 
 }

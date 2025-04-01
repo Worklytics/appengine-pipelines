@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.tasks;
 
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import lombok.Getter;
 import lombok.NonNull;
@@ -23,6 +24,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.util.EnumSet;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -54,11 +56,10 @@ public abstract class PipelineTask {
 
   protected static final String TASK_TYPE_PARAMETER = "taskType";
 
-  public PipelineTaskQueue.TaskSpec toTaskSpec(String host, String callback) {
+  public PipelineTaskQueue.TaskSpec toTaskSpec(AppEngineServicesService appEngineServicesService, String callback) {
     PipelineTaskQueue.TaskSpec.TaskSpecBuilder spec = PipelineTaskQueue.TaskSpec.builder()
       .name(this.getTaskName())
       .callbackPath(callback)
-      .host(host)
       .method(PipelineTaskQueue.TaskSpec.Method.POST);
 
     this.toProperties().entrySet()
@@ -67,6 +68,13 @@ public abstract class PipelineTask {
     if (this.getQueueSettings().getDelayInSeconds() != null) {
       spec.scheduledExecutionTime(Instant.now().plusSeconds(this.getQueueSettings().getDelayInSeconds()));
     }
+
+    String service = Optional.ofNullable(this.getQueueSettings().getOnService())
+      .orElseGet(appEngineServicesService::getDefaultService);
+    spec.service(service);
+
+    String version = this.getQueueSettings().getOnServiceVersion();
+    spec.version(version);
 
     return spec.build();
   }

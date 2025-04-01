@@ -28,7 +28,15 @@ import java.util.stream.Collectors;
 @Log
 public class PipelineBackendTransactionImpl implements PipelineBackendTransaction {
 
-  private Duration ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ofSeconds(10);
+  private static Duration ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ofSeconds(30);
+
+  static {
+    if (System.getProperty("GAE_VERSION") == null) {
+      // presumably never set for tests - so this is equivalent to isTesting
+      ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ZERO;
+      log.warning("ENQUEUE_DELAY_FOR_SAFER_ROLLBACK set to 0, this is not a production environment");
+    }
+  }
 
   // lazily open in getDsTransaction
   private Transaction dsTransaction;
@@ -43,10 +51,6 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
   public PipelineBackendTransactionImpl(@NonNull Datastore datastore, @NonNull PipelineTaskQueue taskQueue) {
     this.datastore = datastore;
     this.taskQueue = taskQueue;
-    if (System.getProperty("GAE_VERSION") == null) {
-      // presumably never set for tests - so this is equivalent to isTesting
-      this.ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ZERO;
-    }
   }
 
   @Getter(AccessLevel.PACKAGE)

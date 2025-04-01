@@ -35,7 +35,7 @@ class PipelineBackendTransactionImplTest {
     when(mockTransaction.isActive()).thenReturn(true);
     when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenReturn(Collections.emptyList());
 
-    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
     pipelineBackendTransaction.commit();
 
     verify(mockTransaction).commit();
@@ -48,7 +48,7 @@ class PipelineBackendTransactionImplTest {
     Set<PipelineTaskQueue.TaskReference> taskReferences = Collections.singleton(PipelineTaskQueue.TaskReference.of("queue1", "task-ref"));
     when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenThrow(new RuntimeException("error enqueueing"));
 
-    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
     assertThrows(RuntimeException.class, () -> pipelineBackendTransaction.commit());
 
     verify(mockTaskQueue).enqueue(anyString(), anyCollection());
@@ -61,7 +61,7 @@ class PipelineBackendTransactionImplTest {
     when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenReturn(taskReferences);
     when(mockTransaction.commit()).thenThrow(new RuntimeException("error committing"));
 
-    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
 
     assertThrows(RuntimeException.class, () -> pipelineBackendTransaction.commit());
 
@@ -72,7 +72,7 @@ class PipelineBackendTransactionImplTest {
 
   @Test
   void enqueue() {
-    PipelineTaskQueue.TaskSpec task = PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build();
+    PipelineTaskQueue.TaskSpec task = PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build();
     pipelineBackendTransaction.enqueue("queue1", task);
 
     assertFalse(pipelineBackendTransaction.getPendingTaskSpecsByQueue().isEmpty());
@@ -81,7 +81,7 @@ class PipelineBackendTransactionImplTest {
 
   @Test
   void rollback() {
-    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().host("any").method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
     pipelineBackendTransaction.rollback();
 
     verify(mockTransaction).rollback();

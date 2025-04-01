@@ -28,14 +28,7 @@ import java.io.Serializable;
 public class MapSettings implements ShardedJobAbstractSettings, Serializable {
 
   @Serial
-  private static final long serialVersionUID = 51425056338041064L;
-
-  private static RetryerBuilder getQueueRetryerBuilder() {
-    return RetryerBuilder.newBuilder()
-      .withWaitStrategy(RetryUtils.defaultWaitStrategy())
-      .withStopStrategy(StopStrategies.stopAfterAttempt(8))
-      .withRetryListener(RetryUtils.logRetry(log, MapSettings.class.getName()));
-  }
+  private static final long serialVersionUID = 1L;
 
   public static final String DEFAULT_BASE_URL = "/mapreduce/";
   public static final String CONTROLLER_PATH = "controllerCallback";
@@ -44,8 +37,6 @@ public class MapSettings implements ShardedJobAbstractSettings, Serializable {
   public static final double DEFAULT_SLICE_TIMEOUT_RATIO = 1.1;
   public static final int DEFAULT_SHARD_RETRIES = 4;
   public static final int DEFAULT_SLICE_RETRIES = 20;
-
-
 
   /**
    * The host name of the datastore to use for all requests related to this job.
@@ -78,12 +69,12 @@ public class MapSettings implements ShardedJobAbstractSettings, Serializable {
   private final String baseUrl = DEFAULT_BASE_URL;
 
   /**
-   * Specifies the Module (Service) that the job will run on.
-   * If this is not set or {@code null}, it will run on the current module (service).
+   * Specifies the Service (module) that the job will run on.
+   * If this is not set or {@code null}, it will run on one specficed in env var, or the current service.
    *
    * in appengine gen2, these are called services
    */
-  private final String module;
+  private final String service;
 
   /**
    * the TaskQueue that will be used to queue the job's tasks.

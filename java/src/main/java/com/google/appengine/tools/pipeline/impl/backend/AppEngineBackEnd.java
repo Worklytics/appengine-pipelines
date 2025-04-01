@@ -115,7 +115,6 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   private final Datastore datastore;
   private final PipelineTaskQueue taskQueue;
-  @Getter
   private final AppEngineServicesService servicesService;
 
   // Only used in tests
@@ -127,13 +126,13 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   @Value
   public static class Options implements PipelineBackEnd.Options {
 
-    private String projectId;
+    String projectId;
 
     //q: good idea? risk here that we're copying / passing around sensitive info; although really
     // in prod ppl should depend on application-default credentials and I think this will be null
-    private Credentials credentials;
+    Credentials credentials;
 
-    private DatastoreOptions datastoreOptions;
+    DatastoreOptions datastoreOptions;
 
     @SneakyThrows
     public static Options defaults() {
@@ -198,7 +197,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
    */
   private List<Key> saveAll(UpdateSpec.Group group) {
     // collect into batches of 500
-    List<PipelineModelObject> toSave = Streams.concat(group.getBarriers().stream(),
+    List<PipelineModelObject> toSave = Streams.concat(
+      group.getBarriers().stream(),
       group.getJobs().stream(),
       group.getSlots().stream(),
       group.getJobInstanceRecords().stream(),
@@ -217,6 +217,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
     return keys;
   }
+
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec, Key jobKey, JobRecord.State... expectedStates) {
     PipelineBackendTransaction transaction = PipelineBackendTransaction.newInstance(datastore, taskQueue);
 
@@ -258,9 +259,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       saveAll(transaction, transactionSpec);
 
 
-      if (transactionSpec instanceof UpdateSpec.TransactionWithTasks) {
-        UpdateSpec.TransactionWithTasks transactionWithTasks =
-            (UpdateSpec.TransactionWithTasks) transactionSpec;
+      if (transactionSpec instanceof UpdateSpec.TransactionWithTasks transactionWithTasks) {
         transaction.enqueue(transactionWithTasks.getTasks());
       }
 
@@ -275,10 +274,10 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     return true;
   }
 
+  @Getter
   @RequiredArgsConstructor
-  private abstract class Operation<R> implements Callable<R> {
+  private abstract static class Operation<R> implements Callable<R> {
 
-    @Getter
     private final String name;
   }
 
@@ -407,9 +406,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     // Step 1. Build the set of keys corresponding to the slots.
     Set<Key> keySet = new HashSet<>(barriers.size() * 5);
     for (Barrier barrier : barriers) {
-      for (Key key : barrier.getWaitingOnKeys()) {
-        keySet.add(key);
-      }
+      keySet.addAll(barrier.getWaitingOnKeys());
     }
     // Step 2. Query the datastore for the Slot entities
     Map<Key, Entity> entityMap = getEntities("inflateBarriers", keySet);
@@ -569,8 +566,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         do {
           //TODO: set chunkSize? does concept exist in this API client library?
           queryResults = datastore.run(query.build());
-          List<Entity> page = Streams.stream(queryResults)
-            .collect(Collectors.toList());
+          List<Entity> page = Streams.stream(queryResults).toList();
           lastPageCount = page.size();
           entities.addAll(page);
           query = query.setStartCursor(queryResults.getCursorAfter());
@@ -641,11 +637,11 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
           queryResults = datastore.run(query.build());
           page = Streams.stream(queryResults)
             .map(entity -> entity.getString(ROOT_JOB_DISPLAY_NAME))
-            .collect(Collectors.toList());
+            .toList();
           pipelines.addAll(page);
           query = query.setStartCursor(queryResults.getCursorAfter());
         } while (
-            page.size() > 0 && // unclear why, but at least in tests prev check doesn't work as moreResults is always MORE_RESULTS_AFTER_LIMIT
+          !page.isEmpty() && // unclear why, but at least in tests prev check doesn't work as moreResults is always MORE_RESULTS_AFTER_LIMIT
             queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS);
 
         return pipelines;
@@ -700,8 +696,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
           Query query = queryBuilder.build();
           queryResults = datastore.run(query);
           keys = Streams.stream(queryResults)
-            .collect(Collectors.toList());
-          if (keys.size() > 0) {
+            .toList();
+          if (!keys.isEmpty()) {
             logger.info("Deleting " + keys.size() + " " + kind + "s with rootJobKey=" + rootJobKey);
             Batch batch = datastore.newBatch();
             keys.forEach(batch::delete);
@@ -710,7 +706,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
           queryBuilder = queryBuilder.setStartCursor(queryResults.getCursorAfter());
         } while (
           queryResults.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS
-          && keys.size() > 0  // unclear why, but in tests prev check doesn't work as moreResults is always MORE_RESULTS_AFTER_LIMIT
+          && !keys.isEmpty()  // unclear why, but in tests prev check doesn't work as moreResults is always MORE_RESULTS_AFTER_LIMIT
           && batchesToAttempt-- > 0 // avoid infinite loop
         );
         return null;

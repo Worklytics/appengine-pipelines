@@ -38,12 +38,12 @@ public interface PipelineTaskQueue {
    *
    */
   @With
-  @Builder
+  @Builder(toBuilder = true)
   @Value
-  class TaskSpec  implements Serializable {
+  class TaskSpec implements Serializable {
 
     @Serial
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     /**
      * supported execution methods for async
@@ -64,11 +64,19 @@ public interface PipelineTaskQueue {
     @Builder.Default
     Method method = Method.GET;
 
+
     /**
-     * the host to which to send the task
+     * the service to which to send the task
+     * if `null`, then default service for application
      */
-    @NonNull
-    String host;
+    String service;
+
+    /**
+     * the version of the service to which to send the task
+     * if `null`, then default version for service
+     */
+    String version;
+
 
     /**
      * callback for the task; relative to a host

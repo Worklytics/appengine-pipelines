@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Optional;
@@ -36,6 +37,7 @@ public interface JobSetting extends Serializable {
    */
   final class WaitForSetting implements JobSetting {
 
+    @Serial
     private static final long serialVersionUID = 1961952679964049657L;
     private final Value<?> futureValue;
 
@@ -55,6 +57,7 @@ public interface JobSetting extends Serializable {
   @Getter
   abstract class IntValuedSetting implements JobSetting {
 
+    @Serial
     private static final long serialVersionUID = -4853437803222515955L;
     private final int value;
 
@@ -71,6 +74,7 @@ public interface JobSetting extends Serializable {
   @RequiredArgsConstructor
   abstract class StringValuedSetting implements JobSetting {
 
+    @Serial
     private static final long serialVersionUID = 7756646651569386669L;
 
     //NOTE: behavior of Pipeline Framework allows this to be null for some settings
@@ -96,6 +100,7 @@ public interface JobSetting extends Serializable {
    */
   final class BackoffSeconds extends IntValuedSetting {
 
+    @Serial
     private static final long serialVersionUID = -8900842071483349275L;
     public static final int DEFAULT = 15;
 
@@ -117,6 +122,7 @@ public interface JobSetting extends Serializable {
    */
   final class BackoffFactor extends IntValuedSetting {
 
+    @Serial
     private static final long serialVersionUID = 5879098639819720213L;
     public static final int DEFAULT = 2;
 
@@ -130,6 +136,7 @@ public interface JobSetting extends Serializable {
    */
   final class MaxAttempts extends IntValuedSetting {
 
+    @Serial
     private static final long serialVersionUID = 8389745591294068656L;
     public static final int DEFAULT = 3;
 
@@ -157,8 +164,8 @@ public interface JobSetting extends Serializable {
    */
   final class OnService extends StringValuedSetting {
 
+    @Serial
     private static final long serialVersionUID = 3877411731586475273L;
-    public static final String DEFAULT = null;
 
     public OnService(String service) {
       super(service);
@@ -172,9 +179,8 @@ public interface JobSetting extends Serializable {
    */
   final class OnServiceVersion extends StringValuedSetting {
 
+   @Serial
     private static final long serialVersionUID = 3877411731586475273L;
-    public static final String DEFAULT = null;
-
     public OnServiceVersion(String version) {
       super(version);
     }
@@ -185,6 +191,7 @@ public interface JobSetting extends Serializable {
    */
   final class OnQueue extends StringValuedSetting {
 
+    @Serial
     private static final long serialVersionUID = -5010485721032395432L;
 
     public OnQueue(String queue) {
@@ -197,6 +204,7 @@ public interface JobSetting extends Serializable {
    */
   final class StatusConsoleUrl extends StringValuedSetting {
 
+    @Serial
     private static final long serialVersionUID = -3079475300434663590L;
 
     public StatusConsoleUrl(String statusConsoleUrl) {
@@ -205,6 +213,7 @@ public interface JobSetting extends Serializable {
   }
 
   final class DatastoreNamespace extends StringValuedSetting {
+    @Serial
     private static final long serialVersionUID = -1L;
 
     public DatastoreNamespace(String datastoreNameSpace) {
