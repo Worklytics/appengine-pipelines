@@ -63,8 +63,8 @@ import static com.google.appengine.tools.pipeline.impl.util.TestUtils.throwHereF
 public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy {
 
   public static final int MAX_RETRY_ATTEMPTS = 5;
-  public static final int RETRY_BACKOFF_MULTIPLIER = 300;
-  public static final int RETRY_MAX_BACKOFF_MS = 5000;
+  public static final int RETRY_BACKOFF_MULTIPLIER = 100;
+  public static final int RETRY_MAX_BACKOFF_MS = 3000;
 
   // TODO: RetryUtils is in mapreduce package, so duplicated to not mix on purpose
   // TODO: consider moving to a shared package
