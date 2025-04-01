@@ -1,6 +1,10 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.google.appengine.tools.pipeline.impl.util.StringUtils;
+import it.unimi.dsi.fastutil.objects.ObjectAVLTreeSet;
 import lombok.extern.java.Log;
+
+import java.util.Objects;
 
 /**
  * "gen2" java runtimes, eg 11 (deprecated), 17, or 21 as of March 2025
@@ -26,7 +30,12 @@ public class AppEngineStandardGen2 implements AppEngineEnvironment {
 
   @Override
   public String getService() {
-    return System.getProperty(GAE_SERVICE, System.getenv(GAE_SERVICE));
+    String service = System.getProperty("DEFAULT_PIPELINES_SERVICE", System.getenv("DEFAULT_PIPELINES_SERVICE"));
+    if (service == null || service.trim().isEmpty()) {
+      return System.getProperty(GAE_SERVICE, System.getenv(GAE_SERVICE));
+    } else {
+      return service;
+    }
   }
 
   @Override
