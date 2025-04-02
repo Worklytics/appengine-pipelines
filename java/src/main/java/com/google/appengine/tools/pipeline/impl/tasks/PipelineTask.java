@@ -56,28 +56,12 @@ public abstract class PipelineTask {
 
   protected static final String TASK_TYPE_PARAMETER = "taskType";
 
-  public PipelineTaskQueue.TaskSpec toTaskSpec(AppEngineServicesService appEngineServicesService, String callback) {
-    PipelineTaskQueue.TaskSpec.TaskSpecBuilder spec = PipelineTaskQueue.TaskSpec.builder()
-      .name(this.getTaskName())
-      .callbackPath(callback)
-      .method(PipelineTaskQueue.TaskSpec.Method.POST);
-
-    this.toProperties().entrySet()
-      .forEach(p -> spec.param((String) p.getKey(), (String) p.getValue()));
-
-    if (this.getQueueSettings().getDelayInSeconds() != null) {
-      spec.scheduledExecutionTime(Instant.now().plusSeconds(this.getQueueSettings().getDelayInSeconds()));
-    }
-
-    String service = Optional.ofNullable(this.getQueueSettings().getOnService())
-      .orElseGet(appEngineServicesService::getDefaultService);
-    spec.service(service);
-
-    String version = this.getQueueSettings().getOnServiceVersion();
-    spec.version(version);
-
-    return spec.build();
-  }
+  @Getter @NonNull
+  private final Type type;
+  @Getter // nullable, if not a deterministically 'named' task (will get a name upon enqueue)
+  private final String taskName;
+  @Getter @NonNull
+  private final QueueSettings queueSettings;
 
   private enum TaskProperty {
 
@@ -186,13 +170,6 @@ public abstract class PipelineTask {
     }
   }
 
-  @Getter @NonNull
-  private final Type type;
-  @Getter
-  private final String taskName;
-  @Getter @NonNull
-  private final QueueSettings queueSettings;
-
   /**
    * This constructor is used on the sending side. That is, it is used to
    * construct a task to be enqueued.
@@ -210,8 +187,40 @@ public abstract class PipelineTask {
     }
   }
 
-  public String getName() {
-    return getTaskName();
+
+
+  public final Properties toProperties() {
+    Properties properties = new Properties();
+    properties.setProperty(TASK_TYPE_PARAMETER, type.toString());
+    for (TaskProperty taskProperty : TaskProperty.ALL) {
+      taskProperty.addTo(this, properties);
+    }
+    addProperties(properties);
+    return properties;
+  }
+
+
+  public PipelineTaskQueue.TaskSpec toTaskSpec(AppEngineServicesService appEngineServicesService, String callback) {
+    PipelineTaskQueue.TaskSpec.TaskSpecBuilder spec = PipelineTaskQueue.TaskSpec.builder()
+      .name(this.getTaskName())
+      .callbackPath(callback)
+      .method(PipelineTaskQueue.TaskSpec.Method.POST);
+
+    this.toProperties().entrySet()
+      .forEach(p -> spec.param((String) p.getKey(), (String) p.getValue()));
+
+    if (this.getQueueSettings().getDelayInSeconds() != null) {
+      spec.scheduledExecutionTime(Instant.now().plusSeconds(this.getQueueSettings().getDelayInSeconds()));
+    }
+
+    String service = Optional.ofNullable(this.getQueueSettings().getOnService())
+      .orElseGet(appEngineServicesService::getDefaultService);
+    spec.service(service);
+
+    String version = this.getQueueSettings().getOnServiceVersion();
+    spec.version(version);
+
+    return spec.build();
   }
 
   /**
@@ -229,16 +238,6 @@ public abstract class PipelineTask {
     }
     Type type = Type.valueOf(taskTypeString);
     return type.createInstance(taskName, properties);
-  }
-
-  public final Properties toProperties() {
-    Properties properties = new Properties();
-    properties.setProperty(TASK_TYPE_PARAMETER, type.toString());
-    for (TaskProperty taskProperty : TaskProperty.ALL) {
-      taskProperty.addTo(this, properties);
-    }
-    addProperties(properties);
-    return properties;
   }
 
   @Override
