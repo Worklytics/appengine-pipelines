@@ -21,7 +21,6 @@ import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.apphosting.api.ApiProxy;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import lombok.RequiredArgsConstructor;
@@ -249,7 +248,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
       queueSettings.setDelayInSeconds(null);
     }
     addProperties(taskOptions, pipelineTask.toProperties());
-    String taskName = pipelineTask.getName();
+    String taskName = pipelineTask.getTaskName();
     if (null != taskName) {
       // named tasks ARE used in the following cases ...
       //handleSlotFilled_*
