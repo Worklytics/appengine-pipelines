@@ -210,10 +210,6 @@ public abstract class PipelineTask {
     }
   }
 
-  public String getName() {
-    return getTaskName();
-  }
-
   /**
    * Construct a task from {@code Properties}. This method is used on the
    * receiving side. That is, it is used to construct a {@code Task} from an

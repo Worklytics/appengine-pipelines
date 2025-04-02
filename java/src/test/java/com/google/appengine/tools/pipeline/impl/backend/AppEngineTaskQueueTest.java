@@ -73,7 +73,7 @@ public class AppEngineTaskQueueTest {
     List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(Collections.singletonList(pipelineTask));
 
     assertEquals(1, handles.size());
-    assertEquals(pipelineTask.getName(), handles.get(0).getTaskName());
+    assertEquals(pipelineTask.getTaskName(), handles.get(0).getTaskName());
 
     //behavior change; 2nd enqueue of same task now returns it again, even if duplicated
     handles = queue.addToQueue(Collections.singletonList(pipelineTask));
@@ -90,7 +90,7 @@ public class AppEngineTaskQueueTest {
     List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(pipelineTasks);
     assertEquals(AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE, handles.size());
     for (int i = 0; i < AppEngineTaskQueue.MAX_TASKS_PER_ENQUEUE; i++) {
-      assertEquals(pipelineTasks.get(i).getName(), handles.get(i).getTaskName());
+      assertEquals(pipelineTasks.get(i).getTaskName(), handles.get(i).getTaskName());
     }
 
     handles = queue.addToQueue(pipelineTasks);
@@ -108,14 +108,14 @@ public class AppEngineTaskQueueTest {
     List<PipelineTaskQueue.TaskReference> handles = queue.addToQueue(pipelineTasks);
     assertEquals(pipelineTasks.size(), handles.size());
     for (int i = 0; i < pipelineTasks.size(); i++) {
-      assertEquals(pipelineTasks.get(i).getName(), handles.get(i).getTaskName());
+      assertEquals(pipelineTasks.get(i).getTaskName(), handles.get(i).getTaskName());
     }
 
     // NOTE: this is behavior change from legacy GAE pipelines; it used to NOT return handles of anything that had be enqueued previously
    handles = queue.addToQueue(pipelineTasks);
     assertEquals(pipelineTasks.size(), handles.size());
     for (int i = 0; i < pipelineTasks.size(); i++) {
-      assertEquals(pipelineTasks.get(i).getName(), handles.get(i).getTaskName());
+      assertEquals(pipelineTasks.get(i).getTaskName(), handles.get(i).getTaskName());
     }
   }
 
@@ -133,7 +133,7 @@ public class AppEngineTaskQueueTest {
 
     assertEquals(firstBatchSize, handles.size());
     for (int i = 0; i < firstBatchSize; i++) {
-      assertEquals(pipelineTasks.get(i).getName(), handles.get(i).getTaskName());
+      assertEquals(pipelineTasks.get(i).getTaskName(), handles.get(i).getTaskName());
     }
 
     handles = queue.addToQueue(pipelineTasks);
@@ -141,7 +141,7 @@ public class AppEngineTaskQueueTest {
     assertEquals(pipelineTasks.size(), handles.size());
     Set<String> names = handles.stream().map(PipelineTaskQueue.TaskReference::getTaskName).collect(Collectors.toCollection(HashSet::new));
     for (int i = 0; i < pipelineTasks.size(); i++) {
-      names.remove(pipelineTasks.get(i).getName());
+      names.remove(pipelineTasks.get(i).getTaskName());
     }
     assertEquals(0, names.size()); //everything in names has 1:1 match in tasks
   }

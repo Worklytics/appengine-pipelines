@@ -45,8 +45,8 @@ public class RunJobTask extends ObjRefTask {
   }
 
   @Override
-  public String getName() {
-    String name = super.getName();
+  public String getTaskName() {
+    String name = super.getTaskName();
     if (null != attemptNumber) {
       name = name + "-attemptNumber-" + attemptNumber;
     }
