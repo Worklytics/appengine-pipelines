@@ -71,10 +71,13 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
     this.servicesClientProvider = servicesClientProvider;
     this.versionsClientProvider = versionsClientProvider;
     this.applicationsClientProvider = applicationsClientProvider;
+
     instanceCount++;
-    if (instanceCount > 1) {
-      log.warning("Multiple instances of AppEngineServicesServiceImpl created, this is not expected");
-    }
+
+//    // disable for now; this very much IS happening in the main application, which uses this in request-scoped way (which is safe, but not efficient)
+////    if (instanceCount > 1) {
+////      log.warning("Multiple instances of AppEngineServicesServiceImpl created, this is not expected");
+////    }
   }
 
   @SneakyThrows

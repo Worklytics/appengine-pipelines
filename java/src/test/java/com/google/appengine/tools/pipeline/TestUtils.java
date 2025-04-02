@@ -118,7 +118,6 @@ public class TestUtils {
 
       //6 pipeline- kinds
       Barrier.DATA_STORE_KIND,
-      FanoutTaskRecord.DATA_STORE_KIND,
       JobRecord.DATA_STORE_KIND,
       JobInstanceRecord.DATA_STORE_KIND,
       ShardedValue.DATA_STORE_KIND, // as of 2024-06-25, none of these in staging
