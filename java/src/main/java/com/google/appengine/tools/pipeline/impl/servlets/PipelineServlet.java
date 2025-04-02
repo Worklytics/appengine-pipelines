@@ -107,12 +107,11 @@ public class PipelineServlet extends HttpServlet {
   }
 
   public static String makeViewerUrl(JobRunId pipelineRunId, JobRunId jobRunId) {
-    return baseUrl() + "status.html?root=" + pipelineRunId.asEncodedString() + "#pipeline-" + jobRunId.asEncodedString();
+    return baseUrl() + "status/" + pipelineRunId.asEncodedString() + "#pipeline-" + jobRunId.asEncodedString();
   }
 
   public static String makeViewerUrl(JobRunId pipelineRunId, ShardedJobRunId shardedJobId) {
-    //TODO: revisit this;
-    return baseUrl() + "status.html?root=" + pipelineRunId.asEncodedString() + "#pipeline-" + shardedJobId.asEncodedString();
+    return baseUrl() + "status/" + pipelineRunId.asEncodedString() + "#pipeline-" + shardedJobId.asEncodedString();
   }
 
   private enum RequestType {
