@@ -139,9 +139,9 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
         if (e instanceof com.google.api.gax.rpc.UnavailableException ||
             e instanceof com.google.api.gax.rpc.DeadlineExceededException |
             e instanceof com.google.api.gax.rpc.ResourceExhaustedException) {
-          msg = String.format("CloudTasksTaskQueue task creation failed for %s, appears transient. Retrying...", taskSpec.getName());
+          msg = String.format("CloudTasksTaskQueue task creation failed for %s, appears transient. Retrying...", Optional.ofNullable(taskSpec.getName()).orElse ("<unnamed>"));
         } else {
-          msg = String.format("CloudTasksTaskQueue task creation failed for %s. Retrying... ", taskSpec.getName());
+          msg = String.format("CloudTasksTaskQueue task creation failed for %s. Retrying... ", Optional.ofNullable(taskSpec.getName()).orElse ("<unnamed>"));
         }
         log.log(Level.WARNING, e, () -> msg);
         lastException = e;

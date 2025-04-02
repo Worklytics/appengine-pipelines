@@ -761,7 +761,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
         // OK, proceed
         break;
       case WAITING_TO_FINALIZE:
-        log.info("This job has already been run " + jobRecord);
+        log.info("This job has already been run (waiting to finalize) " + jobRecord);
         return;
       case STOPPED:
         log.info("This job has been stopped " + jobRecord);
@@ -770,7 +770,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
         log.info("This job has already been canceled " + jobRecord);
         return;
       case FINALIZED:
-        log.info("This job has already been run " + jobRecord);
+        log.info("This job has already been run (finalized) " + jobRecord);
         return;
     }
 
