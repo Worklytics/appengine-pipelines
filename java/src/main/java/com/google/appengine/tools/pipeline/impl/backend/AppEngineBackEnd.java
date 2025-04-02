@@ -756,7 +756,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     } catch (RetryException e) {
       if (e.getCause() instanceof RuntimeException) {
         log.warning(e.getCause().getMessage() + " during " + operation.getName()
-          + " throwing after 5 multiple attempts ");
+          + " throwing after " + e.getNumberOfFailedAttempts() + " multiple attempts ");
         throw (RuntimeException) e.getCause();
       } else {
         throw new RuntimeException(e);
