@@ -72,6 +72,10 @@ public class TaskHandler {
 
     Integer retryCount = Optional.ofNullable(getTaskRetryCount(req)).orElse(-1);
 
+    if (retryCount > 0) {
+      log.warning("This is the " + retryCount + "th retry of task: " + pipelineTask);
+    }
+
     try {
       StepExecutionComponent stepExecutionComponent =
         component.stepExecutionComponent(new StepExecutionModule(req));
