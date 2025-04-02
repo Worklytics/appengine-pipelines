@@ -19,9 +19,9 @@ import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
-import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Streams;
 import lombok.AllArgsConstructor;
 
 import java.time.Duration;
@@ -70,8 +70,7 @@ public class TaskHandler {
   public void doPost(HttpServletRequest req) throws ServletException {
     PipelineTask pipelineTask = reconstructTask(req);
 
-    Integer retryCount = Optional.ofNullable(getTaskRetryCount(req)).orElse(-1);
-
+    Integer retryCount = parseTaskRetryCount(req);
     try {
       StepExecutionComponent stepExecutionComponent =
         component.stepExecutionComponent(new StepExecutionModule(req));
@@ -90,37 +89,34 @@ public class TaskHandler {
     }
   }
 
-  String getTaskName(HttpServletRequest req) {
+  String parseTaskName(HttpServletRequest req) {
     return Optional.ofNullable(
         req.getHeader(TASK_NAME_REQUEST_HEADER))
       .orElseGet(() -> req.getHeader(TASK_NAME_REQUEST_LEGACY_HEADER));
   }
 
-  String getQueueName(HttpServletRequest req) {
+  String parseQueueName(HttpServletRequest req) {
     return Optional.ofNullable(
         req.getHeader(TASK_QUEUE_NAME_HEADER))
       .orElseGet(() -> req.getHeader(TASK_QUEUE_NAME_LEGACY_HEADER));
   }
 
-  Integer getTaskRetryCount(HttpServletRequest req) {
+  Integer parseTaskRetryCount(HttpServletRequest req) {
     return Stream.of(req.getHeader(TASK_RETRY_COUNT_HEADER),
       req.getHeader(TASK_RETRY_COUNT_LEGACY_HEADER))
       .filter(Objects::nonNull)
-      .findFirst().map(Integer::parseInt).orElse(null);
+      .findFirst().map(Integer::parseInt).orElse(-1);
   }
 
   private PipelineTask reconstructTask(HttpServletRequest request) {
     Properties properties = new Properties();
-    Enumeration<?> paramNames = request.getParameterNames();
-    while (paramNames.hasMoreElements()) {
-      String paramName = (String) paramNames.nextElement();
-      String paramValue = request.getParameter(paramName);
-      properties.setProperty(paramName, paramValue);
-    }
-    String taskName = getTaskName(request);
+    Streams.stream(request.getParameterNames().asIterator())
+      .forEach(name -> properties.setProperty(name,  request.getParameter(name)));
+
+    String taskName = parseTaskName(request);
     PipelineTask pipelineTask = PipelineTask.fromProperties(taskName, properties);
     pipelineTask.getQueueSettings().setDelayInSeconds(null);
-    String queueName = getQueueName(request);
+    String queueName = parseQueueName(request);
     if (queueName != null && !queueName.isEmpty()) {
       String onQueue = pipelineTask.getQueueSettings().getOnQueue();
        if (onQueue == null || onQueue.isEmpty()) {
