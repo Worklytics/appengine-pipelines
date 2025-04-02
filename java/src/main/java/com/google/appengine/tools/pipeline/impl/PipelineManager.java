@@ -191,10 +191,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     PipelineService pipelineService = pipelineServiceProvider.get();
     String service = jobRecord.getQueueSettings().getOnService();
     if (service == null) {
-      Optional<String> serviceSetting = Arrays.stream(settings)
-        .filter(setting -> setting instanceof JobSetting.OnService)
-        .map(setting -> ((JobSetting.OnService) setting).getValue())
-        .findFirst();
+      Optional<String> serviceSetting = JobSetting.getSettingValue(JobSetting.OnService.class, settings);
+
       service = serviceSetting.orElseGet(pipelineService::getDefaultWorkerService);
       jobRecord.getQueueSettings().setOnService(service);
     }
@@ -202,10 +200,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     // pin service version
     if (jobRecord.getQueueSettings().getOnServiceVersion() == null) {
       String currentVersion = pipelineService.getCurrentVersion(service);
-      Optional<String> versionSetting = Arrays.stream(settings).filter(setting -> setting instanceof JobSetting.OnServiceVersion)
-        .findFirst()
-        .map(setting -> ((JobSetting.OnServiceVersion) setting).getValue());
-
+      Optional<String> versionSetting = JobSetting.getSettingValue(JobSetting.OnServiceVersion.class, settings);
       String targetVersion = versionSetting.orElse(currentVersion);
       jobRecord.getQueueSettings().setOnServiceVersion(targetVersion);
     }
