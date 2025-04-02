@@ -619,6 +619,7 @@ public abstract class Job<E> implements Serializable {
     return thisJobRecord.getStatusConsoleUrl();
   }
 
+  //TODO: exposing this doesn't seem good exactly ...
   protected String getOnQueue() {
     return thisJobRecord.getQueueSettings().getOnQueue();
   }
