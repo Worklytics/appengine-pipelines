@@ -385,12 +385,12 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
    * @param settings Array of {@code JobSetting} to apply to the newly created
    *        JobRecord.
    */
-  public JobRecord(JobRecord generatorJob,
+  public JobRecord(@NonNull JobRecord generatorJob,
                    String graphGUIDParam,
                    Job<?> jobInstance,
                    boolean callExceptionHandler,
                    JobSetting[] settings,
-                   SerializationStrategy serializationStrategy
+                   @NonNull SerializationStrategy serializationStrategy
       ) {
     this(generatorJob.getRootJobKey(), null, generatorJob.getKey(), graphGUIDParam, jobInstance,
         callExceptionHandler, settings, generatorJob.getQueueSettings(), serializationStrategy);
@@ -438,21 +438,6 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     }
     if (parentQueueSettings != null) {
       queueSettings.merge(parentQueueSettings);
-    }
-    String service = queueSettings.getOnService();
-
-    if (service == null) {
-      //no service set via jobSettings; so default to the currentModule / currentModuleVersion
-      queueSettings.setOnService(environment.getService());
-      queueSettings.setOnServiceVersion(environment.getVersion());
-    } else if (queueSettings.getOnServiceVersion() == null) {
-      //service set via JobSettings, but no specific version specified
-      if (service.equals(environment.getService())) {
-        queueSettings.setOnServiceVersion(environment.getVersion());
-      } else {
-        //TODO: omitting for now; don't know how to get the default version for a service generally ...
-        //queueSettings.setOnServiceVersion(environment.getDefaultVersion(service));
-      }
     }
     projectId = rootJobKey.getProjectId();
     namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)

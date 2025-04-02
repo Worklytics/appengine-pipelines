@@ -20,8 +20,10 @@ import com.google.appengine.tools.pipeline.di.StepExecutionComponent;
 import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import lombok.AllArgsConstructor;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -68,16 +70,18 @@ public class TaskHandler {
     PipelineTask pipelineTask = reconstructTask(req);
 
     Integer retryCount = parseTaskRetryCount(req);
-    if (retryCount == null) {
-      retryCount = -1;
-    }
-
     try {
       StepExecutionComponent stepExecutionComponent =
         component.stepExecutionComponent(new StepExecutionModule(req));
       PipelineRunner pipelineRunner = stepExecutionComponent.pipelineRunner();
 
+      Stopwatch stopwatch = Stopwatch.createStarted();
       pipelineRunner.processTask(pipelineTask);
+      stopwatch.stop();
+      if (stopwatch.elapsed().compareTo(Duration.ofMinutes(8)) >= 0) {
+        log.log(Level.WARNING, "Task long time to process: " + stopwatch.elapsed() + " " + pipelineTask);
+      }
+
     } catch (RuntimeException e) {
       logRetryMessage(log, pipelineTask, retryCount, e);
       throw new ServletException(e);
@@ -100,7 +104,7 @@ public class TaskHandler {
     return Stream.of(req.getHeader(TASK_RETRY_COUNT_HEADER),
       req.getHeader(TASK_RETRY_COUNT_LEGACY_HEADER))
       .filter(Objects::nonNull)
-      .findFirst().map(Integer::parseInt).orElse(null);
+      .findFirst().map(Integer::parseInt).orElse(-1);
   }
 
   private PipelineTask reconstructTask(HttpServletRequest request) {

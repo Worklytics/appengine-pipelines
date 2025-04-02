@@ -48,6 +48,8 @@ import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Uninterruptibles;
 import lombok.AllArgsConstructor;
@@ -56,14 +58,12 @@ import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
+import java.io.Serial;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
@@ -178,13 +178,42 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
       throw new IllegalStateException("projectId is 'no_app_id'; this isn't legal GCP project id");
     }
 
-    return registerNewJobRecord(updateSpec, JobRecord.createRootJobRecord(projectId, jobInstance, getSerializationStrategy(), settings), params);
+    JobRecord jobRecord = JobRecord.createRootJobRecord(projectId, jobInstance, getSerializationStrategy(), settings);
+    pinServiceAndVersion(jobRecord, settings);
+
+    return registerNewJobRecord(updateSpec, jobRecord, params);
+  }
+
+  @VisibleForTesting
+  void pinServiceAndVersion(JobRecord jobRecord, JobSetting[] settings) {
+
+    //pin service
+    PipelineService pipelineService = pipelineServiceProvider.get();
+    String service = jobRecord.getQueueSettings().getOnService();
+    if (service == null) {
+      Optional<String> serviceSetting = JobSetting.getSettingValue(JobSetting.OnService.class, settings);
+
+      service = serviceSetting.orElseGet(pipelineService::getDefaultWorkerService);
+      jobRecord.getQueueSettings().setOnService(service);
+    }
+
+    // pin service version
+    if (jobRecord.getQueueSettings().getOnServiceVersion() == null) {
+      String currentVersion = pipelineService.getCurrentVersion(service);
+      Optional<String> versionSetting = JobSetting.getSettingValue(JobSetting.OnServiceVersion.class, settings);
+      String targetVersion = versionSetting.orElse(currentVersion);
+      jobRecord.getQueueSettings().setOnServiceVersion(targetVersion);
+    }
   }
 
   @Override
   public JobRecord registerNewJobRecord(UpdateSpec updateSpec, JobSetting[] settings,
                                         JobRecord generatorJob, String graphGUID, Job<?> jobInstance, Object[] params) {
     JobRecord jobRecord = new JobRecord(generatorJob, graphGUID, jobInstance, false, settings, getSerializationStrategy());
+
+    //shouldn't be needed, as should have copied queue settings from generatorJob
+    pinServiceAndVersion(jobRecord, settings);
+
     return registerNewJobRecord(updateSpec, jobRecord, params);
   }
 
@@ -505,6 +534,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    */
   private static final class RootJobInstance extends Job0<Object> {
 
+    @Serial
     private static final long serialVersionUID = -2162670129577469245L;
 
     private final Job<?> jobInstance;
@@ -532,7 +562,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    * A RuntimeException which, when thrown, causes us to abandon the current
    * task, by returning a 200.
    */
-  private class AbandonTaskException extends RuntimeException {
+  private static class AbandonTaskException extends RuntimeException {
+    @Serial
     private static final long serialVersionUID = 358437646006972459L;
   }
 
@@ -687,6 +718,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    * @see "http://goto/java-pipeline-model"
    */
   private void runJob(RunJobTask task) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
     Key jobKey = task.getJobKey();
     JobRecord jobRecord = queryJobOrAbandonTask(jobKey, InflationType.FOR_RUN);
     jobRecord.getQueueSettings().merge(task.getQueueSettings());
@@ -732,7 +764,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
         log.info("This job has already been run " + jobRecord);
         return;
       case STOPPED:
-        log.info("This job has been stoped " + jobRecord);
+        log.info("This job has been stopped " + jobRecord);
         return;
       case CANCELED:
         log.info("This job has already been canceled " + jobRecord);
@@ -790,7 +822,10 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     Throwable caughtException = null;
     try {
       methodToExecute.setAccessible(true);
+      log.info("Job pre-run took " + stopwatch.elapsed().getSeconds() + " seconds");
+      stopwatch.reset().start();
       returnValue = (Value<?>) methodToExecute.invoke(job, params);
+      log.info("Job run took " + stopwatch.elapsed().getSeconds() + " seconds");
     } catch (InvocationTargetException e) {
       caughtException = e.getCause();
     } catch (Throwable e) {
@@ -803,6 +838,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
       handleExceptionDuringRun(jobRecord, rootJobRecord, job.getCurrentRunGUID(), caughtException);
       return;
     }
+    stopwatch.reset().start();
 
     // The run() method returned without error.
     // We do all of the following in a transaction:
@@ -823,6 +859,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     job.getUpdateSpec().getFinalTransaction().includeBarrier(finalizeBarrier);
     backEnd.saveWithJobStateCheck(
         job.getUpdateSpec(), jobKey, State.WAITING_TO_RUN, State.RETRY);
+
+    log.info("Job post-run took " + stopwatch.elapsed().getSeconds() + " seconds");
   }
 
   private void inject(Job<?> job) {
@@ -983,8 +1021,10 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     String errorHandlingGraphGuid = GUIDGenerator.nextGUID();
     Job<?> jobInstance = jobRecord.getJobInstanceInflated().getJobInstanceDeserialized();
 
+    JobSetting[] settings =  new JobSetting[0];
     JobRecord errorHandlingJobRecord =
-        new JobRecord(jobRecord, errorHandlingGraphGuid, jobInstance, true, new JobSetting[0], backEnd.getSerializationStrategy());
+        new JobRecord(jobRecord, errorHandlingGraphGuid, jobInstance, true, settings, backEnd.getSerializationStrategy());
+    pinServiceAndVersion(errorHandlingJobRecord, settings);
     errorHandlingJobRecord.setOutputSlotInflated(jobRecord.getOutputSlotInflated());
     errorHandlingJobRecord.setIgnoreException(ignoreException);
     registerNewJobRecord(updateSpec, errorHandlingJobRecord,
