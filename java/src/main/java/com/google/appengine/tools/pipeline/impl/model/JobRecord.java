@@ -385,12 +385,12 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
    * @param settings Array of {@code JobSetting} to apply to the newly created
    *        JobRecord.
    */
-  public JobRecord(JobRecord generatorJob,
+  public JobRecord(@NonNull JobRecord generatorJob,
                    String graphGUIDParam,
                    Job<?> jobInstance,
                    boolean callExceptionHandler,
                    JobSetting[] settings,
-                   SerializationStrategy serializationStrategy
+                   @NonNull SerializationStrategy serializationStrategy
       ) {
     this(generatorJob.getRootJobKey(), null, generatorJob.getKey(), graphGUIDParam, jobInstance,
         callExceptionHandler, settings, generatorJob.getQueueSettings(), serializationStrategy);
