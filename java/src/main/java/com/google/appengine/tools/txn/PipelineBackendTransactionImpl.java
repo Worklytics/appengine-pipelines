@@ -30,8 +30,10 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   private static Duration ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ofSeconds(30);
 
+  private static final boolean isCloud = System.getProperty("GAE_VERSION", System.getenv("GAE_VERSION")) != null;
+
   static {
-    if (System.getProperty("GAE_VERSION") == null) {
+    if (!isCloud) {
       // presumably never set for tests - so this is equivalent to isTesting
       ENQUEUE_DELAY_FOR_SAFER_ROLLBACK = Duration.ZERO;
       log.warning("ENQUEUE_DELAY_FOR_SAFER_ROLLBACK set to 0, this is not a production environment");
@@ -212,9 +214,24 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
       pendingTaskSpecsByQueue.asMap()
         .forEach((queue, tasks) -> {
           // PoC: we can deal with the delay here prior to commit
+          Instant fixedNow = Instant.now();
           Collection<PipelineTaskQueue.TaskSpec> delayedTasks = tasks.stream()
-            .map(task -> task.withScheduledExecutionTime(Optional.ofNullable(task.getScheduledExecutionTime()).orElse(Instant.now()).plus(ENQUEUE_DELAY_FOR_SAFER_ROLLBACK)))
-            .toList();
+            .map(task -> task.withScheduledExecutionTime(Optional.ofNullable(task.getScheduledExecutionTime()).orElse(fixedNow).plus(ENQUEUE_DELAY_FOR_SAFER_ROLLBACK)))
+            .collect(Collectors.toSet());
+
+          if (delayedTasks.size() != tasks.size()) {
+            HashSet<PipelineTaskQueue.TaskSpec> distinctTasks = new HashSet<>(tasks);
+            List<PipelineTaskQueue.TaskSpec> duplicatedTasks = tasks.stream()
+              .filter(task -> !distinctTasks.add(task))
+              .collect(Collectors.toList());
+            String message = String.format("Some identical pipeline tasks were enqueued. Duplicates are %s", duplicatedTasks.stream().map(Object::toString).collect(Collectors.joining(", ")));
+            if (isCloud) {
+              log.log(Level.WARNING, message);
+            } else {
+              throw new IllegalStateException(String.format("Some identical pipeline tasks were enqueued. Duplicates are %s", duplicatedTasks.stream().map(Object::toString).collect(Collectors.joining(", "))));
+            }
+          }
+
           taskReferences.addAll(taskQueue.enqueue(queue, delayedTasks));
         });
       pendingTaskSpecsByQueue.clear();
