@@ -80,6 +80,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
         settings = ((MapReduceSettings) settings).withWorkerQueueName(queue);
       }
     }
+
     ShardedJobRunId jobId = getShardedJobId();
     Context context = new BaseContext(jobId);
     Input<I> input = specification.getInput();
