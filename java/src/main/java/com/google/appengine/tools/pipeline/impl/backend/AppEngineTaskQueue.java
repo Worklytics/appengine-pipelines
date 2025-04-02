@@ -106,8 +106,8 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
         TaskHandle handle = queue.add(taskOptions);
         taskReference = taskHandleToReference(handle);
       } catch (TaskAlreadyExistsException alreadyExistsException) {
-        //taskOptions.taskName(pipelineTask.getTaskName() + "-" + pastAttempts);
-        log.log(Level.WARNING, "Pipeline framework - task already exists", alreadyExistsException);
+        //ignore this case, which was legacy behavior
+        log.log(Level.INFO, "Pipeline framework - task already exists - " + pipelineTask.getTaskName(), alreadyExistsException);
         taskReference = TaskReference.of(queue.getQueueName(), pipelineTask.getTaskName());
       }
     } while (taskReference == null && ++pastAttempts < MAX_ENQUEUE_ATTEMPTS);
