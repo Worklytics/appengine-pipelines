@@ -21,6 +21,7 @@ import com.google.appengine.tools.pipeline.di.StepExecutionModule;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Streams;
 import lombok.AllArgsConstructor;
 
 import java.time.Duration;
@@ -109,7 +110,9 @@ public class TaskHandler {
 
   private PipelineTask reconstructTask(HttpServletRequest request) {
     Properties properties = new Properties();
-    request.getParameterMap().forEach((key, value) -> properties.setProperty(key, value[0]));
+    Streams.stream(request.getParameterNames().asIterator())
+      .forEach(name -> properties.setProperty(name,  request.getParameter(name)));
+
     String taskName = parseTaskName(request);
     PipelineTask pipelineTask = PipelineTask.fromProperties(taskName, properties);
     pipelineTask.getQueueSettings().setDelayInSeconds(null);

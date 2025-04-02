@@ -63,8 +63,6 @@ public abstract class PipelineTask {
   @Getter @NonNull
   private final QueueSettings queueSettings;
 
-
-
   private enum TaskProperty {
 
     ON_SERVICE {
