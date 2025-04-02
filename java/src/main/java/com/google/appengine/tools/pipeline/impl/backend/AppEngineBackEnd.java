@@ -506,9 +506,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       public Map<Key, Entity> call() {
         //NOTE: this read is strongly consistent now, bc backed by Firestore in Datastore-mode; this library was
         // designed thinking this read was only event
-        return keys.stream()
-          .parallel()
-          .map(datastore::get)
+        return Streams.stream(datastore.get(keys))
           .filter(Objects::nonNull)
           .collect(Collectors.toMap(Entity::getKey, Function.identity()));
       }
