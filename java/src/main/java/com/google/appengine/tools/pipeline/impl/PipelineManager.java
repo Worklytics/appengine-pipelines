@@ -575,7 +575,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    *
    */
   public void processTask(PipelineTask pipelineTask) {
-    log.finest("Processing task " + pipelineTask);
+    log.info("Processing task " + pipelineTask);
     try {
       switch (pipelineTask.getType()) {
         case RUN_JOB:
