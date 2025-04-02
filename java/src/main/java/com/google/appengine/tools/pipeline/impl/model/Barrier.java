@@ -16,6 +16,7 @@ package com.google.appengine.tools.pipeline.impl.model;
 
 import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
+import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -52,8 +53,8 @@ public class Barrier extends PipelineModelObject implements ExpiringDatastoreEnt
    * The type of Barrier
    */
   public enum Type {
-    RUN,
-    FINALIZE
+    RUN, // these are root-level entities in datastore
+    FINALIZE  //NOTE: these have parents (belong to entity group of job they finalize)
   }
 
   private static final String TYPE_PROPERTY = "barrierType";
@@ -63,13 +64,26 @@ public class Barrier extends PipelineModelObject implements ExpiringDatastoreEnt
   private static final String WAITING_ON_GROUP_SIZES_PROPERTY = "waitingOnGroupSizes";
 
   // persistent
+  @Getter
   private final Type type;
+  @Getter
   private final Key jobKey;
+  @Getter
   private boolean released;
+
+  /**
+   * may be null if this Barrier has not been inflated
+   */
+  @Getter
   private final List<Key> waitingOnKeys;
   private final List<Long> waitingOnGroupSizes;
 
+  /**
+   * -- GETTER --
+   *  May return null if this Barrier has not been inflated
+   */
   // transient
+  @Getter
   private List<SlotDescriptor> waitingOnInflated;
 
   /**
@@ -157,31 +171,8 @@ public class Barrier extends PipelineModelObject implements ExpiringDatastoreEnt
     }
   }
 
-  public Key getJobKey() {
-    return jobKey;
-  }
-
-  public Type getType() {
-    return type;
-  }
-
-  public boolean isReleased() {
-    return released;
-  }
-
   public void setReleased() {
     released = true;
-  }
-
-  public List<Key> getWaitingOnKeys() {
-    return waitingOnKeys;
-  }
-
-  /**
-   * May return null if this Barrier has not been inflated
-   */
-  public List<SlotDescriptor> getWaitingOnInflated() {
-    return waitingOnInflated;
   }
 
   public Object[] buildArgumentArray() {
