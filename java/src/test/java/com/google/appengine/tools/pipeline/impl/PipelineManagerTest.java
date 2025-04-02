@@ -102,4 +102,17 @@ class PipelineManagerTest extends PipelineTest {
     //   assertEquals(pipelineId1, rootRecords.get(0).getKey().toUrlSafe());
     //   assertEquals(pipelineId2, rootRecords.get(1).getKey().toUrlSafe());
   }
+
+  @SneakyThrows
+  @Test
+  void pinVersion() {
+    JobSetting[] settings = new JobSetting[0];
+    Job<String> jobInstance = new NoopJob();
+    JobRunId pipelineId1 = pipelineManager.startNewPipeline(settings, jobInstance);
+    JobRecord record = pipelineManager.getJob(pipelineId1);
+
+    assertNotNull(record.getQueueSettings().getOnService());
+    assertNotNull(record.getQueueSettings().getOnServiceVersion());
+
+  }
 }

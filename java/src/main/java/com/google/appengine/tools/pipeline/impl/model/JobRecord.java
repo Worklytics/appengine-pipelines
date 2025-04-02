@@ -439,21 +439,6 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     if (parentQueueSettings != null) {
       queueSettings.merge(parentQueueSettings);
     }
-    String service = queueSettings.getOnService();
-
-    if (service == null) {
-      //no service set via jobSettings; so default to the currentModule / currentModuleVersion
-      queueSettings.setOnService(environment.getService());
-      queueSettings.setOnServiceVersion(environment.getVersion());
-    } else if (queueSettings.getOnServiceVersion() == null) {
-      //service set via JobSettings, but no specific version specified
-      if (service.equals(environment.getService())) {
-        queueSettings.setOnServiceVersion(environment.getVersion());
-      } else {
-        //TODO: omitting for now; don't know how to get the default version for a service generally ...
-        //queueSettings.setOnServiceVersion(environment.getDefaultVersion(service));
-      }
-    }
     projectId = rootJobKey.getProjectId();
     namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
       .orElse(null);

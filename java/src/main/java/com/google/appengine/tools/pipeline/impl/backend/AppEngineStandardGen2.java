@@ -31,6 +31,6 @@ public class AppEngineStandardGen2 implements AppEngineEnvironment {
 
   @Override
   public String getVersion() {
-    return System.getProperty(GAE_SERVICE_VERSION,System.getenv(GAE_SERVICE_VERSION));
+    return System.getProperty(GAE_SERVICE_VERSION, System.getenv(GAE_SERVICE_VERSION));
   }
 }
