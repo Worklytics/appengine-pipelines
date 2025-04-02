@@ -99,8 +99,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     // synchronized to deal with parallel stream
     Collection<TaskReference> taskReferences = Collections.synchronizedList(new ArrayList<>());
     try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
-      taskSpecs.parallelStream()
-        .forEach(taskSpec -> {
+      taskSpecs.forEach(taskSpec -> {
           Task task = createTask(cloudTasksClient, queue, taskSpec);
           taskReferences.add(TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()));
         });
