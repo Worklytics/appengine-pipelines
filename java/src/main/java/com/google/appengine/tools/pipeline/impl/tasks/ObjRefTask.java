@@ -17,6 +17,7 @@ package com.google.appengine.tools.pipeline.impl.tasks;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import lombok.NonNull;
+import lombok.ToString;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import java.util.Properties;
@@ -30,6 +31,7 @@ import java.util.stream.Stream;
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
+@ToString
 public abstract class ObjRefTask extends PipelineTask {
 
   private static final String KEY_PARAM = "key";

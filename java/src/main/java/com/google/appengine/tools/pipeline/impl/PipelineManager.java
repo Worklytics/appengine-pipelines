@@ -48,6 +48,7 @@ import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Uninterruptibles;
 import lombok.AllArgsConstructor;
@@ -56,6 +57,7 @@ import lombok.extern.java.Log;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
+import java.io.Serial;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -505,6 +507,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    */
   private static final class RootJobInstance extends Job0<Object> {
 
+    @Serial
     private static final long serialVersionUID = -2162670129577469245L;
 
     private final Job<?> jobInstance;
@@ -532,7 +535,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    * A RuntimeException which, when thrown, causes us to abandon the current
    * task, by returning a 200.
    */
-  private class AbandonTaskException extends RuntimeException {
+  private static class AbandonTaskException extends RuntimeException {
+    @Serial
     private static final long serialVersionUID = 358437646006972459L;
   }
 
@@ -687,6 +691,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
    * @see "http://goto/java-pipeline-model"
    */
   private void runJob(RunJobTask task) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
     Key jobKey = task.getJobKey();
     JobRecord jobRecord = queryJobOrAbandonTask(jobKey, InflationType.FOR_RUN);
     jobRecord.getQueueSettings().merge(task.getQueueSettings());
@@ -732,7 +737,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
         log.info("This job has already been run " + jobRecord);
         return;
       case STOPPED:
-        log.info("This job has been stoped " + jobRecord);
+        log.info("This job has been stopped " + jobRecord);
         return;
       case CANCELED:
         log.info("This job has already been canceled " + jobRecord);
@@ -790,7 +795,10 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     Throwable caughtException = null;
     try {
       methodToExecute.setAccessible(true);
+      log.info("Job pre-run took " + stopwatch.elapsed().getSeconds() + " seconds");
+      stopwatch.reset().start();
       returnValue = (Value<?>) methodToExecute.invoke(job, params);
+      log.info("Job run took " + stopwatch.elapsed().getSeconds() + " seconds");
     } catch (InvocationTargetException e) {
       caughtException = e.getCause();
     } catch (Throwable e) {
@@ -803,6 +811,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
       handleExceptionDuringRun(jobRecord, rootJobRecord, job.getCurrentRunGUID(), caughtException);
       return;
     }
+    stopwatch.reset().start();
 
     // The run() method returned without error.
     // We do all of the following in a transaction:
@@ -823,6 +832,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     job.getUpdateSpec().getFinalTransaction().includeBarrier(finalizeBarrier);
     backEnd.saveWithJobStateCheck(
         job.getUpdateSpec(), jobKey, State.WAITING_TO_RUN, State.RETRY);
+
+    log.info("Job post-run took " + stopwatch.elapsed().getSeconds() + " seconds");
   }
 
   private void inject(Job<?> job) {
