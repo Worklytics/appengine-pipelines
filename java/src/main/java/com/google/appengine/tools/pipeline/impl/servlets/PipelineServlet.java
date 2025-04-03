@@ -27,6 +27,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Optional;
 
 
 /**
@@ -62,28 +64,15 @@ public class PipelineServlet extends HttpServlet {
 
     Pair<String, RequestType> pair = parseRequestType(req);
     RequestType requestType = pair.getSecond();
-    String path = pair.getFirst();
+
     switch (requestType) {
-      case HANDLE_TASK:
-        component.taskHandler().doPost(req);
-        break;
-      case GET_JSON:
-        component.jsonTreeHandler().doGet(req, resp);
-        break;
-      case GET_JSON_LIST:
-        component.jsonListHandler().doGet(req, resp);
-        break;
-      case GET_JSON_CLASS_FILTER:
-        component.jsonClassFilterHandler().doGet(req, resp);
-        break;
-      case ABORT_JOB:
-        component.abortJobHandler().doGet(req, resp);
-        break;
-      case DELETE_JOB:
-        component.deleteJobHandler().doGet(req, resp);
-        break;
-      default:
-        throw new ServletException("Unknown request type: " + requestType);
+      case HANDLE_TASK -> component.taskHandler().doPost(req);
+      case GET_JSON -> component.jsonTreeHandler().doGet(req, resp);
+      case GET_JSON_LIST -> component.jsonListHandler().doGet(req, resp);
+      case GET_JSON_CLASS_FILTER -> component.jsonClassFilterHandler().doGet(req, resp);
+      case ABORT_JOB -> component.abortJobHandler().doGet(req, resp);
+      case DELETE_JOB -> component.deleteJobHandler().doGet(req, resp);
+      default -> throw new ServletException("Unknown request type: " + requestType);
     }
   }
 
@@ -129,15 +118,13 @@ public class PipelineServlet extends HttpServlet {
   }
 
   private Pair<String, RequestType> parseRequestType(HttpServletRequest req) {
-    String path = req.getPathInfo();
-    path = path == null ? "" : path.substring(1); // Take off the leading '/'
-    RequestType requestType = RequestType.HANDLE_TASK;
-    for (RequestType rt : RequestType.values()) {
-      if (rt.matches(path)) {
-        requestType = rt;
-        break;
-      }
-    }
+    String path = Optional.ofNullable(req.getPathInfo()).map( p -> p.substring(1)).orElse("");
+
+    RequestType requestType = Arrays.stream(RequestType.values())
+      .filter( rt -> rt.matches(path))
+      .findFirst()
+      .orElseThrow(() -> new RuntimeException("Unknown RequestType"));
+
     return Pair.of(path, requestType);
   }
 }
