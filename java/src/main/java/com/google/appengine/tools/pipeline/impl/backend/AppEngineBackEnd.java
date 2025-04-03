@@ -387,23 +387,19 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
    */
   private void inflateBarriers(Collection<Barrier> barriers) {
     // Step 1. Build the set of keys corresponding to the slots.
-    Set<Key> keySet = new HashSet<>(barriers.size() * 5);
-    for (Barrier barrier : barriers) {
-      keySet.addAll(barrier.getWaitingOnKeys());
-    }
+    Set<Key> keySet = barriers.stream()
+      .flatMap(b -> b.getWaitingOnKeys().stream())
+      .collect(Collectors.toSet());
+
     // Step 2. Query the datastore for the Slot entities
     Map<Key, Entity> entityMap = getEntities("inflateBarriers", keySet);
 
     // Step 3. Convert into map from key to Slot
-    Map<Key, Slot> slotMap = new HashMap<>(entityMap.size());
-    for (Key key : keySet) {
-      Slot s = new Slot(entityMap.get(key), this);
-      slotMap.put(key, s);
-    }
+    Map<Key, Slot> slotMap = keySet.stream()
+        .collect(Collectors.toMap(Function.identity(), k -> new Slot(entityMap.get(k), this)));
+
     // Step 4. Inflate each of the barriers
-    for (Barrier barrier : barriers) {
-      barrier.inflate(slotMap);
-    }
+    barriers.forEach(barrier -> barrier.inflate(slotMap));
   }
 
   @Override
