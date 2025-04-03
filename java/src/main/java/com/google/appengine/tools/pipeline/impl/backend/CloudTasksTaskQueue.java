@@ -226,12 +226,12 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     AppEngineHttpRequest.Builder callbackRequest = AppEngineHttpRequest.newBuilder()
       .putAllHeaders(taskSpec.getHeaders());
 
-    callbackRequest.setAppEngineRouting(AppEngineRouting.newBuilder()
-      .setService("jobs")
-      .setVersion("v871a"));
-
-
-    //  .ifPresent(callbackRequest::setAppEngineRouting);
+    AppEngineRouting.Builder routing = AppEngineRouting.newBuilder();
+    Optional.ofNullable(taskSpec.getService())
+        .ifPresent(routing::setService);
+    Optional.ofNullable(taskSpec.getVersion())
+        .ifPresent(routing::setVersion);
+    callbackRequest.setAppEngineRouting(routing.build());
 
     if (taskSpec.getMethod() == TaskSpec.Method.POST) {
       callbackRequest.setHttpMethod(HttpMethod.POST);

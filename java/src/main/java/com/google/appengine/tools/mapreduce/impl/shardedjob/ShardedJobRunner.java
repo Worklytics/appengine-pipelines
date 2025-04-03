@@ -871,13 +871,4 @@ public class ShardedJobRunner implements ShardedJobHandler {
     return true;
   }
 
-
-  private String getWorkerServiceHostName(ShardedJobSettings settings) {
-    String version = Optional.ofNullable(settings.getVersion()).orElseGet(() ->
-      appEngineServicesService.getDefaultVersion(settings.getModule())
-    );
-
-    return appEngineServicesService.getWorkerServiceHostName(settings.getModule(), version);
-  }
-
 }
