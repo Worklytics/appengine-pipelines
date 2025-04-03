@@ -923,7 +923,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
         // OK, proceed
         break;
       case STOPPED:
-        log.info("This job has been stoped " + jobRecord);
+        log.info("This job has been stopped " + jobRecord);
         return;
       case CANCELED:
         log.info("This job has already been canceled " + jobRecord);
