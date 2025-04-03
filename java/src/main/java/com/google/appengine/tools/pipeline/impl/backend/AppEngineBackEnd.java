@@ -453,7 +453,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         @Override
         public List<Key> call() {
           Transaction tx = datastore.newTransaction();
-          List<Key> keys = new ArrayList<>();
+          List<Key> keys = new ArrayList<>(shardedValues.size());
           try {
             for (Entity v : shardedValues) {
               tx.put(v);
