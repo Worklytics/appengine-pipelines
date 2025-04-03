@@ -112,13 +112,13 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
   Cache<String, String> defaultVersionCache = CacheBuilder.newBuilder()
          .maximumSize(10)  // avoid unbounded growth leading to OOM
-         .duration(Duration.ofMinutes(10))
+         .expireAfterWrite(Duration.ofMinutes(10))
          .build();
 
   @Deprecated // shouldn't really be needed in prod deployments using CloudTasks rather than GAE Tasks API
   Cache<String, String> hostnameCache = CacheBuilder.newBuilder()
           .maximumSize(10)  // avoid unbounded growth leading to OOM
-          .duration(Duration.ofMinutes(10))
+          .expireAfterWrite(Duration.ofMinutes(10))
           .build();
 
   // would only change on re-deployment
