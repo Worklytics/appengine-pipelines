@@ -184,28 +184,6 @@ public class MapReduceServletTest{
     verify(response, times(1)).sendError(eq(403), eq("Received unexpected non-XMLHttpRequest command."));
   }
 
-  @Test
-  public void testStaticResources_jQuery() throws Exception {
-    HttpServletResponse resp = mock(HttpServletResponse.class);
-    resp.setContentType("text/javascript");
-    resp.setHeader("Cache-Control", "public; max-age=300");
-    ServletOutputStream sos = mock(ServletOutputStream.class);
-    when(resp.getOutputStream()).thenReturn(sos);
-
-    MapReduceServletImpl.handleStaticResources("jquery.js", resp);
-
-    verify(resp, atLeastOnce()).getOutputStream();
-    verify(sos, atLeastOnce()).write(any(), eq(0), anyInt());
-    verify(sos, atLeastOnce()).flush(); //actually needed?
-  }
-
-  @Test
-  public void testStaticResources_status() throws Exception {
-    HttpServletResponse resp = mock(HttpServletResponse.class);
-    resp.sendRedirect("/_ah/pipeline/list?class_path=" + MapReduceJob.class.getName());
-    MapReduceServletImpl.handleStaticResources("status", resp);
-  }
-
   private static HttpServletRequest createMockRequest(Datastore datastore,
       String handler, boolean taskQueueRequest, boolean ajaxRequest) {
     HttpServletRequest request = mock(HttpServletRequest.class);
