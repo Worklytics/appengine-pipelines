@@ -12,6 +12,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -110,16 +111,18 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   }
 
   Cache<String, String> defaultVersionCache = CacheBuilder.newBuilder()
-          .maximumSize(10)
-          .build();
+         .maximumSize(10)  // avoid unbounded growth leading to OOM
+         .duration(Duration.ofMinutes(10))
+         .build();
 
+  @Deprecated // shouldn't really be needed in prod deployments using CloudTasks rather than GAE Tasks API
   Cache<String, String> hostnameCache = CacheBuilder.newBuilder()
-          .maximumSize(10)
+          .maximumSize(10)  // avoid unbounded growth leading to OOM
+          .duration(Duration.ofMinutes(10))
           .build();
 
   // would only change on re-deployment
   volatile String location;
-
 
   @Override
   public String getDefaultService() {
@@ -134,6 +137,7 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
     return defaultVersionCache.get(nonNullService, () -> getDefaultVersionInternal(nonNullService));
   }
 
+  @Deprecated // only for AppEngineTaskQueue, used in testing / local dev emulation
   @SneakyThrows
   @Override
   public String getWorkerServiceHostName(@NonNull String service, @NonNull String version) {
@@ -170,7 +174,6 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
       throw e;
     }
   }
-
 
   private String getDefaultVersionInternal(@NonNull String service) {
     if (Objects.equals(service, appEngineEnvironment.getService())) {
