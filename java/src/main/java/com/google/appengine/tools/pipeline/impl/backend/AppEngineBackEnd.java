@@ -407,11 +407,9 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     Entity entity = getEntity("querySlot", slotKey);
     Slot slot = new Slot(entity, this);
     if (inflate) {
-      Map<Key, Entity> entities = getEntities("querySlot", new HashSet<>(slot.getWaitingOnMeKeys()));
-      Map<Key, Barrier> barriers = new HashMap<>(entities.size());
-      for (Map.Entry<Key, Entity> entry : entities.entrySet()) {
-        barriers.put(entry.getKey(), new Barrier(entry.getValue()));
-      }
+      Map<Key, Barrier> barriers =
+        getEntities("querySlotBarriers", new HashSet<>(slot.getWaitingOnMeKeys())).entrySet().stream()
+          .collect(Collectors.toMap(Map.Entry::getKey, e -> new Barrier(e.getValue())));
       slot.inflate(barriers);
       inflateBarriers(barriers.values());
     }
