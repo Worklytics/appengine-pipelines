@@ -16,26 +16,22 @@ package com.google.appengine.tools.pipeline.impl.servlets;
 
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.pipeline.JobRunId;
-import com.google.appengine.tools.pipeline.di.DaggerJobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponentContainer;
-import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.common.annotations.VisibleForTesting;
-
-import java.io.IOException;
+import lombok.Setter;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import lombok.Setter;
+import java.io.IOException;
 
 
 /**
  * Servlet that handles all requests for the Pipeline framework.
- * Dispatches all requests to {@link TaskHandler}, {@link JsonTreeHandler} or
- * {@link StaticContentHandler} as appropriate
+ * Dispatches all requests to {@link TaskHandler} or {@link JsonTreeHandler} as appropriate
  *
  * @author rudominer@google.com (Mitch Rudominer)
  */
@@ -86,9 +82,6 @@ public class PipelineServlet extends HttpServlet {
       case DELETE_JOB:
         component.deleteJobHandler().doGet(req, resp);
         break;
-      case HANDLE_STATIC:
-        StaticContentHandler.doGet(resp, path);
-        break;
       default:
         throw new ServletException("Unknown request type: " + requestType);
     }
@@ -122,8 +115,7 @@ public class PipelineServlet extends HttpServlet {
     GET_JSON_LIST(JsonListHandler.PATH_COMPONENT),
     GET_JSON_CLASS_FILTER(JsonClassFilterHandler.PATH_COMPONENT),
     ABORT_JOB(AbortJobHandler.PATH_COMPONENT),
-    DELETE_JOB(DeleteJobHandler.PATH_COMPONENT),
-    HANDLE_STATIC("");
+    DELETE_JOB(DeleteJobHandler.PATH_COMPONENT);
 
     private final String pathComponent;
 
@@ -139,7 +131,7 @@ public class PipelineServlet extends HttpServlet {
   private Pair<String, RequestType> parseRequestType(HttpServletRequest req) {
     String path = req.getPathInfo();
     path = path == null ? "" : path.substring(1); // Take off the leading '/'
-    RequestType requestType = RequestType.HANDLE_STATIC;
+    RequestType requestType = RequestType.HANDLE_TASK;
     for (RequestType rt : RequestType.values()) {
       if (rt.matches(path)) {
         requestType = rt;
