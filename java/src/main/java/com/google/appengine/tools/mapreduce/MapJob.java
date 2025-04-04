@@ -70,10 +70,10 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     ShardedJobAbstractSettings settings = this.settings;
     if (settings.getWorkerQueueName() == null) {
       String queue = getOnQueue();
-      if (queue == null) {
+      if (queue == null || DEFAULT_QUEUE_NAME.equals(queue)) {
+        queue = PipelineManager.ConfigProperty.INCREMENTAL_TASK_DEFAULT_QUEUE.getValue().orElse(DEFAULT_QUEUE_NAME);
         log.warning("workerQueueName is null and current queue is not available in the pipeline"
-            + " job, using 'default'");
-        queue = PipelineManager.ConfigProperty.SHARDED_JOBS_DEFAULT_QUEUE.getValue().orElse(DEFAULT_QUEUE_NAME);
+          + " job, using " + queue);
       }
       if (settings instanceof MapSettings) {
         settings = ((MapSettings) settings).withWorkerQueueName(queue);

@@ -86,7 +86,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   @RequiredArgsConstructor
   @Getter
   public enum ConfigProperty implements com.google.appengine.tools.pipeline.util.ConfigProperty {
-    SHARDED_JOBS_DEFAULT_QUEUE("com.google.appengine.tools.pipeline.SHARDED_JOBS_DEFAULT_QUEUE");
+    INCREMENTAL_TASK_DEFAULT_QUEUE("com.google.appengine.tools.pipeline.INCREMENTAL_TASK_DEFAULT_QUEUE");
 
     final String propertyName;
   }
@@ -430,7 +430,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   @Override
   public <I, O, R> JobRunId start(MapSpecification<I, O, R> specification, MapSettings settings) {
-    if (settings.getWorkerQueueName() == null) {
+    if (settings.getWorkerQueueName() == null || DEFAULT_QUEUE_NAME.equals(settings.getWorkerQueueName())) {
       settings = settings.toBuilder().workerQueueName(shardedJobDefaultQueueName()).build();
     }
     return startNewPipeline(settings.toJobSettings(), new MapJob<>(specification, settings));
@@ -446,7 +446,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   private String shardedJobDefaultQueueName() {
-    return ConfigProperty.SHARDED_JOBS_DEFAULT_QUEUE.getValue().orElse(DEFAULT_QUEUE_NAME);
+    return ConfigProperty.INCREMENTAL_TASK_DEFAULT_QUEUE.getValue().orElse(DEFAULT_QUEUE_NAME);
   }
 
   public void cancelJob(@NonNull JobRunId jobHandle) throws NoSuchObjectException {
