@@ -573,7 +573,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
       if (queue == null) {
         log.warning("workerQueueName is null and current queue is not available in the pipeline"
             + " job, using 'default'");
-        queue = PipelineManager.ConfigProperty.SHARDED_JOBS_DEFAULT_QUEUE.getValue(DEFAULT_QUEUE_NAME);
+        queue = PipelineManager.ConfigProperty.SHARDED_JOBS_DEFAULT_QUEUE.getValue().orElse(DEFAULT_QUEUE_NAME);
       }
       settings = settings.toBuilder().workerQueueName(queue).build();
     }

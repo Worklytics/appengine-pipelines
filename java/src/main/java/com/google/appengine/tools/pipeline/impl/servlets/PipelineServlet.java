@@ -108,7 +108,7 @@ public class PipelineServlet extends HttpServlet {
    * This must match the URL in web.xml
    */
   public static String baseUrl() {
-    String baseURL = ConfigProperty.BASE_URL_PROPERTY.getValue( "/_ah/pipeline/");
+    String baseURL = ConfigProperty.BASE_URL_PROPERTY.getValue().orElse( "/_ah/pipeline/");
     if (!baseURL.endsWith("/")) {
       baseURL += "/";
     }

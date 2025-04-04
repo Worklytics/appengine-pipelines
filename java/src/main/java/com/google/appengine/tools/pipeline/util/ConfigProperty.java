@@ -21,8 +21,4 @@ public interface ConfigProperty {
     return Optional.ofNullable(System.getProperty(getPropertyName(), System.getenv(getPropertyName())));
   }
 
-  default String getValue(String defaultValue) {
-    return getValue().orElse(defaultValue);
-  }
-
 }

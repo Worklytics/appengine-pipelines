@@ -446,7 +446,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   private String shardedJobDefaultQueueName() {
-    return ConfigProperty.SHARDED_JOBS_DEFAULT_QUEUE.getValue(DEFAULT_QUEUE_NAME);
+    return ConfigProperty.SHARDED_JOBS_DEFAULT_QUEUE.getValue().orElse(DEFAULT_QUEUE_NAME);
   }
 
   public void cancelJob(@NonNull JobRunId jobHandle) throws NoSuchObjectException {
