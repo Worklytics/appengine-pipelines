@@ -29,6 +29,9 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
 
@@ -41,7 +44,13 @@ import lombok.Setter;
  */
 public class PipelineServlet extends HttpServlet {
 
-  public static final String BASE_URL_PROPERTY = "com.google.appengine.tools.pipeline.BASE_URL";
+  @RequiredArgsConstructor
+  @Getter
+  enum ConfigProperty implements com.google.appengine.tools.pipeline.util.ConfigProperty {
+    BASE_URL_PROPERTY("com.google.appengine.tools.pipeline.BASE_URL");
+
+    final String propertyName;
+  }
 
   @Setter(onMethod_ = @VisibleForTesting)
   JobRunServiceComponent component;
@@ -99,7 +108,7 @@ public class PipelineServlet extends HttpServlet {
    * This must match the URL in web.xml
    */
   public static String baseUrl() {
-    String baseURL =  System.getProperty(BASE_URL_PROPERTY, "/_ah/pipeline/");
+    String baseURL = ConfigProperty.BASE_URL_PROPERTY.getValue( "/_ah/pipeline/");
     if (!baseURL.endsWith("/")) {
       baseURL += "/";
     }

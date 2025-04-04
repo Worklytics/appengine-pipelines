@@ -41,6 +41,11 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   enum ConfigProperty implements com.google.appengine.tools.pipeline.util.ConfigProperty {
     CLOUDTASKS_QUEUE_LOCATION,
     ;
+
+    @Override
+    public String getPropertyName() {
+      return name();
+    }
   }
 
   @NonNull
