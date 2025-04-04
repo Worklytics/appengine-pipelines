@@ -48,6 +48,11 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
      */
     DEFAULT_PIPELINES_SERVICE,
     ;
+
+    @Override
+    public String getPropertyName() {
+      return this.name();
+    }
   }
 
 

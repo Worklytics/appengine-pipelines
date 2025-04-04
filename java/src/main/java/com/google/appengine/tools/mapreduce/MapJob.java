@@ -17,6 +17,7 @@ import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.PromisedValue;
 import com.google.appengine.tools.pipeline.Value;
+import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -69,10 +70,10 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
     ShardedJobAbstractSettings settings = this.settings;
     if (settings.getWorkerQueueName() == null) {
       String queue = getOnQueue();
-      if (queue == null) {
+      if (queue == null || DEFAULT_QUEUE_NAME.equals(queue)) {
+        queue = PipelineManager.ConfigProperty.INCREMENTAL_TASK_DEFAULT_QUEUE.getValue().orElse(DEFAULT_QUEUE_NAME);
         log.warning("workerQueueName is null and current queue is not available in the pipeline"
-            + " job, using 'default'");
-        queue = DEFAULT_QUEUE_NAME;
+          + " job, using " + queue);
       }
       if (settings instanceof MapSettings) {
         settings = ((MapSettings) settings).withWorkerQueueName(queue);

@@ -15,13 +15,10 @@ import java.util.Optional;
  */
 public interface ConfigProperty {
 
-  String name();
+  String getPropertyName();
 
   default Optional<String> getValue() {
-    return Optional.ofNullable(System.getProperty(name(), System.getenv(name())));
+    return Optional.ofNullable(System.getProperty(getPropertyName(), System.getenv(getPropertyName())));
   }
 
-  default Optional<Boolean> getBoolean() {
-    return getValue().map(Boolean::parseBoolean);
-  }
 }

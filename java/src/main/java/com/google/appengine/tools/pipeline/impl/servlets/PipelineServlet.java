@@ -20,12 +20,16 @@ import com.google.appengine.tools.pipeline.di.JobRunServiceComponent;
 import com.google.appengine.tools.pipeline.di.JobRunServiceComponentContainer;
 import com.google.appengine.tools.pipeline.util.Pair;
 import com.google.common.annotations.VisibleForTesting;
-import lombok.Setter;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Optional;
@@ -39,7 +43,13 @@ import java.util.Optional;
  */
 public class PipelineServlet extends HttpServlet {
 
-  public static final String BASE_URL_PROPERTY = "com.google.appengine.tools.pipeline.BASE_URL";
+  @RequiredArgsConstructor
+  @Getter
+  enum ConfigProperty implements com.google.appengine.tools.pipeline.util.ConfigProperty {
+    BASE_URL_PROPERTY("com.google.appengine.tools.pipeline.BASE_URL");
+
+    final String propertyName;
+  }
 
   @Setter(onMethod_ = @VisibleForTesting)
   JobRunServiceComponent component;
@@ -81,7 +91,7 @@ public class PipelineServlet extends HttpServlet {
    * This must match the URL in web.xml
    */
   public static String baseUrl() {
-    String baseURL =  System.getProperty(BASE_URL_PROPERTY, "/_ah/pipeline/");
+    String baseURL = ConfigProperty.BASE_URL_PROPERTY.getValue().orElse( "/_ah/pipeline/");
     if (!baseURL.endsWith("/")) {
       baseURL += "/";
     }
