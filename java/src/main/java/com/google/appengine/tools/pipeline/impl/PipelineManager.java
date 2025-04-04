@@ -53,7 +53,9 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Uninterruptibles;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
 import javax.inject.Inject;
@@ -80,6 +82,14 @@ import java.util.stream.Collectors;
 public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   public static final String DEFAULT_QUEUE_NAME = "default";
+
+  @RequiredArgsConstructor
+  @Getter
+  enum ConfigProperty implements com.google.appengine.tools.pipeline.util.ConfigProperty {
+    SHARDED_JOBS_DEFAULT_QUEUE("com.google.appengine.tools.pipeline.SHARDED_JOBS_DEFAULT_QUEUE");
+
+    final String propertyName;
+  }
 
   final Provider<PipelineService> pipelineServiceProvider;
   final ShardedJobRunner shardedJobRunner;
@@ -421,7 +431,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   @Override
   public <I, O, R> JobRunId start(MapSpecification<I, O, R> specification, MapSettings settings) {
     if (settings.getWorkerQueueName() == null) {
-      settings = settings.toBuilder().workerQueueName(DEFAULT_QUEUE_NAME).build();
+      settings = settings.toBuilder().workerQueueName(shardedJobDefaultQueueName()).build();
     }
     return startNewPipeline(settings.toJobSettings(), new MapJob<>(specification, settings));
   }
@@ -430,12 +440,14 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   public <I, K, V, O, R> JobRunId start(@NonNull MapReduceSpecification<I, K, V, O, R> specification,
                                         @NonNull MapReduceSettings settings) {
     if (settings.getWorkerQueueName() == null) {
-      settings =  settings.toBuilder().workerQueueName(DEFAULT_QUEUE_NAME).build();
+      settings =  settings.toBuilder().workerQueueName(shardedJobDefaultQueueName()).build();
     }
     return startNewPipeline(settings.toJobSettings(), new MapReduceJob<>(specification, settings));
   }
 
-
+  private String shardedJobDefaultQueueName() {
+    return ConfigProperty.SHARDED_JOBS_DEFAULT_QUEUE.getValue(DEFAULT_QUEUE_NAME);
+  }
 
   public void cancelJob(@NonNull JobRunId jobHandle) throws NoSuchObjectException {
     Key key = JobRecord.keyFromPipelineHandle(jobHandle);
