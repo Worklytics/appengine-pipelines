@@ -85,7 +85,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
 
   @RequiredArgsConstructor
   @Getter
-  enum ConfigProperty implements com.google.appengine.tools.pipeline.util.ConfigProperty {
+  public enum ConfigProperty implements com.google.appengine.tools.pipeline.util.ConfigProperty {
     SHARDED_JOBS_DEFAULT_QUEUE("com.google.appengine.tools.pipeline.SHARDED_JOBS_DEFAULT_QUEUE");
 
     final String propertyName;
