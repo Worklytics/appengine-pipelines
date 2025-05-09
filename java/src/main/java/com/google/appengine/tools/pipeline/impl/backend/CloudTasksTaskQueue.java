@@ -69,7 +69,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   @Override
   public Collection<TaskReference> enqueue(Collection<PipelineTask> pipelineTasks) {
     Map<String, List<PipelineTask>> tasksByQueue = pipelineTasks.stream()
-      .collect(Collectors.groupingBy(pipelineTask -> Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME)));
+      .collect(Collectors.groupingBy(this::getQueueForTask));
 
     /// probably could use parallelStream here, but in practice don't *really* expect to have multiple queues in the batch
     return tasksByQueue.entrySet().stream()
@@ -89,8 +89,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
     pipelineTasks
       .forEach(pipelineTask -> {
-        String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME);
-        taskSpecs.put(queueName, pipelineTask.toTaskSpec(appEngineServicesService, TaskHandler.handleTaskUrl()));
+        taskSpecs.put(getQueueForTask(pipelineTask), pipelineTask.toTaskSpec(appEngineServicesService, TaskHandler.handleTaskUrl()));
     });
     return taskSpecs;
   }

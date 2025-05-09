@@ -159,8 +159,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
     Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
     pipelineTasks.forEach( pipelineTask -> {
-      String queueName = Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse("default");
-      taskSpecs.put(queueName, pipelineTask.toTaskSpec(servicesService, taskHandlerUrl));
+      taskSpecs.put(getQueueForTask(pipelineTask), pipelineTask.toTaskSpec(servicesService, taskHandlerUrl));
     });
     return taskSpecs;
   }
@@ -175,7 +174,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
     Map<String, List<TaskOptions>> queueNameToTaskOptions = new HashMap<>();
     for (PipelineTask pipelineTask : pipelineTasks) {
       log.finest("Enqueueing: " + pipelineTask);
-      String queueName = pipelineTask.getQueueSettings().getOnQueue();
+      String queueName = getQueueForTask(pipelineTask);
       TaskOptions taskOptions = toTaskOptions(pipelineTask);
 
 
