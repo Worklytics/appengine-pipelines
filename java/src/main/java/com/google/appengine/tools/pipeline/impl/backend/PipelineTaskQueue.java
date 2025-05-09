@@ -23,7 +23,10 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.SortedMap;
+
+import static com.google.appengine.tools.pipeline.impl.PipelineManager.DEFAULT_QUEUE_NAME;
 
 /**
  * 
@@ -148,4 +151,18 @@ public interface PipelineTaskQueue {
    * @param taskReferences references to the tasks to delete
    */
   void deleteTasks(Collection<TaskReference> taskReferences);
+
+  /**
+   * Rationale about this: all the tasks that deal with the pipeline progress should be short-lived and shouldn't be
+   * held back by long-running tasks, potentially causing delays in checking slots, finalization, etc. and maybe
+   * leading to abandon locks
+   * @param pipelineTask
+   * @return
+   */
+  default String getQueueForTask(PipelineTask pipelineTask) {
+    if (pipelineTask.getType() == PipelineTask.Type.RUN_JOB) {
+      return Optional.ofNullable(pipelineTask.getQueueSettings().getOnQueue()).orElse(DEFAULT_QUEUE_NAME);
+    }
+    return DEFAULT_QUEUE_NAME;
+  }
 }
