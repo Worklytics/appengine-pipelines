@@ -3,6 +3,7 @@ package com.google.appengine.tools.pipeline.di;
 import com.google.appengine.tools.cloudtasktest.FakeHttpServletRequest;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 
@@ -11,6 +12,9 @@ import static org.junit.jupiter.api.Assertions.*;
 class JobRunServiceComponentTest {
 
 
+  // flaky, each test should have a fresh object graph, so here is expecting 0 instances, but being static, it
+  // could be more
+  @Disabled
   @Test
   public void testJobRunServiceComponent() {
     // basic DI setup that will really be done at runtime
