@@ -1,5 +1,7 @@
 # test java version of library
 name: Test Java
+permissions:
+  contents: read
 
 on: [push]
 
