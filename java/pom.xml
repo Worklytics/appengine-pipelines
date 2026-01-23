@@ -8,7 +8,7 @@
   <url>https://github.com/Worklytics/appengine-pipelines/</url>
   <!-- follow semver, with suggested guidance for versioning fork of OSS -->
   <!-- see https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.3+worklytics.12</version>
+  <version>${revision}</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -17,6 +17,7 @@
     </license>
   </licenses>
   <properties>
+    <revision>0.3+worklytics.12</revision>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
     <dagger.version>2.55</dagger.version> <!-- 2.55+ adds support for injecting jakarta.inject.Provider -->
