@@ -80,7 +80,7 @@ jobs:
           # Read base version from pom.xml
           BASE_VERSION=$(sed -n 's|[[:space:]]*<revision>\(.*\)</revision>|\1|p' pom.xml)
           if [ -z "$BASE_VERSION" ]; then
-            echo "❌ ERROR: Could not extract form pom.xml '<revision>' property. Ensure pom.xml uses <version>\${revision}</version> and has a <revision> property."
+            echo "❌ ERROR: Could not extract from pom.xml '<revision>' property. Ensure pom.xml uses <version>\${revision}</version> and has a <revision> property."
             exit 1
           fi
           
