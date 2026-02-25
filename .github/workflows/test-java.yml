@@ -16,8 +16,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          distribution: 'adopt'
-          java-version: '21' # maven won't accept --release argument with java < 8; and 11 is next LTS
+          distribution: 'temurin'
+          java-version: '21'
       - id: 'read-cache-maven-packages'
         name: Read Cached Maven packages
         uses: actions/cache@v4
