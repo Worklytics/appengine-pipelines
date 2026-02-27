@@ -14,12 +14,6 @@
 
 package com.google.appengine.tools.pipeline.impl.tasks;
 
-import com.google.appengine.tools.pipeline.impl.QueueSettings;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
-import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
-import lombok.Getter;
-import lombok.NonNull;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
@@ -28,12 +22,21 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import com.google.appengine.tools.pipeline.impl.QueueSettings;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
+
+import lombok.Getter;
+import lombok.NonNull;
+
 /**
- * A Pipeline Framework task to be executed asynchronously This is the abstract base class for all
+ * A Pipeline Framework task to be executed asynchronously This is the abstract
+ * base class for all
  * Pipeline task types.
  *
  * q: kinda analogous to a StepExecution in Spring Batch?
- *  --> yeah, think so; not *really* coupled to GAE Task queue ... that's more of implementation detail of runner
+ * --> yeah, think so; not *really* coupled to GAE Task queue ... that's more of
+ * implementation detail of runner
  *
  * <p>
  * This class represents both a task to be enqueued and a task being handled.
@@ -41,7 +44,8 @@ import java.util.Set;
  * When enqueueing a task, construct a concrete subclass with the appropriate
  * data, and then add the task to an
  * {@link com.google.appengine.tools.pipeline.impl.backend.UpdateSpec} and
- * {@link com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd#save save}.
+ * {@link com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd#save
+ * save}.
  * Alternatively the task may be enqueued directly using
  * {@link com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd#enqueue(PipelineTask)}.
  * <p>
@@ -56,11 +60,14 @@ public abstract class PipelineTask {
 
   protected static final String TASK_TYPE_PARAMETER = "taskType";
 
-  @Getter @NonNull
+  @Getter
+  @NonNull
   private final Type type;
-  @Getter // nullable, if not a deterministically 'named' task (will get a name upon enqueue)
+  @Getter // nullable, if not a deterministically 'named' task (will get a name upon
+          // enqueue)
   private final String taskName;
-  @Getter @NonNull
+  @Getter
+  @NonNull
   private final QueueSettings queueSettings;
 
   private enum TaskProperty {
@@ -111,15 +118,52 @@ public abstract class PipelineTask {
         Long delay = pipelineTask.getQueueSettings().getDelayInSeconds();
         return delay == null ? null : delay.toString();
       }
+    },
+    DATASTORE_DATABASE_ID {
+      @Override
+      String getPropertyName() {
+        return "dsDatabaseId";
+      }
+
+      @Override
+      void setProperty(PipelineTask pipelineTask, String value) {
+        pipelineTask.getQueueSettings().setDatabaseId(value);
+      }
+
+      @Override
+      String getProperty(PipelineTask pipelineTask) {
+        return pipelineTask.getQueueSettings().getDatabaseId();
+      }
+    },
+    DATASTORE_NAMESPACE {
+      @Override
+      String getPropertyName() {
+        return "dsNamespace";
+      }
+
+      @Override
+      void setProperty(PipelineTask pipelineTask, String value) {
+        pipelineTask.getQueueSettings().setNamespace(value);
+      }
+
+      @Override
+      String getProperty(PipelineTask pipelineTask) {
+        return pipelineTask.getQueueSettings().getNamespace();
+      }
     };
 
     static final Set<TaskProperty> ALL = EnumSet.allOf(TaskProperty.class);
 
+    String getPropertyName() {
+      return name();
+    }
+
     abstract void setProperty(PipelineTask pipelineTask, String value);
+
     abstract String getProperty(PipelineTask pipelineTask);
 
     void applyFrom(PipelineTask pipelineTask, Properties properties) {
-      String value = properties.getProperty(name());
+      String value = properties.getProperty(getPropertyName());
       if (value != null) {
         setProperty(pipelineTask, value);
       }
@@ -128,7 +172,7 @@ public abstract class PipelineTask {
     void addTo(PipelineTask pipelineTask, Properties properties) {
       String value = getProperty(pipelineTask);
       if (value != null) {
-        properties.setProperty(name(), value);
+        properties.setProperty(getPropertyName(), value);
       }
     }
   }
@@ -187,8 +231,6 @@ public abstract class PipelineTask {
     }
   }
 
-
-
   public final Properties toProperties() {
     Properties properties = new Properties();
     properties.setProperty(TASK_TYPE_PARAMETER, type.toString());
@@ -199,22 +241,29 @@ public abstract class PipelineTask {
     return properties;
   }
 
-
   public PipelineTaskQueue.TaskSpec toTaskSpec(AppEngineServicesService appEngineServicesService, String callback) {
     PipelineTaskQueue.TaskSpec.TaskSpecBuilder spec = PipelineTaskQueue.TaskSpec.builder()
-      .name(this.getTaskName())
-      .callbackPath(callback)
-      .method(PipelineTaskQueue.TaskSpec.Method.POST);
+        .name(this.getTaskName())
+        .callbackPath(callback)
+        .method(PipelineTaskQueue.TaskSpec.Method.POST);
 
     this.toProperties().entrySet()
-      .forEach(p -> spec.param((String) p.getKey(), (String) p.getValue()));
+        .forEach(p -> spec.param((String) p.getKey(), (String) p.getValue()));
 
     if (this.getQueueSettings().getDelayInSeconds() != null) {
       spec.scheduledExecutionTime(Instant.now().plusSeconds(this.getQueueSettings().getDelayInSeconds()));
     }
 
+    if (this.getQueueSettings().getDatabaseId() != null) {
+      spec.param("dsDatabaseId", this.getQueueSettings().getDatabaseId());
+    }
+
+    if (this.getQueueSettings().getNamespace() != null) {
+      spec.param("dsNamespace", this.getQueueSettings().getNamespace());
+    }
+
     String service = Optional.ofNullable(this.getQueueSettings().getOnService())
-      .orElseGet(appEngineServicesService::getDefaultService);
+        .orElseGet(appEngineServicesService::getDefaultService);
     spec.service(service);
 
     String version = this.getQueueSettings().getOnServiceVersion();
@@ -234,7 +283,7 @@ public abstract class PipelineTask {
   public static PipelineTask fromProperties(String taskName, @NonNull Properties properties) {
     String taskTypeString = properties.getProperty(TASK_TYPE_PARAMETER);
     if (null == taskTypeString) {
-      throw new IllegalArgumentException(TASK_TYPE_PARAMETER + " property is missing: "  + properties);
+      throw new IllegalArgumentException(TASK_TYPE_PARAMETER + " property is missing: " + properties);
     }
     Type type = Type.valueOf(taskTypeString);
     return type.createInstance(taskName, properties);

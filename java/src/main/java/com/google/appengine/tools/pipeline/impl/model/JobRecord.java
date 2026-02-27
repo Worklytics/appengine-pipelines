@@ -14,16 +14,25 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
+import java.lang.reflect.Method;
+import java.time.Instant;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import com.google.appengine.tools.pipeline.Job;
-import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.JobInfo;
+import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.JobSetting.BackoffFactor;
 import com.google.appengine.tools.pipeline.JobSetting.BackoffSeconds;
 import com.google.appengine.tools.pipeline.JobSetting.IntValuedSetting;
 import com.google.appengine.tools.pipeline.JobSetting.MaxAttempts;
-import com.google.appengine.tools.pipeline.JobSetting.OnService;
 import com.google.appengine.tools.pipeline.JobSetting.OnQueue;
+import com.google.appengine.tools.pipeline.JobSetting.OnService;
 import com.google.appengine.tools.pipeline.JobSetting.StatusConsoleUrl;
 import com.google.appengine.tools.pipeline.JobSetting.WaitForSetting;
 import com.google.appengine.tools.pipeline.impl.FutureValueImpl;
@@ -34,16 +43,19 @@ import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.cloud.Timestamp;
-import com.google.cloud.datastore.*;
+import com.google.cloud.datastore.BooleanValue;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.KeyFactory;
+import com.google.cloud.datastore.KeyValue;
+import com.google.cloud.datastore.LongValue;
+import com.google.cloud.datastore.StringValue;
+import com.google.cloud.datastore.TimestampValue;
 import com.google.common.annotations.VisibleForTesting;
+
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
-
-import java.lang.reflect.Method;
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * The Pipeline model object corresponding to a job.
@@ -56,7 +68,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
 
   public static final String DATA_STORE_KIND = "pipeline-job";
 
-  //TODO: very hacky, probably need to have a factory that builds these, and extend there
+  // TODO: very hacky, probably need to have a factory that builds these, and
+  // extend there
   @VisibleForTesting
   public static AppEngineEnvironment environment = new AppEngineStandardGen2();
 
@@ -64,13 +77,13 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     return JobRunId.of(getRootJobKey());
   }
 
-
   /**
    * The state of the job.
    *
    */
   public enum State {
-    // TODO(user): document states (including valid transitions) and relation to JobInfo.State
+    // TODO(user): document states (including valid transitions) and relation to
+    // JobInfo.State
     WAITING_TO_RUN,
     WAITING_TO_FINALIZE,
     FINALIZED,
@@ -103,9 +116,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
      * {@code null}; and
      * <li>for the returned {@link Barrier}
      * {@link Barrier#getWaitingOnInflated()} will not return {@code null}; and
-     * <li> {@link JobRecord#getOutputSlotInflated()} will not return
+     * <li>{@link JobRecord#getOutputSlotInflated()} will not return
      * {@code null}; and
-     * <li> {@link JobRecord#getFinalizeBarrierInflated()} will not return
+     * <li>{@link JobRecord#getFinalizeBarrierInflated()} will not return
      * {@code null}
      * </ul>
      */
@@ -114,9 +127,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     /**
      * Inflate as necessary to finalize the job. In particular:
      * <ul>
-     * <li> {@link JobRecord#getOutputSlotInflated()} will not return
+     * <li>{@link JobRecord#getOutputSlotInflated()} will not return
      * {@code null}; and
-     * <li> {@link JobRecord#getFinalizeBarrierInflated()} will not return
+     * <li>{@link JobRecord#getFinalizeBarrierInflated()} will not return
      * {@code null}; and
      * <li>for the returned {@link Barrier} the method
      * {@link Barrier#getWaitingOnInflated()} will not return {@code null}.
@@ -131,18 +144,15 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     FOR_OUTPUT;
   }
 
-
   // Data store entity property names
   private static final String JOB_INSTANCE_PROPERTY = "jobInstance";
   private static final String RUN_BARRIER_PROPERTY = "runBarrier";
   private static final String FINALIZE_BARRIER_PROPERTY = "finalizeBarrier";
   private static final String STATE_PROPERTY = "state";
-  private static final String EXCEPTION_HANDLING_ANCESTOR_KEY_PROPERTY =
-      "exceptionHandlingAncestorKey";
+  private static final String EXCEPTION_HANDLING_ANCESTOR_KEY_PROPERTY = "exceptionHandlingAncestorKey";
   private static final String EXCEPTION_HANDLER_SPECIFIED_PROPERTY = "hasExceptionHandler";
   private static final String EXCEPTION_HANDLER_JOB_KEY_PROPERTY = "exceptionHandlerJobKey";
-  private static final String EXCEPTION_HANDLER_JOB_GRAPH_GUID_PROPERTY =
-      "exceptionHandlerJobGraphGuid";
+  private static final String EXCEPTION_HANDLER_JOB_GRAPH_GUID_PROPERTY = "exceptionHandlerJobGraphGuid";
   private static final String CALL_EXCEPTION_HANDLER_PROPERTY = "callExceptionHandler";
   private static final String IGNORE_EXCEPTION_PROPERTY = "ignoreException";
   private static final String OUTPUT_SLOT_PROPERTY = "outputSlot";
@@ -166,7 +176,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   /**
    * projectId for job; must be set
    */
-  @Getter @NonNull
+  @Getter
+  @NonNull
   private final String projectId;
 
   /**
@@ -175,7 +186,11 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   @Getter
   private final String namespace;
 
-
+  /**
+   * databaseId for Job, if any (otherwise default "")
+   */
+  @Getter
+  private final String databaseId;
 
   @Getter
   private final Key jobInstanceKey;
@@ -185,7 +200,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   private final Key finalizeBarrierKey;
   @Getter
   private Key outputSlotKey;
-  @Getter @Setter
+  @Getter
+  @Setter
   private State state;
   /**
    * Returns key of the nearest ancestor that has exceptionHandler method
@@ -196,7 +212,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   private boolean exceptionHandlerSpecified;
   @Getter
   private Key exceptionHandlerJobKey;
-  @Getter @Setter
+  @Getter
+  @Setter
   private String exceptionHandlerJobGraphGuid;
   /**
    * If true then this job is exception handler and
@@ -206,19 +223,26 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   @Getter
   private boolean callExceptionHandler;
   /**
-   * If <code>true</code> then an exception during a job execution is ignored. It is
-   * expected to be set to <code>true</code> for jobs that execute error handler due
+   * If <code>true</code> then an exception during a job execution is ignored. It
+   * is
+   * expected to be set to <code>true</code> for jobs that execute error handler
+   * due
    * to cancellation.
    */
-  @Getter @Setter
+  @Getter
+  @Setter
   private boolean ignoreException;
-  @Getter @Setter
+  @Getter
+  @Setter
   private Key exceptionKey;
-  @Getter @Setter
+  @Getter
+  @Setter
   private Instant startTime;
-  @Getter @Setter
+  @Getter
+  @Setter
   private Instant endTime;
-  @Getter @Setter
+  @Getter
+  @Setter
   private String childGraphGuid;
   @Getter
   private List<Key> childKeys;
@@ -232,13 +256,13 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   private long backoffFactor = JobSetting.BackoffFactor.DEFAULT;
   @Getter
   private final QueueSettings queueSettings = new QueueSettings();
-  @Getter @Setter
+  @Getter
+  @Setter
   private String statusConsoleUrl;
   @Getter
   private String rootJobDisplayName;
   @Getter
   private Boolean isRootJob;
-
 
   // transient fields
   @Getter
@@ -260,7 +284,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   public JobRecord(Entity entity) {
     super(entity);
 
-    //TODO: new lib throws DatastoreException if any of these are undefined, rather than returning 'null
+    // TODO: new lib throws DatastoreException if any of these are undefined, rather
+    // than returning 'null
     // wrap with EntityUtils.getKey(entity, propertyName) ...?
     // something else?
     jobInstanceKey = entity.getKey(JOB_INSTANCE_PROPERTY);
@@ -269,7 +294,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     outputSlotKey = entity.getKey(OUTPUT_SLOT_PROPERTY);
     state = State.valueOf(entity.getString(STATE_PROPERTY));
     exceptionHandlingAncestorKey = EntityUtils.getKey(entity, EXCEPTION_HANDLING_ANCESTOR_KEY_PROPERTY);
-    exceptionHandlerSpecified = entity.contains(EXCEPTION_HANDLER_SPECIFIED_PROPERTY) ? entity.getBoolean(EXCEPTION_HANDLER_SPECIFIED_PROPERTY) : false;
+    exceptionHandlerSpecified = entity.contains(EXCEPTION_HANDLER_SPECIFIED_PROPERTY)
+        ? entity.getBoolean(EXCEPTION_HANDLER_SPECIFIED_PROPERTY)
+        : false;
     exceptionHandlerJobKey = EntityUtils.getKey(entity, EXCEPTION_HANDLER_JOB_KEY_PROPERTY);
     exceptionHandlerJobGraphGuid = EntityUtils.getString(entity, EXCEPTION_HANDLER_JOB_GRAPH_GUID_PROPERTY);
 
@@ -295,12 +322,14 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     }
     projectId = entity.getKey().getProjectId();
     namespace = entity.getKey().getNamespace();
+    databaseId = entity.getKey().getDatabaseId() == null || entity.getKey().getDatabaseId().isEmpty() ? null
+        : entity.getKey().getDatabaseId();
   }
-
 
   public JobRunId getJobRunId() {
     return JobRunId.of(getKey());
   }
+
   /**
    * Constructs and returns a Data Store Entity that represents this model
    * object
@@ -327,18 +356,22 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     }
     if (null != exceptionHandlerJobGraphGuid) {
       builder.set(EXCEPTION_HANDLER_JOB_GRAPH_GUID_PROPERTY,
-        StringValue.newBuilder(exceptionHandlerJobGraphGuid).setExcludeFromIndexes(true).build());
+          StringValue.newBuilder(exceptionHandlerJobGraphGuid).setExcludeFromIndexes(true).build());
     }
-    builder.set(CALL_EXCEPTION_HANDLER_PROPERTY, BooleanValue.newBuilder(callExceptionHandler).setExcludeFromIndexes(true).build());
-    builder.set(IGNORE_EXCEPTION_PROPERTY, BooleanValue.newBuilder(ignoreException).setExcludeFromIndexes(true).build());
+    builder.set(CALL_EXCEPTION_HANDLER_PROPERTY,
+        BooleanValue.newBuilder(callExceptionHandler).setExcludeFromIndexes(true).build());
+    builder.set(IGNORE_EXCEPTION_PROPERTY,
+        BooleanValue.newBuilder(ignoreException).setExcludeFromIndexes(true).build());
     if (childGraphGuid != null) {
-      builder.set(CHILD_GRAPH_GUID_PROPERTY, StringValue.newBuilder(childGraphGuid).setExcludeFromIndexes(true).build());
+      builder.set(CHILD_GRAPH_GUID_PROPERTY,
+          StringValue.newBuilder(childGraphGuid).setExcludeFromIndexes(true).build());
     }
     if (startTime != null) {
       builder.set(START_TIME_PROPERTY, Timestamp.of(Date.from(startTime)));
     }
     if (endTime != null) {
-      builder.set(END_TIME_PROPERTY, TimestampValue.newBuilder(Timestamp.of(Date.from(endTime))).setExcludeFromIndexes(true).build());
+      builder.set(END_TIME_PROPERTY,
+          TimestampValue.newBuilder(Timestamp.of(Date.from(endTime))).setExcludeFromIndexes(true).build());
     }
     builder.set(CHILD_KEYS_PROPERTY, childKeys.stream().map(KeyValue::of).collect(Collectors.toList()));
     builder.set(ATTEMPT_NUM_PROPERTY, LongValue.newBuilder(attemptNumber).setExcludeFromIndexes(true).build());
@@ -346,15 +379,19 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     builder.set(BACKOFF_SECONDS_PROPERTY, LongValue.newBuilder(backoffSeconds).setExcludeFromIndexes(true).build());
     builder.set(BACKOFF_FACTOR_PROPERTY, LongValue.newBuilder(backoffFactor).setExcludeFromIndexes(true).build());
 
-    // good idea? or should we force jobs to have these values (take defaults, if nothing else?)
+    // good idea? or should we force jobs to have these values (take defaults, if
+    // nothing else?)
     if (queueSettings.getOnService() != null) {
-      builder.set(ON_SERVICE_PROPERTY, StringValue.newBuilder(queueSettings.getOnService()).setExcludeFromIndexes(true).build());
+      builder.set(ON_SERVICE_PROPERTY,
+          StringValue.newBuilder(queueSettings.getOnService()).setExcludeFromIndexes(true).build());
     }
     if (queueSettings.getOnServiceVersion() != null) {
-      builder.set(ON_SERVICE_VERSION_PROPERTY, StringValue.newBuilder(queueSettings.getOnServiceVersion()).setExcludeFromIndexes(true).build());
+      builder.set(ON_SERVICE_VERSION_PROPERTY,
+          StringValue.newBuilder(queueSettings.getOnServiceVersion()).setExcludeFromIndexes(true).build());
     }
     if (queueSettings.getOnQueue() != null) {
-      builder.set(ON_QUEUE_PROPERTY, StringValue.newBuilder(queueSettings.getOnQueue()).setExcludeFromIndexes(true).build());
+      builder.set(ON_QUEUE_PROPERTY,
+          StringValue.newBuilder(queueSettings.getOnQueue()).setExcludeFromIndexes(true).build());
     }
 
     if (statusConsoleUrl != null) {
@@ -376,22 +413,25 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
    * is created during the run() method of a parent job. The parent job is also
    * known as the generator job.
    *
-   * @param generatorJob The parent generator job of this job.
-   * @param graphGUIDParam The GUID of the local graph of this job.
-   * @param jobInstance The non-null user-supplied instance of {@code Job} that
-   *        implements the Job that the newly created JobRecord represents.
+   * @param generatorJob         The parent generator job of this job.
+   * @param graphGUIDParam       The GUID of the local graph of this job.
+   * @param jobInstance          The non-null user-supplied instance of
+   *                             {@code Job} that
+   *                             implements the Job that the newly created
+   *                             JobRecord represents.
    * @param callExceptionHandler The flag that indicates that this job should call
-   *        {@code Job#handleException(Throwable)} instead of {@code run}.
-   * @param settings Array of {@code JobSetting} to apply to the newly created
-   *        JobRecord.
+   *                             {@code Job#handleException(Throwable)} instead of
+   *                             {@code run}.
+   * @param settings             Array of {@code JobSetting} to apply to the newly
+   *                             created
+   *                             JobRecord.
    */
   public JobRecord(@NonNull JobRecord generatorJob,
-                   String graphGUIDParam,
-                   Job<?> jobInstance,
-                   boolean callExceptionHandler,
-                   JobSetting[] settings,
-                   @NonNull SerializationStrategy serializationStrategy
-      ) {
+      String graphGUIDParam,
+      Job<?> jobInstance,
+      boolean callExceptionHandler,
+      JobSetting[] settings,
+      @NonNull SerializationStrategy serializationStrategy) {
     this(generatorJob.getRootJobKey(), null, generatorJob.getKey(), graphGUIDParam, jobInstance,
         callExceptionHandler, settings, generatorJob.getQueueSettings(), serializationStrategy);
     // If generator job has exception handler then it should be called in case
@@ -441,12 +481,22 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     }
     projectId = rootJobKey.getProjectId();
     namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
-      .orElse(null);
+        .orElse(generatorJobKey != null ? generatorJobKey.getNamespace() : null);
+
+    // Look up database setting, falling back to generator job's database, or null
+    String defaultDbId = null;
+    if (generatorJobKey != null) {
+      defaultDbId = generatorJobKey.getDatabaseId() == null || generatorJobKey.getDatabaseId().isEmpty() ? null
+          : generatorJobKey.getDatabaseId();
+    }
+    databaseId = JobSetting.getSettingValue(JobSetting.DatastoreDatabase.class, settings)
+        .orElse(defaultDbId);
   }
 
   // Constructor for Root Jobs (called by {@link #createRootJobRecord}).
   private JobRecord(Key key, Job<?> jobInstance, JobSetting[] settings, SerializationStrategy serializationStrategy) {
-    // Root Jobs have their rootJobKey the same as their keys and provide null for generatorKey
+    // Root Jobs have their rootJobKey the same as their keys and provide null for
+    // generatorKey
     // and graphGUID. Also, callExceptionHandler is always false.
     this(key, key, null, null, jobInstance, false, settings, null, serializationStrategy);
     rootJobDisplayName = jobInstance.getJobDisplayName();
@@ -456,22 +506,26 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
    * A factory method for root jobs.
    *
    * @param projectId             The project id of the pipeline
-   * @param jobInstance           The non-null user-supplied instance of {@code Job} that
-   *                              implements the Job that the newly created JobRecord represents.
+   * @param jobInstance           The non-null user-supplied instance of
+   *                              {@code Job} that
+   *                              implements the Job that the newly created
+   *                              JobRecord represents.
    * @param serializationStrategy
-   * @param settings              Array of {@code JobSetting} to apply to the newly created
+   * @param settings              Array of {@code JobSetting} to apply to the
+   *                              newly created
    *                              JobRecord.
    */
   public static JobRecord createRootJobRecord(String projectId,
-                                              Job<?> jobInstance,
-                                              SerializationStrategy serializationStrategy,
-                                              JobSetting[] settings) {
+      Job<?> jobInstance,
+      SerializationStrategy serializationStrategy,
+      JobSetting[] settings) {
     String namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
-      .orElse(null);
-    Key key = generateKey(projectId, namespace, DATA_STORE_KIND);
+        .orElse(null);
+    String databaseId = JobSetting.getSettingValue(JobSetting.DatastoreDatabase.class, settings)
+        .orElse(null);
+    Key key = generateKey(projectId, databaseId, namespace, DATA_STORE_KIND);
     return new JobRecord(key, jobInstance, settings, serializationStrategy);
   }
-
 
   public static boolean isExceptionHandlerSpecified(Job<?> jobInstance) {
     boolean result = false;
@@ -516,8 +570,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
       queueSettings.setOnQueue(((OnQueue) setting).getValue());
     } else if (setting instanceof StatusConsoleUrl) {
       statusConsoleUrl = ((StatusConsoleUrl) setting).getValue();
-    } else if (setting instanceof JobSetting.DatastoreNamespace) {
-      //ignore; applied in constructor, bc it's final
+    } else if (setting instanceof JobSetting.DatastoreNamespace ||
+        setting instanceof JobSetting.DatastoreDatabase) {
+      // ignore; applied in constructor, bc they are final
     } else {
       throw new RuntimeException("Unrecognized JobSetting class " + setting.getClass().getName());
     }
@@ -559,7 +614,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   }
 
   /**
-   * Used to set exceptionHandling Job output to the same slot as the protected job.
+   * Used to set exceptionHandling Job output to the same slot as the protected
+   * job.
    */
   public void setOutputSlotInflated(Slot outputSlot) {
     outputSlotInflated = outputSlot;
@@ -659,6 +715,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
 
   @VisibleForTesting
   public static Key keyFromPipelineHandle(JobRunId pipelineHandle) {
-    return key(pipelineHandle.getProject(), pipelineHandle.getDatabaseId(), pipelineHandle.getNamespace(), pipelineHandle.getJobId());
+    return key(pipelineHandle.getProject(), pipelineHandle.getDatabaseId(), pipelineHandle.getNamespace(),
+        pipelineHandle.getJobId());
   }
 }
