@@ -14,15 +14,13 @@
 
 package com.google.appengine.tools.pipeline;
 
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Optional;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 /**
  * A setting for specifying to the framework some aspect of a Job's execution.
@@ -77,7 +75,7 @@ public interface JobSetting extends Serializable {
     @Serial
     private static final long serialVersionUID = 7756646651569386669L;
 
-    //NOTE: behavior of Pipeline Framework allows this to be null for some settings
+    // NOTE: behavior of Pipeline Framework allows this to be null for some settings
     // (tests verify this)
     private final String value;
 
@@ -179,8 +177,9 @@ public interface JobSetting extends Serializable {
    */
   final class OnServiceVersion extends StringValuedSetting {
 
-   @Serial
+    @Serial
     private static final long serialVersionUID = 3877411731586475273L;
+
     public OnServiceVersion(String version) {
       super(version);
     }
@@ -212,20 +211,49 @@ public interface JobSetting extends Serializable {
     }
   }
 
+  /**
+   * A setting for specifying the datastore database to use for this job;
+   * otherwise will be the default datastore database.
+   * 
+   * q: do we want to allow pipelines to mix datastore databases?
+   * 
+   */
+  final class DatastoreDatabase extends StringValuedSetting {
+    @Serial
+    private static final long serialVersionUID = -1L;
+
+    public DatastoreDatabase(String datastoreDatabase) {
+      super(datastoreDatabase);
+      if (datastoreDatabase != null && !datastoreDatabase.isEmpty() && !datastoreDatabase.equals("(default)")) {
+        if (!datastoreDatabase.matches("^[a-z][a-z0-9-]{1,61}[a-z0-9]$")) {
+          throw new IllegalArgumentException("Invalid Datastore database ID: " + datastoreDatabase);
+        }
+      }
+    }
+  }
+
+  /**
+   * A setting for specifying the datastore namespace to use for this job;
+   * otherwise will be the default datastore namespace.
+   */
   final class DatastoreNamespace extends StringValuedSetting {
     @Serial
     private static final long serialVersionUID = -1L;
 
     public DatastoreNamespace(String datastoreNameSpace) {
       super(datastoreNameSpace);
+      if (datastoreNameSpace != null) {
+        if (!datastoreNameSpace.matches("^[0-9A-Za-z._-]{0,100}$")) {
+          throw new IllegalArgumentException("Invalid Datastore namespace: " + datastoreNameSpace);
+        }
+      }
     }
   }
 
-
   static <E extends StringValuedSetting> Optional<String> getSettingValue(Class<E> clazz, JobSetting[] settings) {
     return Arrays.stream(settings)
-      .filter( s -> s.getClass().isAssignableFrom(clazz))
-      .findAny()
-      .map(s -> ((StringValuedSetting) s).getValue());
+        .filter(s -> s.getClass().isAssignableFrom(clazz))
+        .findAny()
+        .map(s -> ((StringValuedSetting) s).getValue());
   }
 }

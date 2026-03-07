@@ -14,17 +14,26 @@
 
 package com.google.appengine.tools.pipeline.impl.model;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
-import com.google.cloud.datastore.*;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.KeyFactory;
+import com.google.cloud.datastore.PathElement;
+import com.google.cloud.datastore.Value;
+
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
-
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * The parent class of all Pipeline model objects.
@@ -70,40 +79,58 @@ public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
   private final String graphGUID;
 
   /**
-   * time at which this entity should expire, and be cleaned up from the datastore, if any.
+   * time at which this entity should expire, and be cleaned up from the
+   * datastore, if any.
    *
    * null implies no expiration (entity will not be automatically cleaned up)
    *
-   * NOTE: will NOT be enforced unless you also configure retention TTL policy on your datastore instance.
+   * NOTE: will NOT be enforced unless you also configure retention TTL policy on
+   * your datastore instance.
    *
    * see: https://cloud.google.com/datastore/docs/ttl
    */
-  @Getter @Setter
+  @Getter
+  @Setter
   private Instant expireAt;
 
   /**
    * Construct a new PipelineModelObject from the provided data.
    *
-   * @param rootJobKey The key of the root job for this pipeline. This must be
-   *        non-null, except in the case that we are currently constructing the
-   *        root job. In that case {@code thisKey} and {@code egParentKey} must
-   *        both be null and this must be a {@link JobRecord}.
-   * @param egParentKey The entity group parent key. This must be null unless
-   *        {@code thisKey} is null. If {@code thisKey} is null then
-   *        {@code parentKey} will be used to construct {@code thisKey}.
-   *        {@code parentKey} and {@code thisKey} are both allowed to be null,
-   *        in which case {@code thisKey} will be constructed without a parent.
-   * @param thisKey The key for the object being constructed. If this is null
-   *        then a new key will be constructed.
+   * @param rootJobKey      The key of the root job for this pipeline. This must
+   *                        be
+   *                        non-null, except in the case that we are currently
+   *                        constructing the
+   *                        root job. In that case {@code thisKey} and
+   *                        {@code egParentKey} must
+   *                        both be null and this must be a {@link JobRecord}.
+   * @param egParentKey     The entity group parent key. This must be null unless
+   *                        {@code thisKey} is null. If {@code thisKey} is null
+   *                        then
+   *                        {@code parentKey} will be used to construct
+   *                        {@code thisKey}.
+   *                        {@code parentKey} and {@code thisKey} are both allowed
+   *                        to be null,
+   *                        in which case {@code thisKey} will be constructed
+   *                        without a parent.
+   * @param thisKey         The key for the object being constructed. If this is
+   *                        null
+   *                        then a new key will be constructed.
    * @param generatorJobKey The key of the job whose run() method created this
-   *        object. This must be non-null unless this object is part of the root
-   *        job graph---i.e. the root job, or one of its barriers or slots.
-   * @param graphGUID The unique GUID of the local graph of this object. This is
-   *        used to determine whether or not this object is orphaned. The object
-   *        is defined to be non-orphaned if its graphGUID is equal to the
-   *        childGraphGUID of its parent job. This must be non-null unless this
-   *        object is part of the root job graph---i.e. the root job, or one of
-   *        its barriers or slots.
+   *                        object. This must be non-null unless this object is
+   *                        part of the root
+   *                        job graph---i.e. the root job, or one of its barriers
+   *                        or slots.
+   * @param graphGUID       The unique GUID of the local graph of this object.
+   *                        This is
+   *                        used to determine whether or not this object is
+   *                        orphaned. The object
+   *                        is defined to be non-orphaned if its graphGUID is
+   *                        equal to the
+   *                        childGraphGUID of its parent job. This must be
+   *                        non-null unless this
+   *                        object is part of the root job graph---i.e. the root
+   *                        job, or one of
+   *                        its barriers or slots.
    */
   protected PipelineModelObject(
       @NonNull Key rootJobKey, Key egParentKey, Key thisKey, Key generatorJobKey, String graphGUID) {
@@ -119,7 +146,8 @@ public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
 
     if (null == thisKey) {
       if (egParentKey == null) {
-        key = generateKey(rootJobKey.getProjectId(), rootJobKey.getNamespace(), getDatastoreKind());
+        key = generateKey(rootJobKey.getProjectId(), rootJobKey.getDatabaseId(), rootJobKey.getNamespace(),
+            getDatastoreKind());
       } else {
         key = generateKey(egParentKey, getDatastoreKind());
       }
@@ -138,18 +166,28 @@ public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
    * generatorJobKey, and graphGUID, a newly generated key, and no entity group
    * parent.
    *
-   * @param rootJobKey The key of the root job for this pipeline. This must be
-   *        non-null, except in the case that we are currently constructing the
-   *        root job. In that case this must be a {@link JobRecord}.
+   * @param rootJobKey      The key of the root job for this pipeline. This must
+   *                        be
+   *                        non-null, except in the case that we are currently
+   *                        constructing the
+   *                        root job. In that case this must be a
+   *                        {@link JobRecord}.
    * @param generatorJobKey The key of the job whose run() method created this
-   *        object. This must be non-null unless this object is part of the root
-   *        job graph---i.e. the root job, or one of its barriers or slots.
-   * @param graphGUID The unique GUID of the local graph of this object. This is
-   *        used to determine whether or not this object is orphaned. The object
-   *        is defined to be non-orphaned if its graphGUID is equal to the
-   *        childGraphGUID of its parent job. This must be non-null unless this
-   *        object is part of the root job graph---i.e. the root job, or one of
-   *        its barriers or slots.
+   *                        object. This must be non-null unless this object is
+   *                        part of the root
+   *                        job graph---i.e. the root job, or one of its barriers
+   *                        or slots.
+   * @param graphGUID       The unique GUID of the local graph of this object.
+   *                        This is
+   *                        used to determine whether or not this object is
+   *                        orphaned. The object
+   *                        is defined to be non-orphaned if its graphGUID is
+   *                        equal to the
+   *                        childGraphGUID of its parent job. This must be
+   *                        non-null unless this
+   *                        object is part of the root job graph---i.e. the root
+   *                        job, or one of
+   *                        its barriers or slots.
    */
   protected PipelineModelObject(Key rootJobKey, Key generatorJobKey, String graphGUID) {
     this(rootJobKey, null, null, generatorJobKey, graphGUID);
@@ -159,7 +197,7 @@ public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
    * Construct a new PipelineModelObject from the previously saved Entity.
    *
    * @param entity An Entity obtained previously from a call to
-   *    {@link #toEntity()}.
+   *               {@link #toEntity()}.
    */
   protected PipelineModelObject(Entity entity) {
     this(extractRootJobKey(entity), null, extractKey(entity), extractGeneratorJobKey(entity),
@@ -176,36 +214,44 @@ public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
     String name = GUIDGenerator.nextGUID();
 
     KeyFactory keyFactory = new KeyFactory(parentKey.getProjectId(), parentKey.getNamespace());
+    if (parentKey.getDatabaseId() != null && !parentKey.getDatabaseId().isEmpty()) {
+      keyFactory.setDatabaseId(parentKey.getDatabaseId());
+    }
     keyFactory.addAncestors(parentKey.getAncestors());
     keyFactory.addAncestor(PathElement.of(parentKey.getKind(), parentKey.getName()));
     keyFactory.setKind(kind);
     return keyFactory.newKey(name);
   }
 
+  public static Key generateKey(@NonNull String projectId, String databaseId, String namespace,
+      @NonNull String dataStoreKind) {
 
-  public static Key generateKey(@NonNull String projectId, String namespace, @NonNull String dataStoreKind) {
-
-    //ISO date + time (to second) as a suffix, to aid human readability/traceability; any place we log job id, we know when it was triggered
+    // ISO date + time (to second) as a suffix, to aid human
+    // readability/traceability; any place we log job id, we know when it was
+    // triggered
 
     // q: why not swap it to a prefix?
     // pro:
-    //   - even easier to read
-    //  - free index by time
+    // - even easier to read
+    // - free index by time
     // con:
-    //  - index will be hot
+    // - index will be hot
 
-    // TODO: swap this once have per-tenant database/namespace, which should limit the index overheat issue
-    String name =
-      GUIDGenerator.nextGUID().replace("-", "") //avoid collision
-      + "_" +
-    Instant.now().truncatedTo(ChronoUnit.SECONDS).toString()
-        .replace(":", "")
-        .replace("T", "_")
-        .replace("Z", "")
-        .replace("-", "");
+    // TODO: swap this once have per-tenant database/namespace, which should limit
+    // the index overheat issue
+    String name = GUIDGenerator.nextGUID().replace("-", "") // avoid collision
+        + "_" +
+        Instant.now().truncatedTo(ChronoUnit.SECONDS).toString()
+            .replace(":", "")
+            .replace("T", "_")
+            .replace("Z", "")
+            .replace("-", "");
 
     KeyFactory keyFactory = new KeyFactory(projectId);
-    if (namespace != null ) { //null implies default
+    if (databaseId != null && !databaseId.isEmpty()) {
+      keyFactory.setDatabaseId(databaseId);
+    }
+    if (namespace != null) { // null implies default
       keyFactory.setNamespace(namespace);
     }
     keyFactory.setKind(dataStoreKind);
@@ -266,8 +312,8 @@ public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
   protected static <E> List<E> getListProperty(String propertyName, Entity entity) {
     if (entity.contains(propertyName)) {
       return (List<E>) entity.getList(propertyName).stream()
-        .map(Value::get)
-        .collect(Collectors.toCollection(ArrayList::new));
+          .map(Value::get)
+          .collect(Collectors.toCollection(ArrayList::new));
     } else {
       return new LinkedList<>();
     }
