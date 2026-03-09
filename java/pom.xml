@@ -19,7 +19,7 @@
   <properties>
     <revision>0.3+worklytics.12</revision>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <jackson.version>[2.18.2, 2.18.3)</jackson.version> <!-- 2.18.2+ (stable) -->
+    <jackson.version>[2.18.6, 2.19.0)</jackson.version> <!-- 2.18.6+ (stable) -->
     <dagger.version>2.55</dagger.version> <!-- 2.55+ adds support for injecting jakarta.inject.Provider -->
     <lombok.version>1.18.42</lombok.version> <!-- only compile-time dependency -->
     <appengine.target.version>[2.0.4, 3.0)</appengine.target.version> <!-- now only for tests -->
