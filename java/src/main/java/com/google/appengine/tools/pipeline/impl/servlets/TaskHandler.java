@@ -30,6 +30,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
+import org.json.JSONObject;
+import com.google.appengine.tools.pipeline.impl.util.KmsService;
+import java.nio.charset.StandardCharsets;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import lombok.extern.java.Log;
@@ -48,6 +52,7 @@ import javax.inject.Singleton;
 public class TaskHandler {
 
   final JobRunServiceComponent component;
+  final KmsService kmsService;
 
   public static final String PATH_COMPONENT = "handleTask";
 
@@ -110,8 +115,19 @@ public class TaskHandler {
 
   private PipelineTask reconstructTask(HttpServletRequest request) {
     Properties properties = new Properties();
-    Streams.stream(request.getParameterNames().asIterator())
-      .forEach(name -> properties.setProperty(name,  request.getParameter(name)));
+    String encryptionKey = request.getHeader(PipelineTask.ENCRYPTION_KEY_HEADER);
+    if (encryptionKey != null && request.getParameter("_encrypted_payload") != null) {
+      String base64Encrypted = request.getParameter("_encrypted_payload");
+      byte[] encrypted = Base64.getDecoder().decode(base64Encrypted);
+      byte[] decrypted = kmsService.decrypt(encryptionKey, encrypted);
+      JSONObject jsonParams = new JSONObject(new String(decrypted, StandardCharsets.UTF_8));
+      for (String key : jsonParams.keySet()) {
+        properties.setProperty(key, jsonParams.getString(key));
+      }
+    } else {
+      Streams.stream(request.getParameterNames().asIterator())
+        .forEach(name -> properties.setProperty(name,  request.getParameter(name)));
+    }
 
     String taskName = parseTaskName(request);
     PipelineTask pipelineTask = PipelineTask.fromProperties(taskName, properties);

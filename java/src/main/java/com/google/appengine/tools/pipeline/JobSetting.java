@@ -221,6 +221,22 @@ public interface JobSetting extends Serializable {
     }
   }
 
+  /**
+   * A setting specifying a CMEK for encrypting task parameters.
+   * Example: "projects/my-project/locations/global/keyRings/my-keyring/cryptoKeys/my-key"
+   */
+  final class EncryptionKey extends StringValuedSetting {
+    @Serial
+    private static final long serialVersionUID = -2L;
+
+    public EncryptionKey(String encryptionKey) {
+      super(encryptionKey);
+      if (encryptionKey != null && !encryptionKey.matches("projects/[^/]+/locations/[^/]+/keyRings/[^/]+/cryptoKeys/[^/]+")) {
+        throw new IllegalArgumentException("EncryptionKey must match the format: projects/{project}/locations/{location}/keyRings/{keyRing}/cryptoKeys/{cryptoKey}");
+      }
+    }
+  }
+
 
   static <E extends StringValuedSetting> Optional<String> getSettingValue(Class<E> clazz, JobSetting[] settings) {
     return Arrays.stream(settings)

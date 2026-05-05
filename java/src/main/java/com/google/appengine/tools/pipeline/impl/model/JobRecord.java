@@ -160,8 +160,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   private static final String CHILD_GRAPH_GUID_PROPERTY = "childGraphGuid";
   private static final String STATUS_CONSOLE_URL = "statusConsoleUrl";
   public static final String ROOT_JOB_DISPLAY_NAME = "rootJobDisplayName";
-
   public static final String IS_ROOT_JOB_PROPERTY = "isRootJob";
+  private static final String ENCRYPTION_KEY_PROPERTY = "encryptionKey";
 
   /**
    * projectId for job; must be set
@@ -287,6 +287,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     queueSettings.setOnService(EntityUtils.getString(entity, ON_SERVICE_PROPERTY));
     queueSettings.setOnServiceVersion(EntityUtils.getString(entity, ON_SERVICE_VERSION_PROPERTY));
     queueSettings.setOnQueue(EntityUtils.getString(entity, ON_QUEUE_PROPERTY));
+    queueSettings.setEncryptionKey(EntityUtils.getString(entity, ENCRYPTION_KEY_PROPERTY));
 
     statusConsoleUrl = EntityUtils.getString(entity, STATUS_CONSOLE_URL);
     rootJobDisplayName = EntityUtils.getString(entity, ROOT_JOB_DISPLAY_NAME);
@@ -355,6 +356,9 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
     }
     if (queueSettings.getOnQueue() != null) {
       builder.set(ON_QUEUE_PROPERTY, StringValue.newBuilder(queueSettings.getOnQueue()).setExcludeFromIndexes(true).build());
+    }
+    if (queueSettings.getEncryptionKey() != null) {
+      builder.set(ENCRYPTION_KEY_PROPERTY, StringValue.newBuilder(queueSettings.getEncryptionKey()).setExcludeFromIndexes(true).build());
     }
 
     if (statusConsoleUrl != null) {
@@ -518,6 +522,8 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
       statusConsoleUrl = ((StatusConsoleUrl) setting).getValue();
     } else if (setting instanceof JobSetting.DatastoreNamespace) {
       //ignore; applied in constructor, bc it's final
+    } else if (setting instanceof JobSetting.EncryptionKey) {
+      queueSettings.setEncryptionKey(((JobSetting.EncryptionKey) setting).getValue());
     } else {
       throw new RuntimeException("Unrecognized JobSetting class " + setting.getClass().getName());
     }

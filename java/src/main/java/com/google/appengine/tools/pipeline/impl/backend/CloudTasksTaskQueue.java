@@ -13,6 +13,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
+import com.google.appengine.tools.pipeline.impl.util.KmsService;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -57,6 +58,9 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   @NonNull
   AppEngineServicesService appEngineServicesService;
 
+  @NonNull
+  KmsService kmsService;
+
   // GAE location -> Cloud Tasks location name
   Cache<String, String> locationCache =
           CacheBuilder.newBuilder().initialCapacity(1).build();
@@ -76,7 +80,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
       .map(tasksForQueue -> {
         Stream<TaskSpec> specs = tasksForQueue.getValue().stream()
           .map(pipelineTask -> {
-            return pipelineTask.toTaskSpec(appEngineServicesService, TaskHandler.handleTaskUrl());
+            return pipelineTask.toTaskSpec(appEngineServicesService, TaskHandler.handleTaskUrl(), kmsService);
           });
         return enqueue(tasksForQueue.getKey(), specs.collect(Collectors.toList()));
       })
@@ -89,7 +93,7 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
     Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
     pipelineTasks
       .forEach(pipelineTask -> {
-        taskSpecs.put(getQueueForTask(pipelineTask), pipelineTask.toTaskSpec(appEngineServicesService, TaskHandler.handleTaskUrl()));
+        taskSpecs.put(getQueueForTask(pipelineTask), pipelineTask.toTaskSpec(appEngineServicesService, TaskHandler.handleTaskUrl(), kmsService));
     });
     return taskSpecs;
   }
