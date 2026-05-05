@@ -252,7 +252,7 @@ public interface JobSetting extends Serializable {
 
   static <E extends StringValuedSetting> Optional<String> getSettingValue(Class<E> clazz, JobSetting[] settings) {
     return Arrays.stream(settings)
-        .filter(s -> s.getClass().isAssignableFrom(clazz))
+        .filter(clazz::isInstance)
         .findAny()
         .map(s -> ((StringValuedSetting) s).getValue());
   }
