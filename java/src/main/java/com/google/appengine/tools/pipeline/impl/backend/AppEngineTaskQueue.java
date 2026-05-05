@@ -59,19 +59,22 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
   final AppEngineEnvironment environment;
   final AppEngineServicesService servicesService;
+  final com.google.appengine.tools.pipeline.impl.util.KmsService kmsService;
 
   final String taskHandlerUrl;
 
   public AppEngineTaskQueue(AppEngineServicesService appEngineServicesService) {
     this.environment = new AppEngineStandardGen2();
     this.servicesService = appEngineServicesService;
+    this.kmsService = null;
     this.taskHandlerUrl = TaskHandler.handleTaskUrl();
   }
 
   @Inject
-  public AppEngineTaskQueue(AppEngineEnvironment environment, AppEngineServicesService servicesService) {
+  public AppEngineTaskQueue(AppEngineEnvironment environment, AppEngineServicesService servicesService, com.google.appengine.tools.pipeline.impl.util.KmsService kmsService) {
     this.environment = environment;
     this.servicesService = servicesService;
+    this.kmsService = kmsService;
     this.taskHandlerUrl = TaskHandler.handleTaskUrl();
   }
 
@@ -159,7 +162,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   public Multimap<String, TaskSpec> asTaskSpecs(Collection<PipelineTask> pipelineTasks) {
     Multimap<String, TaskSpec> taskSpecs = HashMultimap.create();
     pipelineTasks.forEach( pipelineTask -> {
-      taskSpecs.put(getQueueForTask(pipelineTask), pipelineTask.toTaskSpec(servicesService, taskHandlerUrl));
+      taskSpecs.put(getQueueForTask(pipelineTask), pipelineTask.toTaskSpec(servicesService, taskHandlerUrl, kmsService));
     });
     return taskSpecs;
   }

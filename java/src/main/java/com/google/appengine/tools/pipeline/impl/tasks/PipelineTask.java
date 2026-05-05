@@ -22,11 +22,16 @@ import lombok.NonNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+
+import org.json.JSONObject;
+import com.google.appengine.tools.pipeline.impl.util.KmsService;
 
 /**
  * A Pipeline Framework task to be executed asynchronously This is the abstract base class for all
@@ -55,6 +60,7 @@ import java.util.Set;
 public abstract class PipelineTask {
 
   protected static final String TASK_TYPE_PARAMETER = "taskType";
+  public static final String ENCRYPTION_KEY_HEADER = "X-Pipeline-EncryptionKey";
 
   @Getter @NonNull
   private final Type type;
@@ -200,14 +206,25 @@ public abstract class PipelineTask {
   }
 
 
-  public PipelineTaskQueue.TaskSpec toTaskSpec(AppEngineServicesService appEngineServicesService, String callback) {
+  public PipelineTaskQueue.TaskSpec toTaskSpec(AppEngineServicesService appEngineServicesService, String callback, KmsService kmsService) {
     PipelineTaskQueue.TaskSpec.TaskSpecBuilder spec = PipelineTaskQueue.TaskSpec.builder()
       .name(this.getTaskName())
       .callbackPath(callback)
       .method(PipelineTaskQueue.TaskSpec.Method.POST);
 
-    this.toProperties().entrySet()
-      .forEach(p -> spec.param((String) p.getKey(), (String) p.getValue()));
+    if (this.getQueueSettings().getEncryptionKey() != null) {
+      spec.header(ENCRYPTION_KEY_HEADER, this.getQueueSettings().getEncryptionKey());
+      JSONObject jsonParams = new JSONObject();
+      this.toProperties().forEach((k, v) -> jsonParams.put((String) k, (String) v));
+      byte[] encrypted = kmsService.encrypt(
+          this.getQueueSettings().getEncryptionKey(),
+          jsonParams.toString().getBytes(StandardCharsets.UTF_8));
+      String base64Encrypted = Base64.getEncoder().encodeToString(encrypted);
+      spec.param("_encrypted_payload", base64Encrypted);
+    } else {
+      this.toProperties().entrySet()
+          .forEach(p -> spec.param((String) p.getKey(), (String) p.getValue()));
+    }
 
     if (this.getQueueSettings().getDelayInSeconds() != null) {
       spec.scheduledExecutionTime(Instant.now().plusSeconds(this.getQueueSettings().getDelayInSeconds()));

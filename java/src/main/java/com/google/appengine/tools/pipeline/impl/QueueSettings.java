@@ -38,6 +38,12 @@ public final class QueueSettings implements Cloneable {
   private Long delayInSeconds;
 
   /**
+   * KMS Key Name for CMEK encryption of task payload
+   * Example: "projects/my-project/locations/global/keyRings/my-keyring/cryptoKeys/my-key"
+   */
+  private String encryptionKey;
+
+  /**
    * Merge will override any {@code null} setting with a matching setting from {@code other}.
    * Note, delay value is not being merged.
    */
@@ -48,6 +54,9 @@ public final class QueueSettings implements Cloneable {
     }
     if (onQueue == null) {
       onQueue = other.getOnQueue();
+    }
+    if (encryptionKey == null) {
+      encryptionKey = other.getEncryptionKey();
     }
     return this;
   }
