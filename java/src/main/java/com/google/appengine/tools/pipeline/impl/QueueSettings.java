@@ -1,8 +1,13 @@
 package com.google.appengine.tools.pipeline.impl;
 
-import lombok.*;
-
 import javax.annotation.Nullable;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 /**
  * settings for how to asynchronously execute a task via a queue
@@ -12,7 +17,8 @@ import javax.annotation.Nullable;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Getter @Setter
+@Getter
+@Setter
 @ToString
 public final class QueueSettings implements Cloneable {
 
@@ -33,12 +39,26 @@ public final class QueueSettings implements Cloneable {
   private String onQueue;
 
   /**
-   * delay in seconds to set when enqueueing the task (eg, should not execute until *at least* this much time has passed
+   * delay in seconds to set when enqueueing the task (eg, should not execute
+   * until *at least* this much time has passed
    */
   private Long delayInSeconds;
 
   /**
-   * Merge will override any {@code null} setting with a matching setting from {@code other}.
+   * datastore database ID to propagate
+   */
+  @Nullable
+  private String databaseId;
+
+  /**
+   * datastore namespace to propagate
+   */
+  @Nullable
+  private String namespace;
+
+  /**
+   * Merge will override any {@code null} setting with a matching setting from
+   * {@code other}.
    * Note, delay value is not being merged.
    */
   public QueueSettings merge(QueueSettings other) {
@@ -48,6 +68,12 @@ public final class QueueSettings implements Cloneable {
     }
     if (onQueue == null) {
       onQueue = other.getOnQueue();
+    }
+    if (databaseId == null) {
+      databaseId = other.getDatabaseId();
+    }
+    if (namespace == null) {
+      namespace = other.getNamespace();
     }
     return this;
   }
