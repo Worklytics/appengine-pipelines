@@ -20,6 +20,7 @@ import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.tools.pipeline.impl.QueueSettings;
 import com.google.appengine.tools.pipeline.impl.servlets.TaskHandler;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
+import com.google.appengine.tools.pipeline.impl.util.KmsService;
 import com.google.apphosting.api.ApiProxy;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
@@ -59,7 +60,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
 
   final AppEngineEnvironment environment;
   final AppEngineServicesService servicesService;
-  final com.google.appengine.tools.pipeline.impl.util.KmsService kmsService;
+  final KmsService kmsService;
 
   final String taskHandlerUrl;
 
@@ -71,7 +72,7 @@ public class AppEngineTaskQueue implements PipelineTaskQueue {
   }
 
   @Inject
-  public AppEngineTaskQueue(AppEngineEnvironment environment, AppEngineServicesService servicesService, com.google.appengine.tools.pipeline.impl.util.KmsService kmsService) {
+  public AppEngineTaskQueue(AppEngineEnvironment environment, AppEngineServicesService servicesService, KmsService kmsService) {
     this.environment = environment;
     this.servicesService = servicesService;
     this.kmsService = kmsService;
