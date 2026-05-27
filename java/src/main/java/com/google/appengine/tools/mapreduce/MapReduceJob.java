@@ -3,6 +3,7 @@
 package com.google.appengine.tools.mapreduce;
 
 import com.google.appengine.tools.mapreduce.impl.*;
+import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.impl.pipeline.CleanupPipelineJob;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
@@ -241,12 +242,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
-        DatastoreOptions.Builder b = DatastoreOptions.newBuilder()
-            .setProjectId(defaultInstance.getProjectId())
-            .setCredentials(defaultInstance.getCredentials())
-            .setTransportOptions(defaultInstance.getTransportOptions());
-        java.util.Optional.ofNullable(defaultInstance.getHost()).ifPresent(b::setHost);
+        DatastoreOptions.Builder b = RequestUtils.builderFromDefaultInstance();
         java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
         datastore = b.build().getService();
       }
@@ -350,12 +346,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
-        DatastoreOptions.Builder b = DatastoreOptions.newBuilder()
-            .setProjectId(defaultInstance.getProjectId())
-            .setCredentials(defaultInstance.getCredentials())
-            .setTransportOptions(defaultInstance.getTransportOptions());
-        java.util.Optional.ofNullable(defaultInstance.getHost()).ifPresent(b::setHost);
+        DatastoreOptions.Builder b = RequestUtils.builderFromDefaultInstance();
         java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
         datastore = b.build().getService();
       }
@@ -490,12 +481,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
-        DatastoreOptions.Builder b = DatastoreOptions.newBuilder()
-            .setProjectId(defaultInstance.getProjectId())
-            .setCredentials(defaultInstance.getCredentials())
-            .setTransportOptions(defaultInstance.getTransportOptions());
-        java.util.Optional.ofNullable(defaultInstance.getHost()).ifPresent(b::setHost);
+        DatastoreOptions.Builder b = RequestUtils.builderFromDefaultInstance();
         java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
         datastore = b.build().getService();
       }
@@ -622,13 +608,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   //NOTE: very coupled to `MapReduceSettings` implementation; could be there, but don't want to couple that to FW implementation
   // and also don't want it to be public, as would be exposed to API
   private DatastoreOptions getDatastoreOptions(@NonNull MapReduceSettings settings) {
-    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
-    DatastoreOptions.Builder builder = DatastoreOptions.newBuilder()
-        .setProjectId(defaultInstance.getProjectId())
-        .setCredentials(defaultInstance.getCredentials())
-        .setTransportOptions(defaultInstance.getTransportOptions());
-    java.util.Optional.ofNullable(defaultInstance.getHost()).ifPresent(builder::setHost);
-
+    DatastoreOptions.Builder builder = RequestUtils.builderFromDefaultInstance();
     java.util.Optional.ofNullable(settings.getDatastoreHost()).ifPresent(builder::setHost);
     java.util.Optional.ofNullable(settings.getProjectId()).ifPresent(builder::setProjectId);
     java.util.Optional.ofNullable(settings.getDatabaseId()).ifPresent(builder::setDatabaseId);

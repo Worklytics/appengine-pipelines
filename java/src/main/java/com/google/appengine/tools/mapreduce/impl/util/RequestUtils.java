@@ -60,6 +60,21 @@ public class RequestUtils {
   @Getter @Setter
   private String localProjectIdOverride = DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID;
 
+  /**
+   * Builds a DatastoreOptions.Builder pre-populated from the default instance, with null-safe
+   * credential handling (falls back to NoCredentials when ADC is unavailable, e.g. CI/emulator).
+   */
+  public static DatastoreOptions.Builder builderFromDefaultInstance() {
+    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+    com.google.auth.Credentials credentials = defaultInstance.getCredentials();
+    DatastoreOptions.Builder builder = DatastoreOptions.newBuilder()
+        .setProjectId(defaultInstance.getProjectId())
+        .setCredentials(credentials != null ? credentials : NoCredentials.getInstance())
+        .setTransportOptions(defaultInstance.getTransportOptions());
+    Optional.ofNullable(defaultInstance.getHost()).ifPresent(builder::setHost);
+    return builder;
+  }
+
   public DatastoreOptions buildDatastoreFromRequest(HttpServletRequest request) {
     // so we need 1) host, 2) projectId, and 3) databaseId from somewhere
 
@@ -68,15 +83,10 @@ public class RequestUtils {
     // - set as env vars (system properties), via Maven to pull (wouldn't exactly let us do integration tests)
     //    --> no, host may include port, set at runtime by emulator; not easy/appropriate to fake as env var
 
-    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+    String defaultProjectId = DatastoreOptions.getDefaultInstance().getProjectId();
+    DatastoreOptions.Builder builder = builderFromDefaultInstance();
 
-    DatastoreOptions.Builder builder = DatastoreOptions.newBuilder()
-        .setProjectId(defaultInstance.getProjectId())
-        .setCredentials(defaultInstance.getCredentials())
-        .setTransportOptions(defaultInstance.getTransportOptions());
-    Optional.ofNullable(defaultInstance.getHost()).ifPresent(builder::setHost);
-
-    if (LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId())) {
+    if (LOCAL_GAE_PROJECT_ID.equals(defaultProjectId)) {
       log.info("pipelines fw detected running locally with GAE projectId set as 'no_app_id'; this isn't legal GCP project id, so changing to 'local-gae-project'");
       // 'no_app_id' isn't legal name, so change it
       builder.setProjectId(getLocalProjectIdOverride());
