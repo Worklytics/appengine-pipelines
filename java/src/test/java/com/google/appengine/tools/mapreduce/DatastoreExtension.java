@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce;
 
+import com.google.cloud.NoCredentials;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.testing.LocalDatastoreHelper;
@@ -63,6 +64,7 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
     log.info("Datastore emulator reset");
     DatastoreOptions options = globalDatastoreHelper.getOptions().toBuilder()
       .setProjectId(TEST_DATASTORE_PROJECT_ID)
+      .setCredentials(NoCredentials.getInstance())
       .build();
 
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).put(DS_OPTIONS_CONTEXT_KEY, options);
