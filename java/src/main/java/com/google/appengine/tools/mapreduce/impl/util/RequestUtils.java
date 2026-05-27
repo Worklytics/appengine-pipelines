@@ -3,6 +3,7 @@ package com.google.appengine.tools.mapreduce.impl.util;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.impl.backend.*;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 
@@ -81,6 +82,7 @@ public class RequestUtils {
       builder.setProjectId(getLocalProjectIdOverride());
       // try to get emulator host from env var, if available
       builder.setHost(System.getProperty("DATASTORE_EMULATOR_HOST", System.getenv("DATASTORE_EMULATOR_HOST")));
+      builder.setCredentials(NoCredentials.getInstance());
     }
 
     // whatever values are, they can be overridden by request params
