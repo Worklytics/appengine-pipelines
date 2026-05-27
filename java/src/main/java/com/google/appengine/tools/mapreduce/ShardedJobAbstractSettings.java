@@ -50,7 +50,12 @@ public interface ShardedJobAbstractSettings {
 
 
   default DatastoreOptions getDatastoreOptions() {
-    DatastoreOptions.Builder optionsBuilder = DatastoreOptions.getDefaultInstance().toBuilder();
+    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+    DatastoreOptions.Builder optionsBuilder = DatastoreOptions.newBuilder()
+        .setProjectId(defaultInstance.getProjectId())
+        .setCredentials(defaultInstance.getCredentials())
+        .setTransportOptions(defaultInstance.getTransportOptions());
+    Optional.ofNullable(defaultInstance.getHost()).ifPresent(optionsBuilder::setHost);
     Optional.ofNullable(getDatastoreHost()).ifPresent(optionsBuilder::setHost);
     Optional.ofNullable(getProjectId()).ifPresent(optionsBuilder::setProjectId);
     Optional.ofNullable(getDatabaseId()).ifPresent(optionsBuilder::setDatabaseId);

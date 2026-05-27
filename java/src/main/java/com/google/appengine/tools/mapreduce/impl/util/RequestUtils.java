@@ -69,7 +69,11 @@ public class RequestUtils {
 
     DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
 
-    DatastoreOptions.Builder builder = defaultInstance.toBuilder();
+    DatastoreOptions.Builder builder = DatastoreOptions.newBuilder()
+        .setProjectId(defaultInstance.getProjectId())
+        .setCredentials(defaultInstance.getCredentials())
+        .setTransportOptions(defaultInstance.getTransportOptions());
+    Optional.ofNullable(defaultInstance.getHost()).ifPresent(builder::setHost);
 
     if (LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId())) {
       log.info("pipelines fw detected running locally with GAE projectId set as 'no_app_id'; this isn't legal GCP project id, so changing to 'local-gae-project'");

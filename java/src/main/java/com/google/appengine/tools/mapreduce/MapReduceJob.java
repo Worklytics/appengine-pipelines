@@ -241,9 +241,14 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        datastore = DatastoreOptions.getDefaultInstance().toBuilder()
-          .setNamespace(settings.getNamespace())
-          .build().getService();
+        DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+        DatastoreOptions.Builder b = DatastoreOptions.newBuilder()
+            .setProjectId(defaultInstance.getProjectId())
+            .setCredentials(defaultInstance.getCredentials())
+            .setTransportOptions(defaultInstance.getTransportOptions());
+        java.util.Optional.ofNullable(defaultInstance.getHost()).ifPresent(b::setHost);
+        java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
+        datastore = b.build().getService();
       }
       return datastore;
     }
@@ -345,9 +350,14 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        datastore = DatastoreOptions.getDefaultInstance().toBuilder()
-          .setNamespace(settings.getNamespace())
-          .build().getService();
+        DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+        DatastoreOptions.Builder b = DatastoreOptions.newBuilder()
+            .setProjectId(defaultInstance.getProjectId())
+            .setCredentials(defaultInstance.getCredentials())
+            .setTransportOptions(defaultInstance.getTransportOptions());
+        java.util.Optional.ofNullable(defaultInstance.getHost()).ifPresent(b::setHost);
+        java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
+        datastore = b.build().getService();
       }
       return datastore;
     }
@@ -480,9 +490,14 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        datastore = DatastoreOptions.getDefaultInstance().toBuilder()
-          .setNamespace(settings.getNamespace())
-          .build().getService();
+        DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+        DatastoreOptions.Builder b = DatastoreOptions.newBuilder()
+            .setProjectId(defaultInstance.getProjectId())
+            .setCredentials(defaultInstance.getCredentials())
+            .setTransportOptions(defaultInstance.getTransportOptions());
+        java.util.Optional.ofNullable(defaultInstance.getHost()).ifPresent(b::setHost);
+        java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
+        datastore = b.build().getService();
       }
       return datastore;
     }
@@ -607,7 +622,12 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   //NOTE: very coupled to `MapReduceSettings` implementation; could be there, but don't want to couple that to FW implementation
   // and also don't want it to be public, as would be exposed to API
   private DatastoreOptions getDatastoreOptions(@NonNull MapReduceSettings settings) {
-    DatastoreOptions.Builder builder = DatastoreOptions.getDefaultInstance().toBuilder();
+    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+    DatastoreOptions.Builder builder = DatastoreOptions.newBuilder()
+        .setProjectId(defaultInstance.getProjectId())
+        .setCredentials(defaultInstance.getCredentials())
+        .setTransportOptions(defaultInstance.getTransportOptions());
+    java.util.Optional.ofNullable(defaultInstance.getHost()).ifPresent(builder::setHost);
 
     java.util.Optional.ofNullable(settings.getDatastoreHost()).ifPresent(builder::setHost);
     java.util.Optional.ofNullable(settings.getProjectId()).ifPresent(builder::setProjectId);
