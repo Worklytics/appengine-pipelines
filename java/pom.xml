@@ -18,7 +18,7 @@
   </licenses>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <jackson.version>[2.7, 3.0)</jackson.version> <!-- 2.7+ is needed for JDK8 data type serialization -->
+    <jackson.version>[2.9, 2.99)</jackson.version> <!-- 2.9+ required for @JsonSerializeAs; upper bound 2.99 (not 3.0) because Maven treats 3.0-rc* as < 3.0, causing it to satisfy [x, 3.0) -->
     <dagger.version>2.55</dagger.version> <!-- 2.55+ adds support for injecting jakarta.inject.Provider -->
     <lombok.version>1.18.36</lombok.version> <!-- only compile-time dependency -->
     <appengine.target.version>[2.0.4, 3.0)</appengine.target.version> <!-- now only for tests -->

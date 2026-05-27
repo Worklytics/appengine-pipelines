@@ -41,7 +41,7 @@ public class DeleteShardsInfos extends Job0<Void> {
 
   @Override
   public Value<Void> run() {
-    Datastore datastore = datastoreOptions.toBuilder().build().getService();
+    Datastore datastore = datastoreOptions.getService();
     final List<Key> toDelete = new ArrayList<>((end - start) * 2);
 
     PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore);
