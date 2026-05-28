@@ -6,13 +6,13 @@ import com.google.cloud.datastore.Transaction;
 import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatchers;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 class PipelineBackendTransactionImplTest {
@@ -37,7 +37,8 @@ class PipelineBackendTransactionImplTest {
     when(mockTransaction.isActive()).thenReturn(true);
     when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenReturn(Collections.emptyList());
 
-    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder()
+        .method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
     pipelineBackendTransaction.commit();
 
     verify(mockTransaction).commit();
@@ -47,10 +48,12 @@ class PipelineBackendTransactionImplTest {
   @Test
   void commitQueueFailsDeletesTasks() {
     when(mockTransaction.isActive()).thenReturn(true);
-    Set<PipelineTaskQueue.TaskReference> taskReferences = Collections.singleton(PipelineTaskQueue.TaskReference.of("queue1", "task-ref"));
+    Set<PipelineTaskQueue.TaskReference> taskReferences = Collections
+        .singleton(PipelineTaskQueue.TaskReference.of("queue1", "task-ref"));
     when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenThrow(new RuntimeException("error enqueueing"));
 
-    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder()
+        .method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
     assertThrows(RuntimeException.class, () -> pipelineBackendTransaction.commit());
 
     verify(mockTaskQueue).enqueue(anyString(), anyCollection());
@@ -73,7 +76,8 @@ class PipelineBackendTransactionImplTest {
 
   @Test
   void enqueue() {
-    PipelineTaskQueue.TaskSpec task = PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build();
+    PipelineTaskQueue.TaskSpec task = PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET)
+        .callbackPath("path").build();
     pipelineBackendTransaction.enqueue("queue1", task);
 
     assertFalse(pipelineBackendTransaction.getPendingTaskSpecsByQueue().isEmpty());
@@ -82,7 +86,8 @@ class PipelineBackendTransactionImplTest {
 
   @Test
   void rollback() {
-    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder()
+        .method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
     pipelineBackendTransaction.rollback();
 
     verify(mockTransaction).rollback();
