@@ -47,8 +47,8 @@ jobs:
       fail-fast: true
       matrix:
         package: [ "com.google.appengine.tools.cloudtasktest.**",
-                   "%regex[com\\.google\\.appengine\\.tools\\.mapreduce\\.impl\\.([a-z]+\\.)*[A-M].+]",
-                   "%regex[com\\.google\\.appengine\\.tools\\.mapreduce\\.impl\\.([a-z]+\\.)*[N-Z].+]",
+                   "!%regex[com\\.google\\.appengine\\.tools\\.mapreduce\\.impl\\.([a-z]+\\.)*[A-M].+]",
+                   "!%regex[com\\.google\\.appengine\\.tools\\.mapreduce\\.impl\\.([a-z]+\\.)*[N-Z].+]",
                    "com.google.appengine.tools.mapreduce.inputs.**",
                    "com.google.appengine.tools.mapreduce.outputs.**",
                    "com.google.appengine.tools.mapreduce.*Test",
