@@ -26,7 +26,6 @@ public class EnvironmentUtils {
     DatastoreOptions.Builder builder = DatastoreOptions.newBuilder()
       .setProjectId(defaultInstance.getProjectId())
       .setTransportOptions(defaultInstance.getTransportOptions())
-      .setCredentials(defaultInstance.getCredentials())
       .setDatabaseId(defaultInstance.getDatabaseId())
       .setNamespace(defaultInstance.getNamespace())
       .setHost(defaultInstance.getHost());
@@ -43,6 +42,10 @@ public class EnvironmentUtils {
       if (getDatastoreEmulatorHost() != null) {
         builder.setHost(getDatastoreEmulatorHost());
       }
+    } else if (defaultInstance.getCredentials() != null) {
+        builder.setCredentials(defaultInstance.getCredentials());
+    } else {
+      log.warning("No credentials found for DatastoreOptions.Builder?");
     }
 
     return builder;
