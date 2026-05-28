@@ -3,6 +3,7 @@ package com.google.appengine.tools.txn;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Transaction;
+import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -27,6 +28,7 @@ class PipelineBackendTransactionImplTest {
     mockTaskQueue = mock(PipelineTaskQueue.class);
     mockDatastore = mock(Datastore.class);
     when(mockDatastore.newTransaction()).thenReturn(mockTransaction);
+    when(mockTransaction.getTransactionId()).thenReturn(ByteString.copyFromUtf8("transaction-id"));
     pipelineBackendTransaction = new PipelineBackendTransactionImpl(mockDatastore, mockTaskQueue);
   }
 
@@ -55,10 +57,8 @@ class PipelineBackendTransactionImplTest {
   }
 
   @Test
-  void commitDatastoreFailsDeletesTasks() {
+  void commitDatastoreFailsNoTasksEnqueuedOrDeleted() {
     when(mockTransaction.isActive()).thenReturn(true);
-    List<PipelineTaskQueue.TaskReference> taskReferences = Collections.singletonList(PipelineTaskQueue.TaskReference.of("queue1", "task-ref"));
-    when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenReturn(taskReferences);
     when(mockTransaction.commit()).thenThrow(new RuntimeException("error committing"));
 
     pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
@@ -66,8 +66,9 @@ class PipelineBackendTransactionImplTest {
     assertThrows(RuntimeException.class, () -> pipelineBackendTransaction.commit());
 
     verify(mockTransaction, atMostOnce()).commit();
-    verify(mockTaskQueue).enqueue(anyString(), anyCollection());
-    verify(mockTaskQueue).deleteTasks(ArgumentMatchers.argThat(taskReferences::containsAll));
+    // Datastore commits first; on failure tasks are never enqueued so there is nothing to delete
+    verify(mockTaskQueue, never()).enqueue(anyString(), anyCollection());
+    verify(mockTaskQueue, never()).deleteTasks(any());
   }
 
   @Test
