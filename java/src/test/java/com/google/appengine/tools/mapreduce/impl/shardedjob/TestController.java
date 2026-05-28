@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob;
 
+import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.cloud.datastore.DatastoreOptions;
 import lombok.*;
@@ -30,7 +31,7 @@ public class TestController extends ShardedJobController<TestTask> {
 
   public DatastoreOptions getDatastoreOptions() {
     // in case serialized, recreate to "recover" transient fields
-    return datastoreOptions.toBuilder().build();
+    return EnvironmentUtils.datastoreBuilderFromDatastoreOptions(datastoreOptions).build();
   }
 
   @Override
