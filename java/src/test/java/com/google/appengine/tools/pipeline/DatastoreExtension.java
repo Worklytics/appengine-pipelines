@@ -37,11 +37,13 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
       .setConsistency(1.0)
       .build();
     globalDatastoreHelper.start();
+    System.setProperty("DATASTORE_EMULATOR_HOST", "localhost:" + globalDatastoreHelper.getPort());
     log.info("Datastore emulator started on port : " + globalDatastoreHelper.getPort());
   }
 
   @Override
   public void afterAll(ExtensionContext extensionContext) throws Exception {
+    System.clearProperty("DATASTORE_EMULATOR_HOST");
 
     int attempt = 0;
     boolean stopped = false;
