@@ -1,6 +1,7 @@
 package com.google.appengine.tools;
 
 import com.google.cloud.NoCredentials;
+import com.google.cloud.datastore.DatastoreOpenTelemetryOptions;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.java.Log;
@@ -21,20 +22,26 @@ public class EnvironmentUtils {
    */
   public static DatastoreOptions.Builder datastoreBuilderFromDefaultInstance() {
     DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
+    return datastoreBuilderFromDatastoreOptions(defaultInstance);
+  }
+
+  @VisibleForTesting
+  public static DatastoreOptions.Builder datastoreBuilderFromDatastoreOptions(DatastoreOptions datastoreOptions) {
     // in case this needs to be overridden, there is a bug in toBuilder that loses the host
     // so we need to copy over everything
     DatastoreOptions.Builder builder = DatastoreOptions.newBuilder()
-      .setProjectId(defaultInstance.getProjectId())
-      .setTransportOptions(defaultInstance.getTransportOptions())
-      .setDatabaseId(defaultInstance.getDatabaseId())
-      .setNamespace(defaultInstance.getNamespace())
-      .setHost(defaultInstance.getHost());
+      .setProjectId(datastoreOptions.getProjectId())
+      .setTransportOptions(datastoreOptions.getTransportOptions())
+      .setDatabaseId(datastoreOptions.getDatabaseId())
+      .setNamespace(datastoreOptions.getNamespace())
+      .setHost(datastoreOptions.getHost())
+      .setOpenTelemetryOptions(datastoreOptions.getOpenTelemetryOptions());
 
-    if (isTestingContext(defaultInstance)) {
+    if (isNotCloudEnvironment(datastoreOptions)) {
       // override credentials
       builder.setCredentials(NoCredentials.getInstance());
       // set valid project id if needed
-      if (LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId())) {
+      if (LOCAL_GAE_PROJECT_ID.equals(datastoreOptions.getProjectId())) {
         log.info("pipelines fw detected running locally with GAE projectId set as '%s'; this isn't legal GCP project id, so changing to '%s'".formatted(LOCAL_GAE_PROJECT_ID, DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID));
         builder.setProjectId(DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID);
       }
@@ -42,8 +49,9 @@ public class EnvironmentUtils {
       if (getDatastoreEmulatorHost() != null) {
         builder.setHost(getDatastoreEmulatorHost());
       }
-    } else if (defaultInstance.getCredentials() != null) {
-        builder.setCredentials(defaultInstance.getCredentials());
+      builder.setOpenTelemetryOptions(DatastoreOpenTelemetryOptions.newBuilder().build());
+    } else if (datastoreOptions.getCredentials() != null) {
+      builder.setCredentials(datastoreOptions.getCredentials());
     } else {
       log.warning("No credentials found for DatastoreOptions.Builder?");
     }
@@ -51,12 +59,12 @@ public class EnvironmentUtils {
     return builder;
   }
 
-  @VisibleForTesting
-  public static boolean isTestingContext() {
-    return isTestingContext(DatastoreOptions.getDefaultInstance());
+    @VisibleForTesting
+  public static boolean isNotCloudEnvironment() {
+    return isNotCloudEnvironment(DatastoreOptions.getDefaultInstance());
   }
 
-  public static boolean isTestingContext(String projectId) {
+  public static boolean isNotCloudEnvironment(String projectId) {
     return projectId == null ||
            LOCAL_GAE_PROJECT_ID.equals(projectId) ||
            DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID.equals(projectId) ||
@@ -64,8 +72,8 @@ public class EnvironmentUtils {
            getDatastoreEmulatorHost() != null;
   }
 
-  private static boolean isTestingContext(DatastoreOptions options) {
-    return isTestingContext(options.getProjectId());
+  private static boolean isNotCloudEnvironment(DatastoreOptions options) {
+    return isNotCloudEnvironment(options.getProjectId());
   }
 
   private static String getDatastoreEmulatorHost() {

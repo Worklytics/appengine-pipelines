@@ -112,6 +112,6 @@ public class AppEngineHostModule {
   }
 
   boolean isTestingContext(AppEngineEnvironment environment) {
-    return EnvironmentUtils.isTestingContext(environment.getProjectId());
+    return EnvironmentUtils.isNotCloudEnvironment(environment.getProjectId());
   }
 }

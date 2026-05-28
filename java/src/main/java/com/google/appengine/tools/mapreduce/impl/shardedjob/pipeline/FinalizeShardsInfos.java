@@ -2,6 +2,7 @@ package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
 import static java.util.concurrent.Executors.callable;
 
+import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
@@ -31,7 +32,8 @@ public class FinalizeShardsInfos extends Job0<Void> {
 
   @Override
   public Value<Void> run() {
-    Datastore datastore = datastoreOptions.getService();
+    // if coming from deserialization may lose transient properties that cause NPE
+    Datastore datastore = EnvironmentUtils.datastoreBuilderFromDatastoreOptions(datastoreOptions).build().getService();
 
     RetryExecutor.call(
       ShardedJobRunner.FOREVER_RETRYER,

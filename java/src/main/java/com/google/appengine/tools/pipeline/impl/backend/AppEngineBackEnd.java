@@ -15,6 +15,7 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.github.rholder.retry.*;
+import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.model.*;
@@ -132,7 +133,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
     @SneakyThrows
     public static Options defaults() {
       return Options.builder()
-        .datastoreOptions(DatastoreOptions.getDefaultInstance())
+        .datastoreOptions(EnvironmentUtils.datastoreBuilderFromDefaultInstance().build())
         .credentials(GoogleCredentials.getApplicationDefault())
         .projectId(DatastoreOptions.getDefaultProjectId())
         .build();

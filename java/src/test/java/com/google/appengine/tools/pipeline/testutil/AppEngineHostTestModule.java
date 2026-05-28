@@ -60,7 +60,7 @@ public class AppEngineHostTestModule {
 
 
     //before, test harness basically did this by overriding env vars via ApiProxy stuff; see LocalModulesServiceTestConfig
-    if (EnvironmentUtils.isTestingContext()) {
+    if (EnvironmentUtils.isNotCloudEnvironment()) {
       return new AppEngineServicesService() {
         @Override
         public String getLocation() {

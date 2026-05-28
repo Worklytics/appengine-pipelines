@@ -3,6 +3,7 @@ package com.google.appengine.tools.mapreduce;
 import com.google.appengine.tools.EnvironmentUtils;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOpenTelemetryOptions;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.testing.LocalDatastoreHelper;
 import lombok.extern.java.Log;
@@ -67,13 +68,14 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
   public void beforeEach(ExtensionContext extensionContext) throws Exception {
     globalDatastoreHelper.reset();
     log.info("Datastore emulator reset");
-    DatastoreOptions options = globalDatastoreHelper.getOptions().toBuilder()
-      .setProjectId(TEST_DATASTORE_PROJECT_ID)
-      .setCredentials(NoCredentials.getInstance())
-      .setHost("localhost:" + globalDatastoreHelper.getPort())
-      .build();
+    DatastoreOptions.Builder builder = EnvironmentUtils.datastoreBuilderFromDatastoreOptions(globalDatastoreHelper.getOptions());
+    builder.setProjectId(TEST_DATASTORE_PROJECT_ID);
+    builder.setCredentials(NoCredentials.getInstance());
+    builder.setHost("localhost:" + globalDatastoreHelper.getPort());
+    builder.setOpenTelemetryOptions(DatastoreOpenTelemetryOptions.newBuilder().build());
 
-    extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).put(DS_OPTIONS_CONTEXT_KEY, options);
+    DatastoreOptions options = builder.build();
+     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).put(DS_OPTIONS_CONTEXT_KEY, options);
 
     Datastore datastore = options.getService();
     extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).put(DS_CONTEXT_KEY, datastore);

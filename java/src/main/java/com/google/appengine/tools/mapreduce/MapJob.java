@@ -2,6 +2,7 @@
 
 package com.google.appengine.tools.mapreduce;
 
+import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.mapreduce.impl.BaseContext;
 import com.google.appengine.tools.mapreduce.impl.CountersImpl;
 import com.google.appengine.tools.mapreduce.impl.MapOnlyShardTask;
@@ -127,7 +128,7 @@ public class MapJob<I, O, R> extends Job0<MapReduceResult<R>> {
    * @return shardedJobId for this job
    */
   private ShardedJobRunId getShardedJobId() {
-    DatastoreOptions defaultDatastoreOptions = DatastoreOptions.getDefaultInstance();
+    DatastoreOptions defaultDatastoreOptions = EnvironmentUtils.datastoreBuilderFromDefaultInstance().build();
 
     return ShardedJobRunId.of(
       java.util.Optional.ofNullable(settings.getProjectId()).orElseGet(defaultDatastoreOptions::getProjectId),
