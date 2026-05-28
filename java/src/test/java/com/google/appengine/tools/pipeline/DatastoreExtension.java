@@ -66,7 +66,7 @@ public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, 
   public void beforeEach(ExtensionContext extensionContext) throws Exception {
     globalDatastoreHelper.reset();
     log.info("Datastore emulator reset");
-    DatastoreOptions options = globalDatastoreHelper.getOptions().toBuilder()
+    DatastoreOptions options = EnvironmentUtils.datastoreBuilderFromDatastoreOptions(globalDatastoreHelper.getOptions())
       .setProjectId(TEST_DATASTORE_PROJECT_ID)
       .build();
 

@@ -256,9 +256,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        DatastoreOptions.Builder b = EnvironmentUtils.datastoreBuilderFromDefaultInstance();
-        java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
-        datastore = b.build().getService();
+        datastore = settings.getDatastoreOptions().getService();
       }
       return datastore;
     }
@@ -360,9 +358,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        DatastoreOptions.Builder b = EnvironmentUtils.datastoreBuilderFromDefaultInstance();
-        java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
-        datastore = b.build().getService();
+        datastore = settings.getDatastoreOptions().getService();
       }
       return datastore;
     }
@@ -495,9 +491,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        DatastoreOptions.Builder b = EnvironmentUtils.datastoreBuilderFromDefaultInstance();
-        java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
-        datastore = b.build().getService();
+        datastore = settings.getDatastoreOptions().getService();
       }
       return datastore;
     }
