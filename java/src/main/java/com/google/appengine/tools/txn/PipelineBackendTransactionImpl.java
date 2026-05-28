@@ -9,7 +9,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -297,17 +296,4 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     rollbackTasks();
   }
 
-  @Override
-  protected void finalize() throws Throwable {
-    try {
-      if (this.getDsTransaction().isActive()) {
-        // shouldn't happen, unless opening tnx just for read, just is kind of absurd in
-        // a strong consistency model
-        log.log(Level.WARNING, String.format("Finalizing PipelineBackendTransactionImpl transaction open for %s",
-            stopwatch.elapsed(TimeUnit.MILLISECONDS)));
-      }
-    } finally {
-      super.finalize();
-    }
-  }
 }
