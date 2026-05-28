@@ -37,6 +37,10 @@ public class EnvironmentUtils {
       .setHost(datastoreOptions.getHost())
       .setOpenTelemetryOptions(datastoreOptions.getOpenTelemetryOptions());
 
+    // set emulator host if needed
+    if (getDatastoreEmulatorHost() != null) {
+      builder.setHost(getDatastoreEmulatorHost());
+    }
     if (isNotCloudEnvironment(datastoreOptions)) {
       // override credentials
       builder.setCredentials(NoCredentials.getInstance());
@@ -44,10 +48,6 @@ public class EnvironmentUtils {
       if (LOCAL_GAE_PROJECT_ID.equals(datastoreOptions.getProjectId())) {
         log.info("pipelines fw detected running locally with GAE projectId set as '%s'; this isn't legal GCP project id, so changing to '%s'".formatted(LOCAL_GAE_PROJECT_ID, DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID));
         builder.setProjectId(DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID);
-      }
-      // set emulator host if needed
-      if (getDatastoreEmulatorHost() != null) {
-        builder.setHost(getDatastoreEmulatorHost());
       }
       builder.setOpenTelemetryOptions(DatastoreOpenTelemetryOptions.newBuilder().build());
     } else if (datastoreOptions.getCredentials() != null) {
@@ -68,8 +68,7 @@ public class EnvironmentUtils {
     return projectId == null ||
            LOCAL_GAE_PROJECT_ID.equals(projectId) ||
            DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID.equals(projectId) ||
-           TEST_PROJECT_ID.equals(projectId) ||
-           getDatastoreEmulatorHost() != null;
+           TEST_PROJECT_ID.equals(projectId);
   }
 
   private static boolean isNotCloudEnvironment(DatastoreOptions options) {

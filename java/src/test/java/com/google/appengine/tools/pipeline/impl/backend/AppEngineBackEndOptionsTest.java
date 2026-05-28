@@ -25,7 +25,8 @@ class AppEngineBackEndOptionsTest {
     //TODO: replace this with GoogleCredentials.getApplicationDefault() when it's available, if we ever auth the Github
     // Action with GCP (debatably necessary for integration tests)
     GoogleCredentials credentials = GoogleCredentials.newBuilder()
-      .setQuotaProjectId("test-project")
+      // use some non-local/test project id to not override the credentials
+      .setQuotaProjectId("some-project")
       .setAccessToken(AccessToken.newBuilder().setTokenValue("token").setExpirationTime(new Date()).build())
       .build();
 

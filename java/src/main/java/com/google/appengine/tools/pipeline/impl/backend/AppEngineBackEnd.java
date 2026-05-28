@@ -115,7 +115,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   // Only used in tests
   public AppEngineBackEnd(Options options, PipelineTaskQueue taskQueue, AppEngineServicesService appEngineServicesService) {
-    this(options.getDatastoreOptions().getService(), taskQueue, appEngineServicesService);
+    this(EnvironmentUtils.datastoreBuilderFromDatastoreOptions(options.getDatastoreOptions()).build().getService(), taskQueue, appEngineServicesService);
   }
 
   @Builder
@@ -132,10 +132,11 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
     @SneakyThrows
     public static Options defaults() {
+      DatastoreOptions dsOptions = EnvironmentUtils.datastoreBuilderFromDefaultInstance().build();
       return Options.builder()
-        .datastoreOptions(EnvironmentUtils.datastoreBuilderFromDefaultInstance().build())
+        .datastoreOptions(dsOptions)
         .credentials(GoogleCredentials.getApplicationDefault())
-        .projectId(DatastoreOptions.getDefaultProjectId())
+        .projectId(dsOptions.getProjectId())
         .build();
     }
 
