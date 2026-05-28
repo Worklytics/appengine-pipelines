@@ -8,7 +8,7 @@
   <url>https://github.com/Worklytics/appengine-pipelines/</url>
   <!-- follow semver, with suggested guidance for versioning fork of OSS -->
   <!-- see https://gofore.com/en/best-practices-for-forking-a-git-repo/ -->
-  <version>0.3+worklytics.14</version>
+  <version>${revision}</version>
   <packaging>jar</packaging>
   <licenses>
     <license>
@@ -17,10 +17,11 @@
     </license>
   </licenses>
   <properties>
+    <revision>0.3+worklytics.14</revision>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <jackson.version>[2.9, 2.99)</jackson.version> <!-- 2.9+ required for @JsonSerializeAs; upper bound 2.99 (not 3.0) because Maven treats 3.0-rc* as < 3.0, causing it to satisfy [x, 3.0) -->
+    <jackson.version>[2.18.2, 2.18.3)</jackson.version> <!-- 2.18.2+ (stable) -->
     <dagger.version>2.55</dagger.version> <!-- 2.55+ adds support for injecting jakarta.inject.Provider -->
-    <lombok.version>1.18.36</lombok.version> <!-- only compile-time dependency -->
+    <lombok.version>1.18.42</lombok.version> <!-- only compile-time dependency -->
     <appengine.target.version>[2.0.4, 3.0)</appengine.target.version> <!-- now only for tests -->
   </properties>
 
@@ -83,7 +84,7 @@
       <dependency>
         <groupId>com.google.cloud</groupId>
         <artifactId>libraries-bom</artifactId>
-        <version>26.53.0</version>
+        <version>26.83.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -143,13 +144,13 @@
     <dependency>
       <groupId>org.json</groupId>
       <artifactId>json</artifactId>
-      <version>20231013</version>
+      <version>20251224</version>
     </dependency>
     <!-- https://mvnrepository.com/artifact/it.unimi.dsi/fastutil-core -->
     <dependency>
       <groupId>it.unimi.dsi</groupId>
       <artifactId>fastutil-core</artifactId>
-      <version>[8.5.1, 8.6.0)</version>
+      <version>[8.5.15, 8.7.0)</version>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -247,7 +248,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
        <artifactId>mockito-core</artifactId>
-       <version>5.15.2</version>
+       <version>5.21.0</version>
        <scope>test</scope>
     </dependency>
 
