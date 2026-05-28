@@ -2,18 +2,28 @@
 
 package com.google.appengine.tools.mapreduce;
 
+import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.mapreduce.impl.*;
-import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
 import com.google.appengine.tools.mapreduce.impl.pipeline.CleanupPipelineJob;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ExamineStatusAndReturnResult;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ResultAndStatus;
 import com.google.appengine.tools.mapreduce.impl.pipeline.ShardedJob;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
-import com.google.appengine.tools.mapreduce.impl.sort.*;
+import com.google.appengine.tools.mapreduce.impl.sort.MergeContext;
+import com.google.appengine.tools.mapreduce.impl.sort.MergeShardTask;
+import com.google.appengine.tools.mapreduce.impl.sort.SortContext;
+import com.google.appengine.tools.mapreduce.impl.sort.SortShardTask;
+import com.google.appengine.tools.mapreduce.impl.sort.SortWorker;
 import com.google.appengine.tools.mapreduce.inputs.GoogleCloudStorageLineInput;
 import com.google.appengine.tools.mapreduce.outputs.GoogleCloudStorageFileOutput;
-import com.google.appengine.tools.pipeline.*;
+import com.google.appengine.tools.pipeline.FutureValue;
+import com.google.appengine.tools.pipeline.Job0;
+import com.google.appengine.tools.pipeline.Job1;
+import com.google.appengine.tools.pipeline.JobRunId;
+import com.google.appengine.tools.pipeline.PipelineOrchestrator;
+import com.google.appengine.tools.pipeline.PromisedValue;
+import com.google.appengine.tools.pipeline.Value;
 import com.google.appengine.tools.pipeline.impl.PipelineManager;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
 import com.google.cloud.datastore.Datastore;
@@ -31,7 +41,11 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.io.Serial;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -242,7 +256,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        DatastoreOptions.Builder b = RequestUtils.builderFromDefaultInstance();
+        DatastoreOptions.Builder b = EnvironmentUtils.datastoreBuilderFromDefaultInstance();
         java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
         datastore = b.build().getService();
       }
@@ -346,7 +360,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        DatastoreOptions.Builder b = RequestUtils.builderFromDefaultInstance();
+        DatastoreOptions.Builder b = EnvironmentUtils.datastoreBuilderFromDefaultInstance();
         java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
         datastore = b.build().getService();
       }
@@ -481,7 +495,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        DatastoreOptions.Builder b = RequestUtils.builderFromDefaultInstance();
+        DatastoreOptions.Builder b = EnvironmentUtils.datastoreBuilderFromDefaultInstance();
         java.util.Optional.ofNullable(settings.getNamespace()).ifPresent(b::setNamespace);
         datastore = b.build().getService();
       }
@@ -608,7 +622,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
   //NOTE: very coupled to `MapReduceSettings` implementation; could be there, but don't want to couple that to FW implementation
   // and also don't want it to be public, as would be exposed to API
   private DatastoreOptions getDatastoreOptions(@NonNull MapReduceSettings settings) {
-    DatastoreOptions.Builder builder = RequestUtils.builderFromDefaultInstance();
+    DatastoreOptions.Builder builder = EnvironmentUtils.datastoreBuilderFromDefaultInstance();
     java.util.Optional.ofNullable(settings.getDatastoreHost()).ifPresent(builder::setHost);
     java.util.Optional.ofNullable(settings.getProjectId()).ifPresent(builder::setProjectId);
     java.util.Optional.ofNullable(settings.getDatabaseId()).ifPresent(builder::setDatabaseId);

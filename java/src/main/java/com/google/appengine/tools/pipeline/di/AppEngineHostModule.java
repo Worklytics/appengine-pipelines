@@ -1,13 +1,17 @@
 package com.google.appengine.tools.pipeline.di;
 
-import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
-import com.google.appengine.tools.pipeline.impl.backend.*;
+import com.google.appengine.tools.EnvironmentUtils;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineStandardGen2;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
+import com.google.appengine.tools.pipeline.impl.backend.CloudTasksTaskQueue;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.appengine.v1.ApplicationsClient;
 import com.google.appengine.v1.ServicesClient;
 import com.google.appengine.v1.VersionsClient;
-import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.tasks.v2.CloudTasksClient;
-import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
 import lombok.SneakyThrows;
@@ -108,6 +112,6 @@ public class AppEngineHostModule {
   }
 
   boolean isTestingContext(AppEngineEnvironment environment) {
-    return RequestUtils.LOCAL_GAE_PROJECT_ID.equals(environment.getProjectId()) || "test-project" .equals(environment.getProjectId());
+    return EnvironmentUtils.isTestingContext(environment.getProjectId());
   }
 }

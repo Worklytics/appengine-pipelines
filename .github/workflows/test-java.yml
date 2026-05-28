@@ -42,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: compile
     strategy:
+      fail-fast: true
       matrix:
         package: [ "com.google.appengine.tools.cloudtasktest.**",
                    "com.google.appengine.tools.mapreduce.impl.**",

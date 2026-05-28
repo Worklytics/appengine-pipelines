@@ -1,15 +1,18 @@
 package com.google.appengine.tools.pipeline;
 
+import com.google.appengine.tools.EnvironmentUtils;
 import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.DatastoreOpenTelemetryOptions;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.testing.LocalDatastoreHelper;
-import io.opentelemetry.api.OpenTelemetry;
 import lombok.extern.java.Log;
-import org.junit.jupiter.api.extension.*;
+import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.api.extension.ParameterResolutionException;
 
 import java.net.ConnectException;
-import java.time.Duration;
 import java.util.logging.Level;
 
 /**
@@ -21,7 +24,7 @@ import java.util.logging.Level;
 @Log
 public class DatastoreExtension implements BeforeAllCallback, AfterAllCallback, BeforeEachCallback {
 
-  public static String TEST_DATASTORE_PROJECT_ID = "test-project";
+  public static String TEST_DATASTORE_PROJECT_ID = EnvironmentUtils.TEST_PROJECT_ID;
   public static String DS_CONTEXT_KEY = "ds-emulator";
   public static String DS_OPTIONS_CONTEXT_KEY = "ds-options";
 

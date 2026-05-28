@@ -1,23 +1,16 @@
 package com.google.appengine.tools.mapreduce.impl.util;
 
+import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
-import com.google.appengine.tools.pipeline.JobRunId;
-import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
-import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
-import com.google.appengine.tools.pipeline.impl.model.JobRecord;
-import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
-import com.google.cloud.datastore.Key;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 import javax.servlet.http.HttpServletRequest;
-
 import java.net.URLDecoder;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -44,7 +37,7 @@ class RequestUtilsTest {
   @Test
   public void localBootstrap() {
     //make this like local situation
-    System.setProperty("GOOGLE_CLOUD_PROJECT", "no_app_id");
+    System.setProperty("GOOGLE_CLOUD_PROJECT", EnvironmentUtils.LOCAL_GAE_PROJECT_ID);
     System.setProperty("DATASTORE_EMULATOR_HOST", "http://localhost:8081");
 
     RequestUtils requestUtils = new RequestUtils();
