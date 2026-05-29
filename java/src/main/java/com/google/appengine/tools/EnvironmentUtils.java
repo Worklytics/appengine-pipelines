@@ -65,7 +65,8 @@ public class EnvironmentUtils {
   }
 
   public static boolean isNotCloudEnvironment(String projectId) {
-    return getDatastoreEmulatorHost() != null &&
+    // datastore emulator check should suffice
+    return getDatastoreEmulatorHost() != null ||
            projectId == null ||
            LOCAL_GAE_PROJECT_ID.equals(projectId) ||
            DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID.equals(projectId) ||
