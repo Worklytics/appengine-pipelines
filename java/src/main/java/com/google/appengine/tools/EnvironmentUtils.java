@@ -37,11 +37,11 @@ public class EnvironmentUtils {
       .setHost(datastoreOptions.getHost())
       .setOpenTelemetryOptions(datastoreOptions.getOpenTelemetryOptions());
 
-    // set emulator host if needed
-    if (getDatastoreEmulatorHost() != null) {
-      builder.setHost(getDatastoreEmulatorHost());
-    }
     if (isNotCloudEnvironment(datastoreOptions)) {
+      // set emulator host if needed
+      if (getDatastoreEmulatorHost() != null) {
+        builder.setHost(getDatastoreEmulatorHost());
+      }
       // override credentials
       builder.setCredentials(NoCredentials.getInstance());
       // set valid project id if needed
@@ -65,7 +65,8 @@ public class EnvironmentUtils {
   }
 
   public static boolean isNotCloudEnvironment(String projectId) {
-    return projectId == null ||
+    return getDatastoreEmulatorHost() != null &&
+           projectId == null ||
            LOCAL_GAE_PROJECT_ID.equals(projectId) ||
            DEFAULT_OVERRIDE_LOCAL_GAE_PROJECT_ID.equals(projectId) ||
            TEST_PROJECT_ID.equals(projectId);
