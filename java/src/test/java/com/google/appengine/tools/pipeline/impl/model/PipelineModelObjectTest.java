@@ -17,6 +17,7 @@ class PipelineModelObjectTest {
     assertEquals("project", key.getProjectId());
     assertEquals("ns", key.getNamespace());
     assertEquals("Kind", key.getKind());
+    assertNull(key.getDatabase())
 
     // validate key.getName() is legal for GCP cloud datastore
     assertTrue(key.getName().matches("^[a-zA-Z0-9\\-_.~]+$"));
