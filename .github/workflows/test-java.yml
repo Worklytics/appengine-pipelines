@@ -64,6 +64,8 @@ jobs:
             package: "com.google.appengine.tools.mapreduce.*Test"
           - name: pipeline
             package: "com.google.appengine.tools.pipeline.**"
+          - name: tools-and-txn
+            package: "com.google.appengine.tools.*Test,com.google.appengine.tools.txn.**"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
