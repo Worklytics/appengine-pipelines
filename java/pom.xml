@@ -19,14 +19,14 @@
   <properties>
     <revision>0.3+worklytics.14.3</revision>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <!-- 2.18.6 is the security floor. 2.99 keeps any 2.x and excludes 3.x pre-releases. -->
-    <jackson.version>[2.18.6,2.99]</jackson.version>
-    <!-- Floor is the app / libraries-bom 26.89.0 Guava. 33.99 excludes 34.x-jre, which sorts below 34. -->
-    <guava.version>[33.6.0-jre,33.99]</guava.version>
-    <dagger.version>[2.55,2.99]</dagger.version> <!-- 2.55+ injects jakarta.inject.Provider; 2.99 excludes 3.x -->
-    <lombok.version>[1.18.42,1.99]</lombok.version> <!-- compile-time only; 1.99 excludes 2.x -->
-    <!-- Includes the app's 2.0.23. 2.99 excludes 3.0.0-beta, which sorts below 3.0. -->
-    <appengine.target.version>[2.0.4,2.99]</appengine.target.version>
+    <!-- ')' is strictly less than. 3.0.0-alpha is the first pre-release, so this is any 2.x at or above the 2.18.6 security floor. -->
+    <jackson.version>[2.18.6,3.0.0-alpha)</jackson.version>
+    <!-- Same bound. 34.0.0-rc1 sorts below 34, and 34.0.0-jre sorts above it, so < 34 is the wrong ceiling. -->
+    <guava.version>[33.6.0-jre,34.0.0-alpha)</guava.version>
+    <dagger.version>[2.55,3.0.0-alpha)</dagger.version> <!-- 2.55+ injects jakarta.inject.Provider -->
+    <lombok.version>[1.18.42,2.0.0-alpha)</lombok.version> <!-- compile-time only -->
+    <!-- Includes the app's 2.0.23. < 3.0.0-alpha excludes 3.0.0-beta, which sorts below 3.0. -->
+    <appengine.target.version>[2.0.4,3.0.0-alpha)</appengine.target.version>
   </properties>
 
   <distributionManagement>
@@ -163,7 +163,7 @@
     <dependency>
       <groupId>it.unimi.dsi</groupId>
       <artifactId>fastutil-core</artifactId>
-      <version>[8.5.15,8.99]</version>
+      <version>[8.5.15,9.0.0-alpha)</version>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -266,7 +266,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
        <artifactId>mockito-core</artifactId>
-       <version>[5.23.0,5.99]</version>
+       <version>[5.23.0,6.0.0-alpha)</version>
        <scope>test</scope>
     </dependency>
 
