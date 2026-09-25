@@ -224,7 +224,7 @@ public interface JobSetting extends Serializable {
 
     public DatastoreDatabase(String datastoreDatabase) {
       super(datastoreDatabase);
-      if (datastoreDatabase != null && !datastoreDatabase.isEmpty() && !datastoreDatabase.equals("(default)")) {
+      if (StringUtils.isNotBlank(datastoreDatabase) && !"default".equalsIgnoreCase(datastoreDatabase)) {
         if (!datastoreDatabase.matches("^[a-z][a-z0-9-]{1,61}[a-z0-9]$")) {
           throw new IllegalArgumentException("Invalid Datastore database ID: " + datastoreDatabase);
         }
