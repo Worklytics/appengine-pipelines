@@ -85,9 +85,22 @@ jobs:
         with:
           path: ${{ github.workspace }}/**/target/**/*.*
           key: ${{ runner.os }}-${{ env.CODE_CACHE_VERSION }}-${{ github.ref_name }}-${{ github.sha }}
+      - name: Start Cloud Storage emulator
+        run: |
+          docker run -d --name fake-gcs -p 4443:4443 \
+            fsouza/fake-gcs-server:1.56.1 \
+            -scheme http -port 4443 -external-url http://localhost:4443 -backend memory
+          for _ in $(seq 1 30); do
+            curl -sf "http://localhost:4443/storage/v1/b?project=test-project" && exit 0
+            sleep 1
+          done
+          echo "fake-gcs-server did not become ready" >&2
+          docker logs fake-gcs >&2 || true
+          exit 1
       - name: Run Tests for Package ${{ matrix.name }}
         env:
           APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY: ${{ secrets.APPENGINE_MAPREDUCE_CI_SERVICE_ACCOUNT_KEY }}
+          STORAGE_EMULATOR_HOST: http://localhost:4443
         run: |
           cd java/
           mvn test -T 1C -B "-Dtest=${{ matrix.package }}" -Dversions.logOutput=false -DprocessDependencies=false -DprocessDependencyManagement=false
