@@ -2,9 +2,11 @@ package com.google.appengine.tools.txn;
 
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreExecutionOptions;
 import com.google.cloud.datastore.Transaction;
 import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.BeforeEach;
+import org.mockito.InOrder;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -43,6 +45,22 @@ class PipelineBackendTransactionImplTest {
 
     verify(mockTransaction).commit();
     verify(mockTaskQueue).enqueue(anyString(), anyCollection());
+  }
+
+  @Test
+  void commitWithExecutionOptionsForwardsOptionsThenEnqueuesTasks() {
+    DatastoreExecutionOptions options = DatastoreExecutionOptions.newBuilder().build();
+    when(mockTransaction.isActive()).thenReturn(true);
+    when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenReturn(Collections.emptyList());
+
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder()
+        .method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.commit(options);
+
+    InOrder order = inOrder(mockTransaction, mockTaskQueue);
+    order.verify(mockTransaction).commit(same(options));
+    order.verify(mockTaskQueue).enqueue(anyString(), anyCollection());
+    verify(mockTransaction, never()).commit();
   }
 
   @Test
@@ -91,6 +109,20 @@ class PipelineBackendTransactionImplTest {
     pipelineBackendTransaction.rollback();
 
     verify(mockTransaction).rollback();
+    assertTrue(pipelineBackendTransaction.getPendingTaskSpecsByQueue().isEmpty());
+  }
+
+  @Test
+  void rollbackWithExecutionOptionsForwardsOptionsAndClearsTasks() {
+    DatastoreExecutionOptions options = DatastoreExecutionOptions.newBuilder().build();
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder()
+        .method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+
+    pipelineBackendTransaction.rollback(options);
+
+    verify(mockTransaction).rollback(same(options));
+    verify(mockTransaction, never()).rollback();
+    verify(mockTaskQueue, never()).enqueue(anyString(), anyCollection());
     assertTrue(pipelineBackendTransaction.getPendingTaskSpecsByQueue().isEmpty());
   }
 

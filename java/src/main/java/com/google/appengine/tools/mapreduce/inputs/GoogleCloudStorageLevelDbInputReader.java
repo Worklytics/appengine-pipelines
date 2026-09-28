@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 import java.io.Serial;
+import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
 
 @RequiredArgsConstructor
@@ -91,6 +93,15 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   public ReadableByteChannel createReadableByteChannel() {
     ReadChannel reader = getClient().reader(file.asBlobId());
     reader.setChunkSize(options.getBufferSize());
+    // The Cloud Storage emulator returns HTTP 416 for a range that starts at the object
+    // size. The storage client is supposed to turn that into end-of-stream; against the
+    // emulator that status still fails the slice. Stop before issuing that read.
+    if (GcpCredentialOptions.storageEmulatorHost().isPresent()) {
+      Blob blob = getClient().get(file.asBlobId());
+      if (blob != null && blob.getSize() != null) {
+        return new StopAtObjectSizeChannel(reader, blob.getSize());
+      }
+    }
     return reader;
   }
 
@@ -102,5 +113,47 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
   private void resetClient() {
     CloseUtils.closeQuietly(getClient());
     this.client = null;
+  }
+
+  /**
+   * Returns end-of-stream once {@code size} bytes have been delivered, so the delegate is not
+   * asked to read at the object's end.
+   */
+  private static final class StopAtObjectSizeChannel implements ReadableByteChannel {
+    private final ReadableByteChannel delegate;
+    private final long size;
+    private long delivered;
+    private boolean open = true;
+
+    private StopAtObjectSizeChannel(ReadableByteChannel delegate, long size) {
+      this.delegate = delegate;
+      this.size = size;
+    }
+
+    @Override
+    public int read(ByteBuffer dst) throws IOException {
+      if (!open) {
+        throw new ClosedChannelException();
+      }
+      if (delivered >= size) {
+        return -1;
+      }
+      int n = delegate.read(dst);
+      if (n > 0) {
+        delivered += n;
+      }
+      return n;
+    }
+
+    @Override
+    public boolean isOpen() {
+      return open;
+    }
+
+    @Override
+    public void close() throws IOException {
+      open = false;
+      delegate.close();
+    }
   }
 }

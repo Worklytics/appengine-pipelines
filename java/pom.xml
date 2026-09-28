@@ -17,12 +17,16 @@
     </license>
   </licenses>
   <properties>
-    <revision>0.3+worklytics.14.2</revision>
+    <revision>0.3+worklytics.14.3</revision>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <jackson.version>[2.18.6, 2.19.0)</jackson.version> <!-- 2.18.6+ (stable) -->
-    <dagger.version>2.55</dagger.version> <!-- 2.55+ adds support for injecting jakarta.inject.Provider -->
-    <lombok.version>1.18.42</lombok.version> <!-- only compile-time dependency -->
-    <appengine.target.version>[2.0.4, 3.0)</appengine.target.version> <!-- now only for tests -->
+    <!-- ')' is strictly less than. 3.0.0-alpha is the first pre-release, so this is any 2.x at or above the 2.18.6 security floor. -->
+    <jackson.version>[2.18.6,3.0.0-alpha)</jackson.version>
+    <!-- Same bound. 34.0.0-rc1 sorts below 34, and 34.0.0-jre sorts above it, so < 34 is the wrong ceiling. -->
+    <guava.version>[33.6.0-jre,34.0.0-alpha)</guava.version>
+    <dagger.version>[2.55,3.0.0-alpha)</dagger.version> <!-- 2.55+ injects jakarta.inject.Provider -->
+    <lombok.version>[1.18.42,2.0.0-alpha)</lombok.version> <!-- compile-time only -->
+    <!-- Includes the app's 2.0.23. < 3.0.0-alpha excludes 3.0.0-beta, which sorts below 3.0. -->
+    <appengine.target.version>[2.0.4,3.0.0-alpha)</appengine.target.version>
   </properties>
 
   <distributionManagement>
@@ -97,7 +101,8 @@
       <dependency>
         <groupId>com.google.cloud</groupId>
         <artifactId>libraries-bom</artifactId>
-        <version>26.83.0</version>
+        <!-- Match Worklytics evalengin. 26.83.0 resolved google-cloud-datastore 3.0.0, which starts a private PeriodicMetricReader. 26.89.0 resolves 3.6.0. -->
+        <version>26.89.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -135,7 +140,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>[32.1,32.99]</version>
+      <version>${guava.version}</version>
     </dependency>
 <!--    <dependency>-->
 <!--      <groupId>jakarta.servlet</groupId>-->
@@ -158,7 +163,7 @@
     <dependency>
       <groupId>it.unimi.dsi</groupId>
       <artifactId>fastutil-core</artifactId>
-      <version>[8.5.15, 8.7.0)</version>
+      <version>[8.5.15,9.0.0-alpha)</version>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -261,7 +266,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
        <artifactId>mockito-core</artifactId>
-       <version>5.23.0</version>
+       <version>[5.23.0,6.0.0-alpha)</version>
        <scope>test</scope>
     </dependency>
 

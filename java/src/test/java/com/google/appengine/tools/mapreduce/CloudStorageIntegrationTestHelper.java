@@ -3,6 +3,7 @@ package com.google.appengine.tools.mapreduce;
 import com.google.appengine.tools.development.testing.LocalServiceTestConfig;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -66,9 +67,15 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
   public void setUp() {
 
     String keyVar = System.getenv(KEY_ENV_VAR);
+    var emulatorHost = GcpCredentialOptions.storageEmulatorHost();
 
-
-    if (keyVar == null) {
+    if (emulatorHost.isPresent()) {
+      // CI's service-account key is rejected by Google (invalid JWT signature). The emulator
+      // stands in for the bucket so those tests still exercise the storage client.
+      projectId = "test-project";
+      credentials = NoCredentials.getInstance();
+      storage = GcpCredentialOptions.emulatorStorage(emulatorHost.get(), projectId);
+    } else if (keyVar == null) {
       //attempt w default credentials
       credentials = StorageOptions.getDefaultInstance().getCredentials();
 
@@ -85,18 +92,23 @@ public class CloudStorageIntegrationTestHelper implements LocalServiceTestConfig
       projectId = ((ServiceAccountCredentials) credentials).getProjectId();
     }
 
-    storage = StorageOptions.newBuilder()
-      .setCredentials(credentials)
-      .setProjectId(projectId)
-      .build().getService();
+    if (storage == null) {
+      storage = StorageOptions.newBuilder()
+        .setCredentials(credentials)
+        .setProjectId(projectId)
+        .build().getService();
+    }
     if (bucket == null) {
       bucket = RemoteStorageHelper.generateBucketName();
 
       //avoid test data being retained forever, even if bucket deletion post-test fails
-      storage.create(BucketInfo.newBuilder(bucket)
-        .setLifecycleRules(defaultTestDataLifecycle())
-        .setSoftDeletePolicy(null) // no soft-deletion
-        .build());
+      BucketInfo.Builder bucketInfo = BucketInfo.newBuilder(bucket);
+      if (emulatorHost.isEmpty()) {
+        bucketInfo
+          .setLifecycleRules(defaultTestDataLifecycle())
+          .setSoftDeletePolicy(null); // no soft-deletion
+      }
+      storage.create(bucketInfo.build());
       Logger.getAnonymousLogger().log(Level.INFO, "Creating bucket: " + bucket);
 
       //delete bucket at shutdown
