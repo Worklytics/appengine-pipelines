@@ -15,7 +15,6 @@
 package com.google.appengine.tools.pipeline.impl.model;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -24,11 +23,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.google.appengine.tools.pipeline.impl.util.EntityUtils;
-import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.KeyFactory;
-import com.google.cloud.datastore.PathElement;
 import com.google.cloud.datastore.Value;
 
 import lombok.Getter;
@@ -146,10 +142,16 @@ public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
 
     if (null == thisKey) {
       if (egParentKey == null) {
-        key = generateKey(rootJobKey.getProjectId(), rootJobKey.getDatabaseId(), rootJobKey.getNamespace(),
-            getDatastoreKind());
+        key = PipelineObjectKey.builder()
+            .projectId(rootJobKey.getProjectId())
+            .databaseId(rootJobKey.getDatabaseId())
+            .namespace(rootJobKey.getNamespace())
+            .kind(getDatastoreKind())
+            .name(PipelineObjectKey.newName())
+            .build()
+            .toDatastoreKey();
       } else {
-        key = generateKey(egParentKey, getDatastoreKind());
+        key = PipelineObjectKey.childOf(egParentKey, getDatastoreKind()).toDatastoreKey();
       }
     } else {
       if (egParentKey != null) {
@@ -208,54 +210,6 @@ public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
     }
 
     this.expireAt = ExpiringDatastoreEntity.getExpireAt(entity);
-  }
-
-  protected static Key generateKey(Key parentKey, String kind) {
-    String name = GUIDGenerator.nextGUID();
-
-    KeyFactory keyFactory = new KeyFactory(parentKey.getProjectId(), parentKey.getNamespace());
-    if (parentKey.getDatabaseId() != null && !parentKey.getDatabaseId().isEmpty()) {
-      keyFactory.setDatabaseId(parentKey.getDatabaseId());
-    }
-    keyFactory.addAncestors(parentKey.getAncestors());
-    keyFactory.addAncestor(PathElement.of(parentKey.getKind(), parentKey.getName()));
-    keyFactory.setKind(kind);
-    return keyFactory.newKey(name);
-  }
-
-  public static Key generateKey(@NonNull String projectId, String databaseId, String namespace,
-      @NonNull String dataStoreKind) {
-
-    // ISO date + time (to second) as a suffix, to aid human
-    // readability/traceability; any place we log job id, we know when it was
-    // triggered
-
-    // q: why not swap it to a prefix?
-    // pro:
-    // - even easier to read
-    // - free index by time
-    // con:
-    // - index will be hot
-
-    // TODO: swap this once have per-tenant database/namespace, which should limit
-    // the index overheat issue
-    String name = GUIDGenerator.nextGUID().replace("-", "") // avoid collision
-        + "_" +
-        Instant.now().truncatedTo(ChronoUnit.SECONDS).toString()
-            .replace(":", "")
-            .replace("T", "_")
-            .replace("Z", "")
-            .replace("-", "");
-
-    KeyFactory keyFactory = new KeyFactory(projectId);
-    if (databaseId != null && !databaseId.isEmpty()) {
-      keyFactory.setDatabaseId(databaseId);
-    }
-    if (namespace != null) { // null implies default
-      keyFactory.setNamespace(namespace);
-    }
-    keyFactory.setKind(dataStoreKind);
-    return keyFactory.newKey(name);
   }
 
   private static Key extractRootJobKey(Entity entity) {

@@ -12,7 +12,13 @@ class PipelineModelObjectTest {
   @Test
   void generateKey() {
 
-    Key key = PipelineModelObject.generateKey("project", null, "ns", "Kind");
+    Key key = PipelineObjectKey.builder()
+        .projectId("project")
+        .namespace("ns")
+        .kind("Kind")
+        .name(PipelineObjectKey.newName())
+        .build()
+        .toDatastoreKey();
 
     assertEquals("project", key.getProjectId());
     assertEquals("ns", key.getNamespace());

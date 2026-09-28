@@ -47,7 +47,6 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.BooleanValue;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.KeyFactory;
 import com.google.cloud.datastore.KeyValue;
 import com.google.cloud.datastore.LongValue;
 import com.google.cloud.datastore.StringValue;
@@ -563,7 +562,14 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
         JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings).orElse(null));
     String databaseId = JobSetting.canonicalDatabaseId(
         JobSetting.getSettingValue(JobSetting.DatastoreDatabase.class, settings).orElse(null));
-    Key key = generateKey(projectId, databaseId, namespace, DATA_STORE_KIND);
+    Key key = PipelineObjectKey.builder()
+        .projectId(projectId)
+        .databaseId(databaseId)
+        .namespace(namespace)
+        .kind(DATA_STORE_KIND)
+        .name(PipelineObjectKey.newName())
+        .build()
+        .toDatastoreKey();
     return new JobRecord(key, jobInstance, settings, serializationStrategy);
   }
 
@@ -741,22 +747,14 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   }
 
   @VisibleForTesting
-  public static Key key(String projectId, String databaseId, String namespace, String localJobHandle) {
-    KeyFactory keyFactory = new KeyFactory(projectId);
-    keyFactory.setKind(DATA_STORE_KIND);
-
-    if (databaseId != null && !databaseId.isEmpty()) {
-      keyFactory.setDatabaseId(databaseId);
-    }
-    if (namespace != null && !namespace.isEmpty()) {
-      keyFactory.setNamespace(namespace);
-    }
-    return keyFactory.newKey(localJobHandle);
-  }
-
-  @VisibleForTesting
   public static Key keyFromPipelineHandle(JobRunId pipelineHandle) {
-    return key(pipelineHandle.getProject(), pipelineHandle.getDatabaseId(), pipelineHandle.getNamespace(),
-        pipelineHandle.getJobId());
+    return PipelineObjectKey.builder()
+        .projectId(pipelineHandle.getProject())
+        .databaseId(pipelineHandle.getDatabaseId())
+        .namespace(pipelineHandle.getNamespace())
+        .kind(DATA_STORE_KIND)
+        .name(pipelineHandle.getJobId())
+        .build()
+        .toDatastoreKey();
   }
 }
