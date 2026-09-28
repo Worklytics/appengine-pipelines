@@ -243,7 +243,7 @@ public interface JobSetting extends Serializable {
     public DatastoreNamespace(String datastoreNameSpace) {
       super(datastoreNameSpace);
       if (datastoreNameSpace != null) {
-        if (!datastoreNameSpace.matches("^[0-9A-Za-z._-]{0,100}$")) {
+        if (!datastoreNameSpace.matches("^(?!__.*__$)[0-9A-Za-z._-]{0,100}$")) {
           throw new IllegalArgumentException("Invalid Datastore namespace: " + datastoreNameSpace);
         }
       }
