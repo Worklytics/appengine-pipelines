@@ -570,9 +570,10 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
       queueSettings.setOnQueue(((OnQueue) setting).getValue());
     } else if (setting instanceof StatusConsoleUrl) {
       statusConsoleUrl = ((StatusConsoleUrl) setting).getValue();
-    } else if (setting instanceof JobSetting.DatastoreNamespace ||
-        setting instanceof JobSetting.DatastoreDatabase) {
-      // ignore; applied in constructor, bc they are final
+    } else if (setting instanceof JobSetting.DatastoreNamespace) {
+      queueSettings.setNamespace(((JobSetting.DatastoreNamespace) setting).getValue());
+    } else if (setting instanceof JobSetting.DatastoreDatabase) {
+      queueSettings.setDatabaseId(((JobSetting.DatastoreDatabase) setting).getValue());
     } else {
       throw new RuntimeException("Unrecognized JobSetting class " + setting.getClass().getName());
     }
