@@ -89,8 +89,8 @@ public abstract class PipelineModelObject implements ExpiringDatastoreEntity {
    *
    * see: https://cloud.google.com/datastore/docs/ttl
    */
-  @Getter
-  @Setter
+  @Getter(onMethod_ = @Override)
+  @Setter(onMethod_ = @Override)
   private Instant expireAt;
 
   /**

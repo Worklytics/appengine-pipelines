@@ -9,6 +9,7 @@ import com.google.auth.oauth2.UserCredentials;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
+import com.google.cloud.datastore.Key;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
@@ -64,5 +65,23 @@ class AppEngineBackEndOptionsTest {
     assertEquals(
       backend.getOptions().as(AppEngineBackEnd.Options.class).getCredentials(),
       fresh.getOptions().as(AppEngineBackEnd.Options.class).getCredentials());
+  }
+
+  @Test
+  void datastoreForKeyUsesTheKeyDatabase() {
+    Datastore datastore = DatastoreOptions.newBuilder()
+        .setProjectId("test-project")
+        .setCredentials(mock(Credentials.class))
+        .build()
+        .getService();
+    AppEngineBackEnd backend = new AppEngineBackEnd(datastore, mock(PipelineTaskQueue.class),
+        mock(AppEngineServicesService.class));
+
+    Key defaultKey = Key.newBuilder("test-project", "JobRecord", "root").build();
+    Key namedKey = Key.newBuilder("test-project", "JobRecord", "root").setDatabaseId("tenant-db").build();
+
+    assertSame(datastore, backend.datastoreForKey(defaultKey));
+    assertEquals("tenant-db", backend.datastoreForKey(namedKey).getOptions().getDatabaseId());
+    assertSame(backend.datastoreForKey(namedKey), backend.datastoreForKey(namedKey));
   }
 }

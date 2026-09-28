@@ -22,6 +22,7 @@ import com.google.appengine.tools.pipeline.di.MultiTenantComponent;
 import com.google.appengine.tools.pipeline.di.TenantModule;
 import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.util.DIUtil;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -168,8 +169,11 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   @Override
   public void deletePipelineAsync(@NonNull JobRunId pipelineRunId, @NonNull Long delayMillis) {
     Key key = JobRecord.keyFromPipelineHandle(pipelineRunId);
-    DeletePipelineTask deletePipelineTask = new DeletePipelineTask(key, false, QueueSettings.builder().build());
-    deletePipelineTask.getQueueSettings().setDelayInSeconds(delayMillis / 1000);
+    DeletePipelineTask deletePipelineTask = new DeletePipelineTask(key, false, QueueSettings.builder()
+        .databaseId(JobSetting.canonicalDatabaseId(pipelineRunId.getDatabaseId()))
+        .namespace(JobSetting.canonicalNamespace(pipelineRunId.getNamespace()))
+        .delayInSeconds(delayMillis / 1000)
+        .build());
 
     //q: add retries? old one had 5 with 20s backoff; but tasks are auto-retried, right?
 
@@ -188,10 +192,35 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
       throw new IllegalStateException("projectId is 'no_app_id'; this isn't legal GCP project id");
     }
 
-    JobRecord jobRecord = JobRecord.createRootJobRecord(projectId, jobInstance, getSerializationStrategy(), settings);
-    pinServiceAndVersion(jobRecord, settings);
+    JobSetting[] resolvedSettings = datastoreBoundaryFromBackend(settings);
+    JobRecord jobRecord = JobRecord.createRootJobRecord(projectId, jobInstance, getSerializationStrategy(),
+        resolvedSettings);
+    pinServiceAndVersion(jobRecord, resolvedSettings);
 
     return registerNewJobRecord(updateSpec, jobRecord, params);
+  }
+
+  /**
+   * When the caller did not set a datastore database or namespace, copy the one this
+   * backend is already bound to so keys and later tasks stay in that partition.
+   */
+  private JobSetting[] datastoreBoundaryFromBackend(JobSetting[] settings) {
+    JobSetting[] current = settings == null ? new JobSetting[0] : settings;
+    List<JobSetting> resolved = new ArrayList<>(Arrays.asList(current));
+    DatastoreOptions datastoreOptions = backEnd.getOptions().as(AppEngineBackEnd.Options.class).getDatastoreOptions();
+    if (JobSetting.getSettingValue(JobSetting.DatastoreDatabase.class, current).isEmpty()) {
+      String databaseId = JobSetting.canonicalDatabaseId(datastoreOptions.getDatabaseId());
+      if (databaseId != null) {
+        resolved.add(new JobSetting.DatastoreDatabase(databaseId));
+      }
+    }
+    if (JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, current).isEmpty()) {
+      String namespace = JobSetting.canonicalNamespace(datastoreOptions.getNamespace());
+      if (namespace != null) {
+        resolved.add(new JobSetting.DatastoreNamespace(namespace));
+      }
+    }
+    return resolved.toArray(JobSetting[]::new);
   }
 
   @VisibleForTesting

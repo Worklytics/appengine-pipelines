@@ -17,6 +17,7 @@ package com.google.appengine.tools.pipeline;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 
 import lombok.Getter;
@@ -212,22 +213,28 @@ public interface JobSetting extends Serializable {
   }
 
   /**
-   * A setting for specifying the datastore database to use for this job;
-   * otherwise will be the default datastore database.
-   * 
-   * q: do we want to allow pipelines to mix datastore databases?
-   * 
+   * A setting for specifying the datastore database to use for this pipeline.
+   * Null, empty, and {@code (default)} select the default database.
+   *
+   * A pipeline is stored in one database. Child jobs inherit that database and
+   * cannot select a different one.
    */
   final class DatastoreDatabase extends StringValuedSetting {
     @Serial
     private static final long serialVersionUID = -1L;
 
+    public static final String DEFAULT_DATABASE_ID = "(default)";
+
     public DatastoreDatabase(String datastoreDatabase) {
       super(datastoreDatabase);
-      if (StringUtils.isNotBlank(datastoreDatabase) && !"default".equalsIgnoreCase(datastoreDatabase)) {
-        if (!datastoreDatabase.matches("^[a-z][a-z0-9-]{1,61}[a-z0-9]$")) {
-          throw new IllegalArgumentException("Invalid Datastore database ID: " + datastoreDatabase);
-        }
+      if (datastoreDatabase == null || datastoreDatabase.isEmpty()
+          || DEFAULT_DATABASE_ID.equals(datastoreDatabase)) {
+        return;
+      }
+      // Firestore database IDs are 4–63 characters: a letter, then letters, digits,
+      // or hyphens, and must not end with a hyphen.
+      if (!datastoreDatabase.matches("^[a-z][a-z0-9-]{2,61}[a-z0-9]$")) {
+        throw new IllegalArgumentException("Invalid Datastore database ID: " + datastoreDatabase);
       }
     }
   }
@@ -255,5 +262,34 @@ public interface JobSetting extends Serializable {
         .filter(clazz::isInstance)
         .findAny()
         .map(s -> ((StringValuedSetting) s).getValue());
+  }
+
+  /**
+   * Null, blank, and {@code (default)} all mean the default Firestore database.
+   * Named database IDs are returned unchanged.
+   */
+  public static String canonicalDatabaseId(String databaseId) {
+    if (databaseId == null || databaseId.isEmpty() || DatastoreDatabase.DEFAULT_DATABASE_ID.equals(databaseId)) {
+      return null;
+    }
+    return databaseId;
+  }
+
+  /**
+   * Null and empty both mean the default namespace.
+   */
+  public static String canonicalNamespace(String namespace) {
+    if (namespace == null || namespace.isEmpty()) {
+      return null;
+    }
+    return namespace;
+  }
+
+  public static boolean sameDatabase(String left, String right) {
+    return Objects.equals(canonicalDatabaseId(left), canonicalDatabaseId(right));
+  }
+
+  public static boolean sameNamespace(String left, String right) {
+    return Objects.equals(canonicalNamespace(left), canonicalNamespace(right));
   }
 }

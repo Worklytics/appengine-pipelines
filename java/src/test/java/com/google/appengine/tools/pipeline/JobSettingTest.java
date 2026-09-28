@@ -14,6 +14,9 @@ class JobSettingTest {
         assertDoesNotThrow(() -> new JobSetting.DatastoreDatabase(""));
         assertDoesNotThrow(() -> new JobSetting.DatastoreDatabase("(default)"));
         assertDoesNotThrow(() -> new JobSetting.DatastoreDatabase("my-database-123"));
+        assertDoesNotThrow(() -> new JobSetting.DatastoreDatabase("abcd"));
+
+        assertThrows(IllegalArgumentException.class, () -> new JobSetting.DatastoreDatabase("abc"));
 
         IllegalArgumentException e1 = assertThrows(IllegalArgumentException.class,
                 () -> new JobSetting.DatastoreDatabase("123-starts-with-number"));
@@ -39,5 +42,6 @@ class JobSettingTest {
         assertThrows(IllegalArgumentException.class, () -> new JobSetting.DatastoreNamespace("a".repeat(101))); // max
                                                                                                                 // length
                                                                                                                 // 100
+        assertThrows(IllegalArgumentException.class, () -> new JobSetting.DatastoreNamespace("__reserved__"));
     }
 }

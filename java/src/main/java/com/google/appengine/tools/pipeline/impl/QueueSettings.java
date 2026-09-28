@@ -2,7 +2,6 @@ package com.google.appengine.tools.pipeline.impl;
 
 import javax.annotation.Nullable;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,9 +13,7 @@ import lombok.ToString;
  *
  * @author ozarov@google.com (Arie Ozarov)
  */
-@AllArgsConstructor
 @NoArgsConstructor
-@Builder
 @Getter
 @Setter
 @ToString
@@ -39,8 +36,8 @@ public final class QueueSettings implements Cloneable {
   private String onQueue;
 
   /**
-   * delay in seconds to set when enqueueing the task (eg, should not execute
-   * until *at least* this much time has passed
+   * Delay in seconds to set when enqueueing the task (for example, the task should not execute
+   * until at least this much time has passed).
    */
   private Long delayInSeconds;
 
@@ -55,6 +52,29 @@ public final class QueueSettings implements Cloneable {
    */
   @Nullable
   private String namespace;
+
+  /**
+   * Preferred way to construct {@link QueueSettings}.
+   */
+  @Builder
+  private QueueSettings(String onService, String onServiceVersion, String onQueue, Long delayInSeconds,
+      String databaseId, String namespace) {
+    this.onService = onService;
+    this.onServiceVersion = onServiceVersion;
+    this.onQueue = onQueue;
+    this.delayInSeconds = delayInSeconds;
+    this.databaseId = databaseId;
+    this.namespace = namespace;
+  }
+
+  /**
+   * @deprecated Prefer {@link #builder()}. Kept so existing callers that pass service, version,
+   *             queue, and delay still compile.
+   */
+  @Deprecated
+  public QueueSettings(String onService, String onServiceVersion, String onQueue, Long delayInSeconds) {
+    this(onService, onServiceVersion, onQueue, delayInSeconds, null, null);
+  }
 
   /**
    * Merge will override any {@code null} setting with a matching setting from

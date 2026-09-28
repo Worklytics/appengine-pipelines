@@ -134,6 +134,11 @@ public abstract class PipelineTask {
       String getProperty(PipelineTask pipelineTask) {
         return pipelineTask.getQueueSettings().getDatabaseId();
       }
+
+      @Override
+      void addTo(PipelineTask pipelineTask, Properties properties) {
+        addIfPresent(pipelineTask, properties);
+      }
     },
     DATASTORE_NAMESPACE {
       @Override
@@ -149,6 +154,11 @@ public abstract class PipelineTask {
       @Override
       String getProperty(PipelineTask pipelineTask) {
         return pipelineTask.getQueueSettings().getNamespace();
+      }
+
+      @Override
+      void addTo(PipelineTask pipelineTask, Properties properties) {
+        addIfPresent(pipelineTask, properties);
       }
     };
 
@@ -172,6 +182,13 @@ public abstract class PipelineTask {
     void addTo(PipelineTask pipelineTask, Properties properties) {
       String value = getProperty(pipelineTask);
       if (value != null) {
+        properties.setProperty(getPropertyName(), value);
+      }
+    }
+
+    void addIfPresent(PipelineTask pipelineTask, Properties properties) {
+      String value = getProperty(pipelineTask);
+      if (value != null && !value.isEmpty()) {
         properties.setProperty(getPropertyName(), value);
       }
     }
@@ -252,14 +269,6 @@ public abstract class PipelineTask {
 
     if (this.getQueueSettings().getDelayInSeconds() != null) {
       spec.scheduledExecutionTime(Instant.now().plusSeconds(this.getQueueSettings().getDelayInSeconds()));
-    }
-
-    if (this.getQueueSettings().getDatabaseId() != null) {
-      spec.param("dsDatabaseId", this.getQueueSettings().getDatabaseId());
-    }
-
-    if (this.getQueueSettings().getNamespace() != null) {
-      spec.param("dsNamespace", this.getQueueSettings().getNamespace());
     }
 
     String service = Optional.ofNullable(this.getQueueSettings().getOnService())

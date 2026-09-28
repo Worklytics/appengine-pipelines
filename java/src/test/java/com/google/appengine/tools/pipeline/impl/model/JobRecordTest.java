@@ -1,6 +1,7 @@
 package com.google.appengine.tools.pipeline.impl.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -27,6 +28,10 @@ class JobRecordTest {
 
         assertEquals("my-db", rootJob.getDatabaseId());
         assertEquals("my-ns", rootJob.getNamespace());
+        assertEquals("my-db", rootJob.getKey().getDatabaseId());
+        assertEquals("my-ns", rootJob.getKey().getNamespace());
+        assertEquals("my-db", rootJob.getQueueSettings().getDatabaseId());
+        assertEquals("my-ns", rootJob.getQueueSettings().getNamespace());
     }
 
     @Test
@@ -34,21 +39,29 @@ class JobRecordTest {
         Job<?> jobInstance = mock(Job.class);
         SerializationStrategy serializationStrategy = mock(SerializationStrategy.class);
 
-        Key rootJobKey = Key.newBuilder("my-project", "JobRecord", "root-job").build();
+        Key rootJobKey = Key.newBuilder("my-project", "JobRecord", "root-job")
+                .setDatabaseId("root-db")
+                .setNamespace("root-ns")
+                .build();
         Key generatorJobKey = Key.newBuilder("my-project", "JobRecord", "gen-job")
-                .setDatabaseId("gen-db")
-                .setNamespace("gen-ns")
+                .setDatabaseId("root-db")
+                .setNamespace("root-ns")
                 .build();
 
         JobRecord mockGenerator = mock(JobRecord.class);
         when(mockGenerator.getRootJobKey()).thenReturn(rootJobKey);
         when(mockGenerator.getKey()).thenReturn(generatorJobKey);
+        when(mockGenerator.getQueueSettings()).thenReturn(new com.google.appengine.tools.pipeline.impl.QueueSettings());
 
         JobRecord subJob = new JobRecord(mockGenerator, "graph-id",
                 jobInstance, false, new JobSetting[0], serializationStrategy);
 
-        assertEquals("gen-db", subJob.getDatabaseId());
-        assertEquals("gen-ns", subJob.getNamespace());
+        assertEquals("root-db", subJob.getDatabaseId());
+        assertEquals("root-ns", subJob.getNamespace());
+        assertEquals("root-db", subJob.getKey().getDatabaseId());
+        assertEquals("root-ns", subJob.getKey().getNamespace());
+        assertEquals("root-db", subJob.getQueueSettings().getDatabaseId());
+        assertEquals("root-ns", subJob.getQueueSettings().getNamespace());
     }
 
     @Test
@@ -56,24 +69,25 @@ class JobRecordTest {
         Job<?> jobInstance = mock(Job.class);
         SerializationStrategy serializationStrategy = mock(SerializationStrategy.class);
 
-        Key rootJobKey = Key.newBuilder("my-project", "JobRecord", "root-job").build();
+        Key rootJobKey = Key.newBuilder("my-project", "JobRecord", "root-job")
+                .setDatabaseId("root-db")
+                .setNamespace("root-ns")
+                .build();
         Key generatorJobKey = Key.newBuilder("my-project", "JobRecord", "gen-job")
-                .setDatabaseId("gen-db")
-                .setNamespace("gen-ns")
+                .setDatabaseId("root-db")
+                .setNamespace("root-ns")
                 .build();
 
         JobRecord mockGenerator = mock(JobRecord.class);
         when(mockGenerator.getRootJobKey()).thenReturn(rootJobKey);
         when(mockGenerator.getKey()).thenReturn(generatorJobKey);
+        when(mockGenerator.getQueueSettings()).thenReturn(new com.google.appengine.tools.pipeline.impl.QueueSettings());
 
         JobSetting.DatastoreDatabase dbSetting = new JobSetting.DatastoreDatabase("new-db");
         JobSetting.DatastoreNamespace nsSetting = new JobSetting.DatastoreNamespace("new-ns");
         JobSetting[] settings = new JobSetting[] { dbSetting, nsSetting };
 
-        JobRecord subJob = new JobRecord(mockGenerator, "graph-id",
-                jobInstance, false, settings, serializationStrategy);
-
-        assertEquals("new-db", subJob.getDatabaseId());
-        assertEquals("new-ns", subJob.getNamespace());
+        assertThrows(IllegalArgumentException.class, () -> new JobRecord(mockGenerator, "graph-id",
+                jobInstance, false, settings, serializationStrategy));
     }
 }

@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.google.appengine.tools.pipeline.Job;
@@ -321,9 +322,10 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
       isRootJob = entity.getBoolean(IS_ROOT_JOB_PROPERTY);
     }
     projectId = entity.getKey().getProjectId();
-    namespace = entity.getKey().getNamespace();
-    databaseId = entity.getKey().getDatabaseId() == null || entity.getKey().getDatabaseId().isEmpty() ? null
-        : entity.getKey().getDatabaseId();
+    namespace = JobSetting.canonicalNamespace(entity.getKey().getNamespace());
+    databaseId = JobSetting.canonicalDatabaseId(entity.getKey().getDatabaseId());
+    queueSettings.setDatabaseId(databaseId);
+    queueSettings.setNamespace(namespace);
   }
 
   public JobRunId getJobRunId() {
@@ -458,6 +460,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
       Job<?> jobInstance, boolean callExceptionHandler, JobSetting[] settings,
       QueueSettings parentQueueSettings, SerializationStrategy serializationStrategy) {
     super(rootJobKey, null, thisKey, generatorJobKey, graphGUID);
+    rejectMismatchedDatastoreBoundary(rootJobKey, generatorJobKey, settings);
     jobInstanceInflated = new JobInstanceRecord(this, jobInstance, serializationStrategy);
     jobInstanceKey = jobInstanceInflated.getKey();
     exceptionHandlerSpecified = isExceptionHandlerSpecified(jobInstance);
@@ -480,17 +483,54 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
       queueSettings.merge(parentQueueSettings);
     }
     projectId = rootJobKey.getProjectId();
-    namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
-        .orElse(generatorJobKey != null ? generatorJobKey.getNamespace() : null);
+    // The key was already allocated in the root pipeline's partition. Metadata and
+    // task settings must follow that key, not a per-child override.
+    databaseId = JobSetting.canonicalDatabaseId(getKey().getDatabaseId());
+    namespace = JobSetting.canonicalNamespace(getKey().getNamespace());
+    queueSettings.setDatabaseId(databaseId);
+    queueSettings.setNamespace(namespace);
+  }
 
-    // Look up database setting, falling back to generator job's database, or null
-    String defaultDbId = null;
-    if (generatorJobKey != null) {
-      defaultDbId = generatorJobKey.getDatabaseId() == null || generatorJobKey.getDatabaseId().isEmpty() ? null
-          : generatorJobKey.getDatabaseId();
+  private static void rejectMismatchedDatastoreBoundary(Key rootJobKey, Key generatorJobKey, JobSetting[] settings) {
+    String partitionDatabaseId = JobSetting.canonicalDatabaseId(rootJobKey.getDatabaseId());
+    String partitionNamespace = JobSetting.canonicalNamespace(rootJobKey.getNamespace());
+    if (generatorJobKey != null
+        && (!JobSetting.sameDatabase(partitionDatabaseId, generatorJobKey.getDatabaseId())
+            || !JobSetting.sameNamespace(partitionNamespace, generatorJobKey.getNamespace()))) {
+      throw new IllegalArgumentException(
+          "Generator job datastore boundary ("
+              + describeBoundary(generatorJobKey.getDatabaseId(), generatorJobKey.getNamespace())
+              + ") does not match the root pipeline ("
+              + describeBoundary(partitionDatabaseId, partitionNamespace) + ")");
     }
-    databaseId = JobSetting.getSettingValue(JobSetting.DatastoreDatabase.class, settings)
-        .orElse(defaultDbId);
+    Optional<String> requestedDatabase = JobSetting.getSettingValue(JobSetting.DatastoreDatabase.class, settings);
+    if (requestedDatabase.isPresent()
+        && !JobSetting.sameDatabase(partitionDatabaseId, requestedDatabase.get())) {
+      throw new IllegalArgumentException(
+          "A job cannot select datastore database '" + displayDatabase(requestedDatabase.get())
+              + "' because this pipeline is stored in '" + displayDatabase(partitionDatabaseId) + "'");
+    }
+    Optional<String> requestedNamespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings);
+    if (requestedNamespace.isPresent()
+        && !JobSetting.sameNamespace(partitionNamespace, requestedNamespace.get())) {
+      throw new IllegalArgumentException(
+          "A job cannot select datastore namespace '" + displayNamespace(requestedNamespace.get())
+              + "' because this pipeline is stored in '" + displayNamespace(partitionNamespace) + "'");
+    }
+  }
+
+  private static String describeBoundary(String databaseId, String namespace) {
+    return "database=" + displayDatabase(databaseId) + ", namespace=" + displayNamespace(namespace);
+  }
+
+  private static String displayDatabase(String databaseId) {
+    String canonical = JobSetting.canonicalDatabaseId(databaseId);
+    return canonical == null ? JobSetting.DatastoreDatabase.DEFAULT_DATABASE_ID : canonical;
+  }
+
+  private static String displayNamespace(String namespace) {
+    String canonical = JobSetting.canonicalNamespace(namespace);
+    return canonical == null ? "(default)" : canonical;
   }
 
   // Constructor for Root Jobs (called by {@link #createRootJobRecord}).
@@ -519,10 +559,10 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
       Job<?> jobInstance,
       SerializationStrategy serializationStrategy,
       JobSetting[] settings) {
-    String namespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings)
-        .orElse(null);
-    String databaseId = JobSetting.getSettingValue(JobSetting.DatastoreDatabase.class, settings)
-        .orElse(null);
+    String namespace = JobSetting.canonicalNamespace(
+        JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings).orElse(null));
+    String databaseId = JobSetting.canonicalDatabaseId(
+        JobSetting.getSettingValue(JobSetting.DatastoreDatabase.class, settings).orElse(null));
     Key key = generateKey(projectId, databaseId, namespace, DATA_STORE_KIND);
     return new JobRecord(key, jobInstance, settings, serializationStrategy);
   }

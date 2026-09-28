@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -54,6 +55,7 @@ import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
 import com.google.appengine.tools.pipeline.JobRunId;
+import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
 import com.google.appengine.tools.pipeline.impl.model.ExceptionRecord;
@@ -163,6 +165,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private final Datastore datastore;
   private final PipelineTaskQueue taskQueue;
   private final AppEngineServicesService servicesService;
+  private final ConcurrentHashMap<String, Datastore> datastoreByDatabaseId = new ConcurrentHashMap<>();
 
   @Inject
   public AppEngineBackEnd(Datastore datastore, PipelineTaskQueue taskQueue,
@@ -201,6 +204,63 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
           .build();
     }
 
+  }
+
+  /**
+   * The Cloud Datastore client sends RPCs to {@link DatastoreOptions#getDatabaseId()}, not the
+   * database id on the entity key. Pipeline keys may name a non-default database, so reads and
+   * writes follow that id.
+   */
+  Datastore datastoreForKey(Key key) {
+    return datastoreForDatabase(key == null ? null : key.getDatabaseId());
+  }
+
+  private Datastore datastoreForDatabase(String databaseId) {
+    String requested = clientDatabaseId(databaseId);
+    if (requested.equals(clientDatabaseId(datastore.getOptions().getDatabaseId()))) {
+      return datastore;
+    }
+    return datastoreByDatabaseId.computeIfAbsent(requested,
+        id -> datastore.getOptions().toBuilder().setDatabaseId(id).build().getService());
+  }
+
+  private Datastore datastoreForKeys(Collection<Key> keys) {
+    String selected = null;
+    if (keys != null) {
+      for (Key key : keys) {
+        if (key == null) {
+          continue;
+        }
+        String databaseId = clientDatabaseId(key.getDatabaseId());
+        if (selected == null) {
+          selected = databaseId;
+        } else if (!selected.equals(databaseId)) {
+          throw new IllegalArgumentException(
+              "Pipeline entities span multiple Datastore databases: " + selected + " and " + databaseId);
+        }
+      }
+    }
+    return datastoreForDatabase(selected);
+  }
+
+  private Datastore datastoreForGroup(UpdateSpec.Group group, Key extraKey) {
+    List<Key> keys = new ArrayList<>();
+    if (extraKey != null) {
+      keys.add(extraKey);
+    }
+    if (group != null) {
+      group.getJobs().forEach(job -> keys.add(job.getKey()));
+      group.getBarriers().forEach(barrier -> keys.add(barrier.getKey()));
+      group.getSlots().forEach(slot -> keys.add(slot.getKey()));
+      group.getJobInstanceRecords().forEach(record -> keys.add(record.getKey()));
+      group.getFailureRecords().forEach(record -> keys.add(record.getKey()));
+    }
+    return datastoreForKeys(keys);
+  }
+
+  private static String clientDatabaseId(String databaseId) {
+    String canonical = JobSetting.canonicalDatabaseId(databaseId);
+    return canonical == null ? "" : canonical;
   }
 
   @Override
@@ -261,6 +321,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         group.getFailureRecords().stream()).toList();
 
     List<Key> keys = new ArrayList<>(toSave.size());
+    final Datastore target = datastoreForGroup(group, null);
     final int MAX_BATCH_SIZE = 500; // limit from Datastore API
     int batchIndex = 0;
     do {
@@ -268,7 +329,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       keys.addAll(attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<List<Key>>("batchSave") {
         @Override
         public List<Key> call() throws Exception {
-          Batch batch = datastore.newBatch();
+          Batch batch = target.newBatch();
           putAll(batch,
               toSave.subList(batchOffset, batchOffset + Math.min(MAX_BATCH_SIZE, toSave.size() - batchOffset)));
           return batch.submit().getGeneratedKeys();
@@ -281,7 +342,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   private boolean transactionallySaveAll(UpdateSpec.Transaction transactionSpec, Key jobKey,
       JobRecord.State... expectedStates) {
-    PipelineBackendTransaction transaction = PipelineBackendTransaction.newInstance(datastore, taskQueue);
+    PipelineBackendTransaction transaction = PipelineBackendTransaction.newInstance(
+        datastoreForGroup(transactionSpec, jobKey), taskQueue);
 
     try {
       if (jobKey != null && expectedStates != null) {
@@ -510,10 +572,11 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         offset = limit;
         shardedValues.add(new ShardedValue(model, shardId++, chunk).toEntity());
       }
+      Datastore target = datastoreForKey(model.getKey());
       return attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<List<Key>>("serializeValue") {
         @Override
         public List<Key> call() {
-          Transaction tx = datastore.newTransaction();
+          Transaction tx = target.newTransaction();
           List<Key> keys = new ArrayList<>();
           try {
             for (Entity v : shardedValues) {
@@ -562,13 +625,14 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   private Map<Key, Entity> getEntities(String logString, final Collection<Key> keys) {
+    final Datastore target = datastoreForKeys(keys);
     Map<Key, Entity> result = attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<>(logString) {
       @Override
       public Map<Key, Entity> call() {
         // NOTE: this read is strongly consistent now, bc backed by Firestore in
         // Datastore-mode; this library was
         // designed thinking this read was only event
-        return datastore.fetch(keys)
+        return target.fetch(keys)
             .stream()
             .filter(Objects::nonNull)
             .collect(Collectors.toMap(Entity::getKey, Function.identity()));
@@ -583,11 +647,12 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   private Entity getEntity(String logString, final Key key) throws NoSuchObjectException {
+    final Datastore target = datastoreForKey(key);
     Entity entity = attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()),
         new Operation<>("getEntity_" + logString) {
           @Override
           public Entity call() throws Exception {
-            return datastore.get(key);
+            return target.get(key);
           }
         });
 
@@ -598,6 +663,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   }
 
   public List<Entity> queryAll(final String kind, final Key rootJobKey) {
+    final Datastore target = datastoreForKey(rootJobKey);
     return attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<>("queryFullPipeline") {
       @Override
       public List<Entity> call() {
@@ -610,7 +676,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         long lastPageCount;
         do {
           // TODO: set chunkSize? does concept exist in this API client library?
-          queryResults = datastore.run(query.build());
+          queryResults = target.run(query.build());
           List<Entity> page = Streams.stream(queryResults).toList();
           lastPageCount = page.size();
           entities.addAll(page);
@@ -734,6 +800,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   private void deleteAll(final String kind, final Key rootJobKey) {
     log.info("Deleting all " + kind + " with rootJobKey=" + rootJobKey);
+    final Datastore target = datastoreForKey(rootJobKey);
     attemptWithRetries(withDefaults(RetryerBuilder.newBuilder()), new Operation<Void>("delete") {
       @Override
       public Void call() {
@@ -749,12 +816,12 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
         do {
           Query query = queryBuilder.build();
-          queryResults = datastore.run(query);
+          queryResults = target.run(query);
           keys = Streams.stream(queryResults)
               .toList();
           if (!keys.isEmpty()) {
             log.info("Deleting " + keys.size() + " " + kind + "s with rootJobKey=" + rootJobKey);
-            Batch batch = datastore.newBatch();
+            Batch batch = target.newBatch();
             keys.forEach(batch::delete);
             batch.submit();
           }
