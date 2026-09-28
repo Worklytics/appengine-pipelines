@@ -90,4 +90,29 @@ class JobRecordTest {
         assertThrows(IllegalArgumentException.class, () -> new JobRecord(mockGenerator, "graph-id",
                 jobInstance, false, settings, serializationStrategy));
     }
+
+    @Test
+    void testSubJobExplicitDefaultCannotLeaveNamedPipeline() {
+        Job<?> jobInstance = mock(Job.class);
+        SerializationStrategy serializationStrategy = mock(SerializationStrategy.class);
+
+        Key rootJobKey = Key.newBuilder("my-project", "JobRecord", "root-job")
+                .setDatabaseId("root-db")
+                .setNamespace("root-ns")
+                .build();
+        Key generatorJobKey = Key.newBuilder("my-project", "JobRecord", "gen-job")
+                .setDatabaseId("root-db")
+                .setNamespace("root-ns")
+                .build();
+
+        JobRecord mockGenerator = mock(JobRecord.class);
+        when(mockGenerator.getRootJobKey()).thenReturn(rootJobKey);
+        when(mockGenerator.getKey()).thenReturn(generatorJobKey);
+        when(mockGenerator.getQueueSettings()).thenReturn(new com.google.appengine.tools.pipeline.impl.QueueSettings());
+
+        JobSetting[] settings = new JobSetting[] { new JobSetting.DatastoreDatabase(null) };
+
+        assertThrows(IllegalArgumentException.class, () -> new JobRecord(mockGenerator, "graph-id",
+                jobInstance, false, settings, serializationStrategy));
+    }
 }

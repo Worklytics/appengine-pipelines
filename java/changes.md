@@ -1,5 +1,12 @@
 ## Change Log
 
+### 0.3+worklytics.14
+ - Fix: `DatastoreOptions.toBuilder()` drops the emulator host in `google-cloud-datastore` ≥ 2.40.0
+   (Google Cloud Java BOM ≥ 26.83.0). Replaced all `toBuilder()` / `getDefaultInstance().toBuilder()`
+   calls with explicit `DatastoreOptions.newBuilder()` copies that preserve the `host` field.
+   Affected: `RequestUtils`, `ShardedJobAbstractSettings`, `MapReduceJob` (Sort/Merge/Reduce stages
+   and `getDatastoreOptions`), `FinalizeShardsInfos`, `DeleteShardedJob`.
+
 ### 0.3+worklytics.7 (March 2025)
  - Handle cross-services transactionality
  - Fixes: serialization

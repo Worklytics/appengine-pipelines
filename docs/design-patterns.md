@@ -23,6 +23,23 @@ pipelines with subjobs running in different namespaces/databases/project (former
 interesting in the short-term to support some types of migrations, although almost all migrations 
 are orchestrated on per-tenant basis, so maybe there's not such a case).
 
+## One database and namespace per pipeline
+
+A pipeline's jobs, slots, and barriers are stored in a single Firestore database and a single
+namespace. Pass `JobSetting.DatastoreDatabase` and `JobSetting.DatastoreNamespace` when starting
+the pipeline, or start it on a `PipelineService` already bound to that partition. Null, empty, and
+`(default)` mean the default database. Child jobs inherit the root partition. A child setting that
+names a different database or namespace fails at runtime with `IllegalArgumentException`.
+
+Reads and writes follow the entity key. The Cloud Datastore client sends commits and lookups to
+`DatastoreOptions.getDatabaseId()`, and queries use the client namespace, so `AppEngineBackEnd`
+opens a client for the key's database and namespace. The first save of a new pipeline uses that
+client, not only the client injected into the backend.
+
+Crossing partitions is a separate pipeline, not a child job. Create a promise in the parent
+pipeline and pass its handle to the other pipeline. `submitPromisedValue` writes the slot named by
+that handle, back into the parent's database and namespace.
+
 
 
 

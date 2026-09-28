@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce.impl.shardedjob.pipeline;
 
+import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.mapreduce.RetryExecutor;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
 import com.google.appengine.tools.mapreduce.impl.util.DatastoreSerializationUtil;
@@ -41,7 +42,8 @@ public class DeleteShardsInfos extends Job0<Void> {
 
   @Override
   public Value<Void> run() {
-    Datastore datastore = datastoreOptions.toBuilder().build().getService();
+    Datastore datastore = EnvironmentUtils.datastoreBuilderFromDatastoreOptions(datastoreOptions).build().getService();
+
     final List<Key> toDelete = new ArrayList<>((end - start) * 2);
 
     PipelineBackendTransaction tx = PipelineBackendTransaction.newInstance(datastore);

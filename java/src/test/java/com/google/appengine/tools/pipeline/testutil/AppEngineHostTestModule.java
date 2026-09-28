@@ -1,11 +1,15 @@
 package com.google.appengine.tools.pipeline.testutil;
 
-import com.google.appengine.tools.mapreduce.impl.util.RequestUtils;
-import com.google.appengine.tools.pipeline.impl.backend.*;
+import com.google.appengine.tools.EnvironmentUtils;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesServiceImpl;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineStandardGen2;
+import com.google.appengine.tools.pipeline.impl.backend.AppEngineTaskQueue;
+import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.appengine.v1.ApplicationsClient;
 import com.google.appengine.v1.ServicesClient;
 import com.google.appengine.v1.VersionsClient;
-import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.tasks.v2.CloudTasksClient;
 import dagger.Binds;
 import dagger.Module;
@@ -56,7 +60,7 @@ public class AppEngineHostTestModule {
 
 
     //before, test harness basically did this by overriding env vars via ApiProxy stuff; see LocalModulesServiceTestConfig
-    if (isTestingContext()) {
+    if (EnvironmentUtils.isNotCloudEnvironment()) {
       return new AppEngineServicesService() {
         @Override
         public String getLocation() {
@@ -81,11 +85,6 @@ public class AppEngineHostTestModule {
     } else {
       return impl;
     }
-  }
-
-  boolean isTestingContext() {
-    DatastoreOptions defaultInstance = DatastoreOptions.getDefaultInstance();
-    return RequestUtils.LOCAL_GAE_PROJECT_ID.equals(defaultInstance.getProjectId()) || "test-project" .equals(defaultInstance.getProjectId());
   }
 
   @Module

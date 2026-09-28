@@ -1,5 +1,6 @@
 package com.google.appengine.tools.mapreduce;
 
+import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.mapreduce.impl.WorkerShardTask;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.cloud.datastore.DatastoreOptions;
@@ -50,7 +51,7 @@ public interface ShardedJobAbstractSettings {
 
 
   default DatastoreOptions getDatastoreOptions() {
-    DatastoreOptions.Builder optionsBuilder = DatastoreOptions.getDefaultInstance().toBuilder();
+    DatastoreOptions.Builder optionsBuilder = EnvironmentUtils.datastoreBuilderFromDefaultInstance();
     Optional.ofNullable(getDatastoreHost()).ifPresent(optionsBuilder::setHost);
     Optional.ofNullable(getProjectId()).ifPresent(optionsBuilder::setProjectId);
     Optional.ofNullable(getDatabaseId()).ifPresent(optionsBuilder::setDatabaseId);

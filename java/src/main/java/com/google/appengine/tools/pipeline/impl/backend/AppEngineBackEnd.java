@@ -54,6 +54,7 @@ import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
+import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.pipeline.JobRunId;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.appengine.tools.pipeline.NoSuchObjectException;
@@ -165,7 +166,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private final Datastore datastore;
   private final PipelineTaskQueue taskQueue;
   private final AppEngineServicesService servicesService;
-  private final ConcurrentHashMap<String, Datastore> datastoreByDatabaseId = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<DatastorePartition, Datastore> datastoreByPartition = new ConcurrentHashMap<>();
 
   @Inject
   public AppEngineBackEnd(Datastore datastore, PipelineTaskQueue taskQueue,
@@ -178,7 +179,8 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   // Only used in tests
   public AppEngineBackEnd(Options options, PipelineTaskQueue taskQueue,
       AppEngineServicesService appEngineServicesService) {
-    this(options.getDatastoreOptions().toBuilder().build().getService(), taskQueue, appEngineServicesService);
+    this(EnvironmentUtils.datastoreBuilderFromDatastoreOptions(options.getDatastoreOptions()).build().getService(),
+        taskQueue, appEngineServicesService);
   }
 
   @Builder
@@ -197,50 +199,73 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
     @SneakyThrows
     public static Options defaults() {
+      DatastoreOptions dsOptions = EnvironmentUtils.datastoreBuilderFromDefaultInstance().build();
       return Options.builder()
-          .datastoreOptions(DatastoreOptions.getDefaultInstance())
+          .datastoreOptions(dsOptions)
           .credentials(GoogleCredentials.getApplicationDefault())
-          .projectId(DatastoreOptions.getDefaultProjectId())
+          .projectId(dsOptions.getProjectId())
           .build();
     }
 
   }
 
   /**
-   * The Cloud Datastore client sends RPCs to {@link DatastoreOptions#getDatabaseId()}, not the
-   * database id on the entity key. Pipeline keys may name a non-default database, so reads and
-   * writes follow that id.
+   * The Cloud Datastore client sends RPCs to {@link DatastoreOptions#getDatabaseId()}, and queries
+   * use the client's namespace. Pipeline keys may name another database or namespace, so reads and
+   * writes follow the key.
    */
   Datastore datastoreForKey(Key key) {
-    return datastoreForDatabase(key == null ? null : key.getDatabaseId());
-  }
-
-  private Datastore datastoreForDatabase(String databaseId) {
-    String requested = clientDatabaseId(databaseId);
-    if (requested.equals(clientDatabaseId(datastore.getOptions().getDatabaseId()))) {
+    if (key == null) {
       return datastore;
     }
-    return datastoreByDatabaseId.computeIfAbsent(requested,
-        id -> datastore.getOptions().toBuilder().setDatabaseId(id).build().getService());
+    return datastoreForPartition(key.getDatabaseId(), key.getNamespace());
+  }
+
+  private Datastore datastoreForPartition(String databaseId, String namespace) {
+    String requestedDatabase = clientDatabaseId(databaseId);
+    String requestedNamespace = clientNamespace(namespace);
+    if (requestedDatabase.equals(clientDatabaseId(datastore.getOptions().getDatabaseId()))
+        && requestedNamespace.equals(clientNamespace(datastore.getOptions().getNamespace()))) {
+      return datastore;
+    }
+    DatastorePartition partition = new DatastorePartition(requestedDatabase, requestedNamespace);
+    return datastoreByPartition.computeIfAbsent(partition, this::newDatastore);
+  }
+
+  private Datastore newDatastore(DatastorePartition partition) {
+    // toBuilder() drops the host, which breaks the emulator. Copy options the same way as startup.
+    return EnvironmentUtils.datastoreBuilderFromDatastoreOptions(datastore.getOptions())
+        .setDatabaseId(partition.databaseId())
+        .setNamespace(partition.namespace())
+        .build()
+        .getService();
   }
 
   private Datastore datastoreForKeys(Collection<Key> keys) {
-    String selected = null;
+    String selectedDatabase = null;
+    String selectedNamespace = null;
     if (keys != null) {
       for (Key key : keys) {
         if (key == null) {
           continue;
         }
         String databaseId = clientDatabaseId(key.getDatabaseId());
-        if (selected == null) {
-          selected = databaseId;
-        } else if (!selected.equals(databaseId)) {
+        String namespace = clientNamespace(key.getNamespace());
+        if (selectedDatabase == null) {
+          selectedDatabase = databaseId;
+          selectedNamespace = namespace;
+        } else if (!selectedDatabase.equals(databaseId) || !selectedNamespace.equals(namespace)) {
           throw new IllegalArgumentException(
-              "Pipeline entities span multiple Datastore databases: " + selected + " and " + databaseId);
+              "Pipeline entities span multiple Datastore partitions: database=" + selectedDatabase
+                  + ", namespace=" + selectedNamespace + " and database=" + databaseId
+                  + ", namespace=" + namespace);
         }
       }
     }
-    return datastoreForDatabase(selected);
+    if (selectedDatabase == null) {
+      return datastore;
+    }
+    return datastoreForPartition(selectedDatabase, selectedNamespace);
   }
 
   private Datastore datastoreForGroup(UpdateSpec.Group group, Key extraKey) {
@@ -261,6 +286,21 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private static String clientDatabaseId(String databaseId) {
     String canonical = JobSetting.canonicalDatabaseId(databaseId);
     return canonical == null ? "" : canonical;
+  }
+
+  private static String clientNamespace(String namespace) {
+    String canonical = JobSetting.canonicalNamespace(namespace);
+    return canonical == null ? "" : canonical;
+  }
+
+  private static void applyKeyNamespace(StructuredQuery.Builder<?> query, Key rootJobKey) {
+    String namespace = JobSetting.canonicalNamespace(rootJobKey.getNamespace());
+    if (namespace != null) {
+      query.setNamespace(namespace);
+    }
+  }
+
+  private record DatastorePartition(String databaseId, String namespace) {
   }
 
   @Override
@@ -670,6 +710,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
         EntityQuery.Builder query = Query.newEntityQueryBuilder()
             .setKind(kind)
             .setFilter(StructuredQuery.PropertyFilter.eq(ROOT_JOB_KEY_PROPERTY, rootJobKey));
+        applyKeyNamespace(query, rootJobKey);
 
         List<Entity> entities = new ArrayList<>();
         QueryResults<Entity> queryResults;
@@ -810,6 +851,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
             .setKind(kind)
             .setFilter(StructuredQuery.PropertyFilter.eq(ROOT_JOB_KEY_PROPERTY, rootJobKey))
             .setLimit(batchSize);
+        applyKeyNamespace(queryBuilder, rootJobKey);
 
         QueryResults<Key> queryResults;
         List<Key> keys;

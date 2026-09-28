@@ -1,26 +1,21 @@
 package com.google.appengine.tools.txn;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.atMostOnce;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatchers;
-
 import com.google.appengine.tools.pipeline.impl.backend.PipelineTaskQueue;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreExecutionOptions;
 import com.google.cloud.datastore.Transaction;
+import com.google.protobuf.ByteString;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.InOrder;
+import org.junit.jupiter.api.Test;
+
+import java.util.Collections;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 class PipelineBackendTransactionImplTest {
 
@@ -35,7 +30,7 @@ class PipelineBackendTransactionImplTest {
     mockTaskQueue = mock(PipelineTaskQueue.class);
     mockDatastore = mock(Datastore.class);
     when(mockDatastore.newTransaction()).thenReturn(mockTransaction);
-    when(mockTransaction.getTransactionId()).thenReturn(com.google.protobuf.ByteString.copyFromUtf8("mock-txn-id"));
+    when(mockTransaction.getTransactionId()).thenReturn(ByteString.copyFromUtf8("transaction-id"));
     pipelineBackendTransaction = new PipelineBackendTransactionImpl(mockDatastore, mockTaskQueue);
   }
 
@@ -53,6 +48,22 @@ class PipelineBackendTransactionImplTest {
   }
 
   @Test
+  void commitWithExecutionOptionsForwardsOptionsThenEnqueuesTasks() {
+    DatastoreExecutionOptions options = DatastoreExecutionOptions.newBuilder().build();
+    when(mockTransaction.isActive()).thenReturn(true);
+    when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenReturn(Collections.emptyList());
+
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder()
+        .method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.commit(options);
+
+    InOrder order = inOrder(mockTransaction, mockTaskQueue);
+    order.verify(mockTransaction).commit(same(options));
+    order.verify(mockTaskQueue).enqueue(anyString(), anyCollection());
+    verify(mockTransaction, never()).commit();
+  }
+
+  @Test
   void commitQueueFailsDeletesTasks() {
     when(mockTransaction.isActive()).thenReturn(true);
     Set<PipelineTaskQueue.TaskReference> taskReferences = Collections
@@ -67,21 +78,18 @@ class PipelineBackendTransactionImplTest {
   }
 
   @Test
-  void commitDatastoreFailsDeletesTasks() {
+  void commitDatastoreFailsNoTasksEnqueuedOrDeleted() {
     when(mockTransaction.isActive()).thenReturn(true);
-    List<PipelineTaskQueue.TaskReference> taskReferences = Collections
-        .singletonList(PipelineTaskQueue.TaskReference.of("queue1", "task-ref"));
-    when(mockTaskQueue.enqueue(anyString(), anyCollection())).thenReturn(taskReferences);
     when(mockTransaction.commit()).thenThrow(new RuntimeException("error committing"));
 
-    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder()
-        .method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder().method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
 
     assertThrows(RuntimeException.class, () -> pipelineBackendTransaction.commit());
 
     verify(mockTransaction, atMostOnce()).commit();
-    verify(mockTaskQueue, org.mockito.Mockito.never()).enqueue(anyString(), anyCollection());
-    verify(mockTaskQueue, org.mockito.Mockito.never()).deleteTasks(ArgumentMatchers.any());
+    // Datastore commits first; on failure tasks are never enqueued so there is nothing to delete
+    verify(mockTaskQueue, never()).enqueue(anyString(), anyCollection());
+    verify(mockTaskQueue, never()).deleteTasks(any());
   }
 
   @Test
@@ -101,6 +109,20 @@ class PipelineBackendTransactionImplTest {
     pipelineBackendTransaction.rollback();
 
     verify(mockTransaction).rollback();
+    assertTrue(pipelineBackendTransaction.getPendingTaskSpecsByQueue().isEmpty());
+  }
+
+  @Test
+  void rollbackWithExecutionOptionsForwardsOptionsAndClearsTasks() {
+    DatastoreExecutionOptions options = DatastoreExecutionOptions.newBuilder().build();
+    pipelineBackendTransaction.enqueue("queue1", PipelineTaskQueue.TaskSpec.builder()
+        .method(PipelineTaskQueue.TaskSpec.Method.GET).callbackPath("path").build());
+
+    pipelineBackendTransaction.rollback(options);
+
+    verify(mockTransaction).rollback(same(options));
+    verify(mockTransaction, never()).rollback();
+    verify(mockTaskQueue, never()).enqueue(anyString(), anyCollection());
     assertTrue(pipelineBackendTransaction.getPendingTaskSpecsByQueue().isEmpty());
   }
 

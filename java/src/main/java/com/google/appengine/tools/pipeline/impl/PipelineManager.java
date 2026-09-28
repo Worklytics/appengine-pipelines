@@ -14,18 +14,27 @@
 
 package com.google.appengine.tools.pipeline.impl;
 
-import com.google.appengine.tools.mapreduce.*;
-import com.google.appengine.tools.mapreduce.impl.shardedjob.*;
+import com.google.appengine.tools.EnvironmentUtils;
+import com.google.appengine.tools.mapreduce.MapJob;
+import com.google.appengine.tools.mapreduce.MapReduceJob;
+import com.google.appengine.tools.mapreduce.MapReduceSettings;
+import com.google.appengine.tools.mapreduce.MapReduceSpecification;
+import com.google.appengine.tools.mapreduce.MapSettings;
+import com.google.appengine.tools.mapreduce.MapSpecification;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTask;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.IncrementalTaskState;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobController;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunId;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
+import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
 import com.google.appengine.tools.pipeline.*;
 import com.google.appengine.tools.pipeline.di.DaggerMultiTenantComponent;
 import com.google.appengine.tools.pipeline.di.MultiTenantComponent;
 import com.google.appengine.tools.pipeline.di.TenantModule;
-import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
-import com.google.appengine.tools.pipeline.impl.util.DIUtil;
-import com.google.cloud.datastore.DatastoreOptions;
-import com.google.cloud.datastore.Key;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
+import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec;
 import com.google.appengine.tools.pipeline.impl.backend.UpdateSpec.Group;
 import com.google.appengine.tools.pipeline.impl.model.Barrier;
@@ -44,11 +53,14 @@ import com.google.appengine.tools.pipeline.impl.tasks.DeletePipelineTask;
 import com.google.appengine.tools.pipeline.impl.tasks.FinalizeJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.HandleChildExceptionTask;
 import com.google.appengine.tools.pipeline.impl.tasks.HandleSlotFilledTask;
-import com.google.appengine.tools.pipeline.impl.tasks.RunJobTask;
 import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
+import com.google.appengine.tools.pipeline.impl.tasks.RunJobTask;
+import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.cloud.datastore.DatastoreOptions;
+import com.google.cloud.datastore.Key;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
@@ -66,7 +78,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
@@ -188,8 +205,8 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
     // --> JobRecordFactory or something, that gets injected
     String projectId = backEnd.getOptions().as(AppEngineBackEnd.Options.class).getProjectId();
 
-    if (projectId.equals("no_app_id")) {
-      throw new IllegalStateException("projectId is 'no_app_id'; this isn't legal GCP project id");
+    if (EnvironmentUtils.LOCAL_GAE_PROJECT_ID.equals(projectId)) {
+      throw new IllegalStateException("projectId is '%s'; this isn't legal GCP project id".formatted(projectId));
     }
 
     JobSetting[] resolvedSettings = datastoreBoundaryFromBackend(settings);
@@ -201,20 +218,22 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   /**
-   * When the caller did not set a datastore database or namespace, copy the one this
+   * When the caller omitted a datastore database or namespace, copy the one this
    * backend is already bound to so keys and later tasks stay in that partition.
+   * An explicit null setting means the default partition and is left alone.
    */
-  private JobSetting[] datastoreBoundaryFromBackend(JobSetting[] settings) {
+  @VisibleForTesting
+  JobSetting[] datastoreBoundaryFromBackend(JobSetting[] settings) {
     JobSetting[] current = settings == null ? new JobSetting[0] : settings;
     List<JobSetting> resolved = new ArrayList<>(Arrays.asList(current));
     DatastoreOptions datastoreOptions = backEnd.getOptions().as(AppEngineBackEnd.Options.class).getDatastoreOptions();
-    if (JobSetting.getSettingValue(JobSetting.DatastoreDatabase.class, current).isEmpty()) {
+    if (JobSetting.findSetting(JobSetting.DatastoreDatabase.class, current).isEmpty()) {
       String databaseId = JobSetting.canonicalDatabaseId(datastoreOptions.getDatabaseId());
       if (databaseId != null) {
         resolved.add(new JobSetting.DatastoreDatabase(databaseId));
       }
     }
-    if (JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, current).isEmpty()) {
+    if (JobSetting.findSetting(JobSetting.DatastoreNamespace.class, current).isEmpty()) {
       String namespace = JobSetting.canonicalNamespace(datastoreOptions.getNamespace());
       if (namespace != null) {
         resolved.add(new JobSetting.DatastoreNamespace(namespace));
@@ -504,7 +523,10 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   /**
-   * just implementation of {@link PipelineService#submitPromisedValue(SlotId, Object)}, not really sure why it's here
+   * Fills a promised slot. The handle names the slot's project, database, and namespace, and the
+   * write follows that key. A separate pipeline, possibly in another database or namespace, can
+   * submit a value into a promise created in the parent pipeline. Jobs inside one pipeline cannot
+   * change that pipeline's partition.
    *
    * @param promiseHandle id of slot to fill for promise
    * @param value to fill slot with

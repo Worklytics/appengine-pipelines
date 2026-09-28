@@ -9,7 +9,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -18,6 +19,7 @@ import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.cloud.datastore.AggregationQuery;
 import com.google.cloud.datastore.AggregationResults;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreExecutionOptions;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.FullEntity;
 import com.google.cloud.datastore.Key;
@@ -78,13 +80,24 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   /** Transaction interface delegate **/
 
+  @Override
   public Response commit() {
+    return commitDatastoreThenTasks(Transaction::commit);
+  }
+
+  @Override
+  public Response commit(DatastoreExecutionOptions options) {
+    return commitDatastoreThenTasks(txn -> txn.commit(options));
+  }
+
+  /**
+   * Commits the datastore transaction first. Cloud Tasks are enqueued only after that succeeds.
+   */
+  private Response commitDatastoreThenTasks(Function<Transaction, Response> committer) {
     // noinspection unchecked
     try {
-      Response dsResponse = getDsTransaction().commit();
-      // log.info("commit transaction for " +
-      // Arrays.stream(Thread.currentThread().getStackTrace()).toList().get(2));
-      // we see more Datastore errors (contention / ) than cloud tasks enqueue errors
+      Response dsResponse = committer.apply(getDsTransaction());
+      // we see more Datastore errors (contention) than cloud tasks enqueue errors
       // (barely none)
       // let's only commit if the datastore txn went through
       taskReferences.addAll(this.commitTasks());
@@ -98,9 +111,20 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     }
   }
 
+  @Override
   public void rollback() {
+    rollbackDatastoreThenTasks(Transaction::rollback);
+  }
+
+  @Override
+  public void rollback(DatastoreExecutionOptions options) {
+    rollbackDatastoreThenTasks(txn -> txn.rollback(options));
+  }
+
+  private void rollbackDatastoreThenTasks(Consumer<Transaction> rollback) {
     try {
-      rollbackAllServices();
+      rollback.accept(getDsTransaction());
+      rollbackTasks();
     } finally {
       log.log(Level.WARNING, String.format("Transaction rollback - opened for %s", stopwatch.elapsed()));
     }
@@ -297,17 +321,4 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     rollbackTasks();
   }
 
-  @Override
-  protected void finalize() throws Throwable {
-    try {
-      if (this.getDsTransaction().isActive()) {
-        // shouldn't happen, unless opening tnx just for read, just is kind of absurd in
-        // a strong consistency model
-        log.log(Level.WARNING, String.format("Finalizing PipelineBackendTransactionImpl transaction open for %s",
-            stopwatch.elapsed(TimeUnit.MILLISECONDS)));
-      }
-    } finally {
-      super.finalize();
-    }
-  }
 }

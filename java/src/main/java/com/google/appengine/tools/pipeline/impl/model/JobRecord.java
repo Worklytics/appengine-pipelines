@@ -187,7 +187,7 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
   private final String namespace;
 
   /**
-   * databaseId for Job, if any (otherwise default "")
+   * databaseId for Job, if any. Null means the default database.
    */
   @Getter
   private final String databaseId;
@@ -502,18 +502,20 @@ public class JobRecord extends PipelineModelObject implements JobInfo, ExpiringD
               + ") does not match the root pipeline ("
               + describeBoundary(partitionDatabaseId, partitionNamespace) + ")");
     }
-    Optional<String> requestedDatabase = JobSetting.getSettingValue(JobSetting.DatastoreDatabase.class, settings);
+    Optional<JobSetting.DatastoreDatabase> requestedDatabase =
+        JobSetting.findSetting(JobSetting.DatastoreDatabase.class, settings);
     if (requestedDatabase.isPresent()
-        && !JobSetting.sameDatabase(partitionDatabaseId, requestedDatabase.get())) {
+        && !JobSetting.sameDatabase(partitionDatabaseId, requestedDatabase.get().getValue())) {
       throw new IllegalArgumentException(
-          "A job cannot select datastore database '" + displayDatabase(requestedDatabase.get())
+          "A job cannot select datastore database '" + displayDatabase(requestedDatabase.get().getValue())
               + "' because this pipeline is stored in '" + displayDatabase(partitionDatabaseId) + "'");
     }
-    Optional<String> requestedNamespace = JobSetting.getSettingValue(JobSetting.DatastoreNamespace.class, settings);
+    Optional<JobSetting.DatastoreNamespace> requestedNamespace =
+        JobSetting.findSetting(JobSetting.DatastoreNamespace.class, settings);
     if (requestedNamespace.isPresent()
-        && !JobSetting.sameNamespace(partitionNamespace, requestedNamespace.get())) {
+        && !JobSetting.sameNamespace(partitionNamespace, requestedNamespace.get().getValue())) {
       throw new IllegalArgumentException(
-          "A job cannot select datastore namespace '" + displayNamespace(requestedNamespace.get())
+          "A job cannot select datastore namespace '" + displayNamespace(requestedNamespace.get().getValue())
               + "' because this pipeline is stored in '" + displayNamespace(partitionNamespace) + "'");
     }
   }

@@ -31,6 +31,8 @@ import com.google.appengine.tools.pipeline.impl.backend.SerializationStrategy;
 import com.google.apphosting.api.ApiProxy;
 
 import com.google.auth.Credentials;
+import com.google.cloud.NoCredentials;
+import com.google.cloud.datastore.DatastoreOpenTelemetryOptions;
 import com.google.cloud.datastore.DatastoreOptions;
 import lombok.Getter;
 
@@ -104,7 +106,8 @@ public abstract class PipelineTest {
     return new AppEngineBackEnd(AppEngineBackEnd.Options.builder()
       .datastoreOptions(DatastoreOptions.newBuilder()
         .setProjectId("test-project")
-        .setCredentials(mock(Credentials.class))
+        .setCredentials(NoCredentials.getInstance())
+        .setOpenTelemetryOptions(DatastoreOpenTelemetryOptions.newBuilder().build())
         .build())
       .build(),
       null,

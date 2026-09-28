@@ -216,8 +216,10 @@ public interface JobSetting extends Serializable {
    * A setting for specifying the datastore database to use for this pipeline.
    * Null, empty, and {@code (default)} select the default database.
    *
-   * A pipeline is stored in one database. Child jobs inherit that database and
-   * cannot select a different one.
+   * A pipeline is stored in one database and one namespace. Child jobs inherit that
+   * partition and cannot select a different one. To cross partitions, create a promise
+   * in the parent pipeline and pass its handle to a separate pipeline, which submits
+   * the value back into the parent's database and namespace.
    */
   final class DatastoreDatabase extends StringValuedSetting {
     @Serial
@@ -258,10 +260,18 @@ public interface JobSetting extends Serializable {
   }
 
   static <E extends StringValuedSetting> Optional<String> getSettingValue(Class<E> clazz, JobSetting[] settings) {
-    return Arrays.stream(settings)
-        .filter(clazz::isInstance)
-        .findAny()
-        .map(s -> ((StringValuedSetting) s).getValue());
+    return findSetting(clazz, settings).map(StringValuedSetting::getValue);
+  }
+
+  /**
+   * The setting object, including one whose value is null. {@link #getSettingValue} drops null
+   * values, so it cannot tell an omitted setting from an explicit default.
+   */
+  static <E extends JobSetting> Optional<E> findSetting(Class<E> clazz, JobSetting[] settings) {
+    if (settings == null) {
+      return Optional.empty();
+    }
+    return Arrays.stream(settings).filter(clazz::isInstance).map(clazz::cast).findAny();
   }
 
   /**

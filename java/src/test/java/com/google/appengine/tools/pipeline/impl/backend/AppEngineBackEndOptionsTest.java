@@ -1,13 +1,13 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
 import com.google.appengine.tools.pipeline.impl.util.SerializationUtils;
-import com.google.auth.Credentials;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.auth.oauth2.UserCredentials;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOpenTelemetryOptions;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
 import lombok.SneakyThrows;
@@ -26,7 +26,8 @@ class AppEngineBackEndOptionsTest {
     //TODO: replace this with GoogleCredentials.getApplicationDefault() when it's available, if we ever auth the Github
     // Action with GCP (debatably necessary for integration tests)
     GoogleCredentials credentials = GoogleCredentials.newBuilder()
-      .setQuotaProjectId("test-project")
+      // use some non-local/test project id to not override the credentials
+      .setQuotaProjectId("some-project")
       .setAccessToken(AccessToken.newBuilder().setTokenValue("token").setExpirationTime(new Date()).build())
       .build();
 
@@ -34,6 +35,7 @@ class AppEngineBackEndOptionsTest {
     Datastore datastore = DatastoreOptions.newBuilder()
       .setProjectId(credentials.getQuotaProjectId())
       .setCredentials(credentials)
+      .setOpenTelemetryOptions(DatastoreOpenTelemetryOptions.newBuilder().build())
       .build().getService();
 
     AppEngineBackEnd backend = new AppEngineBackEnd(datastore, mock(PipelineTaskQueue.class), mock(AppEngineServicesService.class));
@@ -71,7 +73,7 @@ class AppEngineBackEndOptionsTest {
   void datastoreForKeyUsesTheKeyDatabase() {
     Datastore datastore = DatastoreOptions.newBuilder()
         .setProjectId("test-project")
-        .setCredentials(mock(Credentials.class))
+        .setCredentials(NoCredentials.getInstance())
         .build()
         .getService();
     AppEngineBackEnd backend = new AppEngineBackEnd(datastore, mock(PipelineTaskQueue.class),
@@ -79,9 +81,12 @@ class AppEngineBackEndOptionsTest {
 
     Key defaultKey = Key.newBuilder("test-project", "JobRecord", "root").build();
     Key namedKey = Key.newBuilder("test-project", "JobRecord", "root").setDatabaseId("tenant-db").build();
+    Key namespacedKey = Key.newBuilder("test-project", "JobRecord", "root").setNamespace("tenant-ns").build();
 
     assertSame(datastore, backend.datastoreForKey(defaultKey));
     assertEquals("tenant-db", backend.datastoreForKey(namedKey).getOptions().getDatabaseId());
+    assertEquals("tenant-ns", backend.datastoreForKey(namespacedKey).getOptions().getNamespace());
     assertSame(backend.datastoreForKey(namedKey), backend.datastoreForKey(namedKey));
+    assertSame(backend.datastoreForKey(namespacedKey), backend.datastoreForKey(namespacedKey));
   }
 }
