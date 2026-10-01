@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -47,6 +46,8 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.github.rholder.retry.Attempt;
 import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.RetryListener;
@@ -166,7 +167,10 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
   private final Datastore datastore;
   private final PipelineTaskQueue taskQueue;
   private final AppEngineServicesService servicesService;
-  private final ConcurrentHashMap<DatastorePartition, Datastore> datastoreByPartition = new ConcurrentHashMap<>();
+  private final Cache<DatastorePartition, Datastore> datastoreByPartition = CacheBuilder.newBuilder()
+      .maximumSize(64)
+      .expireAfterAccess(Duration.ofMinutes(30))
+      .build();
 
   @Inject
   public AppEngineBackEnd(Datastore datastore, PipelineTaskQueue taskQueue,
@@ -229,7 +233,15 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
       return datastore;
     }
     DatastorePartition partition = new DatastorePartition(requestedDatabase, requestedNamespace);
-    return datastoreByPartition.computeIfAbsent(partition, this::newDatastore);
+    try {
+      return datastoreByPartition.get(partition, () -> newDatastore(partition));
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause() == null ? e : e.getCause();
+      if (cause instanceof RuntimeException runtime) {
+        throw runtime;
+      }
+      throw new IllegalStateException("Unable to open Datastore for " + partition, cause);
+    }
   }
 
   private Datastore newDatastore(DatastorePartition partition) {

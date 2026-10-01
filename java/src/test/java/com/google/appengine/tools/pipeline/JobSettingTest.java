@@ -27,6 +27,8 @@ class JobSettingTest {
         assertThrows(IllegalArgumentException.class, () -> new JobSetting.DatastoreDatabase("a".repeat(64))); // max
                                                                                                               // length
                                                                                                               // 63
+        assertThrows(IllegalArgumentException.class,
+                () -> new JobSetting.DatastoreDatabase("f47ac10b-58cc-4372-a567-0e02b2c3d479"));
     }
 
     @Test

@@ -41,11 +41,14 @@ public interface ShardedJobAbstractSettings {
   Double getWorkerHighMemUsagePercent();
 
   default JobSetting[] toJobSettings(JobSetting... extra) {
-    JobSetting[] settings = new JobSetting[3 + extra.length];
+    JobSetting[] settings = new JobSetting[4 + extra.length];
     settings[0] = new JobSetting.OnService(getService());
     settings[1] = new JobSetting.OnQueue(getWorkerQueueName());
     settings[2] = new JobSetting.DatastoreNamespace(getNamespace());
-    System.arraycopy(extra, 0, settings, 3, extra.length);
+    // Always present, including null, so the pipeline root follows this database
+    // instead of inheriting a different one from the backend.
+    settings[3] = new JobSetting.DatastoreDatabase(getDatabaseId());
+    System.arraycopy(extra, 0, settings, 4, extra.length);
     return settings;
   }
 

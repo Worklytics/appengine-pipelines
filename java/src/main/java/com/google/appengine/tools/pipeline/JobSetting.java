@@ -227,15 +227,20 @@ public interface JobSetting extends Serializable {
 
     public static final String DEFAULT_DATABASE_ID = "(default)";
 
+    /** Firestore database IDs are 4–63 characters: a letter, then letters, digits, or hyphens, and must not end with a hyphen. */
+    private static final String DATABASE_ID_PATTERN = "^[a-z][a-z0-9-]{2,61}[a-z0-9]$";
+
+    /** Firestore rejects database IDs in UUID form, including those the general pattern would allow. */
+    private static final String UUID_PATTERN =
+        "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
+
     public DatastoreDatabase(String datastoreDatabase) {
       super(datastoreDatabase);
       if (datastoreDatabase == null || datastoreDatabase.isEmpty()
           || DEFAULT_DATABASE_ID.equals(datastoreDatabase)) {
         return;
       }
-      // Firestore database IDs are 4–63 characters: a letter, then letters, digits,
-      // or hyphens, and must not end with a hyphen.
-      if (!datastoreDatabase.matches("^[a-z][a-z0-9-]{2,61}[a-z0-9]$")) {
+      if (!datastoreDatabase.matches(DATABASE_ID_PATTERN) || datastoreDatabase.matches(UUID_PATTERN)) {
         throw new IllegalArgumentException("Invalid Datastore database ID: " + datastoreDatabase);
       }
     }
