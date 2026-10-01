@@ -14,15 +14,14 @@
 
 package com.google.appengine.tools.pipeline;
 
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 /**
  * A setting for specifying to the framework some aspect of a Job's execution.
@@ -77,7 +76,7 @@ public interface JobSetting extends Serializable {
     @Serial
     private static final long serialVersionUID = 7756646651569386669L;
 
-    //NOTE: behavior of Pipeline Framework allows this to be null for some settings
+    // NOTE: behavior of Pipeline Framework allows this to be null for some settings
     // (tests verify this)
     private final String value;
 
@@ -179,8 +178,9 @@ public interface JobSetting extends Serializable {
    */
   final class OnServiceVersion extends StringValuedSetting {
 
-   @Serial
+    @Serial
     private static final long serialVersionUID = 3877411731586475273L;
+
     public OnServiceVersion(String version) {
       super(version);
     }
@@ -212,20 +212,100 @@ public interface JobSetting extends Serializable {
     }
   }
 
+  /**
+   * A setting for specifying the datastore database to use for this pipeline.
+   * Null, empty, and {@code (default)} select the default database.
+   *
+   * A pipeline is stored in one database and one namespace. Child jobs inherit that
+   * partition and cannot select a different one. To cross partitions, create a promise
+   * in the parent pipeline and pass its handle to a separate pipeline, which submits
+   * the value back into the parent's database and namespace.
+   */
+  final class DatastoreDatabase extends StringValuedSetting {
+    @Serial
+    private static final long serialVersionUID = -1L;
+
+    public static final String DEFAULT_DATABASE_ID = "(default)";
+
+    /** Firestore database IDs are 4–63 characters: a letter, then letters, digits, or hyphens, and must not end with a hyphen. */
+    private static final String DATABASE_ID_PATTERN = "^[a-z][a-z0-9-]{2,61}[a-z0-9]$";
+
+    /** Firestore rejects database IDs in UUID form, including those the general pattern would allow. */
+    private static final String UUID_PATTERN =
+        "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
+
+    public DatastoreDatabase(String datastoreDatabase) {
+      super(datastoreDatabase);
+      if (datastoreDatabase == null || datastoreDatabase.isEmpty()
+          || DEFAULT_DATABASE_ID.equals(datastoreDatabase)) {
+        return;
+      }
+      if (!datastoreDatabase.matches(DATABASE_ID_PATTERN) || datastoreDatabase.matches(UUID_PATTERN)) {
+        throw new IllegalArgumentException("Invalid Datastore database ID: " + datastoreDatabase);
+      }
+    }
+  }
+
+  /**
+   * A setting for specifying the datastore namespace for a pipeline. Null or empty selects the
+   * default namespace; when omitted for a root job, the backend namespace is inherited. Child jobs
+   * inherit the pipeline namespace and cannot select a different one.
+   */
   final class DatastoreNamespace extends StringValuedSetting {
     @Serial
     private static final long serialVersionUID = -1L;
 
     public DatastoreNamespace(String datastoreNameSpace) {
       super(datastoreNameSpace);
+      if (datastoreNameSpace != null) {
+        if (!datastoreNameSpace.matches("^(?!__.*__$)[0-9A-Za-z._-]{0,100}$")) {
+          throw new IllegalArgumentException("Invalid Datastore namespace: " + datastoreNameSpace);
+        }
+      }
     }
   }
 
-
   static <E extends StringValuedSetting> Optional<String> getSettingValue(Class<E> clazz, JobSetting[] settings) {
-    return Arrays.stream(settings)
-      .filter( s -> s.getClass().isAssignableFrom(clazz))
-      .findAny()
-      .map(s -> ((StringValuedSetting) s).getValue());
+    return findSetting(clazz, settings).map(StringValuedSetting::getValue);
+  }
+
+  /**
+   * The setting object, including one whose value is null. {@link #getSettingValue} drops null
+   * values, so it cannot tell an omitted setting from an explicit default.
+   */
+  static <E extends JobSetting> Optional<E> findSetting(Class<E> clazz, JobSetting[] settings) {
+    if (settings == null) {
+      return Optional.empty();
+    }
+    return Arrays.stream(settings).filter(clazz::isInstance).map(clazz::cast).findAny();
+  }
+
+  /**
+   * Null, blank, and {@code (default)} all mean the default Firestore database.
+   * Named database IDs are returned unchanged.
+   */
+  public static String canonicalDatabaseId(String databaseId) {
+    if (databaseId == null || databaseId.isEmpty() || DatastoreDatabase.DEFAULT_DATABASE_ID.equals(databaseId)) {
+      return null;
+    }
+    return databaseId;
+  }
+
+  /**
+   * Null and empty both mean the default namespace.
+   */
+  public static String canonicalNamespace(String namespace) {
+    if (namespace == null || namespace.isEmpty()) {
+      return null;
+    }
+    return namespace;
+  }
+
+  public static boolean sameDatabase(String left, String right) {
+    return Objects.equals(canonicalDatabaseId(left), canonicalDatabaseId(right));
+  }
+
+  public static boolean sameNamespace(String left, String right) {
+    return Objects.equals(canonicalNamespace(left), canonicalNamespace(right));
   }
 }

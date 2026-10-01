@@ -180,8 +180,15 @@ public class MapSettingsTest {
 
   @Test
   public void testPipelineSettings() {
-    MapSettings mrSettings = MapSettings.builder().workerQueueName("queue1").build();
+    MapSettings mrSettings = MapSettings.builder().workerQueueName("queue1").databaseId("tenant-db").build();
     verifyPipelineSettings(mrSettings.toJobSettings(), new ServiceValidator(null), new QueueValidator("queue1"));
+    String databaseId = null;
+    for (JobSetting setting : mrSettings.toJobSettings()) {
+      if (setting instanceof JobSetting.DatastoreDatabase database) {
+        databaseId = database.getValue();
+      }
+    }
+    assertEquals("tenant-db", databaseId);
 
     mrSettings =MapSettings.builder().service("m1").build();
     verifyPipelineSettings(mrSettings.toJobSettings(new StatusConsoleUrl("u1")), new ServiceValidator("m1"),

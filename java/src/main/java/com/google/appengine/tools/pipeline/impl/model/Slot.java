@@ -189,23 +189,15 @@ public class Slot extends PipelineModelObject implements ExpiringDatastoreEntity
         + getKeyName(getGeneratorJobKey()) + ", guid=" + getGraphGUID() + "]";
   }
 
-  public static Key key(String projectId,
-                        String databaseId,
-                        String namespace,
-                        @NonNull String slotName) {
-    KeyFactory keyFactory = new KeyFactory(projectId);
-    if (databaseId != null) {
-      keyFactory.setDatabaseId(databaseId);
-    }
-    if (namespace != null) {
-      keyFactory.setNamespace(namespace);
-    }
-    keyFactory.setKind(DATA_STORE_KIND);
-    return keyFactory.newKey(slotName);
-  }
-
   @VisibleForTesting
   public static Key keyFromHandle(SlotId handle) {
-    return key(handle.getProject(), handle.getDatabaseId(), handle.getNamespace(), handle.getSlotId());
+    return PipelineObjectKey.builder()
+        .projectId(handle.getProject())
+        .databaseId(handle.getDatabaseId())
+        .namespace(handle.getNamespace())
+        .kind(DATA_STORE_KIND)
+        .name(handle.getSlotId())
+        .build()
+        .toDatastoreKey();
   }
 }

@@ -59,6 +59,7 @@ import com.google.appengine.tools.pipeline.impl.util.DIUtil;
 import com.google.appengine.tools.pipeline.impl.util.GUIDGenerator;
 import com.google.appengine.tools.pipeline.impl.util.StringUtils;
 import com.google.appengine.tools.pipeline.util.Pair;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Key;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
@@ -78,6 +79,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -184,8 +186,11 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   @Override
   public void deletePipelineAsync(@NonNull JobRunId pipelineRunId, @NonNull Long delayMillis) {
     Key key = JobRecord.keyFromPipelineHandle(pipelineRunId);
-    DeletePipelineTask deletePipelineTask = new DeletePipelineTask(key, false, QueueSettings.builder().build());
-    deletePipelineTask.getQueueSettings().setDelayInSeconds(delayMillis / 1000);
+    DeletePipelineTask deletePipelineTask = new DeletePipelineTask(key, false, QueueSettings.builder()
+        .databaseId(JobSetting.canonicalDatabaseId(pipelineRunId.getDatabaseId()))
+        .namespace(JobSetting.canonicalNamespace(pipelineRunId.getNamespace()))
+        .delayInSeconds(delayMillis / 1000)
+        .build());
 
     //q: add retries? old one had 5 with 20s backoff; but tasks are auto-retried, right?
 
@@ -204,10 +209,37 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
       throw new IllegalStateException("projectId is '%s'; this isn't legal GCP project id".formatted(projectId));
     }
 
-    JobRecord jobRecord = JobRecord.createRootJobRecord(projectId, jobInstance, getSerializationStrategy(), settings);
-    pinServiceAndVersion(jobRecord, settings);
+    JobSetting[] resolvedSettings = datastoreBoundaryFromBackend(settings);
+    JobRecord jobRecord = JobRecord.createRootJobRecord(projectId, jobInstance, getSerializationStrategy(),
+        resolvedSettings);
+    pinServiceAndVersion(jobRecord, resolvedSettings);
 
     return registerNewJobRecord(updateSpec, jobRecord, params);
+  }
+
+  /**
+   * When the caller omitted a datastore database or namespace, copy the one this
+   * backend is already bound to so keys and later tasks stay in that partition.
+   * An explicit null setting means the default partition and is left alone.
+   */
+  @VisibleForTesting
+  JobSetting[] datastoreBoundaryFromBackend(JobSetting[] settings) {
+    JobSetting[] current = settings == null ? new JobSetting[0] : settings;
+    List<JobSetting> resolved = new ArrayList<>(Arrays.asList(current));
+    DatastoreOptions datastoreOptions = backEnd.getOptions().as(AppEngineBackEnd.Options.class).getDatastoreOptions();
+    if (JobSetting.findSetting(JobSetting.DatastoreDatabase.class, current).isEmpty()) {
+      String databaseId = JobSetting.canonicalDatabaseId(datastoreOptions.getDatabaseId());
+      if (databaseId != null) {
+        resolved.add(new JobSetting.DatastoreDatabase(databaseId));
+      }
+    }
+    if (JobSetting.findSetting(JobSetting.DatastoreNamespace.class, current).isEmpty()) {
+      String namespace = JobSetting.canonicalNamespace(datastoreOptions.getNamespace());
+      if (namespace != null) {
+        resolved.add(new JobSetting.DatastoreNamespace(namespace));
+      }
+    }
+    return resolved.toArray(JobSetting[]::new);
   }
 
   @VisibleForTesting
@@ -491,7 +523,10 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   }
 
   /**
-   * just implementation of {@link PipelineService#submitPromisedValue(SlotId, Object)}, not really sure why it's here
+   * Fills a promised slot. The handle names the slot's project, database, and namespace, and the
+   * write follows that key. A separate pipeline, possibly in another database or namespace, can
+   * submit a value into a promise created in the parent pipeline. Jobs inside one pipeline cannot
+   * change that pipeline's partition.
    *
    * @param promiseHandle id of slot to fill for promise
    * @param value to fill slot with
