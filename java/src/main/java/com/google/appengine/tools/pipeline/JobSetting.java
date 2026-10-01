@@ -242,8 +242,9 @@ public interface JobSetting extends Serializable {
   }
 
   /**
-   * A setting for specifying the datastore namespace to use for this job;
-   * otherwise will be the default datastore namespace.
+   * A setting for specifying the datastore namespace for a pipeline. Null or empty selects the
+   * default namespace; when omitted for a root job, the backend namespace is inherited. Child jobs
+   * inherit the pipeline namespace and cannot select a different one.
    */
   final class DatastoreNamespace extends StringValuedSetting {
     @Serial
