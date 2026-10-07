@@ -150,6 +150,10 @@ public class IncrementalTaskState<T extends IncrementalTask> implements Expiring
     retryCount = 0;
   }
 
+  void setRetryCount(int retryCount) {
+    this.retryCount = retryCount;
+  }
+
   private static final String JOB_ID_PROPERTY = "jobId";
   private static final String MOST_RECENT_UPDATE_TIME_PROPERTY = "mostRecentUpdateTime";
   private static final String SEQUENCE_NUMBER_PROPERTY = "sequenceNumber";
