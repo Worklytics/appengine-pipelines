@@ -12,6 +12,7 @@ import com.google.cloud.datastore.FullEntity;
 import com.google.cloud.datastore.IncompleteKey;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.datastore.Transaction;
+import com.google.datastore.v1.TransactionOptions;
 import com.google.apphosting.api.ApiProxy;
 import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
@@ -76,6 +78,10 @@ public class LockRecoveryTest extends EndToEndTestCase {
 
   private final AtomicReference<ReadFault> readFault = new AtomicReference<>();
 
+  private final AtomicInteger jobStateReadsReadOnly = new AtomicInteger();
+
+  private final AtomicInteger jobStateReadsReadWrite = new AtomicInteger();
+
   // runner whose datastore transactions fail as set in fault
   private ShardedJobRunner runner;
 
@@ -117,8 +123,9 @@ public class LockRecoveryTest extends EndToEndTestCase {
     TaskStateInfo workerTask = grabNextTaskFromQueue(QUEUE_NAME);
     IncrementalTaskId taskId = getTaskId(workerTask);
 
-    // post-run update reads the task state without reading the job state first (lock acquisition reads job state first)
-    ReadFault fault = new ReadFault((readBefore, key) -> isTaskState(key) && readBefore.stream().noneMatch(LockRecoveryTest::isJobState));
+    // post-run update is the 2nd txn to read the task state (lock acquisition is the 1st)
+    AtomicInteger taskStateReads = new AtomicInteger();
+    ReadFault fault = new ReadFault((readBefore, key) -> isTaskState(key) && taskStateReads.incrementAndGet() == 2);
     readFault.set(fault);
 
     // retrying on the aborted transaction would go on for ~30 min (SYMBOLIC_FOREVER attempts), so bound it
@@ -140,6 +147,20 @@ public class LockRecoveryTest extends EndToEndTestCase {
       new TestController(getDatastore().getOptions(), 1, getPipelineService(), false),
       ShardedJobSettings.builder().build());
     return jobId;
+  }
+
+  @Test
+  public void lockAcquisitionDoesNotReadJobStateInReadWriteTransaction() throws Exception {
+    ShardedJobRunId jobId = startJob();
+    TaskStateInfo workerTask = grabNextTaskFromQueue(QUEUE_NAME);
+    IncrementalTaskId taskId = getTaskId(workerTask);
+
+    runner.runTask(jobId, taskId, 0, "test-operation");
+
+    // job state is shared by all shards; reading it in a read-write txn makes every slice's lock acquisition contend
+    assertTrue(jobStateReadsReadOnly.get() > 0, "job state was not read in a read-only txn");
+    assertEquals(0, jobStateReadsReadWrite.get(), "job state read in a read-write txn");
+    assertSliceCompletedOnce(taskId);
   }
 
   private void assertSliceCompletedOnce(IncrementalTaskId taskId) {
@@ -195,11 +216,13 @@ public class LockRecoveryTest extends EndToEndTestCase {
     return (Datastore) Proxy.newProxyInstance(Datastore.class.getClassLoader(), new Class<?>[]{Datastore.class},
       (proxy, method, args) -> {
         Object result = invoke(delegate, method, args);
-        return result instanceof Transaction transaction ? faultInjecting(transaction) : result;
+        boolean readOnly = args != null && Arrays.stream(args)
+          .anyMatch(arg -> arg instanceof TransactionOptions options && options.hasReadOnly());
+        return result instanceof Transaction transaction ? faultInjecting(transaction, readOnly) : result;
       });
   }
 
-  private Transaction faultInjecting(Transaction delegate) {
+  private Transaction faultInjecting(Transaction delegate, boolean readOnly) {
     List<FullEntity<?>> written = new ArrayList<>();
     List<Key> read = new ArrayList<>();
     AtomicBoolean aborted = new AtomicBoolean(false);
@@ -216,6 +239,9 @@ public class LockRecoveryTest extends EndToEndTestCase {
               && fault.fired().compareAndSet(false, true)) {
               aborted.set(true);
               throw abortedException();
+            }
+            if (keys.stream().anyMatch(LockRecoveryTest::isJobState)) {
+              (readOnly ? jobStateReadsReadOnly : jobStateReadsReadWrite).incrementAndGet();
             }
             read.addAll(keys);
           }

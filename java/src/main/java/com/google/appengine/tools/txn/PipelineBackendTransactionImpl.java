@@ -31,6 +31,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
+import com.google.datastore.v1.TransactionOptions;
 import com.google.protobuf.ByteString;
 
 import lombok.AccessLevel;
@@ -67,9 +68,17 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
 
   final PipelineTaskQueue taskQueue;
 
+  // null for default (read-write) transactions
+  private final TransactionOptions transactionOptions;
+
   public PipelineBackendTransactionImpl(@NonNull Datastore datastore, @NonNull PipelineTaskQueue taskQueue) {
+    this(datastore, taskQueue, null);
+  }
+
+  PipelineBackendTransactionImpl(@NonNull Datastore datastore, @NonNull PipelineTaskQueue taskQueue, TransactionOptions transactionOptions) {
     this.datastore = datastore;
     this.taskQueue = taskQueue;
+    this.transactionOptions = transactionOptions;
   }
 
   @Getter(AccessLevel.PACKAGE)
@@ -251,7 +260,9 @@ public class PipelineBackendTransactionImpl implements PipelineBackendTransactio
     if (this.dsTransaction == null) {
       synchronized (this) {
         if (this.dsTransaction == null) {
-          this.dsTransaction = datastore.newTransaction();
+          this.dsTransaction = transactionOptions == null
+            ? datastore.newTransaction()
+            : datastore.newTransaction(transactionOptions);
           this.stopwatch = Stopwatch.createStarted();
         }
       }
