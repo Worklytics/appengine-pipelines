@@ -4,10 +4,12 @@ import com.google.appengine.tools.mapreduce.GcpCredentialOptions;
 import com.google.appengine.tools.mapreduce.GcsFilename;
 import com.google.appengine.tools.mapreduce.impl.util.LevelDbConstants;
 import com.google.appengine.tools.pipeline.util.CloseUtils;
+import com.google.api.client.http.HttpResponseException;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.base.Throwables;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
@@ -88,6 +90,20 @@ public final class GoogleCloudStorageLevelDbInputReader extends LevelDbInputRead
     resetClient();
     super.endSlice();
   }
+
+  /**
+   * GCS answers 416 to a read whose range starts at the object's size, which happens when a slice ended right after
+   * the last record: the next slice opens a fresh channel at that offset (or restores one positioned there), and its
+   * first read fails instead of returning end-of-stream. Objects read here are immutable, so this is end of input.
+   */
+  @Override
+  protected boolean isReadPastEnd(Exception e) {
+    return Throwables.getCausalChain(e).stream()
+      .anyMatch(t -> (t instanceof StorageException se && se.getCode() == HTTP_RANGE_NOT_SATISFIABLE)
+        || (t instanceof HttpResponseException he && he.getStatusCode() == HTTP_RANGE_NOT_SATISFIABLE));
+  }
+
+  private static final int HTTP_RANGE_NOT_SATISFIABLE = 416;
 
   @Override
   public ReadableByteChannel createReadableByteChannel() {
