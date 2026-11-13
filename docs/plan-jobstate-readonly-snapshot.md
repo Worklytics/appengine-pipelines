@@ -36,10 +36,10 @@ transactions take no locks, so they don't contend with writers and aren't aborte
 
 Results so far:
 - `LockRecoveryTest`: 4/4 pass.
-- Full mapreduce + txn suite: 202 tests, 2 failures.
-  - `EndToEndTest.testSlicingJob`: also fails on the base commit (GCS 416), so it's pre-existing.
-  - `MapReduceServletTest.ignoredTestCommandError`: ClassCastException in test setup. Also fails on `main`
-    (f67ddda), so it's pre-existing.
+- Full mapreduce + txn suite: 202 tests, 1 failure, `EndToEndTest.testSlicingJob`. It also fails on the base commit
+  (GCS 416), so it's pre-existing.
+  - `MapReduceServletTest.ignoredTestCommandError` passes. It only failed on a build that still had classes compiled
+    from the Micronaut branch in `target/`. Run `mvn clean` after switching branches.
 
 ## Remaining steps
 Done: rebased onto `main`, pre-existing failures confirmed, `<revision>` bumped to `0.3+worklytics.14.5`, PR opened.
