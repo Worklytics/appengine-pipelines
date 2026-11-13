@@ -36,10 +36,23 @@ transactions take no locks, so they don't contend with writers and aren't aborte
 
 Results so far:
 - `LockRecoveryTest`: 4/4 pass.
-- Full mapreduce + txn suite: 202 tests, 1 failure, `EndToEndTest.testSlicingJob`. It also fails on the base commit
-  (GCS 416), so it's pre-existing.
+- Full mapreduce + txn suite: 202 tests, 1 failure, `EndToEndTest.testSlicingJob`. It also failed on the base commit
+  (GCS 416). It's fixed in this branch too; see "GCS 416 at end of input" below.
   - `MapReduceServletTest.ignoredTestCommandError` passes. It only failed on a build that still had classes compiled
     from the Micronaut branch in `target/`. Run `mvn clean` after switching branches.
+
+## GCS 416 at end of input (also fixed here)
+When a slice starts at the end of a GCS LevelDb file, the read asks GCS for a range that starts at the object size.
+GCS answers 416. This happens in reduce slices whose sorted input file was fully read by the previous slice. The GCS
+client sometimes turns that into end-of-stream, but it holds on to the error and rethrows it later: on the next read,
+on `capture()` at `endSlice`, or on `close()`. `CloseUtils.closeQuietly(Closeable)` doesn't ignore it, because it is
+unchecked.
+- `LevelDbInputReader`: on end of input (EOF, or a read-past-end error per `isReadPastEnd`), closes the channel and
+  replaces it with a serializable `EndOfInputChannel`. Closing ignores all exceptions.
+- `GoogleCloudStorageLevelDbInputReader.isReadPastEnd`: HTTP 416 anywhere in the cause chain.
+- Test: `GoogleCloudStorageLevelDbInputReaderTest.testReadingToEndAcrossSlices`, against real GCS. Fails before the
+  fix with 1 and 17 records. `EndToEndTest.testSlicingJob` passes.
+- The emulator-only `StopAtObjectSizeChannel` workaround from #100 is kept. It's likely redundant now.
 
 ## Remaining steps
 Done: rebased onto `main`, pre-existing failures confirmed, `<revision>` bumped to `0.3+worklytics.14.5`, PR opened.
