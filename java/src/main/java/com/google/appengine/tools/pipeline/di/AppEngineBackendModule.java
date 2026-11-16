@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline.di;
 
+import com.google.appengine.tools.pipeline.util.DatastoreClients;
 import com.google.appengine.tools.pipeline.impl.backend.*;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
@@ -17,7 +18,7 @@ public class AppEngineBackendModule {
 
   @Provides @StepExecutionScoped
   public Datastore datastore(DatastoreOptions options) {
-    return options.getService();
+    return DatastoreClients.get(options);
   }
 
   @Provides
