@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline.di;
 
+import com.google.appengine.tools.pipeline.util.DatastoreClients;
 import com.google.appengine.tools.pipeline.PipelineService;
 import com.google.appengine.tools.pipeline.impl.PipelineServiceImpl;
 import com.google.appengine.tools.pipeline.impl.backend.*;
@@ -33,7 +34,7 @@ public class TenantModule {
 
     @Provides @TenantScoped
     public Datastore datastore(AppEngineBackEnd.Options options) {
-      return options.getDatastoreOptions().getService();
+      return DatastoreClients.get(options.getDatastoreOptions());
     }
 
     @Provides  @TenantScoped
@@ -42,7 +43,7 @@ public class TenantModule {
       PipelineTaskQueue pipelineTaskQueue,
       AppEngineServicesService appEngineServicesService
     ) {
-      return new AppEngineBackEnd(options.getDatastoreOptions().getService(), pipelineTaskQueue, appEngineServicesService);
+      return new AppEngineBackEnd(DatastoreClients.get(options.getDatastoreOptions()), pipelineTaskQueue, appEngineServicesService);
     }
 
     @Module

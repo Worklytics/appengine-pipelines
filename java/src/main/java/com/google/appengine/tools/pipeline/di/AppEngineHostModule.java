@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline.di;
 
+import com.google.appengine.tools.pipeline.util.GoogleApiClients;
 import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineEnvironment;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineServicesService;
@@ -14,7 +15,6 @@ import com.google.appengine.v1.VersionsClient;
 import com.google.cloud.tasks.v2.CloudTasksClient;
 import dagger.Module;
 import dagger.Provides;
-import lombok.SneakyThrows;
 
 import javax.inject.Singleton;
 import java.util.Optional;
@@ -40,28 +40,28 @@ public class AppEngineHostModule {
     }
   }
 
-  @SneakyThrows
+  // process-wide, not per component; callers must not close it
   @Provides
   ServicesClient servicesClient() {
-    return ServicesClient.create();
+    return GoogleApiClients.services();
   }
 
-  @SneakyThrows
+  // process-wide, not per component; callers must not close it
   @Provides
   VersionsClient versionsClient() {
-    return VersionsClient.create();
+    return GoogleApiClients.versions();
   }
 
-  @SneakyThrows
+  // process-wide, not per component; callers must not close it
   @Provides
   ApplicationsClient applicationsClient() {
-    return ApplicationsClient.create();
+    return GoogleApiClients.applications();
   }
 
-  @SneakyThrows
+  // process-wide, not per component; callers must not close it
   @Provides
   CloudTasksClient cloudTasksClient() {
-    return CloudTasksClient.create();
+    return GoogleApiClients.cloudTasks();
   }
 
   @Provides @Singleton
