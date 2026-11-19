@@ -49,11 +49,30 @@ public class SortWorker extends Worker<SortContext> {
       SortWorker.class.getName() + ".disable_allocate_direct";
 
   /**
-   * Fraction of system ram sort will allocate. There are multiple values in case the largest
-   * proportion is unavailable. If the smallest is unavailable sort will fail.
+   * Fraction of max heap sort will allocate. There are multiple values in case the largest
+   * proportion is unavailable; a smaller buffer only means smaller sorted runs (more output files),
+   * so smaller ones are tried before giving up. If the smallest is unavailable sort will fail.
    */
-  private static final double[] TARGET_SORT_RAM_PROPORTIONS = {0.25, 0.15};
+  private static final double[] TARGET_SORT_RAM_PROPORTIONS = {0.25, 0.15, 0.10, 0.05};
   private static final int MEMORY_ALLOCATION_ATTEMPTS = TARGET_SORT_RAM_PROPORTIONS.length;
+
+  /**
+   * Largest proportion allocated on heap (if direct allocation fails), so as not to take too much of it.
+   */
+  private static final double MAX_HEAP_SORT_RAM_PROPORTION = 0.15;
+
+  /**
+   * Smallest buffer worth sorting with; below this, the request is rejected (and retried later).
+   */
+  @VisibleForTesting
+  static final int MIN_SORT_MEMORY_BYTES = 32 * 1024 * 1024;
+
+  /**
+   * Largest buffer: arrays (so heap ByteBuffers) can't quite reach Integer.MAX_VALUE; asking for it fails with
+   * "Requested array size exceeds VM limit", which happens whenever a proportion of a large heap (> ~14GB) is used.
+   */
+  @VisibleForTesting
+  static final int MAX_SORT_MEMORY_BYTES = Integer.MAX_VALUE - 8;
 
   static final int POINTER_SIZE_BYTES = 3 * 4; // 3 ints: KeyIndex, ValueIndex, Length
 
@@ -373,44 +392,53 @@ public class SortWorker extends Worker<SortContext> {
   /**
    * This attempts to allocate as much memory as can be claimed for sorting. Ideally this should be
    * as large as possible. However because there may be multiple requests occurring on the same
-   * instance, several attempts may be made to allocate a large portion.
+   * instance, several attempts may be made, with decreasing sizes: first direct (off-heap), then on
+   * heap (up to {@link #MAX_HEAP_SORT_RAM_PROPORTION}, and only if that much heap is free).
    *
-   * @throws RuntimeException If we cannot allocate after several attempts.
+   * @throws RejectRequestException If we cannot allocate even the smallest size.
    */
   @VisibleForTesting
   ByteBuffer allocateMemory() {
     if (!Boolean.getBoolean(DISABLE_ALLOCATE_DIRECT_PROPERTY)) {
-      for (int retries = 0; retries < MEMORY_ALLOCATION_ATTEMPTS; retries++) {
-        int targetCapacity = getMemoryForSort(retries);
+      for (int attempt = 0; attempt < MEMORY_ALLOCATION_ATTEMPTS; attempt++) {
+        int targetCapacity = getMemoryForSort(attempt);
         try {
           return ByteBuffer.allocateDirect(targetCapacity);
         } catch (OutOfMemoryError e) {
           log.info("Failed to allocate direct memory for sort: " + targetCapacity
-              + " retrying with a smaller buffer.");
+              + " (" + e.getMessage() + "), retrying with a smaller buffer.");
         }
       }
     }
     Runtime runtime = Runtime.getRuntime();
-    int targetCapacity = getMemoryForSort(MEMORY_ALLOCATION_ATTEMPTS);
-    try {
-      if (targetCapacity < runtime.freeMemory() + (runtime.maxMemory() - runtime.totalMemory())) {
-        log.info("Using indirect memory allocation.");
-        return ByteBuffer.allocate(targetCapacity);
-      } else {
-        log.info("Skipping indirect memory allocation.");
+    for (int attempt = 0; attempt < MEMORY_ALLOCATION_ATTEMPTS; attempt++) {
+      if (TARGET_SORT_RAM_PROPORTIONS[attempt] > MAX_HEAP_SORT_RAM_PROPORTION) {
+        continue;
       }
-    } catch (OutOfMemoryError e) {
-      log.info("Failed to allocate non-direct memory for sort: " + targetCapacity + " giving up");
+      int targetCapacity = getMemoryForSort(attempt);
+      long availableHeap = runtime.freeMemory() + (runtime.maxMemory() - runtime.totalMemory());
+      if (targetCapacity >= availableHeap) {
+        log.info("Skipping heap allocation for sort: " + targetCapacity + ", only " + availableHeap + " free");
+        continue;
+      }
+      try {
+        log.info("Using heap allocation for sort: " + targetCapacity);
+        return ByteBuffer.allocate(targetCapacity);
+      } catch (OutOfMemoryError e) {
+        log.info("Failed to allocate heap memory for sort: " + targetCapacity + ", retrying with a smaller buffer.");
+      }
     }
-    throw new RejectRequestException("Failed to allocate memory for sort after "
-        + MEMORY_ALLOCATION_ATTEMPTS + " attempts. Giving up.");
+    throw new RejectRequestException("Failed to allocate memory for sort, down to "
+        + getMemoryForSort(MEMORY_ALLOCATION_ATTEMPTS - 1) + " bytes; max heap " + runtime.maxMemory()
+        + ", free heap " + runtime.freeMemory() + ". Giving up.");
   }
 
-  private int getMemoryForSort(int numRetries) {
+  @VisibleForTesting
+  int getMemoryForSort(int attempt) {
     long maxUsableMemory = MemoryLimiter.TOTAL_CLAIMABLE_MEMORY_SIZE_MB * 1024L * 1024L;
-    int memIndex = Math.min(numRetries, MEMORY_ALLOCATION_ATTEMPTS - 1);
-    return Math.min(maxMemory,
-        Ints.saturatedCast((long) (maxUsableMemory * TARGET_SORT_RAM_PROPORTIONS[memIndex])));
+    int memIndex = Math.min(attempt, MEMORY_ALLOCATION_ATTEMPTS - 1);
+    int proportional = Ints.saturatedCast((long) (maxUsableMemory * TARGET_SORT_RAM_PROPORTIONS[memIndex]));
+    return Math.min(Math.min(maxMemory, MAX_SORT_MEMORY_BYTES), Math.max(MIN_SORT_MEMORY_BYTES, proportional));
   }
 
 
