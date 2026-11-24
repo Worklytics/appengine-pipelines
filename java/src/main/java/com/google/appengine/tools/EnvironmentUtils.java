@@ -25,7 +25,6 @@ public class EnvironmentUtils {
     return datastoreBuilderFromDatastoreOptions(defaultInstance);
   }
 
-  @VisibleForTesting
   public static DatastoreOptions.Builder datastoreBuilderFromDatastoreOptions(DatastoreOptions datastoreOptions) {
     // in case this needs to be overridden, there is a bug in toBuilder that loses the host
     // so we need to copy over everything
