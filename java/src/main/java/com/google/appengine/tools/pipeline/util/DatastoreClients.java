@@ -41,8 +41,9 @@ public final class DatastoreClients {
    */
   public static Datastore get(@NonNull DatastoreOptions options) {
     return CLIENTS.computeIfAbsent(new ClientKey(options, options.getTransportOptions()), key -> {
-      if (CLIENTS.size() >= EXPECTED_MAX_CLIENTS) {
-        log.warning("Created " + (CLIENTS.size() + 1) + " Datastore clients; options expected to be equal may not be");
+      int clientsSize = CLIENTS.size();
+      if (clientsSize >= EXPECTED_MAX_CLIENTS) {
+        log.warning("Created " + (clientsSize + 1) + " Datastore clients; options expected to be equal may not be");
       }
       log.fine(() -> "Creating Datastore client for project " + options.getProjectId() + ", database "
         + options.getDatabaseId() + ", namespace " + options.getNamespace() + ", host " + options.getHost());
