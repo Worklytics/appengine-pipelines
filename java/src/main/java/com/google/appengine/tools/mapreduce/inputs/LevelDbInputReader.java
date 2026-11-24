@@ -15,9 +15,11 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.SneakyThrows;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
@@ -72,11 +74,33 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
    */
   public abstract ReadableByteChannel createReadableByteChannel() throws IOException;
 
+  /**
+   * whether {@code e}, thrown by a read from the channel, means the read started at the end of the input (eg, a
+   * channel that reports that as an error rather than as end-of-stream); if so, it's treated as end-of-stream
+   */
+  protected boolean isReadPastEnd(Exception e) {
+    return false;
+  }
+
   private int read(ByteBuffer result) throws IOException {
     int totalRead = 0;
     while (result.hasRemaining()) {
-      int read = in.read(result);
+      int read;
+      try {
+        read = in.read(result);
+      } catch (IOException | RuntimeException e) {
+        if (!isReadPastEnd(e)) {
+          throw e;
+        }
+        read = -1;
+      }
       if (read == -1) {
+        // input is exhausted, for good. Drop the channel: GCS's, even when it reports end-of-stream, can hold on to
+        // the error from reading past the end, and rethrow it later (on capture(), the next read, or close())
+        if (!(in instanceof EndOfInputChannel)) {
+          closeQuietly(in);
+          in = new EndOfInputChannel();
+        }
         if (totalRead == 0) {
           totalRead = -1;
         }
@@ -106,7 +130,7 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
    */
   @Override
   public void endShard() throws IOException {
-    CloseUtils.closeQuietly(in);
+    closeQuietly(in);
   }
 
   @SneakyThrows
@@ -163,9 +187,17 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
         channelState = null;
       }
 
-      CloseUtils.closeQuietly(in);
+      closeQuietly(in);
       in = null;
     }
+  }
+
+  /**
+   * closes, ignoring any failure: unlike CloseUtils.closeQuietly(Closeable), also unchecked ones, which GCS channels
+   * throw (eg, a read error they held on to)
+   */
+  private static void closeQuietly(ReadableByteChannel channel) {
+    CloseUtils.closeQuietly((AutoCloseable) channel);
   }
 
   private static ByteBuffer allocate(int size) {
@@ -348,6 +380,34 @@ public abstract class LevelDbInputReader extends InputReader<ByteBuffer> {
     long remaining = bytesToSkip % blockSize;
     if (remaining > 0) {
       readChannel.read(ByteBuffer.allocate((int) remaining));
+    }
+  }
+
+  /**
+   * channel at the end of the input, kept in place of one whose reads failed because they started at the end
+   */
+  private static final class EndOfInputChannel implements ReadableByteChannel, Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    private boolean open = true;
+
+    @Override
+    public int read(ByteBuffer dst) throws IOException {
+      if (!open) {
+        throw new ClosedChannelException();
+      }
+      return -1;
+    }
+
+    @Override
+    public boolean isOpen() {
+      return open;
+    }
+
+    @Override
+    public void close() {
+      open = false;
     }
   }
 }
