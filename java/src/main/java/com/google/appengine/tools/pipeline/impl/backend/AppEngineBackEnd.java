@@ -14,6 +14,7 @@
 
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.google.appengine.tools.pipeline.util.DatastoreClients;
 import com.github.rholder.retry.*;
 import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.pipeline.JobRunId;
@@ -115,7 +116,7 @@ public class AppEngineBackEnd implements PipelineBackEnd, SerializationStrategy 
 
   // Only used in tests
   public AppEngineBackEnd(Options options, PipelineTaskQueue taskQueue, AppEngineServicesService appEngineServicesService) {
-    this(EnvironmentUtils.datastoreBuilderFromDatastoreOptions(options.getDatastoreOptions()).build().getService(), taskQueue, appEngineServicesService);
+    this(DatastoreClients.get(EnvironmentUtils.datastoreBuilderFromDatastoreOptions(options.getDatastoreOptions()).build()), taskQueue, appEngineServicesService);
   }
 
   @Builder

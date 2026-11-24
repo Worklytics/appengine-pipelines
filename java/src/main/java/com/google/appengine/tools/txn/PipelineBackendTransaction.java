@@ -5,6 +5,7 @@ import com.google.appengine.tools.pipeline.impl.tasks.PipelineTask;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.Transaction;
 import com.google.common.collect.Multimap;
+import com.google.datastore.v1.TransactionOptions;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -32,6 +33,15 @@ public interface PipelineBackendTransaction extends Transaction {
 
   static PipelineBackendTransaction newInstance(Datastore datastore, PipelineTaskQueue taskQueue) {
     return new PipelineBackendTransactionImpl(datastore, taskQueue);
+  }
+
+  /**
+   * read-only transaction: consistent snapshot reads without taking locks, so it never contends with
+   * (nor is aborted by) concurrent writers. Close it with commit(); writes fail on commit.
+   */
+  static PipelineBackendTransaction newReadOnlyInstance(Datastore datastore, PipelineTaskQueue taskQueue) {
+    return new PipelineBackendTransactionImpl(datastore, taskQueue,
+      TransactionOptions.newBuilder().setReadOnly(TransactionOptions.ReadOnly.getDefaultInstance()).build());
   }
 
   /**

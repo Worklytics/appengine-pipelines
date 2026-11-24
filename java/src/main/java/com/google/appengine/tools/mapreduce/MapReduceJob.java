@@ -2,6 +2,7 @@
 
 package com.google.appengine.tools.mapreduce;
 
+import com.google.appengine.tools.pipeline.util.DatastoreClients;
 import com.google.appengine.tools.EnvironmentUtils;
 import com.google.appengine.tools.mapreduce.impl.*;
 import com.google.appengine.tools.mapreduce.impl.pipeline.CleanupPipelineJob;
@@ -85,7 +86,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
   protected Datastore getDatastore() {
     if (datastore == null) {
-      datastore = getDatastoreOptions(settings).getService();
+      datastore = DatastoreClients.get(getDatastoreOptions(settings));
     }
     return datastore;
   }
@@ -158,7 +159,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        datastore = settings.getDatastoreOptions().getService();
+        datastore = DatastoreClients.get(settings.getDatastoreOptions());
       }
       return datastore;
     }
@@ -256,7 +257,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        datastore = settings.getDatastoreOptions().getService();
+        datastore = DatastoreClients.get(settings.getDatastoreOptions());
       }
       return datastore;
     }
@@ -358,7 +359,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        datastore = settings.getDatastoreOptions().getService();
+        datastore = DatastoreClients.get(settings.getDatastoreOptions());
       }
       return datastore;
     }
@@ -491,7 +492,7 @@ public class MapReduceJob<I, K, V, O, R> extends Job0<MapReduceResult<R>> {
 
     protected Datastore getDatastore() {
       if (datastore == null) {
-        datastore = settings.getDatastoreOptions().getService();
+        datastore = DatastoreClients.get(settings.getDatastoreOptions());
       }
       return datastore;
     }
