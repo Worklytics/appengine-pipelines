@@ -157,6 +157,22 @@ public class ShardedJobRunner implements ShardedJobHandler {
       .orElse(null);
   }
 
+  /**
+   * job state read in a read-only txn: consistent with its value shards (controller/settings may be stored across
+   * several entities, rewritten by completeShard) but takes no locks, so doesn't contend with concurrent writers
+   */
+  @VisibleForTesting
+  <T extends IncrementalTask> ShardedJobStateImpl<T> lookupJobStateSnapshot(ShardedJobRunId jobId) {
+    PipelineBackendTransaction tx = PipelineBackendTransaction.newReadOnlyInstance(getDatastore(), taskQueue);
+    try {
+      ShardedJobStateImpl<T> jobState = lookupJobState(tx, jobId);
+      tx.commit(); // just to close the txn
+      return jobState;
+    } finally {
+      tx.rollbackIfActive();
+    }
+  }
+
   @VisibleForTesting
   <T extends IncrementalTask> IncrementalTaskState<T> lookupTaskState(@NonNull PipelineBackendTransaction tx, IncrementalTaskId taskId) {
     return (IncrementalTaskState<T>) Optional.ofNullable(tx.get(IncrementalTaskState.makeKey(tx.getDatastore(), taskId)))
@@ -406,15 +422,19 @@ public class ShardedJobRunner implements ShardedJobHandler {
     final AtomicReference<Long> attemptedLockSince = new AtomicReference<>();
 
     AcquiredLock acquiredLock = RetryExecutor.<AcquiredLock>call(FOREVER_RETRYER, () -> {
+      // job state is read from a read-only snapshot, outside the lock-acquisition txn: it's a single entity shared by
+      // all shards, so reading it in every slice's read-write txn made those txns contend with each other and with
+      // completeShard's writes. Only its status can change after creation; an abort racing with this read is picked
+      // up by the next slice, as it already is for a slice that's running.
+      final ShardedJobStateImpl<? extends IncrementalTask> jobState = lookupJobStateSnapshot(jobId);
+
+      if (jobState == null) {
+        log.info(taskId + ": Job is gone, ignoring runTask call.");
+        return null;
+      }
+
       PipelineBackendTransaction lockAcquisition = PipelineBackendTransaction.newInstance(getDatastore(), taskQueue);
       try {
-        final ShardedJobStateImpl<? extends IncrementalTask> jobState = lookupJobState(lockAcquisition, jobId);
-
-        if (jobState == null) {
-          log.info(taskId + ": Job is gone, ignoring runTask call.");
-          return null;
-        }
-
         //taskState represents attempt of executing a slice of a shard of a sharded job
         IncrementalTaskState taskState = lookupTaskState(lockAcquisition, taskId);
         IncrementalTaskStatus validationResult = validateTaskState(taskState, sequenceNumber, jobState);

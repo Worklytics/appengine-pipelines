@@ -192,6 +192,30 @@ public class GoogleCloudStorageLevelDbInputReaderTest {
     reader.endSlice();
   }
 
+  @ValueSource(ints = {0, 1, 17})
+  @ParameterizedTest
+  public void testReadingToEndAcrossSlices(int records) throws IOException {
+    writeData(filename, new ByteBufferGenerator(records));
+    GoogleCloudStorageLevelDbInputReader reader =
+        new GoogleCloudStorageLevelDbInputReader(filename, inputOptions());
+    reader.beginShard();
+    ByteBufferGenerator expected = new ByteBufferGenerator(records);
+    while (expected.hasNext()) {
+      reader = SerializationUtils.clone(reader);
+      reader.beginSlice();
+      assertEquals(expected.next(), reader.next());
+      reader.endSlice();
+    }
+    // a slice that starts at the end of the object: input is exhausted, not a failed read
+    for (int i = 0; i < 2; i++) {
+      reader = SerializationUtils.clone(reader);
+      reader.beginSlice();
+      verifyEmpty(reader);
+      reader.endSlice();
+    }
+    reader.endShard();
+  }
+
   private void verifyEmpty(GoogleCloudStorageLevelDbInputReader reader) throws IOException {
     try {
       reader.next();
