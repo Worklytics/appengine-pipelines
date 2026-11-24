@@ -35,6 +35,6 @@ public class MemUsage {
     Runtime runtime = Runtime.getRuntime();
     long totalMemory = runtime.totalMemory();
     long freeMemory = runtime.freeMemory();
-    return (int) (totalMemory - freeMemory) / (1024 * 1024);
+    return (int) ((totalMemory - freeMemory) / (1024 * 1024)); // divide before narrowing: heaps over 2GB overflow int
   }
 }

@@ -100,8 +100,11 @@ public abstract class WorkerShardTask<I, O, C extends WorkerContext<O>> implemen
 
   @Override
   public void cleanup() {
+    // idempotent: cleanup may be called more than once (eg, by a subclass's prepare() on failure, then by the runner);
+    // releasing twice would grow the limiter's budget beyond the memory there is
     if (claimedMemory != null) {
       LIMITER.release(claimedMemory);
+      claimedMemory = null;
     }
   }
 
