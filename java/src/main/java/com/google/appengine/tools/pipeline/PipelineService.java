@@ -14,10 +14,9 @@
 
 package com.google.appengine.tools.pipeline;
 
-import com.google.appengine.tools.pipeline.di.DaggerMultiTenantComponent;
 import com.google.appengine.tools.pipeline.di.TenantComponent;
 import com.google.appengine.tools.pipeline.di.TenantModule;
-import com.google.appengine.tools.pipeline.di.MultiTenantComponent;
+import com.google.appengine.tools.pipeline.di.MultiTenantComponentContainer;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
 import lombok.SneakyThrows;
@@ -39,8 +38,7 @@ public interface PipelineService {
    * @return pipeline service for given options
    */
   static PipelineService getInstance(AppEngineBackEnd.Options options) {
-    MultiTenantComponent component = DaggerMultiTenantComponent.create();
-    TenantComponent clientComponent = component.clientComponent(new TenantModule(options));
+    TenantComponent clientComponent = MultiTenantComponentContainer.getInstance().clientComponent(new TenantModule(options));
     return clientComponent.pipelineService();
   }
 

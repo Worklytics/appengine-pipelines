@@ -102,7 +102,8 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
     // synchronized to deal with parallel stream
     Collection<TaskReference> taskReferences = Collections.synchronizedList(new ArrayList<>());
-    try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
+    CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get(); // shared; not closed here
+    try {
       taskSpecs.forEach(taskSpec -> {
           Task task = createTask(cloudTasksClient, queue, taskSpec);
           taskReferences.add(TaskReference.of(queueName, TaskName.parse(task.getName()).getTask()));
@@ -174,7 +175,8 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
 
   @Override
   public void deleteTasks(Collection<TaskReference> taskReferences) {
-    try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
+    try {
+      CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get(); // shared; not closed here
       taskReferences.stream()
         .map(this::fromReference).forEach(taskName -> {
         int attempts = 0;
@@ -263,19 +265,18 @@ public class CloudTasksTaskQueue implements PipelineTaskQueue {
   @SneakyThrows
   String cloudTasksLocationFromAppEngineLocation(@NonNull String appEngineLocation) {
     return locationCache.get(appEngineLocation, () -> {
-      try (CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get()) {
-        CloudTasksClient.ListLocationsPagedResponse locations =
-          cloudTasksClient.listLocations(ListLocationsRequest.newBuilder().
-            setName("projects/" + appEngineEnvironment.getProjectId())
-            .build());
-        // this is picking ~the first location in list in the GAE region  (eg, us-central --> us-central1)
-        // afaik, queues always end up here by default (we don't specify location in our queue.yaml)
-        // but in theory might be somewhere else ... so probably should have a CLOUD_TASK_QUEUE_LOCATION env var or something
-        // that would be taken in preference to doing this API call
-        Optional<Location> queueLocation =
-          locations.getPage().streamAll().filter(location -> location.getLocationId().startsWith(appEngineLocation)).findFirst();
-        return queueLocation.map(Location::getLocationId).orElseThrow(() -> new Error("No queue location matching " + appEngineLocation));
-      }
+      CloudTasksClient cloudTasksClient = cloudTasksClientProvider.get(); // shared; not closed here
+      CloudTasksClient.ListLocationsPagedResponse locations =
+        cloudTasksClient.listLocations(ListLocationsRequest.newBuilder().
+          setName("projects/" + appEngineEnvironment.getProjectId())
+          .build());
+      // this is picking ~the first location in list in the GAE region  (eg, us-central --> us-central1)
+      // afaik, queues always end up here by default (we don't specify location in our queue.yaml)
+      // but in theory might be somewhere else ... so probably should have a CLOUD_TASK_QUEUE_LOCATION env var or something
+      // that would be taken in preference to doing this API call
+      Optional<Location> queueLocation =
+        locations.getPage().streamAll().filter(location -> location.getLocationId().startsWith(appEngineLocation)).findFirst();
+      return queueLocation.map(Location::getLocationId).orElseThrow(() -> new Error("No queue location matching " + appEngineLocation));
     });
   }
 

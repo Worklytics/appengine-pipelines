@@ -29,8 +29,7 @@ import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobRunner;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobSettings;
 import com.google.appengine.tools.mapreduce.impl.shardedjob.ShardedJobState;
 import com.google.appengine.tools.pipeline.*;
-import com.google.appengine.tools.pipeline.di.DaggerMultiTenantComponent;
-import com.google.appengine.tools.pipeline.di.MultiTenantComponent;
+import com.google.appengine.tools.pipeline.di.MultiTenantComponentContainer;
 import com.google.appengine.tools.pipeline.di.TenantModule;
 import com.google.appengine.tools.pipeline.impl.backend.AppEngineBackEnd;
 import com.google.appengine.tools.pipeline.impl.backend.PipelineBackEnd;
@@ -112,8 +111,7 @@ public class PipelineManager implements PipelineRunner, PipelineOrchestrator {
   final PipelineBackEnd backEnd;
 
   public static PipelineManager getInstance(AppEngineBackEnd.Options options) {
-    MultiTenantComponent multiTenantComponent =  DaggerMultiTenantComponent.create();
-    return multiTenantComponent.clientComponent(new TenantModule(options)).pipelineManager();
+    return MultiTenantComponentContainer.getInstance().clientComponent(new TenantModule(options)).pipelineManager();
   }
 
   public static PipelineManager getInstance() {

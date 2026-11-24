@@ -1,5 +1,6 @@
 package com.google.appengine.tools.pipeline.impl.backend;
 
+import com.google.appengine.tools.pipeline.util.GoogleApiClients;
 import com.google.appengine.v1.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
@@ -11,7 +12,6 @@ import lombok.extern.java.Log;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
@@ -24,9 +24,9 @@ import java.util.logging.Level;
  * NOTE: uses guava caches, which should be thread-safe
  * also caches the location of the app, with logic to make this thread-safe
  *
- * Ideally, this is a singleton, but actually marking it as such messes up the Dagger compile for some reason ...
- *
- * The module that binds this IS a singleton, so hopefully that makes this a singleton too in practice.
+ * Singleton per Dagger component; expect one per process, as long as components are (see
+ * {@link com.google.appengine.tools.pipeline.di.MultiTenantComponent}). The API clients it uses are process-wide
+ * regardless ({@link GoogleApiClients}), and must not be closed.
  */
 @Singleton
 @Log
@@ -92,27 +92,15 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   }
 
   static ApplicationsClient getApplicationsClientProvider() {
-    try {
-      return ApplicationsClient.create();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    return GoogleApiClients.applications();
   }
 
   static ServicesClient getServicesClientProvider() {
-    try {
-      return ServicesClient.create();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    return GoogleApiClients.services();
   }
 
   static VersionsClient getVersionsClientProvider() {
-    try {
-      return VersionsClient.create();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    return GoogleApiClients.versions();
   }
 
   Cache<String, String> defaultVersionCache = CacheBuilder.newBuilder()
@@ -171,7 +159,8 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   }
 
   private synchronized void fillLocation() {
-    try (ApplicationsClient applicationsClient = applicationsClientProvider.get()) {
+    try {
+      ApplicationsClient applicationsClient = applicationsClientProvider.get(); // shared; not closed here
       Application application = applicationsClient.getApplication("apps/" + appEngineEnvironment.getProjectId());
       location = application.getLocationId();
     } catch (Throwable e) {
@@ -187,7 +176,8 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
 
     int attempts = 0;
     while (true) {
-      try (ServicesClient servicesClient = servicesClientProvider.get()) {
+      try {
+        ServicesClient servicesClient = servicesClientProvider.get(); // shared; not closed here
         GetServiceRequest request = GetServiceRequest.newBuilder().setName(serviceEntityNameFragment(service)).build();
         Service response = servicesClient.getService(request);
         return response.getSplit().getAllocationsMap().entrySet().stream().sorted(Map.Entry.<String, Double>comparingByValue().reversed()).findFirst().orElseThrow().getKey();
@@ -204,7 +194,8 @@ public class AppEngineServicesServiceImpl implements AppEngineServicesService {
   private  String getWorkerServiceHostNameInternal(String service, String version) {
     int attempts = 0;
     while (true) {
-      try (VersionsClient versionsClient = this.versionsClientProvider.get()) {
+      try {
+        VersionsClient versionsClient = this.versionsClientProvider.get(); // shared; not closed here
         Version versionResponse = versionsClient.getVersion(GetVersionRequest.newBuilder().setName(serviceEntityNameFragment(service) + "/versions/" + version).build());
         return versionResponse.getVersionUrl().replace("https://", "");
       } catch (Exception e) {
